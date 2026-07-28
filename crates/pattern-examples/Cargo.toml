@@ -1,0 +1,32 @@
+[package]
+name = "pattern-examples"
+description = "Composition patterns over the Omnia guest capabilities: cache-aside decoding, config-carried credentials, and relational geo queries"
+readme = "README.md"
+publish = false
+authors.workspace = true
+categories.workspace = true
+edition.workspace = true
+keywords.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+version.workspace = true
+
+[lints]
+workspace = true
+
+[lib]
+crate-type = ["lib"]
+
+[dependencies]
+anyhow.workspace = true
+bytes.workspace = true
+http.workspace = true
+http-body-util.workspace = true
+omnia-guest.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+
+[dev-dependencies]
+http-body.workspace = true
+tokio.workspace = true

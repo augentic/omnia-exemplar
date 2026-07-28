@@ -15,6 +15,7 @@ cfg_if::cfg_if! {
         use omnia_wasi_keyvalue::{WasiKeyValue, KeyValueDefault};
         use omnia_wasi_messaging::{WasiMessaging, MessagingDefault};
         use omnia_wasi_otel::{WasiOtel, OtelDefault};
+        use omnia_wasi_sql::{WasiSql, SqlDefault};
 
         omnia::runtime!({
             hosts: {
@@ -24,6 +25,7 @@ cfg_if::cfg_if! {
                 WasiKeyValue: KeyValueDefault,
                 WasiMessaging: MessagingDefault,
                 WasiOtel: OtelDefault,
+                WasiSql: SqlDefault,
             }
         });
     } else {

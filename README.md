@@ -2,27 +2,30 @@
 
 A reference implementation for building [omnia](https://github.com/augentic/omnia)
 services. It models a fictional transit operator ("Acme") that consolidates
-realtime vehicle data processing into WASM guests: SOAP/XML position feeds,
+realtime vehicle data processing into a WASM guest: SOAP/XML position feeds,
 passenger counting, and GTFS realtime adaptation.
 
-The same domain logic is exposed through **two guest styles, side by side**, so
-you can compare the typed `omnia-guest` API with hand-written Axum handlers and
-pick the style that fits your service.
+Domain logic lives under `crates/*` as `Operation<P>` implementations. The
+**guest is the workspace root package** (`src/lib.rs`) — hand-written Axum
+HTTP handlers and exact-topic messaging over a shared `Invoker`. Match this
+layout when creating a new Omnia service: root `src/`, not a `guests/<name>/`
+tree.
+
+Typed `omnia_guest::api` HTTP / messaging routers are a documented fallback
+in the Emery omnia target adapter only; this repository does not ship a
+compiling typed guest.
 
 ## Quick start
 
 ```shell
-# build both guests
+# build the guest
 cargo build --target wasm32-wasip2 --release
 
-# run one of them with its example host runtime
-cp guests/typed/examples/.env.example .env   # then fill in values
+# run it with the example host runtime
+cp .env.example .env   # then fill in values
 set -a; source .env; set +a
-cargo run -p guest-typed --example typed-runner -- run target/wasm32-wasip2/release/guest_typed.wasm
+cargo run --example runtime -- run target/wasm32-wasip2/release/guest.wasm
 ```
-
-Substitute `guest-axum` / `axum-runner` / `guest_axum.wasm` to run the
-Axum-style guest — both serve identical routes and topics.
 
 ## Architecture
 
@@ -59,44 +62,22 @@ Two shapes of service repeat throughout the pipeline:
 
 Start a new service from the closest template.
 
-## The two guest styles
+## Guest packaging
 
-**Prefer style A (typed).** It is the least code and the hardest to get
-wrong. Drop to style B only when you need transport-level control the typed
-router does not give you: custom extractors, middleware, response shaping, or
-messaging dispatch that doesn't fit the router.
+The root `Cargo.toml` is both the workspace and the deployable guest package
+(`name = "guest"`, `crate-type = ["cdylib"]`). Workspace members are
+`crates/*` (plus `templates/check` for the template gate). There is no
+`guests/` directory.
 
-### Style A — typed routers (`guests/typed`)
+The guest:
 
-Routes bind an `Operation` directly to a path or topic; the router handles
-transport decoding, invocation, and response projection:
-
-- `omnia_guest::api::http::Router` with `get::<Op, P>()` / `post::<Op, P>()`
-- `omnia_guest::api::messaging::Router` with `consume::<Op>()`, plus
-  `decode_with` for non-JSON payloads (the Pulse XML feed)
-- Non-JSON HTTP ingress drops down to the underlying Axum router
-  (`router.into_axum()`) for a single hand-written route
-
-### Style B — plain Axum (`guests/axum`)
-
-Hand-written Axum handlers served through `omnia_wasi_http::serve`, and a raw
-`incoming-handler` messaging export that matches on exact topic. Each handler
-decodes its own payload and invokes the shared operation through an `Invoker`.
-
-### What both share
-
-- Domain logic lives in `crates/*` as `Operation<P>` implementations; the
-  guests are thin routing layers over the same operations.
-- Routes and topics come from the canonical tables in
-  `acme_common::routes`, so the two styles serve the same surface by
-  construction.
-- A unit `Provider` struct with the WASI-backed default capability
-  implementations (`Config`, `HttpRequest`, `Identity`, `Publish`,
-  `StateStore`).
-- `wasip3::http::service::export!` + `omnia_wasi_messaging::export!` exports,
-  with `#[omnia_wasi_otel::instrument]` on the entry handlers.
-- A native host-runner example (`examples/runner.rs`) built with
-  `omnia::runtime!`.
+- Serves hand-written Axum handlers through `omnia_wasi_http::serve`
+- Exports messaging with `omnia_wasi_messaging::export!`, matching **exact**
+  env-qualified topics
+- Uses a unit `Provider` with WASI-backed default capability impls
+  (`Config`, `HttpRequest`, `Identity`, `Publish`, `StateStore`)
+- Invokes domain operations through a shared `Invoker`
+- Ships a native host example at `examples/runtime.rs` via `omnia::runtime!`
 
 ## Routes and topics
 
@@ -127,8 +108,8 @@ consumer is out of scope for the exemplar.
 | `crates/tally-connector` | HTTP ingress for the vendor "Tally" passenger-count feed |
 | `crates/gtfs-adapter` | Converts Motion events into GTFS-realtime vehicle positions |
 | `crates/capability-examples` | Domain-free operations proving the remaining capabilities: `BlobStore`, `Broadcast`, `DocumentStore`, `TableStore` |
-| `guests/typed` | Style A guest binary |
-| `guests/axum` | Style B guest binary |
+| `crates/pattern-examples` | Composition patterns: decode-through-cache, config-carried client certificates, and relational geo queries through the ORM |
+| root package (`guest`) | Axum + exact-topic WASM guest binary |
 
 Domain crates depend only on the `omnia-guest` capability traits (`Config`,
 `HttpRequest`, `Identity`, `Publish`, `StateStore`; `capability-examples`
@@ -145,10 +126,8 @@ tests.
 3. Implement the input type and `Operation<P>` with the narrowest capability
    bounds it needs (e.g. `P: Provider + Config + Publish`).
 4. Add any new topic suffix or HTTP path to `acme_common::routes`, and any
-   new configuration key to `acme_common::config` plus both guest
-   `.env.example` files.
-5. Wire the operation into **both** guests from the shared route tables
-   (`guests/typed/src/lib.rs` and `guests/axum/src/lib.rs`).
+   new configuration key to `acme_common::config` plus `.env.example`.
+5. Wire the operation into `src/lib.rs` from the shared route tables.
 6. Add fixtures under the crate's `data/` and native tests under `tests/`
    with a mock provider (copy the shape of `crates/tally-connector/tests` or
    `crates/gtfs-adapter/tests`).
@@ -156,8 +135,8 @@ tests.
 
 ## Configuration
 
-All keys are declared as constants in `acme_common::config`; the guest
-`.env.example` files carry sample values.
+All keys are declared as constants in `acme_common::config`; `.env.example`
+carries sample values.
 
 | Key | Used by | Purpose |
 | --- | --- | --- |
@@ -168,6 +147,8 @@ All keys are declared as constants in `acme_common::config`; the guest
 | `STATIC_API_URL` | pulse-adapter | Static GTFS API base URL |
 | `API_IDENTITY` | gtfs-adapter, pulse-adapter | Identity used to acquire access tokens for the operator APIs |
 | `GOD_MODE_ENABLED` | gtfs-adapter | Runtime switch for the god-mode override (also requires the `god-mode` build feature) |
+| `PATTERN_DECODER_URL` | pattern-examples | Decoder endpoint for the decode-through-cache example |
+| `PATTERN_CLIENT_CERT` | pattern-examples | Client certificate forwarded to the decoder as a `Client-Cert` header |
 
 ## State keys
 
@@ -181,14 +162,26 @@ state.
 
 Patterns worth copying into new services:
 
-- `Operation<P>` domain logic behind capability traits, with guests as thin
-  routing layers.
+- `Operation<P>` domain logic behind capability traits, with the guest as a
+  thin routing layer at the **workspace root** (`src/lib.rs`).
 - One canonical route/topic table (`acme_common::routes`) consumed by
-  producers, consumers, and both guests.
+  producers, consumers, and the guest.
 - Named config keys with a single documented resolution policy
   (`acme_common::config`).
 - Native mock-provider tests plus captured fixtures (`tests/` +
   `data/` in each crate).
+- Decode-through-cache: expensive lookups go through `StateStore` in one
+  operation — miss → `Config` → `HttpRequest` → write back with a TTL —
+  instead of a separate cache-population process
+  (`pattern_examples::decode`).
+- Credential material in `Config`, carried as ordinary request data (the
+  `Client-Cert` header), so outbound HTTP stays generic.
+- Spy mocks: the test provider records outbound HTTP requests so tests
+  assert on what left the guest — shape, headers, and call count
+  (`crates/pattern-examples/tests/provider.rs`).
+- Radius queries as bounding-box `SELECT`s through `TableStore` and the
+  ORM, refined by haversine in Rust — never a geospatial extension bolted
+  onto the KV state store (`pattern_examples::place`).
 
 Acme domain quirks that are **not** general patterns:
 
@@ -223,6 +216,9 @@ cargo nextest run            # or: cargo test --workspace --all-features
   sessions captured from a live system (`data/replay`, `data/static`)
 - `crates/capability-examples/tests` — one in-memory mock provider covering
   `BlobStore`/`Broadcast`/`DocumentStore`/`TableStore`
+- `crates/pattern-examples/tests` — a spy mock provider that records
+  outbound HTTP requests, covering the decode cache (hit and miss) and the
+  ORM-backed nearby query
 
 ## Guest template contract
 
@@ -242,6 +238,11 @@ There is no vendored or baked-in copy anywhere. **Merges to `main` are
 therefore release acts**: the CI gate (including the template contract
 check below) is required on merge, not advisory, because downstream
 consumers track `main` unpinned.
+
+The adapter pins exact `schema-version` values for `exemplar.yaml` and
+`templates/guest/manifest.yaml`. Bumping either version here requires a
+coordinated adapter release, or consumer builds fail closed at the
+scaffold prelude.
 
 The contract is enforced by the `template-check` gate, which runs
 inside the standard test suite and stand-alone:
