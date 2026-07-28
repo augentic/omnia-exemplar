@@ -1278,7 +1278,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "guest-axum"
+name = "guest"
 version = "0.1.0"
 dependencies = [
  "acme-common",
@@ -1298,32 +1298,6 @@ dependencies = [
  "pulse-adapter",
  "pulse-connector",
  "serde_json",
- "tally-connector",
- "tokio",
- "tracing",
- "wasip3",
-]
-
-[[package]]
-name = "guest-typed"
-version = "0.1.0"
-dependencies = [
- "acme-common",
- "anyhow",
- "axum",
- "capability-examples",
- "cfg-if",
- "gtfs-adapter",
- "omnia",
- "omnia-guest",
- "omnia-wasi-config",
- "omnia-wasi-http",
- "omnia-wasi-identity",
- "omnia-wasi-keyvalue",
- "omnia-wasi-messaging",
- "omnia-wasi-otel",
- "pulse-adapter",
- "pulse-connector",
  "tally-connector",
  "tokio",
  "tracing",

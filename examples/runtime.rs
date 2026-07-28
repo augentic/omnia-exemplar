@@ -1,10 +1,10 @@
-//! Host runner for the typed guest.
+//! Host runtime for the WASM guest.
 //!
 //! Build the guest for `wasm32-wasip2` and run it with:
 //!
 //! ```shell
-//! cargo build -p guest-typed --target wasm32-wasip2 --release
-//! cargo run -p guest-typed --example runner -- run target/wasm32-wasip2/release/guest_typed.wasm
+//! cargo build -p guest --target wasm32-wasip2 --release
+//! cargo run --example runtime -- run target/wasm32-wasip2/release/guest.wasm
 //! ```
 
 cfg_if::cfg_if! {
