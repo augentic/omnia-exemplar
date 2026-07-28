@@ -368,6 +368,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "capability-examples"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "omnia-guest",
+ "omnia-wasi-sql",
+ "serde",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
 name = "cc"
 version = "1.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1299,6 +1311,7 @@ dependencies = [
  "acme-common",
  "anyhow",
  "axum",
+ "capability-examples",
  "cfg-if",
  "gtfs-adapter",
  "omnia",
