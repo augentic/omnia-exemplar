@@ -70,8 +70,7 @@ where
 
         // Cache hit: no config read, no outbound request.
         if let Some(bytes) = StateStore::get(provider, &key).await? {
-            let segment =
-                serde_json::from_slice(&bytes).context("parsing cached segment")?;
+            let segment = serde_json::from_slice(&bytes).context("parsing cached segment")?;
             return Ok(DecodeSegmentReply {
                 cached: true,
                 segment,
@@ -100,8 +99,7 @@ where
         }
 
         let body = response.into_body();
-        let segment: Segment =
-            serde_json::from_slice(&body).context("parsing decoder response")?;
+        let segment: Segment = serde_json::from_slice(&body).context("parsing decoder response")?;
 
         // Write back through the cache so the next lookup short-circuits.
         let bytes = serde_json::to_vec(&segment).context("serializing segment for cache")?;

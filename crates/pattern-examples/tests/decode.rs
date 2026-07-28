@@ -4,8 +4,8 @@
 mod provider;
 
 use omnia_guest::api::{Invocation, Invoker};
-use pattern_examples::decode::{DecodeSegmentRequest, segment_key};
 use pattern_examples::Segment;
+use pattern_examples::decode::{DecodeSegmentRequest, segment_key};
 
 use self::provider::MockProvider;
 
@@ -54,8 +54,7 @@ async fn miss_fetches_with_cert_and_caches() {
 async fn hit_skips_config_and_http() {
     let provider = MockProvider::default();
     let segment = serde_json::json!({ "code": "seg-2", "points": [[0.0, 0.0]] });
-    provider
-        .seed_state(&segment_key("seg-2"), serde_json::to_vec(&segment).expect("serialize"));
+    provider.seed_state(&segment_key("seg-2"), serde_json::to_vec(&segment).expect("serialize"));
 
     let request = DecodeSegmentRequest {
         code: "seg-2".to_string(),

@@ -26,10 +26,7 @@ async fn nearby(
     invoker: &Invoker<MockProvider>, lat: f64, lon: f64, radius_m: f64,
 ) -> pattern_examples::NearbyPlacesReply {
     let request = NearbyPlacesRequest { lat, lon, radius_m };
-    invoker
-        .invoke::<NearbyPlacesRequest>(Invocation::new(request))
-        .await
-        .expect("should succeed")
+    invoker.invoke::<NearbyPlacesRequest>(Invocation::new(request)).await.expect("should succeed")
 }
 
 #[tokio::test]

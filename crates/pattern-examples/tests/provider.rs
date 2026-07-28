@@ -126,9 +126,7 @@ impl StateStore for MockProvider {
 }
 
 impl TableStore for MockProvider {
-    async fn query(
-        &self, _conn: String, query: String, params: Vec<DataType>,
-    ) -> Result<Vec<Row>> {
+    async fn query(&self, _conn: String, query: String, params: Vec<DataType>) -> Result<Vec<Row>> {
         ensure!(query.starts_with("SELECT"), "unexpected query: {query}");
 
         // Bound params in the order the nearby operation's filters push
