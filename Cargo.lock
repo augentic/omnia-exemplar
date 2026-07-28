@@ -1295,6 +1295,8 @@ dependencies = [
  "omnia-wasi-keyvalue",
  "omnia-wasi-messaging",
  "omnia-wasi-otel",
+ "omnia-wasi-sql",
+ "pattern-examples",
  "pulse-adapter",
  "pulse-connector",
  "serde_json",
@@ -2561,6 +2563,21 @@ name = "pastey"
 version = "0.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2ee67f1008b1ba2321834326597b8e186293b049a023cdef258527550b9935b4"
+
+[[package]]
+name = "pattern-examples"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "bytes",
+ "http",
+ "http-body",
+ "http-body-util",
+ "omnia-guest",
+ "serde",
+ "serde_json",
+ "tokio",
+]
 
 [[package]]
 name = "percent-encoding"

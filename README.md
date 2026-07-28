@@ -127,6 +127,7 @@ consumer is out of scope for the exemplar.
 | `crates/tally-connector` | HTTP ingress for the vendor "Tally" passenger-count feed |
 | `crates/gtfs-adapter` | Converts Motion events into GTFS-realtime vehicle positions |
 | `crates/capability-examples` | Domain-free operations proving the remaining capabilities: `BlobStore`, `Broadcast`, `DocumentStore`, `TableStore` |
+| `crates/pattern-examples` | Composition patterns: decode-through-cache, config-carried client certificates, and relational geo queries through the ORM |
 | `guests/typed` | Style A guest binary |
 | `guests/axum` | Style B guest binary |
 
@@ -168,6 +169,8 @@ All keys are declared as constants in `acme_common::config`; the guest
 | `STATIC_API_URL` | pulse-adapter | Static GTFS API base URL |
 | `API_IDENTITY` | gtfs-adapter, pulse-adapter | Identity used to acquire access tokens for the operator APIs |
 | `GOD_MODE_ENABLED` | gtfs-adapter | Runtime switch for the god-mode override (also requires the `god-mode` build feature) |
+| `PATTERN_DECODER_URL` | pattern-examples | Decoder endpoint for the decode-through-cache example |
+| `PATTERN_CLIENT_CERT` | pattern-examples | Client certificate forwarded to the decoder as a `Client-Cert` header |
 
 ## State keys
 
@@ -189,6 +192,18 @@ Patterns worth copying into new services:
   (`acme_common::config`).
 - Native mock-provider tests plus captured fixtures (`tests/` +
   `data/` in each crate).
+- Decode-through-cache: expensive lookups go through `StateStore` in one
+  operation — miss → `Config` → `HttpRequest` → write back with a TTL —
+  instead of a separate cache-population process
+  (`pattern_examples::decode`).
+- Credential material in `Config`, carried as ordinary request data (the
+  `Client-Cert` header), so outbound HTTP stays generic.
+- Spy mocks: the test provider records outbound HTTP requests so tests
+  assert on what left the guest — shape, headers, and call count
+  (`crates/pattern-examples/tests/provider.rs`).
+- Radius queries as bounding-box `SELECT`s through `TableStore` and the
+  ORM, refined by haversine in Rust — never a geospatial extension bolted
+  onto the KV state store (`pattern_examples::place`).
 
 Acme domain quirks that are **not** general patterns:
 
@@ -223,6 +238,9 @@ cargo nextest run            # or: cargo test --workspace --all-features
   sessions captured from a live system (`data/replay`, `data/static`)
 - `crates/capability-examples/tests` — one in-memory mock provider covering
   `BlobStore`/`Broadcast`/`DocumentStore`/`TableStore`
+- `crates/pattern-examples/tests` — a spy mock provider that records
+  outbound HTTP requests, covering the decode cache (hit and miss) and the
+  ORM-backed nearby query
 
 ## Guest template contract
 

@@ -27,6 +27,10 @@ use gtfs_adapter::{SetTripReply, SetTripRequest};
 use omnia_guest::api::{Invocation, Invoker};
 use omnia_guest::{HttpError, HttpResult};
 use omnia_wasi_messaging::types::{Error, Message};
+use pattern_examples::{
+    DecodeSegmentReply, DecodeSegmentRequest, NearbyPlacesReply, NearbyPlacesRequest,
+    UpsertPlaceReply, UpsertPlaceRequest,
+};
 use pulse_adapter::PulseMessage;
 use pulse_connector::PulseRequest;
 use tally_connector::{TallyReply, TallyRequest};
@@ -46,6 +50,7 @@ impl omnia_guest::HttpRequest for Provider {}
 impl omnia_guest::Identity for Provider {}
 impl omnia_guest::Publish for Provider {}
 impl omnia_guest::StateStore for Provider {}
+impl omnia_guest::TableStore for Provider {}
 
 fn invoker() -> Invoker<Provider> {
     Invoker::new(OWNER, Provider)
@@ -61,7 +66,11 @@ impl Guest for Http {
         let router = Router::new()
             .route(routes::http::APC, post(tally_message))
             .route(routes::http::PULSE_XML, post(pulse_message))
-            .route(routes::http::VEHICLE_INFO, get(vehicle_info));
+            .route(routes::http::VEHICLE_INFO, get(vehicle_info))
+            // Pattern-example routes, outside the canonical transit tables.
+            .route(pattern_examples::routes::DECODE, post(decode_segment))
+            .route(pattern_examples::routes::PLACES, post(upsert_place))
+            .route(pattern_examples::routes::NEARBY, get(nearby_places));
 
         #[cfg(feature = "god-mode")]
         let router = router.route(routes::http::SET_TRIP, post(set_trip));
@@ -94,6 +103,27 @@ async fn set_trip(
 ) -> HttpResult<Json<SetTripReply>> {
     let request = SetTripRequest { vehicle_id, trip_id };
     let reply = invoker().invoke::<SetTripRequest>(Invocation::new(request)).await?;
+    Ok(Json(reply))
+}
+
+async fn decode_segment(
+    Json(request): Json<DecodeSegmentRequest>,
+) -> HttpResult<Json<DecodeSegmentReply>> {
+    let reply = invoker().invoke::<DecodeSegmentRequest>(Invocation::new(request)).await?;
+    Ok(Json(reply))
+}
+
+async fn upsert_place(
+    Json(request): Json<UpsertPlaceRequest>,
+) -> HttpResult<Json<UpsertPlaceReply>> {
+    let reply = invoker().invoke::<UpsertPlaceRequest>(Invocation::new(request)).await?;
+    Ok(Json(reply))
+}
+
+async fn nearby_places(
+    Json(request): Json<NearbyPlacesRequest>,
+) -> HttpResult<Json<NearbyPlacesReply>> {
+    let reply = invoker().invoke::<NearbyPlacesRequest>(Invocation::new(request)).await?;
     Ok(Json(reply))
 }
 
