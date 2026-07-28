@@ -91,10 +91,12 @@ omnia-wasi-identity = "0.35.0"
 omnia-wasi-keyvalue = "0.35.0"
 omnia-wasi-messaging = "0.35.0"
 omnia-wasi-otel = "0.35.0"
+omnia-wasi-sql = "0.35.0"
 
 # Internally referenced crates
 acme-common = { path = "crates/common" }
 acme-test = { path = "crates/test" }
+capability-examples = { path = "crates/capability-examples" }
 gtfs-adapter = { path = "crates/gtfs-adapter" }
 pulse-adapter = { path = "crates/pulse-adapter" }
 pulse-connector = { path = "crates/pulse-connector" }
@@ -111,6 +113,7 @@ omnia-wasi-identity = { git = "https://github.com/augentic/omnia", rev = "08cd05
 omnia-wasi-keyvalue = { git = "https://github.com/augentic/omnia", rev = "08cd05a3363260e7f47e1cf3848a923d7ed5df2d" }
 omnia-wasi-messaging = { git = "https://github.com/augentic/omnia", rev = "08cd05a3363260e7f47e1cf3848a923d7ed5df2d" }
 omnia-wasi-otel = { git = "https://github.com/augentic/omnia", rev = "08cd05a3363260e7f47e1cf3848a923d7ed5df2d" }
+omnia-wasi-sql = { git = "https://github.com/augentic/omnia", rev = "08cd05a3363260e7f47e1cf3848a923d7ed5df2d" }
 
 # `wrpc-wasmtime` 0.1.0 is unpublished on crates.io.
 wrpc-transport = { git = "https://github.com/bytecodealliance/wrpc" }

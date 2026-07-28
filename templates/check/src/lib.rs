@@ -1,9 +1,11 @@
 //! Producer gate for the guest template contract.
 //!
 //! Validates `exemplar.yaml` against `Cargo.toml` / `Cargo.lock`, strictly
-//! parses `templates/guest/manifest.yaml`, enforces token discipline, renders
-//! seed templates with `values.yaml`, syntax-checks the rendered output, and
-//! byte-diffs every `exact` template against its repository-root counterpart.
+//! parses `templates/guest/manifest.yaml`, enforces token discipline and
+//! path safety, requires every `exact` entry to reference its repository-root
+//! file in place (`source == target`, token-free — no second copy), renders
+//! `seed` templates with `values.yaml`, and syntax-checks the rendered
+//! output.
 //!
 //! The gate runs inside the standard test suite (`cargo make test` /
 //! `cargo make ci`) via `tests/gate.rs`, and stand-alone through
@@ -105,9 +107,9 @@ pub fn run(root: &Path) -> Result<Vec<String>, String> {
 
     let manifest_path = root.join(&exemplar.templates.manifest);
     let manifest: Manifest = parse_yaml(&manifest_path)?;
-    if manifest.schema_version != 2 {
+    if manifest.schema_version != 3 {
         failures.push(format!(
-            "manifest: unsupported schema-version {} (expected 2)",
+            "manifest: unsupported schema-version {} (expected 3)",
             manifest.schema_version
         ));
     }
@@ -118,13 +120,19 @@ pub fn run(root: &Path) -> Result<Vec<String>, String> {
         ));
     }
 
-    let template_dir =
-        manifest_path.parent().ok_or("manifest has no parent directory")?.to_path_buf();
-    let values: BTreeMap<String, String> = parse_yaml(&template_dir.join("values.yaml"))?;
+    // Repository-relative template subtree, e.g. `templates/guest`.
+    let subtree = exemplar
+        .templates
+        .manifest
+        .parent()
+        .filter(|parent| !parent.as_os_str().is_empty())
+        .ok_or("manifest has no parent directory")?
+        .to_path_buf();
+    let values: BTreeMap<String, String> = parse_yaml(&root.join(&subtree).join("values.yaml"))?;
 
     check_token_declarations(&manifest.tokens, &values, &mut failures);
-    check_entries(root, &template_dir, &manifest, &values, &mut failures);
-    check_orphans(&template_dir, &manifest, &mut failures)?;
+    check_entries(root, &subtree, &manifest, &values, &mut failures);
+    check_orphans(root, &subtree, &manifest, &mut failures)?;
 
     Ok(failures)
 }
@@ -225,7 +233,7 @@ fn check_token_declarations(
 }
 
 fn check_entries(
-    root: &Path, template_dir: &Path, manifest: &Manifest, values: &BTreeMap<String, String>,
+    root: &Path, subtree: &Path, manifest: &Manifest, values: &BTreeMap<String, String>,
     failures: &mut Vec<String>,
 ) {
     let mut targets = BTreeSet::new();
@@ -235,13 +243,14 @@ fn check_entries(
         if !targets.insert(entry.target.as_str()) {
             failures.push(format!("manifest: duplicate target `{}`", entry.target));
         }
-        if entry.target.starts_with('/') || entry.target.split('/').any(|seg| seg == "..") {
-            failures.push(format!("manifest: unsafe target path `{}`", entry.target));
+        for (label, path) in [("source", &entry.source), ("target", &entry.target)] {
+            if is_unsafe(path) {
+                failures.push(format!("manifest: unsafe {label} path `{path}`"));
+            }
         }
 
-        let source_path = template_dir.join("core").join(&entry.source);
-        let Ok(body) = fs::read_to_string(&source_path) else {
-            failures.push(format!("manifest: missing source `core/{}`", entry.source));
+        let Ok(body) = fs::read_to_string(root.join(&entry.source)) else {
+            failures.push(format!("manifest: missing source `{}`", entry.source));
             continue;
         };
 
@@ -249,41 +258,49 @@ fn check_entries(
         for token in &found {
             used_tokens.insert(token.clone());
             if !manifest.tokens.contains_key(token) {
-                failures.push(format!("core/{}: undeclared token `<{token}>`", entry.source));
+                failures.push(format!("{}: undeclared token `<{token}>`", entry.source));
             }
         }
-        if entry.proof == Proof::Exact && !found.is_empty() {
-            failures.push(format!(
-                "core/{}: proof `exact` forbids tokens, found {}",
-                entry.source,
-                found.iter().map(|token| format!("`<{token}>`")).collect::<Vec<_>>().join(", ")
-            ));
-        }
 
-        let rendered = render(&body, values);
-        if let Some(unresolved) = placeholders(&rendered).first() {
-            failures.push(format!(
-                "core/{}: token `<{unresolved}>` unresolved after rendering",
-                entry.source
-            ));
-        }
-        if let Some(err) = syntax_error(&entry.target, &rendered) {
-            failures.push(format!("core/{}: rendered output is invalid: {err}", entry.source));
-        }
-
-        if entry.proof == Proof::Exact {
-            let root_path = root.join(&entry.target);
-            match fs::read_to_string(&root_path) {
-                Ok(root_body) if root_body == body => {}
-                Ok(_) => failures.push(format!(
-                    "core/{}: differs from `{}` — exact templates must byte-match the \
-                     repository root (authorship flows templates -> root)",
-                    entry.source, entry.target
-                )),
-                Err(err) => failures.push(format!(
-                    "core/{}: proof `exact` but `{}` is unreadable: {err}",
-                    entry.source, entry.target
-                )),
+        match entry.proof {
+            Proof::Exact => {
+                if entry.source != entry.target {
+                    failures.push(format!(
+                        "manifest: proof `exact` requires source == target, got `{}` -> `{}` — \
+                         exact entries reference the repository-root file in place",
+                        entry.source, entry.target
+                    ));
+                }
+                if !found.is_empty() {
+                    failures.push(format!(
+                        "{}: proof `exact` forbids tokens, found {}",
+                        entry.source,
+                        found
+                            .iter()
+                            .map(|token| format!("`<{token}>`"))
+                            .collect::<Vec<_>>()
+                            .join(", ")
+                    ));
+                }
+            }
+            Proof::Seed => {
+                if !Path::new(&entry.source).starts_with(subtree) {
+                    failures.push(format!(
+                        "manifest: seed source `{}` lives outside `{}`",
+                        entry.source,
+                        subtree.display()
+                    ));
+                }
+                let rendered = render(&body, values);
+                if let Some(unresolved) = placeholders(&rendered).first() {
+                    failures.push(format!(
+                        "{}: token `<{unresolved}>` unresolved after rendering",
+                        entry.source
+                    ));
+                }
+                if let Some(err) = syntax_error(&entry.target, &rendered) {
+                    failures.push(format!("{}: rendered output is invalid: {err}", entry.source));
+                }
             }
         }
     }
@@ -295,21 +312,26 @@ fn check_entries(
     }
 }
 
-/// Files under `core/` that the manifest does not map are dead weight the
-/// adapter's `build.rs` would also reject.
+/// Absolute or parent-traversing paths never belong in the manifest.
+fn is_unsafe(path: &str) -> bool {
+    Path::new(path).is_absolute() || path.split('/').any(|segment| segment == "..")
+}
+
+/// Files under the seed directory that the manifest does not map are dead
+/// weight the adapter's runtime scaffold would also reject.
 fn check_orphans(
-    template_dir: &Path, manifest: &Manifest, failures: &mut Vec<String>,
+    root: &Path, subtree: &Path, manifest: &Manifest, failures: &mut Vec<String>,
 ) -> Result<(), String> {
-    let listed: BTreeSet<&str> =
-        manifest.assemblies.core.files.iter().map(|entry| entry.source.as_str()).collect();
-    let core_dir = template_dir.join("core");
+    let listed: BTreeSet<PathBuf> =
+        manifest.assemblies.core.files.iter().map(|entry| PathBuf::from(&entry.source)).collect();
+    let core_dir = root.join(subtree).join("core");
     let entries =
         fs::read_dir(&core_dir).map_err(|err| format!("{}: {err}", core_dir.display()))?;
     for dir_entry in entries {
         let dir_entry = dir_entry.map_err(|err| format!("{}: {err}", core_dir.display()))?;
-        let name = dir_entry.file_name().to_string_lossy().into_owned();
-        if !listed.contains(name.as_str()) {
-            failures.push(format!("core/{name}: not listed in the manifest (orphan)"));
+        let relative = subtree.join("core").join(dir_entry.file_name());
+        if !listed.contains(&relative) {
+            failures.push(format!("{}: not listed in the manifest (orphan)", relative.display()));
         }
     }
     Ok(())

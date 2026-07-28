@@ -17,6 +17,9 @@ use acme_common::{config, routes};
 use axum::body::Bytes;
 use axum::http::header::CONTENT_TYPE;
 use axum::response::{IntoResponse, Response};
+use capability_examples::{
+    AlertRequest, ArchiveRequest, NoteRequest, ReadingRequest, routes as example_routes,
+};
 #[cfg(feature = "god-mode")]
 use gtfs_adapter::SetTripRequest;
 use gtfs_adapter::{MotionMessage, PassengerCountMessage, TrainAvlMessage, VehicleInfoRequest};
@@ -38,11 +41,15 @@ const OWNER: &str = "acme";
 #[derive(Clone)]
 pub struct Provider;
 
+impl omnia_guest::BlobStore for Provider {}
+impl omnia_guest::Broadcast for Provider {}
 impl omnia_guest::Config for Provider {}
+impl omnia_guest::DocumentStore for Provider {}
 impl omnia_guest::HttpRequest for Provider {}
 impl omnia_guest::Identity for Provider {}
 impl omnia_guest::Publish for Provider {}
 impl omnia_guest::StateStore for Provider {}
+impl omnia_guest::TableStore for Provider {}
 
 /// WASI HTTP export.
 pub struct Http;
@@ -53,7 +60,15 @@ impl Guest for Http {
     async fn handle(request: p3::Request) -> Result<p3::Response, p3::ErrorCode> {
         let router = Router::new(Invoker::new(OWNER, Provider))
             .route(routes::http::APC, post::<TallyRequest, Provider>())
-            .route(routes::http::VEHICLE_INFO, get::<VehicleInfoRequest, Provider>());
+            .route(routes::http::VEHICLE_INFO, get::<VehicleInfoRequest, Provider>())
+            // Capability-example routes (typed guest only): they instantiate
+            // the default WASM BlobStore / Broadcast / DocumentStore /
+            // TableStore implementations in a real guest, outside the
+            // canonical transit tables both guest styles share.
+            .route(example_routes::ARCHIVE, post::<ArchiveRequest, Provider>())
+            .route(example_routes::ALERT, post::<AlertRequest, Provider>())
+            .route(example_routes::NOTE, post::<NoteRequest, Provider>())
+            .route(example_routes::READING, post::<ReadingRequest, Provider>());
 
         #[cfg(feature = "god-mode")]
         let router = router.route(routes::http::SET_TRIP, post::<SetTripRequest, Provider>());

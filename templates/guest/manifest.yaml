@@ -1,18 +1,19 @@
 # Guest template contract: the single source-to-target map for the Omnia
-# base-repo scaffold. Fetched by the Emery omnia target adapter's
-# `build.rs` at adapter-build time (no vendored copy in emery-adapters);
+# base-repo scaffold. Read at consumer-build time by the Emery omnia
+# target adapter from the build agent's checkout of this repository;
 # validated here by `cargo make template-check`.
 #
-# Proof modes:
-#   exact — the file must contain no tokens and must byte-match the file
-#           at `target` in this repository's root: the exemplar's own
-#           green CI is the template's proof.
+# Every `source` is repository-relative. Proof modes:
+#   exact — `source` IS the repository-root file at `target` (source ==
+#           target, no tokens, no second copy): this repository's green
+#           CI is the template's proof.
 #   seed  — a project-start baseline the consuming project immediately
 #           evolves (vet state, clippy duplicate lists, deploy
-#           parameters); rendered with `values.yaml` and syntax-checked,
+#           parameters); the body lives under `templates/guest/core/`,
+#           is rendered with `values.yaml` and syntax-checked, and is
 #           never diffed against the root.
 
-schema-version: 2
+schema-version: 3
 
 tokens:
   PACKAGE_NAME: Cargo package name of the deployable guest, filled by the guest writer.
@@ -29,7 +30,7 @@ assemblies:
       - source: Makefile.toml
         target: Makefile.toml
         proof: exact
-      - source: deny.toml
+      - source: templates/guest/core/deny.toml
         target: deny.toml
         proof: seed
       - source: rust-toolchain.toml
@@ -38,39 +39,39 @@ assemblies:
       - source: rustfmt.toml
         target: rustfmt.toml
         proof: exact
-      - source: clippy.toml
+      - source: templates/guest/core/clippy.toml
         target: clippy.toml
         proof: seed
       - source: taplo.toml
         target: taplo.toml
         proof: exact
-      - source: gitignore
+      - source: .gitignore
         target: .gitignore
         proof: exact
-      - source: vscode-settings.json
+      - source: .vscode/settings.json
         target: .vscode/settings.json
         proof: exact
-      - source: supply-chain-README.md
+      - source: supply-chain/README.md
         target: supply-chain/README.md
         proof: exact
-      - source: supply-chain-config.toml
+      - source: templates/guest/core/supply-chain-config.toml
         target: supply-chain/config.toml
         proof: seed
-      - source: supply-chain-audits.toml
+      - source: templates/guest/core/supply-chain-audits.toml
         target: supply-chain/audits.toml
         proof: seed
-      - source: workflow-audit.yaml
+      - source: .github/workflows/audit.yaml
         target: .github/workflows/audit.yaml
         proof: exact
-      - source: workflow-ci.yaml
+      - source: .github/workflows/ci.yaml
         target: .github/workflows/ci.yaml
         proof: exact
-      - source: workflow-patch.yaml
+      - source: .github/workflows/patch.yaml
         target: .github/workflows/patch.yaml
         proof: exact
-      - source: workflow-release.yaml
+      - source: .github/workflows/release.yaml
         target: .github/workflows/release.yaml
         proof: exact
-      - source: workflow-publish.yaml
+      - source: templates/guest/core/workflow-publish.yaml
         target: .github/workflows/publish.yaml
         proof: seed

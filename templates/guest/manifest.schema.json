@@ -2,14 +2,14 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://schemas.emery.dev/omnia/template-manifest.schema.json",
   "title": "Omnia guest template manifest",
-  "description": "Validates `templates/guest/manifest.yaml`: the single source of truth for the Omnia base-repo scaffold source-to-target mappings, owned by omnia-exemplar and fetched at build time by the Emery omnia target adapter.",
+  "description": "Validates `templates/guest/manifest.yaml`: the single source of truth for the Omnia base-repo scaffold source-to-target mappings, owned by omnia-exemplar and read at consumer-build time by the Emery omnia target adapter.",
   "type": "object",
   "required": ["schema-version", "tokens", "assemblies"],
   "additionalProperties": false,
   "properties": {
     "schema-version": {
       "type": "integer",
-      "const": 2,
+      "const": 3,
       "description": "Manifest schema version. Bump on breaking wire changes."
     },
     "tokens": {
@@ -53,7 +53,7 @@
         "source": {
           "type": "string",
           "minLength": 1,
-          "description": "Basename under `templates/guest/<assembly>/`."
+          "description": "Repository-relative path. `exact` entries reference the repository-root file directly (source == target); `seed` bodies live under `templates/guest/core/`."
         },
         "target": {
           "type": "string",
@@ -63,7 +63,7 @@
         "proof": {
           "type": "string",
           "enum": ["exact", "seed"],
-          "description": "`exact`: token-free and byte-identical to the repository root file at `target`. `seed`: project-start baseline; rendered with values.yaml and syntax-checked only."
+          "description": "`exact`: token-free repository-root file, referenced in place (source == target). `seed`: project-start baseline; rendered with values.yaml and syntax-checked only."
         }
       }
     }
