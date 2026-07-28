@@ -3,6 +3,22 @@
 version = 4
 
 [[package]]
+name = "acme-common"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "bytes",
+ "chrono-tz",
+ "http",
+ "http-body-util",
+ "omnia-guest",
+ "serde",
+ "serde_json",
+ "tracing",
+ "urlencoding",
+]
+
+[[package]]
 name = "addr2line"
 version = "0.26.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -467,21 +483,6 @@ checksum = "ba5a308b75df32fe02788e748662718f03fde005016435c444eea572398219fd"
 dependencies = [
  "bytes",
  "memchr",
-]
-
-[[package]]
-name = "common"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "bytes",
- "chrono-tz",
- "http",
- "http-body-util",
- "omnia-guest",
- "serde",
- "serde_json",
- "urlencoding",
 ]
 
 [[package]]
@@ -1212,17 +1213,19 @@ dependencies = [
 name = "gtfs-adapter"
 version = "0.1.0"
 dependencies = [
+ "acme-common",
  "anyhow",
  "bytes",
  "chrono",
  "chrono-tz",
- "common",
  "http",
+ "http-body",
  "http-body-util",
  "omnia-guest",
  "serde",
  "serde_json",
  "thiserror 2.0.19",
+ "tokio",
  "tracing",
  "uuid",
 ]
@@ -1231,6 +1234,7 @@ dependencies = [
 name = "guest-axum"
 version = "0.1.0"
 dependencies = [
+ "acme-common",
  "anyhow",
  "axum",
  "bytes",
@@ -1257,6 +1261,7 @@ dependencies = [
 name = "guest-typed"
 version = "0.1.0"
 dependencies = [
+ "acme-common",
  "anyhow",
  "axum",
  "cfg-if",
@@ -2720,11 +2725,11 @@ dependencies = [
 name = "pulse-adapter"
 version = "0.1.0"
 dependencies = [
+ "acme-common",
  "anyhow",
  "augentic-test",
  "bytes",
  "chrono",
- "common",
  "http",
  "http-body",
  "http-body-util",
@@ -2742,6 +2747,7 @@ dependencies = [
 name = "pulse-connector"
 version = "0.1.0"
 dependencies = [
+ "acme-common",
  "anyhow",
  "omnia-guest",
  "quick-xml",
@@ -3652,6 +3658,7 @@ checksum = "7b2093cf4c8eb1e67749a6762251bc9cd836b6fc171623bd0a9d324d37af2417"
 name = "tally-connector"
 version = "0.1.0"
 dependencies = [
+ "acme-common",
  "anyhow",
  "omnia-guest",
  "serde",

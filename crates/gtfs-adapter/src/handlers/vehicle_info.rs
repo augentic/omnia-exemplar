@@ -1,10 +1,11 @@
 //! Vehicle information lookup.
 
-use common::fleet::{self, Vehicle};
+use acme_common::fleet::{self, Vehicle};
 use omnia_guest::api::{CallContext, Operation, Provider};
 use omnia_guest::{Config, Error, HttpRequest, Identity, Result, StateStore};
 use serde::{Deserialize, Serialize};
 
+use crate::state_keys;
 use crate::trip::TripInstance;
 
 const PROCESS_ID: u32 = 0;
@@ -20,7 +21,8 @@ pub struct VehicleInfoRequest {
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct VehicleInfoReply {
-    /// Process identifier (always 0).
+    /// Always `0`. Retained solely so the reply shape matches the legacy
+    /// system this exemplar was ported from — do not copy into new services.
     pub pid: u32,
     /// The vehicle's unique identifier.
     pub vehicle_id: String,
@@ -43,18 +45,23 @@ where
     type Input = Self;
     type Output = VehicleInfoReply;
 
+    #[tracing::instrument(
+        name = "vehicle_info_request",
+        skip_all,
+        fields(owner = context.owner, vehicle_id = input.vehicle_id),
+    )]
     async fn call(input: Self, context: CallContext<'_, P>) -> Result<VehicleInfoReply> {
         let provider = context.provider;
         let vehicle_id = input.vehicle_id;
 
-        let trip_key = format!("motionGtfs:trip:vehicle:{vehicle_id}");
+        let trip_key = state_keys::trip(&vehicle_id);
         let trip_info = if let Some(bytes) = StateStore::get(provider, &trip_key).await? {
             Some(serde_json::from_slice::<TripInstance>(&bytes)?)
         } else {
             None
         };
 
-        let sign_on_key = format!("motionGtfs:vehicle:signOn:{vehicle_id}");
+        let sign_on_key = state_keys::sign_on(&vehicle_id);
         let sign_on_time = StateStore::get(provider, &sign_on_key)
             .await?
             .map(|bytes| String::from_utf8_lossy(&bytes).to_string());

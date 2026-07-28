@@ -5,12 +5,12 @@
 
 use std::fmt::{self, Display};
 
+use acme_common::{config, routes};
 use anyhow::Context as _;
 use omnia_guest::api::{CallContext, Operation, Provider};
 use omnia_guest::{Config, Error, Message, Publish, Result, bad_request};
 use serde::{Deserialize, Serialize};
 
-const PULSE_TOPIC: &str = "realtime-pulse.v1";
 const ERROR: Fault = Fault {
     status_code: 500,
     response: FaultMessage {
@@ -30,14 +30,17 @@ where
         let provider = context.provider;
         let message = &input.body.receive_message.axml_message;
 
-        // verify message
+        // Verify the message. The rejection body is a pre-rendered SOAP
+        // <Fault> because the Pulse vendor protocol requires an XML fault
+        // envelope. This is a vendor-protocol accommodation, not a general
+        // error-handling pattern — prefer plain structured errors (see the
+        // domain error enums) unless a wire protocol dictates otherwise.
         if message.is_empty() || !message.contains("<ActualizarDatosTren>") {
             return Err(bad_request!("{ERROR}"));
         }
 
         // forward to pulse-adapter topic
-        let env = Config::get(provider, "ENV").await.unwrap_or_else(|_| "dev".to_string());
-        let topic = format!("{env}-{PULSE_TOPIC}");
+        let topic = config::topic(provider, routes::topic::PULSE).await;
 
         let msg = Message::new(message.as_bytes());
         Publish::send(provider, &topic, &msg).await?;

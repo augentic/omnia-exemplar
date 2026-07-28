@@ -2,14 +2,23 @@
 //!
 //! Transforms Motion AVL telemetry into GTFS-realtime vehicle positions.
 
+#[cfg(feature = "god-mode")]
 mod god_mode;
 mod handlers;
 mod location;
 mod serial_data;
+mod state_keys;
 mod trip;
 
-pub use god_mode::*;
-pub use handlers::*;
+pub use handlers::motion::{
+    DecodedSerialData, EventData, EventType, LocationData, MessageData, MotionMessage, RemoteData,
+    SerialData,
+};
+pub use handlers::passenger_count::{PassengerCountMessage, Trip, Vehicle};
+#[cfg(feature = "god-mode")]
+pub use handlers::set_trip::{SetTripReply, SetTripRequest};
+pub use handlers::train_avl::TrainAvlMessage;
+pub use handlers::vehicle_info::{VehicleInfoReply, VehicleInfoRequest};
 use omnia_guest::Error;
 use thiserror::Error;
 

@@ -15,10 +15,15 @@ version.workspace = true
 [lints]
 workspace = true
 
+[features]
+# Compile in the god-mode trip override route (operational tool, off by default).
+god-mode = ["gtfs-adapter/god-mode"]
+
 [lib]
 crate-type = ["cdylib"]
 
 [dependencies]
+acme-common.workspace = true
 anyhow.workspace = true
 axum.workspace = true
 bytes.workspace = true
@@ -46,5 +51,5 @@ omnia-wasi-keyvalue.workspace = true
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 
 [[example]]
-name = "runner"
+name = "axum-runner"
 path = "examples/runner.rs"

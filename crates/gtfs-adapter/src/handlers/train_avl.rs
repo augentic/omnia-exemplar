@@ -1,6 +1,6 @@
 //! Train AVL message filtering.
 
-use common::fleet;
+use acme_common::{fleet, routes};
 use omnia_guest::api::{CallContext, Operation, Provider};
 use omnia_guest::{Config, Error, HttpRequest, Identity, Publish, Result, StateStore};
 use serde::Deserialize;
@@ -21,6 +21,15 @@ where
     type Input = Self;
     type Output = ();
 
+    #[tracing::instrument(
+        name = "train_avl_message",
+        skip_all,
+        fields(
+            owner = context.owner,
+            vehicle_id = input.0.vehicle_id(),
+            topic = routes::topic::TRAIN_AVL,
+        ),
+    )]
     async fn call(input: Self, context: CallContext<'_, P>) -> Result<()> {
         let provider = context.provider;
         let request = input.0;

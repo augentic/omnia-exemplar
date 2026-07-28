@@ -5,23 +5,25 @@
 //! directly; transport decoding, invocation, and response projection are
 //! handled by the router.
 //!
-//! Compare with `guests/axum` (style B), which serves the same routes and
-//! topics with hand-written Axum handlers.
+//! Routes and topics come from the canonical tables in
+//! [`acme_common::routes`], shared with `guests/axum` (style B), which serves
+//! the same surface with hand-written Axum handlers.
 //!
 //! [`Operation`]: omnia_guest::api::Operation
 
 #![cfg(target_arch = "wasm32")]
 
+use acme_common::{config, routes};
 use axum::body::Bytes;
 use axum::http::header::CONTENT_TYPE;
 use axum::response::{IntoResponse, Response};
-use gtfs_adapter::{
-    MotionMessage, PassengerCountMessage, SetTripRequest, TrainAvlMessage, VehicleInfoRequest,
-};
+#[cfg(feature = "god-mode")]
+use gtfs_adapter::SetTripRequest;
+use gtfs_adapter::{MotionMessage, PassengerCountMessage, TrainAvlMessage, VehicleInfoRequest};
+use omnia_guest::Error;
 use omnia_guest::api::http::{HttpError, Router, get, post};
 use omnia_guest::api::messaging::{self, Delivery, consume};
 use omnia_guest::api::{Invocation, Invoker};
-use omnia_guest::{Config, Error};
 use pulse_adapter::PulseMessage;
 use pulse_connector::PulseRequest;
 use tally_connector::TallyRequest;
@@ -50,13 +52,16 @@ impl Guest for Http {
     #[omnia_wasi_otel::instrument(name = "http_guest_handle", level = Level::INFO)]
     async fn handle(request: p3::Request) -> Result<p3::Response, p3::ErrorCode> {
         let router = Router::new(Invoker::new(OWNER, Provider))
-            .route("/api/apc", post::<TallyRequest, Provider>())
-            .route("/info/{vehicle_id}", get::<VehicleInfoRequest, Provider>())
-            .route("/god-mode/set-trip/{vehicle_id}/{trip_id}", get::<SetTripRequest, Provider>());
+            .route(routes::http::APC, post::<TallyRequest, Provider>())
+            .route(routes::http::VEHICLE_INFO, get::<VehicleInfoRequest, Provider>());
+
+        #[cfg(feature = "god-mode")]
+        let router = router.route(routes::http::SET_TRIP, post::<SetTripRequest, Provider>());
 
         // The Pulse ingress is SOAP/XML; that sits outside the JSON-typed
         // router, so drop down to the underlying Axum router for this route.
-        let router = router.into_axum().route("/inbound/xml", axum::routing::post(pulse_message));
+        let router =
+            router.into_axum().route(routes::http::PULSE_XML, axum::routing::post(pulse_message));
 
         omnia_wasi_http::serve(router, request).await
     }
@@ -90,17 +95,20 @@ impl omnia_wasi_messaging::incoming_handler::Guest for Messaging {
     async fn handle(
         message: omnia_wasi_messaging::types::Message,
     ) -> Result<(), omnia_wasi_messaging::types::Error> {
-        let env = Config::get(&Provider, "ENV").await.unwrap_or_else(|_| "dev".to_string());
+        let env = config::env(&Provider).await;
 
         let router = messaging::Router::new(Invoker::new(OWNER, Provider))
             .route(
-                format!("{env}-realtime-pulse.v1"),
+                config::topic_for(&env, routes::topic::PULSE),
                 consume::<PulseMessage>().decode_with(decode_pulse_xml),
             )
-            .route(format!("{env}-realtime-pulse-to-motion.v1"), consume::<MotionMessage>())
-            .route(format!("{env}-realtime-train-avl.v1"), consume::<TrainAvlMessage>())
             .route(
-                format!("{env}-realtime-passenger-count.v1"),
+                config::topic_for(&env, routes::topic::PULSE_TO_MOTION),
+                consume::<MotionMessage>(),
+            )
+            .route(config::topic_for(&env, routes::topic::TRAIN_AVL), consume::<TrainAvlMessage>())
+            .route(
+                config::topic_for(&env, routes::topic::PASSENGER_COUNT),
                 consume::<PassengerCountMessage>(),
             );
 

@@ -5,7 +5,7 @@ use chrono::Utc;
 use omnia_guest::{Config, HttpRequest, Result, StateStore, bad_request};
 
 use crate::trip::{self, TripInstance};
-use crate::{DecodedSerialData, MotionError, MotionMessage};
+use crate::{DecodedSerialData, MotionError, MotionMessage, state_keys};
 
 const TTL_TRIP_SERIAL_SECS: u64 = 4 * 60 * 60;
 const TTL_SIGN_ON_SECS: u64 = 24 * 60 * 60;
@@ -44,7 +44,7 @@ where
 
 // Updates the timestamp if it is newer than the previously stored timestamp.
 async fn update_timestamp(store: &impl StateStore, timestamp: i64, vehicle_id: &str) -> Result<()> {
-    let key = format!("motionGtfs:serialTimestamp:{vehicle_id}");
+    let key = state_keys::serial_timestamp(vehicle_id);
 
     // check previous timestamp
     let previous = StateStore::get(store, &key).await?;
@@ -65,9 +65,9 @@ async fn allocate<P>(
 where
     P: Config + HttpRequest + StateStore,
 {
-    let trip_key = format!("motionGtfs:trip:vehicle:{vehicle_id}");
-    let sign_on_key = format!("motionGtfs:vehicle:signOn:{vehicle_id}");
-    let serial_timestamp_key = format!("motionGtfs:serialTimestamp:{vehicle_id}");
+    let trip_key = state_keys::trip(vehicle_id);
+    let sign_on_key = state_keys::sign_on(vehicle_id);
+    let serial_timestamp_key = state_keys::serial_timestamp(vehicle_id);
 
     let Some(trip_id) = decoded.trip_id.as_deref() else {
         tracing::debug!(vehicle_id, "no trip id found, clearing state");
@@ -105,8 +105,8 @@ async fn save_trip<P>(
 where
     P: StateStore,
 {
-    let trip_key = format!("motionGtfs:trip:vehicle:{vehicle_id}");
-    let sign_on_key = format!("motionGtfs:vehicle:signOn:{vehicle_id}");
+    let trip_key = state_keys::trip(vehicle_id);
+    let sign_on_key = state_keys::sign_on(vehicle_id);
 
     let trip_bytes = serde_json::to_vec(&trip).context("failed to serialize trip")?;
     StateStore::set(provider, &trip_key, &trip_bytes, Some(TTL_TRIP_SERIAL_SECS)).await?;

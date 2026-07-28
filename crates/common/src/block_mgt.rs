@@ -8,6 +8,8 @@ use http_body_util::Empty;
 use omnia_guest::{Config, HttpRequest, Identity};
 use serde::{Deserialize, Serialize};
 
+use crate::config;
+
 /// Retrieves the block allocation for a specific vehicle.
 ///
 /// # Errors
@@ -18,8 +20,8 @@ pub async fn allocation<P>(vehicle_id: &str, provider: &P) -> Result<Option<Allo
 where
     P: Config + HttpRequest + Identity,
 {
-    let url = Config::get(provider, "BLOCK_MGT_URL").await?;
-    let identity = Config::get(provider, "API_IDENTITY").await?;
+    let url = Config::get(provider, config::BLOCK_MGT_URL).await?;
+    let identity = Config::get(provider, config::API_IDENTITY).await?;
 
     let url = format!("{url}/allocations/vehicles/{vehicle_id}?currentTrip=true");
     let token = Identity::access_token(provider, identity).await?;
@@ -55,8 +57,8 @@ pub async fn cached_allocation<P>(
 where
     P: Config + HttpRequest + Identity,
 {
-    let url = Config::get(provider, "BLOCK_MGT_URL").await?;
-    let identity = Config::get(provider, "API_IDENTITY").await?;
+    let url = Config::get(provider, config::BLOCK_MGT_URL).await?;
+    let identity = Config::get(provider, config::API_IDENTITY).await?;
 
     let token = Identity::access_token(provider, identity).await?;
     let endpoint = format!(
@@ -94,8 +96,8 @@ pub async fn allocations<P>(provider: &P) -> Result<Vec<Allocation>>
 where
     P: Config + HttpRequest + Identity,
 {
-    let url = Config::get(provider, "BLOCK_MGT_URL").await?;
-    let identity = Config::get(provider, "API_IDENTITY").await?;
+    let url = Config::get(provider, config::BLOCK_MGT_URL).await?;
+    let identity = Config::get(provider, config::API_IDENTITY).await?;
 
     let url = format!("{url}/allocations");
     let token = Identity::access_token(provider, identity).await?;
@@ -117,6 +119,39 @@ where
         serde_json::from_slice(&body).context("Failed to decode allocations response")?;
 
     Ok(envelope.all)
+}
+
+/// Retrieves the identifiers of the vehicles allocated to the trip with the
+/// given external reference.
+///
+/// # Errors
+///
+/// Returns an error when the block management API request fails or the
+/// response cannot be deserialized.
+pub async fn trip_allocations<P>(external_ref_id: &str, provider: &P) -> Result<Vec<String>>
+where
+    P: Config + HttpRequest + Identity,
+{
+    let url = Config::get(provider, config::BLOCK_MGT_URL).await?;
+    let identity = Config::get(provider, config::API_IDENTITY).await?;
+
+    let token = Identity::access_token(provider, identity).await?;
+
+    let request = http::Request::builder()
+        .method(Method::GET)
+        .uri(format!("{url}/allocations/trips?externalRefId={external_ref_id}"))
+        .header(AUTHORIZATION, format!("Bearer {token}"))
+        .body(Empty::<Bytes>::new())
+        .context("building trip allocations request")?;
+
+    let response =
+        HttpRequest::fetch(provider, request).await.context("fetching trip allocations")?;
+
+    let body = response.into_body();
+    let allocated: Vec<String> =
+        serde_json::from_slice(&body).context("deserializing trip allocations response")?;
+
+    Ok(allocated)
 }
 
 #[derive(Clone, Default, Deserialize)]

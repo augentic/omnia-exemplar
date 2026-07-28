@@ -2,13 +2,13 @@
 
 use std::fmt::{Display, Formatter};
 
+use acme_common::TIMEZONE;
 use chrono::{NaiveDate, Utc};
-use common::TIMEZONE;
 use omnia_guest::Result;
 use serde::Deserialize;
 use serde_repr::Deserialize_repr;
 
-use crate::PulseError;
+use crate::PulseMessageError;
 
 const MAX_DELAY_SECS: i64 = 60;
 const MIN_DELAY_SECS: i64 = -30;
@@ -81,12 +81,12 @@ impl TrainUpdate {
     /// # Errors
     ///
     /// Will return one of the following errors:
-    ///  - `PulseError::NoUpdate` if there are no changes or the arrival or
+    ///  - `PulseMessageError::NoUpdate` if there are no changes or the arrival or
     ///    departure time is -ve or 0
-    ///  - `PulseError::BadTime` if the message is too old or from the future
+    ///  - `PulseMessageError::BadTime` if the message is too old or from the future
     pub fn validate(&self) -> Result<()> {
         if self.changes.is_empty() {
-            return Err(PulseError::NoUpdate("contains no updates".to_string()).into());
+            return Err(PulseMessageError::NoUpdate("contains no updates".to_string()).into());
         }
 
         // an *actual* update will have a +ve arrival or departure time
@@ -96,17 +96,23 @@ impl TrainUpdate {
         } else if change.has_arrived {
             change.actual_arrival_time
         } else {
-            return Err(PulseError::NoUpdate("arrival/departure time <= 0".to_string()).into());
+            return Err(
+                PulseMessageError::NoUpdate("arrival/departure time <= 0".to_string()).into()
+            );
         };
 
         if since_midnight_secs <= 0 {
-            return Err(PulseError::NoUpdate("arrival/departure time <= 0".to_string()).into());
+            return Err(
+                PulseMessageError::NoUpdate("arrival/departure time <= 0".to_string()).into()
+            );
         }
 
         // rebuild the event timestamp from the creation date + seconds from midnight
         let naive_dt = self.created_date.and_hms_opt(0, 0, 0).unwrap_or_default();
         let Some(midnight_dt) = naive_dt.and_local_timezone(TIMEZONE).earliest() else {
-            return Err(PulseError::BadTime(format!("invalid local time: {naive_dt}")).into());
+            return Err(
+                PulseMessageError::BadTime(format!("invalid local time: {naive_dt}")).into()
+            );
         };
         let midnight_ts = midnight_dt.timestamp();
         let event_ts = midnight_ts + i64::from(since_midnight_secs);
@@ -118,12 +124,16 @@ impl TrainUpdate {
         tracing::info!(gauge.pulse_delay = delay_secs);
 
         if delay_secs > MAX_DELAY_SECS {
-            return Err(PulseError::BadTime(format!("outdated by {delay_secs} seconds")).into());
+            return Err(
+                PulseMessageError::BadTime(format!("outdated by {delay_secs} seconds")).into()
+            );
         }
         if delay_secs < MIN_DELAY_SECS {
-            return Err(
-                PulseError::BadTime(format!("too early by {} seconds", delay_secs.abs())).into()
-            );
+            return Err(PulseMessageError::BadTime(format!(
+                "too early by {} seconds",
+                delay_secs.abs()
+            ))
+            .into());
         }
 
         Ok(())

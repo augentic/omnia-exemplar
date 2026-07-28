@@ -1,5 +1,5 @@
 [package]
-name = "common"
+name = "acme-common"
 description = "Common transit domain logic"
 readme = "README.md"
 publish = false
@@ -24,4 +24,5 @@ http-body-util.workspace = true
 omnia-guest.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+tracing.workspace = true
 urlencoding.workspace = true

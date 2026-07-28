@@ -5,11 +5,11 @@ use std::any::Any;
 use std::error::Error;
 use std::sync::{Arc, Mutex};
 
+use acme_common::TIMEZONE;
 use anyhow::{Context, Result, anyhow};
 use augentic_test::{Fetcher, Fixture, PreparedTestCase, TestDef, TestResult};
 use bytes::Bytes;
 use chrono::{Timelike, Utc};
-use common::TIMEZONE;
 use http::{Request, Response};
 use omnia_guest::{Config, HttpRequest, Identity, Message, Publish};
 use pulse_adapter::{MotionEvent, PulseMessage};
@@ -30,7 +30,6 @@ pub enum ReplayOutput {
 }
 
 #[derive(Debug, Clone, Deserialize, Default)]
-#[allow(dead_code)]
 pub struct ReplayTransform {
     pub delay: i32,
 }
@@ -104,13 +103,11 @@ pub struct MockProvider {
 
 impl MockProvider {
     #[allow(clippy::missing_panics_doc)]
-    #[allow(dead_code)]
     #[must_use]
     pub fn events(&self) -> Vec<MotionEvent> {
         self.events.lock().expect("should lock").clone()
     }
 
-    #[allow(dead_code)]
     #[must_use]
     pub fn new(test_case: PreparedTestCase<Replay>) -> Self {
         Self {

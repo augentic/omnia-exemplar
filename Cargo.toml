@@ -94,7 +94,7 @@ omnia-wasi-otel = "0.35.0"
 augentic-test = { git = "https://github.com/augentic/test.git", branch = "main" }
 
 # Internally referenced crates
-common = { path = "crates/common" }
+acme-common = { path = "crates/common" }
 gtfs-adapter = { path = "crates/gtfs-adapter" }
 pulse-adapter = { path = "crates/pulse-adapter" }
 pulse-connector = { path = "crates/pulse-connector" }

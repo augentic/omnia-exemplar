@@ -1,5 +1,6 @@
 //! Motion AVL message processing.
 
+use acme_common::{config, routes};
 use chrono::{DateTime, Utc};
 use omnia_guest::api::{CallContext, Operation, Provider};
 use omnia_guest::{
@@ -8,7 +9,7 @@ use omnia_guest::{
 use serde::{Deserialize, Serialize};
 
 use crate::location::Location;
-use crate::{god_mode, location, serial_data};
+use crate::{location, serial_data};
 
 impl<P> Operation<P> for MotionMessage
 where
@@ -18,6 +19,15 @@ where
     type Input = Self;
     type Output = ();
 
+    #[tracing::instrument(
+        name = "motion_message",
+        skip_all,
+        fields(
+            owner = context.owner,
+            vehicle_id = input.vehicle_id(),
+            topic = routes::topic::PULSE_TO_MOTION,
+        ),
+    )]
     async fn call(input: Self, context: CallContext<'_, P>) -> Result<()> {
         process(input, context.provider).await
     }
@@ -36,10 +46,8 @@ where
 {
     // serial data event
     if message.event_type == EventType::SerialData {
-        let mut message = message.clone();
-        if god_mode::is_enabled(provider).await? {
-            god_mode::preprocess(provider, &mut message).await?;
-        }
+        #[cfg(feature = "god-mode")]
+        let message = crate::god_mode::apply_overrides(message, provider).await?;
         serial_data::process(&message, provider).await?;
         return Ok(());
     }
@@ -49,17 +57,16 @@ where
         return Ok(());
     };
 
-    let (payload, key, topic) = match location {
+    let (payload, key, suffix) = match location {
         Location::VehiclePosition(feed) => {
-            (serde_json::to_vec(&feed)?, feed.id, "realtime-gtfs-vp.v1")
+            (serde_json::to_vec(&feed)?, feed.id, routes::topic::GTFS_VP)
         }
         Location::DeadReckoning(dr) => {
-            (serde_json::to_vec(&dr)?, dr.id, "realtime-dead-reckoning.v1")
+            (serde_json::to_vec(&dr)?, dr.id, routes::topic::DEAD_RECKONING)
         }
     };
 
-    let env = Config::get(provider, "ENV").await.unwrap_or_else(|_| "dev".to_string());
-    let topic = format!("{env}-{topic}");
+    let topic = config::topic(provider, suffix).await;
 
     // publish
     let mut message = Message::new(&payload);
@@ -105,14 +112,18 @@ impl MotionMessage {
 }
 
 /// The type of event carried by a [`MotionMessage`].
+///
+/// The aliases cover the casings used by each upstream source: `SerialData` /
+/// `Location` from the pulse-adapter and train AVL feeds, and the snake/upper
+/// variants from older Motion firmware.
 #[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq)]
 pub enum EventType {
     /// A serial data (sign-on) event.
-    #[serde(rename = "serialData", alias = "SERIAL_DATA")]
+    #[serde(rename = "serialData", alias = "SERIAL_DATA", alias = "SerialData")]
     SerialData,
 
     /// A GPS location event.
-    #[serde(rename = "location", alias = "LOCATION")]
+    #[serde(rename = "location", alias = "LOCATION", alias = "Location")]
     Location,
 
     /// Any other event type.
