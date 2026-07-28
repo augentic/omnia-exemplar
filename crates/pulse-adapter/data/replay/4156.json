@@ -1,0 +1,103 @@
+{
+    "input": "<CCO xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"\n      stream=\"3bedad6f-a633-4e5e-841f-80230c5b70cf\"\n      sequence=\"8704289\"\n      xsi:type=\"CCO\">\n    <ActualizarDatosTren>\n      <trenPar>3171</trenPar>\n      <trenImpar>3171</trenImpar>\n      <fechaCreacion>08/10/2025</fechaCreacion>\n      <numeroRegistro>12636073</numeroRegistro>\n      <operadorComercial>METRO</operadorComercial>\n      <pasoTren>\n          <tipoCambio>2</tipoCambio>\n          <estacion>40</estacion>\n          <idPaso>224651032</idPaso>\n          <horaEntrada>78240</horaEntrada>\n          <horaEntradaReal>78546</horaEntradaReal>\n          <haEntrado>true</haEntrado>\n          <tipoParada>4</tipoParada>\n          <paridad>i</paridad>\n          <sentido>1</sentido>\n          <horaSalida>78300</horaSalida>\n          <horaSalidaReal>78606</horaSalidaReal>\n          <haSalido>false</haSalido>\n          <viaEntradaMallas>KE3</viaEntradaMallas>\n          <retrasoEntrada>277</retrasoEntrada>\n          <viaCirculacionMallas>-</viaCirculacionMallas>\n          <retrasoSalida>0</retrasoSalida>\n          <horaInicioDetencion>-1</horaInicioDetencion>\n          <duracionDetencion>-1</duracionDetencion>\n      </pasoTren>\n      <codigoOperadorComercial>-1</codigoOperadorComercial>\n      <origenActualizaTren>GAC</origenActualizaTren>\n    </ActualizarDatosTren>\n</CCO>\n",
+    "params": {
+        "delay": 2
+    },
+    "http_requests": [
+        {
+            "path": "/gtfs/stops",
+            "method": "GET",
+            "response": {
+                "body": [
+                    {
+                        "stop_code": "134",
+                        "stop_lat": -37.20331,
+                        "stop_lon": 174.91015
+                    }
+                ]
+            }
+        },
+        {
+            "path": "/allocations/trips",
+            "method": "GET",
+            "response": {
+                "body": [
+                    "EMP        240",
+                    "EMP        362"
+                ]
+            }
+        }
+    ],
+    "output": {
+        "success": [
+            {
+                "eventType": "Location",
+                "receivedAt": "2025-10-07T11:00:00.000Z",
+                "messageData": {
+                    "timestamp": "2025-10-08T08:49:13.583Z"
+                },
+                "eventData": {},
+                "remoteData": {
+                    "externalId": "EMP240"
+                },
+                "locationData": {
+                    "gpsAccuracy": 0,
+                    "latitude": -37.20331,
+                    "longitude": 174.91015,
+                    "speed": 0
+                }
+            },
+            {
+                "eventType": "Location",
+                "receivedAt": "2025-10-07T11:00:00.000Z",
+                "messageData": {
+                    "timestamp": "2025-10-08T08:49:13.584Z"
+                },
+                "eventData": {},
+                "remoteData": {
+                    "externalId": "EMP362"
+                },
+                "locationData": {
+                    "gpsAccuracy": 0,
+                    "latitude": -37.20331,
+                    "longitude": 174.91015,
+                    "speed": 0
+                }
+            },
+            {
+                "eventType": "Location",
+                "receivedAt": "2025-10-07T11:00:00.000Z",
+                "messageData": {
+                    "timestamp": "2025-10-08T08:49:18.583Z"
+                },
+                "eventData": {},
+                "remoteData": {
+                    "externalId": "EMP240"
+                },
+                "locationData": {
+                    "gpsAccuracy": 0,
+                    "latitude": -37.20331,
+                    "longitude": 174.91015,
+                    "speed": 0
+                }
+            },
+            {
+                "eventType": "Location",
+                "receivedAt": "2025-10-07T11:00:00.000Z",
+                "messageData": {
+                    "timestamp": "2025-10-08T08:49:18.584Z"
+                },
+                "eventData": {},
+                "remoteData": {
+                    "externalId": "EMP362"
+                },
+                "locationData": {
+                    "gpsAccuracy": 0,
+                    "latitude": -37.20331,
+                    "longitude": 174.91015,
+                    "speed": 0
+                }
+            }
+        ]
+    }
+}

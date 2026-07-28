@@ -1,0 +1,47 @@
+[package]
+name = "guest-typed"
+description = "Exemplar guest using the typed omnia-guest HTTP and messaging routers (style A)"
+readme = "README.md"
+publish = false
+authors.workspace = true
+categories.workspace = true
+edition.workspace = true
+keywords.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+version.workspace = true
+
+[lints]
+workspace = true
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+axum.workspace = true
+gtfs-adapter.workspace = true
+omnia-guest.workspace = true
+omnia-wasi-http.workspace = true
+omnia-wasi-messaging.workspace = true
+omnia-wasi-otel.workspace = true
+pulse-adapter.workspace = true
+pulse-connector.workspace = true
+tally-connector.workspace = true
+tracing.workspace = true
+wasip3.workspace = true
+
+[dev-dependencies]
+cfg-if.workspace = true
+
+[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
+anyhow.workspace = true
+omnia.workspace = true
+omnia-wasi-config.workspace = true
+omnia-wasi-identity.workspace = true
+omnia-wasi-keyvalue.workspace = true
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
+
+[[example]]
+name = "runner"
+path = "examples/runner.rs"

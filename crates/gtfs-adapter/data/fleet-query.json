@@ -1,0 +1,226 @@
+[
+    {
+        "id": "59144",
+        "label": "EMP        144",
+        "agency": {
+            "agencyId": "AC",
+            "agencyName": "Acme Metro",
+            "depot": {
+                "name": "21"
+            }
+        },
+        "attributes": {
+            "loweringFloor": true
+        },
+        "capacity": {
+            "total": 373,
+            "seating": 232,
+            "standing": 141
+        },
+        "type": {
+            "type": "Train"
+        },
+        "tag": "NOVA",
+        "eod": {
+            "generated": {},
+            "activated": {},
+            "latestActionlist": "Yes",
+            "latestEOD": "Yes",
+            "beId": 201,
+            "vehicleId": "144"
+        },
+        "vehicle": "59144"
+    },
+    {
+        "id": "59157",
+        "label": "EMP        157",
+        "agency": {
+            "agencyId": "AC",
+            "agencyName": "Acme Metro",
+            "depot": {
+                "name": "21"
+            }
+        },
+        "attributes": {
+            "loweringFloor": true
+        },
+        "capacity": {
+            "total": 373,
+            "seating": 232,
+            "standing": 141
+        },
+        "type": {
+            "type": "Train"
+        },
+        "tag": "NOVA",
+        "eod": {
+            "generated": {},
+            "activated": {},
+            "latestActionlist": "Yes",
+            "latestEOD": "Yes",
+            "beId": 201,
+            "vehicleId": "157"
+        },
+        "vehicle": "59157"
+    },
+    {
+        "id": "59172",
+        "label": "EMP        172",
+        "agency": {
+            "agencyId": "AC",
+            "agencyName": "Acme Metro",
+            "depot": {
+                "name": "21"
+            }
+        },
+        "attributes": {
+            "loweringFloor": true
+        },
+        "capacity": {
+            "total": 373,
+            "seating": 232,
+            "standing": 141
+        },
+        "type": {
+            "type": "Train"
+        },
+        "tag": "NOVA",
+        "eod": {
+            "generated": {},
+            "activated": {},
+            "latestActionlist": "Yes",
+            "latestEOD": "Yes",
+            "beId": 201,
+            "vehicleId": "172"
+        },
+        "vehicle": "59172"
+    },
+    {
+        "id": "59185",
+        "label": "EMP        185",
+        "agency": {
+            "agencyId": "AC",
+            "agencyName": "Acme Metro",
+            "depot": {
+                "name": "21"
+            }
+        },
+        "attributes": {
+            "loweringFloor": true
+        },
+        "capacity": {
+            "total": 373,
+            "seating": 232,
+            "standing": 141
+        },
+        "type": {
+            "type": "Train"
+        },
+        "tag": "NOVA",
+        "eod": {
+            "generated": {},
+            "activated": {},
+            "latestActionlist": "Yes",
+            "latestEOD": "Yes",
+            "beId": 201,
+            "vehicleId": "185"
+        },
+        "vehicle": "59185"
+    },
+    {
+        "id": "59198",
+        "label": "EMP        198",
+        "agency": {
+            "agencyId": "AC",
+            "agencyName": "Acme Metro",
+            "depot": {
+                "name": "21"
+            }
+        },
+        "attributes": {
+            "loweringFloor": true
+        },
+        "capacity": {
+            "total": 373,
+            "seating": 232,
+            "standing": 141
+        },
+        "type": {
+            "type": "Train"
+        },
+        "tag": "NOVA",
+        "eod": {
+            "generated": {},
+            "activated": {},
+            "latestActionlist": "Yes",
+            "latestEOD": "Yes",
+            "beId": 201,
+            "vehicleId": "198"
+        },
+        "vehicle": "59198"
+    },
+    {
+        "id": "59212",
+        "label": "EMP        212",
+        "agency": {
+            "agencyId": "AC",
+            "agencyName": "Acme Metro",
+            "depot": {
+                "name": "21"
+            }
+        },
+        "attributes": {
+            "loweringFloor": true
+        },
+        "capacity": {
+            "total": 373,
+            "seating": 232,
+            "standing": 141
+        },
+        "type": {
+            "type": "Train"
+        },
+        "tag": "NOVA",
+        "eod": {
+            "generated": {},
+            "activated": {},
+            "latestActionlist": "Yes",
+            "latestEOD": "Yes",
+            "beId": 201,
+            "vehicleId": "212"
+        },
+        "vehicle": "59212"
+    },
+    {
+        "id": "59225",
+        "label": "EMP        225",
+        "agency": {
+            "agencyId": "AC",
+            "agencyName": "Acme Metro",
+            "depot": {
+                "name": "21"
+            }
+        },
+        "attributes": {
+            "loweringFloor": true
+        },
+        "capacity": {
+            "total": 373,
+            "seating": 232,
+            "standing": 141
+        },
+        "type": {
+            "type": "Train"
+        },
+        "tag": "NOVA",
+        "eod": {
+            "generated": {},
+            "activated": {},
+            "latestActionlist": "Yes",
+            "latestEOD": "Yes",
+            "beId": 201,
+            "vehicleId": "225"
+        },
+        "vehicle": "59225"
+    }
+]

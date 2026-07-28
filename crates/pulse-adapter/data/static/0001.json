@@ -1,0 +1,38 @@
+{
+    "input": "<CCO xmlns:xsi=\"http: //www.w3.org/2001/XMLSchema-instance\" stream=\"7c104b58-25cb-437a-8c39-297633a6638e\" sequence=\"1214699\" xsi:type=\"CCO\"><ActualizarDatosTren><trenPar>5226</trenPar><trenImpar>5226</trenImpar><fechaCreacion>20/01/2026</fechaCreacion><numeroRegistro>9299669</numeroRegistro><operadorComercial>METRO</operadorComercial><pasoTren><tipoCambio>3</tipoCambio><estacion>0</estacion><idPaso>181353261</idPaso><horaEntrada>47747</horaEntrada><horaEntradaReal>47747</horaEntradaReal><haEntrado>false</haEntrado><tipoParada>4</tipoParada><paridad>p</paridad><sentido>0</sentido><horaSalida>47747</horaSalida><horaSalidaReal>47747</horaSalidaReal><haSalido>true</haSalido><viaEntradaMallas>2</viaEntradaMallas><retrasoEntrada>-3</retrasoEntrada><viaCirculacionMallas>2</viaCirculacionMallas><retrasoSalida>0</retrasoSalida><horaInicioDetencion>-1</horaInicioDetencion><duracionDetencion>-1</duracionDetencion></pasoTren><pasoTren><tipoCambio>3</tipoCambio><estacion>0</estacion><idPaso>181353261</idPaso><horaEntrada>58020</horaEntrada><horaEntradaReal>58017</horaEntradaReal><haEntrado>true</haEntrado><tipoParada>4</tipoParada><paridad>p</paridad><sentido>0</sentido><horaSalida>58080</horaSalida><horaSalidaReal>58080</horaSalidaReal><haSalido>false</haSalido><viaEntradaMallas>2</viaEntradaMallas><retrasoEntrada>-3</retrasoEntrada><viaCirculacionMallas>2</viaCirculacionMallas><retrasoSalida>0</retrasoSalida><horaInicioDetencion>-1</horaInicioDetencion><duracionDetencion>-1</duracionDetencion></pasoTren><codigoOperadorComercial>-1</codigoOperadorComercial><origenActualizaTren>GAC</origenActualizaTren></ActualizarDatosTren></CCO>",
+    "params": {
+        "delay": 0
+    },
+    "http_requests": [
+        {
+            "path": "/gtfs/stops",
+            "response": {
+                "body": [
+                    {
+                        "stop_code": "133",
+                        "stop_lat": -36.12345,
+                        "stop_lon": 174.12345
+                    },
+                    {
+                        "stop_code": "134",
+                        "stop_lat": -36.54321,
+                        "stop_lon": 174.54321
+                    },
+                    {
+                        "stop_code": "9218",
+                        "stop_lat": -36.567,
+                        "stop_lon": 174.44444
+                    }
+                ]
+            }
+        },
+        {
+            "path": "/allocations/trips",
+            "response": {
+                "body": [
+                    "vehicle 1"
+                ]
+            }
+        }
+    ]
+}

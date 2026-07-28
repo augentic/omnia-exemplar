@@ -1,0 +1,126 @@
+[
+  {
+    "timestamp": 1763592173926,
+    "timestampType": "CREATE_TIME",
+    "partition": 2,
+    "offset": 7484334,
+    "key": 32161,
+    "value": {
+      "timestamp": 1763592172,
+      "vehicle": { "id": "32161" },
+      "trip": {
+        "tripId": "1347-05004-41400-2-89c4020e",
+        "routeId": "50B-217",
+        "startDate": "20251120",
+        "startTime": "11:30:00"
+      },
+      "stop": { "stopId": "1181-aec9032a", "stopSequence": 11 },
+      "location": { "lat": -36.79692, "lon": 175.03252 },
+      "passengerCount": {
+        "on": 6,
+        "off": 0,
+        "cash": 0,
+        "total": 19,
+        "contactlessPaymentAdjustmentFactor": 1.2,
+        "contactlessPaymentOriginalTotal": 16,
+        "contactlessPaymentAddedValue": 3
+      },
+      "occupancyStatus": "FEW_SEATS_AVAILABLE",
+      "isComplete": true
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763592173926,
+    "timestampType": "CREATE_TIME",
+    "partition": 10,
+    "offset": 9640799,
+    "key": 22187,
+    "value": {
+      "timestamp": 1763592172,
+      "vehicle": { "id": "22187" },
+      "trip": {
+        "tripId": "1300-90601-40800-2-5e088e9a",
+        "routeId": "906-203",
+        "startDate": "20251120",
+        "startTime": "11:20:00"
+      },
+      "stop": { "stopId": "3918-45d5d569", "stopSequence": 31 },
+      "location": { "lat": -36.78418, "lon": 174.71306 },
+      "passengerCount": {
+        "on": 1,
+        "off": 1,
+        "cash": 0,
+        "total": 2,
+        "contactlessPaymentAdjustmentFactor": 1.2,
+        "contactlessPaymentOriginalTotal": 2,
+        "contactlessPaymentAddedValue": 0
+      },
+      "occupancyStatus": "MANY_SEATS_AVAILABLE",
+      "isComplete": true
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763592172692,
+    "timestampType": "CREATE_TIME",
+    "partition": 3,
+    "offset": 7730364,
+    "key": 24505,
+    "value": {
+      "timestamp": 1763592171,
+      "vehicle": { "id": "24505" },
+      "trip": {
+        "tripId": "1153-07005-41040-2-2ac748d1",
+        "routeId": "70-205",
+        "startDate": "20251120",
+        "startTime": "11:24:00"
+      },
+      "stop": { "stopId": "1760-317dbc99", "stopSequence": 13 },
+      "location": { "lat": -36.89832, "lon": 174.84915 },
+      "passengerCount": {
+        "on": 1,
+        "off": 1,
+        "cash": 0,
+        "total": 4,
+        "contactlessPaymentAdjustmentFactor": 1.2,
+        "contactlessPaymentOriginalTotal": 3,
+        "contactlessPaymentAddedValue": 1
+      },
+      "occupancyStatus": "EMPTY",
+      "isComplete": true
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763592172692,
+    "timestampType": "CREATE_TIME",
+    "partition": 6,
+    "offset": 6408431,
+    "key": 14069,
+    "value": {
+      "timestamp": 1763592171,
+      "vehicle": { "id": "14069" },
+      "trip": {
+        "tripId": "426-84304-41400-2-435d990f",
+        "routeId": "843-202",
+        "startDate": "20251120",
+        "startTime": "11:30:00"
+      },
+      "stop": { "stopId": "3253-cde10e92", "stopSequence": 19 },
+      "location": { "lat": -36.76861, "lon": 174.75894 },
+      "passengerCount": {
+        "on": 3,
+        "off": 0,
+        "cash": 0,
+        "total": 12,
+        "contactlessPaymentAdjustmentFactor": 1.2,
+        "contactlessPaymentOriginalTotal": 10,
+        "contactlessPaymentAddedValue": 2
+      },
+      "occupancyStatus": "MANY_SEATS_AVAILABLE",
+      "isComplete": true
+    },
+    "headers": []
+  }
+]

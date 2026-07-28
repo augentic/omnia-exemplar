@@ -1,0 +1,314 @@
+[
+  {
+    "timestamp": 1763592224473,
+    "timestampType": "CREATE_TIME",
+    "partition": 3,
+    "offset": 7699729,
+    "key": "EM580",
+    "value": {
+      "receivedAt": "2025-11-19T22:43:44.421Z",
+      "locationData": {
+        "latitude": -37.0652861111111,
+        "longitude": 174.947172222222,
+        "heading": 0,
+        "speed": 0,
+        "gpsAccuracy": 9,
+        "kilometricPoint": 32259,
+        "odometer": 862094108
+      },
+      "messageData": { "timestamp": "2025-11-19T22:43:41.740Z" },
+      "eventData": {},
+      "remoteData": { "externalId": "EM580", "remoteName": "EM580" },
+      "eventType": "Location"
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763592224145,
+    "timestampType": "CREATE_TIME",
+    "partition": 7,
+    "offset": 12429744,
+    "key": "EM198",
+    "value": {
+      "receivedAt": "2025-11-19T22:43:44.106Z",
+      "locationData": {
+        "latitude": -36.9995805555556,
+        "longitude": 174.861263888889,
+        "heading": 0,
+        "speed": 0,
+        "gpsAccuracy": 9,
+        "kilometricPoint": 0,
+        "odometer": 929169101
+      },
+      "messageData": { "timestamp": "2025-11-19T22:43:45.173Z" },
+      "eventData": {},
+      "remoteData": { "externalId": "EM198", "remoteName": "EM198" },
+      "eventType": "Location"
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763592224145,
+    "timestampType": "CREATE_TIME",
+    "partition": 8,
+    "offset": 7693230,
+    "key": "EM430",
+    "value": {
+      "receivedAt": "2025-11-19T22:43:44.108Z",
+      "locationData": {
+        "latitude": -37.0002055555556,
+        "longitude": 174.861502777778,
+        "heading": 0,
+        "speed": 0,
+        "gpsAccuracy": 9,
+        "kilometricPoint": 0,
+        "odometer": 901913991
+      },
+      "messageData": { "timestamp": "2025-11-19T22:43:45.621Z" },
+      "eventData": {},
+      "remoteData": { "externalId": "EM430", "remoteName": "EM430" },
+      "eventType": "Location"
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763592223927,
+    "timestampType": "CREATE_TIME",
+    "partition": 9,
+    "offset": 6769281,
+    "key": "EM334",
+    "value": {
+      "receivedAt": "2025-11-19T22:43:43.823Z",
+      "locationData": {
+        "latitude": -37.0022194444444,
+        "longitude": 174.861091666667,
+        "heading": 0,
+        "speed": 0,
+        "gpsAccuracy": 12,
+        "kilometricPoint": 0,
+        "odometer": 897054577
+      },
+      "messageData": { "timestamp": "2025-11-19T22:43:41.688Z" },
+      "eventData": {},
+      "remoteData": { "externalId": "EM334", "remoteName": "EM334" },
+      "eventType": "Location"
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763592223586,
+    "timestampType": "CREATE_TIME",
+    "partition": 2,
+    "offset": 10704021,
+    "key": "EM973",
+    "value": {
+      "receivedAt": "2025-11-19T22:43:43.570Z",
+      "locationData": {
+        "latitude": -37.0003583333333,
+        "longitude": 174.861602777778,
+        "heading": 0,
+        "speed": 0,
+        "gpsAccuracy": 8,
+        "kilometricPoint": 0,
+        "odometer": 303519299
+      },
+      "messageData": { "timestamp": "2025-11-19T22:43:41.075Z" },
+      "eventData": {},
+      "remoteData": { "externalId": "EM973", "remoteName": "EM973" },
+      "eventType": "Location"
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763592223536,
+    "timestampType": "CREATE_TIME",
+    "partition": 9,
+    "offset": 6769280,
+    "key": "EM334",
+    "value": {
+      "receivedAt": "2025-11-19T22:43:43.444Z",
+      "locationData": {
+        "latitude": -37.0022194444444,
+        "longitude": 174.861091666667,
+        "heading": 0,
+        "speed": 0,
+        "gpsAccuracy": 9,
+        "kilometricPoint": 0,
+        "odometer": 897054577
+      },
+      "messageData": { "timestamp": "2025-11-19T22:43:43.644Z" },
+      "eventData": {},
+      "remoteData": { "externalId": "EM334", "remoteName": "EM334" },
+      "eventType": "Location"
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763592223258,
+    "timestampType": "CREATE_TIME",
+    "partition": 11,
+    "offset": 2397590,
+    "key": "EM633",
+    "value": {
+      "receivedAt": "2025-11-19T22:43:43.192Z",
+      "locationData": {
+        "latitude": -37.064375,
+        "longitude": 174.946358333333,
+        "heading": 0,
+        "speed": 0,
+        "gpsAccuracy": 9,
+        "kilometricPoint": 31034,
+        "odometer": 841808401
+      },
+      "messageData": { "timestamp": "2025-11-19T22:43:42.845Z" },
+      "eventData": {},
+      "remoteData": { "externalId": "EM633", "remoteName": "EM633" },
+      "eventType": "Location"
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763592223094,
+    "timestampType": "CREATE_TIME",
+    "partition": 4,
+    "offset": 6415961,
+    "key": "EM1020",
+    "value": {
+      "receivedAt": "2025-11-19T22:43:43.093Z",
+      "locationData": {
+        "latitude": -37.2001888888889,
+        "longitude": 174.907155555556,
+        "heading": 144.7,
+        "speed": 48.2,
+        "gpsAccuracy": 1,
+        "kilometricPoint": 48759,
+        "odometer": 49196804
+      },
+      "messageData": { "timestamp": "2025-11-19T22:43:38.645Z" },
+      "eventData": {},
+      "remoteData": { "externalId": "EM1020", "remoteName": "EM1020" },
+      "eventType": "Location"
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763592223040,
+    "timestampType": "CREATE_TIME",
+    "partition": 4,
+    "offset": 6415960,
+    "key": "EM1020",
+    "value": {
+      "receivedAt": "2025-11-19T22:43:42.982Z",
+      "locationData": {
+        "latitude": -37.2001888888889,
+        "longitude": 174.907155555556,
+        "heading": 144.7,
+        "speed": 48.5,
+        "gpsAccuracy": 1,
+        "kilometricPoint": 48759,
+        "odometer": 49196801
+      },
+      "messageData": { "timestamp": "2025-11-19T22:43:38.886Z" },
+      "eventData": {},
+      "remoteData": { "externalId": "EM1020", "remoteName": "EM1020" },
+      "eventType": "Location"
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763592223040,
+    "timestampType": "CREATE_TIME",
+    "partition": 6,
+    "offset": 8928057,
+    "key": "EM375",
+    "value": {
+      "receivedAt": "2025-11-19T22:43:42.970Z",
+      "locationData": {
+        "latitude": -37.2064277777778,
+        "longitude": 174.913272222222,
+        "heading": 0,
+        "speed": 0,
+        "gpsAccuracy": 9,
+        "kilometricPoint": 0,
+        "odometer": 906388544
+      },
+      "messageData": { "timestamp": "2025-11-19T22:43:40.311Z" },
+      "eventData": {},
+      "remoteData": { "externalId": "EM375", "remoteName": "EM375" },
+      "eventType": "Location"
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763592222973,
+    "timestampType": "CREATE_TIME",
+    "partition": 2,
+    "offset": 10704020,
+    "key": "EM973",
+    "value": {
+      "receivedAt": "2025-11-19T22:43:42.887Z",
+      "locationData": {
+        "latitude": -37.0003583333333,
+        "longitude": 174.861602777778,
+        "heading": 0,
+        "speed": 0,
+        "gpsAccuracy": 8,
+        "kilometricPoint": 0,
+        "odometer": 303519299
+      },
+      "messageData": { "timestamp": "2025-11-19T22:43:41.739Z" },
+      "eventData": {},
+      "remoteData": { "externalId": "EM973", "remoteName": "EM973" },
+      "eventType": "Location"
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763592222864,
+    "timestampType": "CREATE_TIME",
+    "partition": 11,
+    "offset": 2397589,
+    "key": "EM633",
+    "value": {
+      "receivedAt": "2025-11-19T22:43:42.769Z",
+      "locationData": {
+        "latitude": -37.064375,
+        "longitude": 174.946358333333,
+        "heading": 0,
+        "speed": 0,
+        "gpsAccuracy": 9,
+        "kilometricPoint": 31034,
+        "odometer": 841808401
+      },
+      "messageData": { "timestamp": "2025-11-19T22:43:44.100Z" },
+      "eventData": {},
+      "remoteData": { "externalId": "EM633", "remoteName": "EM633" },
+      "eventType": "Location"
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763592222805,
+    "timestampType": "CREATE_TIME",
+    "partition": 6,
+    "offset": 8928056,
+    "key": "EM375",
+    "value": {
+      "receivedAt": "2025-11-19T22:43:42.767Z",
+      "locationData": {
+        "latitude": -37.2064277777778,
+        "longitude": 174.913272222222,
+        "heading": 0,
+        "speed": 0,
+        "gpsAccuracy": 9,
+        "kilometricPoint": 0,
+        "odometer": 906388544
+      },
+      "messageData": { "timestamp": "2025-11-19T22:43:40.886Z" },
+      "eventData": {},
+      "remoteData": { "externalId": "EM375", "remoteName": "EM375" },
+      "eventType": "Location"
+    },
+    "headers": []
+  }
+]

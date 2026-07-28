@@ -1,0 +1,2396 @@
+[
+  {
+    "timestamp": 1763591897014,
+    "timestampType": "CREATE_TIME",
+    "partition": 4,
+    "offset": 42922,
+    "key": "EMP484",
+    "value": {
+      "eventType": "Location",
+      "receivedAt": "2025-11-19T11:00:00.000Z",
+      "messageData": { "timestamp": "2025-11-19T22:38:16.559Z" },
+      "eventData": {},
+      "remoteData": { "externalId": "EMP484" },
+      "locationData": {
+        "gpsAccuracy": 0,
+        "latitude": -36.84448,
+        "longitude": 174.76915,
+        "speed": 0
+      }
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763591891888,
+    "timestampType": "CREATE_TIME",
+    "partition": 4,
+    "offset": 42921,
+    "key": "EMP484",
+    "value": {
+      "eventType": "Location",
+      "receivedAt": "2025-11-19T11:00:00.000Z",
+      "messageData": { "timestamp": "2025-11-19T22:38:11.559Z" },
+      "eventData": {},
+      "remoteData": { "externalId": "EMP484" },
+      "locationData": {
+        "gpsAccuracy": 0,
+        "latitude": -36.84448,
+        "longitude": 174.76915,
+        "speed": 0
+      }
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763591558987,
+    "timestampType": "CREATE_TIME",
+    "partition": 1,
+    "offset": 46298,
+    "key": "EMP1005",
+    "value": {
+      "eventType": "Location",
+      "receivedAt": "2025-11-19T11:00:00.000Z",
+      "messageData": { "timestamp": "2025-11-19T22:32:38.711Z" },
+      "eventData": {},
+      "remoteData": { "externalId": "EMP1005" },
+      "locationData": {
+        "gpsAccuracy": 0,
+        "latitude": -37.20299,
+        "longitude": 174.9099,
+        "speed": 0
+      }
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763591553934,
+    "timestampType": "CREATE_TIME",
+    "partition": 1,
+    "offset": 46297,
+    "key": "EMP1005",
+    "value": {
+      "eventType": "Location",
+      "receivedAt": "2025-11-19T11:00:00.000Z",
+      "messageData": { "timestamp": "2025-11-19T22:32:33.711Z" },
+      "eventData": {},
+      "remoteData": { "externalId": "EMP1005" },
+      "locationData": {
+        "gpsAccuracy": 0,
+        "latitude": -37.20299,
+        "longitude": 174.9099,
+        "speed": 0
+      }
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763591541721,
+    "timestampType": "CREATE_TIME",
+    "partition": 7,
+    "offset": 43351,
+    "key": "EMP511",
+    "value": {
+      "eventType": "Location",
+      "receivedAt": "2025-11-19T11:00:00.000Z",
+      "messageData": { "timestamp": "2025-11-19T22:32:21.479Z" },
+      "eventData": {},
+      "remoteData": { "externalId": "EMP511" },
+      "locationData": {
+        "gpsAccuracy": 0,
+        "latitude": -36.99412,
+        "longitude": 174.877,
+        "speed": 0
+      }
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763591536702,
+    "timestampType": "CREATE_TIME",
+    "partition": 7,
+    "offset": 43350,
+    "key": "EMP511",
+    "value": {
+      "eventType": "Location",
+      "receivedAt": "2025-11-19T11:00:00.000Z",
+      "messageData": { "timestamp": "2025-11-19T22:32:16.479Z" },
+      "eventData": {},
+      "remoteData": { "externalId": "EMP511" },
+      "locationData": {
+        "gpsAccuracy": 0,
+        "latitude": -36.99412,
+        "longitude": 174.877,
+        "speed": 0
+      }
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763591465026,
+    "timestampType": "CREATE_TIME",
+    "partition": 5,
+    "offset": 38501,
+    "key": "EMP306",
+    "value": {
+      "eventType": "Location",
+      "receivedAt": "2025-11-19T11:00:00.000Z",
+      "messageData": { "timestamp": "2025-11-19T22:31:04.628Z" },
+      "eventData": {},
+      "remoteData": { "externalId": "EMP306" },
+      "locationData": {
+        "gpsAccuracy": 0,
+        "latitude": -36.84448,
+        "longitude": 174.76915,
+        "speed": 0
+      }
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763591465026,
+    "timestampType": "CREATE_TIME",
+    "partition": 10,
+    "offset": 29151,
+    "key": "EMP402",
+    "value": {
+      "eventType": "Location",
+      "receivedAt": "2025-11-19T11:00:00.000Z",
+      "messageData": { "timestamp": "2025-11-19T22:31:04.629Z" },
+      "eventData": {},
+      "remoteData": { "externalId": "EMP402" },
+      "locationData": {
+        "gpsAccuracy": 0,
+        "latitude": -36.84448,
+        "longitude": 174.76915,
+        "speed": 0
+      }
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763591459959,
+    "timestampType": "CREATE_TIME",
+    "partition": 5,
+    "offset": 38500,
+    "key": "EMP306",
+    "value": {
+      "eventType": "Location",
+      "receivedAt": "2025-11-19T11:00:00.000Z",
+      "messageData": { "timestamp": "2025-11-19T22:30:59.628Z" },
+      "eventData": {},
+      "remoteData": { "externalId": "EMP306" },
+      "locationData": {
+        "gpsAccuracy": 0,
+        "latitude": -36.84448,
+        "longitude": 174.76915,
+        "speed": 0
+      }
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763591459959,
+    "timestampType": "CREATE_TIME",
+    "partition": 10,
+    "offset": 29150,
+    "key": "EMP402",
+    "value": {
+      "eventType": "Location",
+      "receivedAt": "2025-11-19T11:00:00.000Z",
+      "messageData": { "timestamp": "2025-11-19T22:30:59.629Z" },
+      "eventData": {},
+      "remoteData": { "externalId": "EMP402" },
+      "locationData": {
+        "gpsAccuracy": 0,
+        "latitude": -36.84448,
+        "longitude": 174.76915,
+        "speed": 0
+      }
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763591064014,
+    "timestampType": "CREATE_TIME",
+    "partition": 1,
+    "offset": 46296,
+    "key": "EMP1005",
+    "value": {
+      "eventType": "Location",
+      "receivedAt": "2025-11-19T11:00:00.000Z",
+      "messageData": { "timestamp": "2025-11-19T22:24:23.714Z" },
+      "eventData": {},
+      "remoteData": { "externalId": "EMP1005" },
+      "locationData": {
+        "gpsAccuracy": 0,
+        "latitude": -37.20331,
+        "longitude": 174.91015,
+        "speed": 0
+      }
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763591058889,
+    "timestampType": "CREATE_TIME",
+    "partition": 1,
+    "offset": 46295,
+    "key": "EMP1005",
+    "value": {
+      "eventType": "Location",
+      "receivedAt": "2025-11-19T11:00:00.000Z",
+      "messageData": { "timestamp": "2025-11-19T22:24:18.714Z" },
+      "eventData": {},
+      "remoteData": { "externalId": "EMP1005" },
+      "locationData": {
+        "gpsAccuracy": 0,
+        "latitude": -37.20331,
+        "longitude": 174.91015,
+        "speed": 0
+      }
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763591037449,
+    "timestampType": "CREATE_TIME",
+    "partition": 5,
+    "offset": 38499,
+    "key": "EMP958",
+    "value": {
+      "eventType": "Location",
+      "receivedAt": "2025-11-19T11:00:00.000Z",
+      "messageData": { "timestamp": "2025-11-19T22:23:57.012Z" },
+      "eventData": {},
+      "remoteData": { "externalId": "EMP958" },
+      "locationData": {
+        "gpsAccuracy": 0,
+        "latitude": -36.84448,
+        "longitude": 174.76915,
+        "speed": 0
+      }
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763591032383,
+    "timestampType": "CREATE_TIME",
+    "partition": 5,
+    "offset": 38498,
+    "key": "EMP958",
+    "value": {
+      "eventType": "Location",
+      "receivedAt": "2025-11-19T11:00:00.000Z",
+      "messageData": { "timestamp": "2025-11-19T22:23:52.012Z" },
+      "eventData": {},
+      "remoteData": { "externalId": "EMP958" },
+      "locationData": {
+        "gpsAccuracy": 0,
+        "latitude": -36.84448,
+        "longitude": 174.76915,
+        "speed": 0
+      }
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763590710929,
+    "timestampType": "CREATE_TIME",
+    "partition": 3,
+    "offset": 18123,
+    "key": "EMP714",
+    "value": {
+      "eventType": "Location",
+      "receivedAt": "2025-11-19T11:00:00.000Z",
+      "messageData": { "timestamp": "2025-11-19T22:18:30.596Z" },
+      "eventData": {},
+      "remoteData": { "externalId": "EMP714" },
+      "locationData": {
+        "gpsAccuracy": 0,
+        "latitude": -36.84448,
+        "longitude": 174.76915,
+        "speed": 0
+      }
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763590705908,
+    "timestampType": "CREATE_TIME",
+    "partition": 3,
+    "offset": 18122,
+    "key": "EMP714",
+    "value": {
+      "eventType": "Location",
+      "receivedAt": "2025-11-19T11:00:00.000Z",
+      "messageData": { "timestamp": "2025-11-19T22:18:25.596Z" },
+      "eventData": {},
+      "remoteData": { "externalId": "EMP714" },
+      "locationData": {
+        "gpsAccuracy": 0,
+        "latitude": -36.84448,
+        "longitude": 174.76915,
+        "speed": 0
+      }
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763590269335,
+    "timestampType": "CREATE_TIME",
+    "partition": 1,
+    "offset": 46294,
+    "key": "EMP471",
+    "value": {
+      "eventType": "Location",
+      "receivedAt": "2025-11-19T11:00:00.000Z",
+      "messageData": { "timestamp": "2025-11-19T22:11:08.999Z" },
+      "eventData": {},
+      "remoteData": { "externalId": "EMP471" },
+      "locationData": {
+        "gpsAccuracy": 0,
+        "latitude": -36.84448,
+        "longitude": 174.76915,
+        "speed": 0
+      }
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763590264254,
+    "timestampType": "CREATE_TIME",
+    "partition": 1,
+    "offset": 46293,
+    "key": "EMP471",
+    "value": {
+      "eventType": "Location",
+      "receivedAt": "2025-11-19T11:00:00.000Z",
+      "messageData": { "timestamp": "2025-11-19T22:11:03.999Z" },
+      "eventData": {},
+      "remoteData": { "externalId": "EMP471" },
+      "locationData": {
+        "gpsAccuracy": 0,
+        "latitude": -36.84448,
+        "longitude": 174.76915,
+        "speed": 0
+      }
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763590062484,
+    "timestampType": "CREATE_TIME",
+    "partition": 8,
+    "offset": 38059,
+    "key": "EMP362",
+    "value": {
+      "eventType": "Location",
+      "receivedAt": "2025-11-19T11:00:00.000Z",
+      "messageData": { "timestamp": "2025-11-19T22:07:42.067Z" },
+      "eventData": {},
+      "remoteData": { "externalId": "EMP362" },
+      "locationData": {
+        "gpsAccuracy": 0,
+        "latitude": -37.20331,
+        "longitude": 174.91015,
+        "speed": 0
+      }
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763590057383,
+    "timestampType": "CREATE_TIME",
+    "partition": 8,
+    "offset": 38058,
+    "key": "EMP362",
+    "value": {
+      "eventType": "Location",
+      "receivedAt": "2025-11-19T11:00:00.000Z",
+      "messageData": { "timestamp": "2025-11-19T22:07:37.067Z" },
+      "eventData": {},
+      "remoteData": { "externalId": "EMP362" },
+      "locationData": {
+        "gpsAccuracy": 0,
+        "latitude": -37.20331,
+        "longitude": 174.91015,
+        "speed": 0
+      }
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763589841802,
+    "timestampType": "CREATE_TIME",
+    "partition": 4,
+    "offset": 42920,
+    "key": "EMP851",
+    "value": {
+      "eventType": "Location",
+      "receivedAt": "2025-11-19T11:00:00.000Z",
+      "messageData": { "timestamp": "2025-11-19T22:04:01.455Z" },
+      "eventData": {},
+      "remoteData": { "externalId": "EMP851" },
+      "locationData": {
+        "gpsAccuracy": 0,
+        "latitude": -36.84448,
+        "longitude": 174.76915,
+        "speed": 0
+      }
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763589841802,
+    "timestampType": "CREATE_TIME",
+    "partition": 5,
+    "offset": 38497,
+    "key": "EMP674",
+    "value": {
+      "eventType": "Location",
+      "receivedAt": "2025-11-19T11:00:00.000Z",
+      "messageData": { "timestamp": "2025-11-19T22:04:01.454Z" },
+      "eventData": {},
+      "remoteData": { "externalId": "EMP674" },
+      "locationData": {
+        "gpsAccuracy": 0,
+        "latitude": -36.84448,
+        "longitude": 174.76915,
+        "speed": 0
+      }
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763589836758,
+    "timestampType": "CREATE_TIME",
+    "partition": 4,
+    "offset": 42919,
+    "key": "EMP851",
+    "value": {
+      "eventType": "Location",
+      "receivedAt": "2025-11-19T11:00:00.000Z",
+      "messageData": { "timestamp": "2025-11-19T22:03:56.455Z" },
+      "eventData": {},
+      "remoteData": { "externalId": "EMP851" },
+      "locationData": {
+        "gpsAccuracy": 0,
+        "latitude": -36.84448,
+        "longitude": 174.76915,
+        "speed": 0
+      }
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763589836758,
+    "timestampType": "CREATE_TIME",
+    "partition": 5,
+    "offset": 38496,
+    "key": "EMP674",
+    "value": {
+      "eventType": "Location",
+      "receivedAt": "2025-11-19T11:00:00.000Z",
+      "messageData": { "timestamp": "2025-11-19T22:03:56.454Z" },
+      "eventData": {},
+      "remoteData": { "externalId": "EMP674" },
+      "locationData": {
+        "gpsAccuracy": 0,
+        "latitude": -36.84448,
+        "longitude": 174.76915,
+        "speed": 0
+      }
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763589498214,
+    "timestampType": "CREATE_TIME",
+    "partition": 10,
+    "offset": 29149,
+    "key": "EMP661",
+    "value": {
+      "eventType": "Location",
+      "receivedAt": "2025-11-19T11:00:00.000Z",
+      "messageData": { "timestamp": "2025-11-19T21:58:17.943Z" },
+      "eventData": {},
+      "remoteData": { "externalId": "EMP661" },
+      "locationData": {
+        "gpsAccuracy": 0,
+        "latitude": -36.84448,
+        "longitude": 174.76915,
+        "speed": 0
+      }
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763589493182,
+    "timestampType": "CREATE_TIME",
+    "partition": 10,
+    "offset": 29148,
+    "key": "EMP661",
+    "value": {
+      "eventType": "Location",
+      "receivedAt": "2025-11-19T11:00:00.000Z",
+      "messageData": { "timestamp": "2025-11-19T21:58:12.943Z" },
+      "eventData": {},
+      "remoteData": { "externalId": "EMP661" },
+      "locationData": {
+        "gpsAccuracy": 0,
+        "latitude": -36.84448,
+        "longitude": 174.76915,
+        "speed": 0
+      }
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763589457265,
+    "timestampType": "CREATE_TIME",
+    "partition": 4,
+    "offset": 42918,
+    "key": "EMP484",
+    "value": {
+      "eventType": "Location",
+      "receivedAt": "2025-11-19T11:00:00.000Z",
+      "messageData": { "timestamp": "2025-11-19T21:57:34.051Z" },
+      "eventData": {},
+      "remoteData": { "externalId": "EMP484" },
+      "locationData": {
+        "gpsAccuracy": 0,
+        "latitude": -36.99412,
+        "longitude": 174.877,
+        "speed": 0
+      }
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763589452202,
+    "timestampType": "CREATE_TIME",
+    "partition": 4,
+    "offset": 42917,
+    "key": "EMP484",
+    "value": {
+      "eventType": "Location",
+      "receivedAt": "2025-11-19T11:00:00.000Z",
+      "messageData": { "timestamp": "2025-11-19T21:57:29.051Z" },
+      "eventData": {},
+      "remoteData": { "externalId": "EMP484" },
+      "locationData": {
+        "gpsAccuracy": 0,
+        "latitude": -36.99412,
+        "longitude": 174.877,
+        "speed": 0
+      }
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763589179331,
+    "timestampType": "CREATE_TIME",
+    "partition": 9,
+    "offset": 44023,
+    "key": "EMP1074",
+    "value": {
+      "eventType": "Location",
+      "receivedAt": "2025-11-19T11:00:00.000Z",
+      "messageData": { "timestamp": "2025-11-19T21:52:59.186Z" },
+      "eventData": {},
+      "remoteData": { "externalId": "EMP1074" },
+      "locationData": {
+        "gpsAccuracy": 0,
+        "latitude": -37.20299,
+        "longitude": 174.9099,
+        "speed": 0
+      }
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763589174237,
+    "timestampType": "CREATE_TIME",
+    "partition": 9,
+    "offset": 44022,
+    "key": "EMP1074",
+    "value": {
+      "eventType": "Location",
+      "receivedAt": "2025-11-19T11:00:00.000Z",
+      "messageData": { "timestamp": "2025-11-19T21:52:54.186Z" },
+      "eventData": {},
+      "remoteData": { "externalId": "EMP1074" },
+      "locationData": {
+        "gpsAccuracy": 0,
+        "latitude": -37.20299,
+        "longitude": 174.9099,
+        "speed": 0
+      }
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763589061963,
+    "timestampType": "CREATE_TIME",
+    "partition": 1,
+    "offset": 46292,
+    "key": "EMP633",
+    "value": {
+      "eventType": "Location",
+      "receivedAt": "2025-11-19T11:00:00.000Z",
+      "messageData": { "timestamp": "2025-11-19T21:51:01.597Z" },
+      "eventData": {},
+      "remoteData": { "externalId": "EMP633" },
+      "locationData": {
+        "gpsAccuracy": 0,
+        "latitude": -36.84448,
+        "longitude": 174.76915,
+        "speed": 0
+      }
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763589056932,
+    "timestampType": "CREATE_TIME",
+    "partition": 1,
+    "offset": 46291,
+    "key": "EMP633",
+    "value": {
+      "eventType": "Location",
+      "receivedAt": "2025-11-19T11:00:00.000Z",
+      "messageData": { "timestamp": "2025-11-19T21:50:56.597Z" },
+      "eventData": {},
+      "remoteData": { "externalId": "EMP633" },
+      "locationData": {
+        "gpsAccuracy": 0,
+        "latitude": -36.84448,
+        "longitude": 174.76915,
+        "speed": 0
+      }
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763588669362,
+    "timestampType": "CREATE_TIME",
+    "partition": 4,
+    "offset": 42916,
+    "key": "EMP347",
+    "value": {
+      "eventType": "Location",
+      "receivedAt": "2025-11-19T11:00:00.000Z",
+      "messageData": { "timestamp": "2025-11-19T21:44:29.045Z" },
+      "eventData": {},
+      "remoteData": { "externalId": "EMP347" },
+      "locationData": {
+        "gpsAccuracy": 0,
+        "latitude": -36.84448,
+        "longitude": 174.76915,
+        "speed": 0
+      }
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763588664307,
+    "timestampType": "CREATE_TIME",
+    "partition": 4,
+    "offset": 42915,
+    "key": "EMP347",
+    "value": {
+      "eventType": "Location",
+      "receivedAt": "2025-11-19T11:00:00.000Z",
+      "messageData": { "timestamp": "2025-11-19T21:44:24.045Z" },
+      "eventData": {},
+      "remoteData": { "externalId": "EMP347" },
+      "locationData": {
+        "gpsAccuracy": 0,
+        "latitude": -36.84448,
+        "longitude": 174.76915,
+        "speed": 0
+      }
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763588663580,
+    "timestampType": "CREATE_TIME",
+    "partition": 9,
+    "offset": 44021,
+    "key": "EMP1142",
+    "value": {
+      "eventType": "Location",
+      "receivedAt": "2025-11-19T11:00:00.000Z",
+      "messageData": { "timestamp": "2025-11-19T21:44:23.194Z" },
+      "eventData": {},
+      "remoteData": { "externalId": "EMP1142" },
+      "locationData": {
+        "gpsAccuracy": 0,
+        "latitude": -37.20331,
+        "longitude": 174.91015,
+        "speed": 0
+      }
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763588658474,
+    "timestampType": "CREATE_TIME",
+    "partition": 9,
+    "offset": 44020,
+    "key": "EMP1142",
+    "value": {
+      "eventType": "Location",
+      "receivedAt": "2025-11-19T11:00:00.000Z",
+      "messageData": { "timestamp": "2025-11-19T21:44:18.194Z" },
+      "eventData": {},
+      "remoteData": { "externalId": "EMP1142" },
+      "locationData": {
+        "gpsAccuracy": 0,
+        "latitude": -37.20331,
+        "longitude": 174.91015,
+        "speed": 0
+      }
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763588283484,
+    "timestampType": "CREATE_TIME",
+    "partition": 1,
+    "offset": 46290,
+    "key": "EMP945",
+    "value": {
+      "eventType": "Location",
+      "receivedAt": "2025-11-19T11:00:00.000Z",
+      "messageData": { "timestamp": "2025-11-19T21:38:03.142Z" },
+      "eventData": {},
+      "remoteData": { "externalId": "EMP945" },
+      "locationData": {
+        "gpsAccuracy": 0,
+        "latitude": -37.20299,
+        "longitude": 174.9099,
+        "speed": 0
+      }
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763588278419,
+    "timestampType": "CREATE_TIME",
+    "partition": 1,
+    "offset": 46289,
+    "key": "EMP945",
+    "value": {
+      "eventType": "Location",
+      "receivedAt": "2025-11-19T11:00:00.000Z",
+      "messageData": { "timestamp": "2025-11-19T21:37:58.142Z" },
+      "eventData": {},
+      "remoteData": { "externalId": "EMP945" },
+      "locationData": {
+        "gpsAccuracy": 0,
+        "latitude": -37.20299,
+        "longitude": 174.9099,
+        "speed": 0
+      }
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763588274109,
+    "timestampType": "CREATE_TIME",
+    "partition": 8,
+    "offset": 38057,
+    "key": "EMP1155",
+    "value": {
+      "eventType": "Location",
+      "receivedAt": "2025-11-19T11:00:00.000Z",
+      "messageData": { "timestamp": "2025-11-19T21:37:53.699Z" },
+      "eventData": {},
+      "remoteData": { "externalId": "EMP1155" },
+      "locationData": {
+        "gpsAccuracy": 0,
+        "latitude": -36.84448,
+        "longitude": 174.76915,
+        "speed": 0
+      }
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763588268998,
+    "timestampType": "CREATE_TIME",
+    "partition": 8,
+    "offset": 38056,
+    "key": "EMP1155",
+    "value": {
+      "eventType": "Location",
+      "receivedAt": "2025-11-19T11:00:00.000Z",
+      "messageData": { "timestamp": "2025-11-19T21:37:48.699Z" },
+      "eventData": {},
+      "remoteData": { "externalId": "EMP1155" },
+      "locationData": {
+        "gpsAccuracy": 0,
+        "latitude": -36.84448,
+        "longitude": 174.76915,
+        "speed": 0
+      }
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763588018607,
+    "timestampType": "CREATE_TIME",
+    "partition": 7,
+    "offset": 43349,
+    "key": "EMP212",
+    "value": {
+      "eventType": "Location",
+      "receivedAt": "2025-11-19T11:00:00.000Z",
+      "messageData": { "timestamp": "2025-11-19T21:33:38.254Z" },
+      "eventData": {},
+      "remoteData": { "externalId": "EMP212" },
+      "locationData": {
+        "gpsAccuracy": 0,
+        "latitude": -37.20331,
+        "longitude": 174.91015,
+        "speed": 0
+      }
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763588018607,
+    "timestampType": "CREATE_TIME",
+    "partition": 8,
+    "offset": 38055,
+    "key": "EMP1087",
+    "value": {
+      "eventType": "Location",
+      "receivedAt": "2025-11-19T11:00:00.000Z",
+      "messageData": { "timestamp": "2025-11-19T21:33:38.254Z" },
+      "eventData": {},
+      "remoteData": { "externalId": "EMP1087" },
+      "locationData": {
+        "gpsAccuracy": 0,
+        "latitude": -37.20331,
+        "longitude": 174.91015,
+        "speed": 0
+      }
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763588013563,
+    "timestampType": "CREATE_TIME",
+    "partition": 7,
+    "offset": 43348,
+    "key": "EMP212",
+    "value": {
+      "eventType": "Location",
+      "receivedAt": "2025-11-19T11:00:00.000Z",
+      "messageData": { "timestamp": "2025-11-19T21:33:33.254Z" },
+      "eventData": {},
+      "remoteData": { "externalId": "EMP212" },
+      "locationData": {
+        "gpsAccuracy": 0,
+        "latitude": -37.20331,
+        "longitude": 174.91015,
+        "speed": 0
+      }
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763588013563,
+    "timestampType": "CREATE_TIME",
+    "partition": 8,
+    "offset": 38054,
+    "key": "EMP1087",
+    "value": {
+      "eventType": "Location",
+      "receivedAt": "2025-11-19T11:00:00.000Z",
+      "messageData": { "timestamp": "2025-11-19T21:33:33.254Z" },
+      "eventData": {},
+      "remoteData": { "externalId": "EMP1087" },
+      "locationData": {
+        "gpsAccuracy": 0,
+        "latitude": -37.20331,
+        "longitude": 174.91015,
+        "speed": 0
+      }
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763587921997,
+    "timestampType": "CREATE_TIME",
+    "partition": 3,
+    "offset": 18121,
+    "key": "EMP714",
+    "value": {
+      "eventType": "Location",
+      "receivedAt": "2025-11-19T11:00:00.000Z",
+      "messageData": { "timestamp": "2025-11-19T21:32:01.902Z" },
+      "eventData": {},
+      "remoteData": { "externalId": "EMP714" },
+      "locationData": {
+        "gpsAccuracy": 0,
+        "latitude": -36.99412,
+        "longitude": 174.877,
+        "speed": 0
+      }
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763587916966,
+    "timestampType": "CREATE_TIME",
+    "partition": 3,
+    "offset": 18120,
+    "key": "EMP714",
+    "value": {
+      "eventType": "Location",
+      "receivedAt": "2025-11-19T11:00:00.000Z",
+      "messageData": { "timestamp": "2025-11-19T21:31:56.902Z" },
+      "eventData": {},
+      "remoteData": { "externalId": "EMP714" },
+      "locationData": {
+        "gpsAccuracy": 0,
+        "latitude": -36.99412,
+        "longitude": 174.877,
+        "speed": 0
+      }
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763587866231,
+    "timestampType": "CREATE_TIME",
+    "partition": 7,
+    "offset": 43347,
+    "key": "EMP1020",
+    "value": {
+      "eventType": "Location",
+      "receivedAt": "2025-11-19T11:00:00.000Z",
+      "messageData": { "timestamp": "2025-11-19T21:31:05.866Z" },
+      "eventData": {},
+      "remoteData": { "externalId": "EMP1020" },
+      "locationData": {
+        "gpsAccuracy": 0,
+        "latitude": -36.84448,
+        "longitude": 174.76915,
+        "speed": 0
+      }
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763587861159,
+    "timestampType": "CREATE_TIME",
+    "partition": 7,
+    "offset": 43346,
+    "key": "EMP1020",
+    "value": {
+      "eventType": "Location",
+      "receivedAt": "2025-11-19T11:00:00.000Z",
+      "messageData": { "timestamp": "2025-11-19T21:31:00.866Z" },
+      "eventData": {},
+      "remoteData": { "externalId": "EMP1020" },
+      "locationData": {
+        "gpsAccuracy": 0,
+        "latitude": -36.84448,
+        "longitude": 174.76915,
+        "speed": 0
+      }
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763587688053,
+    "timestampType": "CREATE_TIME",
+    "partition": 9,
+    "offset": 44019,
+    "key": "EMP1074",
+    "value": {
+      "eventType": "Location",
+      "receivedAt": "2025-11-19T11:00:00.000Z",
+      "messageData": { "timestamp": "2025-11-19T21:28:07.446Z" },
+      "eventData": {},
+      "remoteData": { "externalId": "EMP1074" },
+      "locationData": {
+        "gpsAccuracy": 0,
+        "latitude": -37.20331,
+        "longitude": 174.91015,
+        "speed": 0
+      }
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763587682955,
+    "timestampType": "CREATE_TIME",
+    "partition": 9,
+    "offset": 44018,
+    "key": "EMP1074",
+    "value": {
+      "eventType": "Location",
+      "receivedAt": "2025-11-19T11:00:00.000Z",
+      "messageData": { "timestamp": "2025-11-19T21:28:02.446Z" },
+      "eventData": {},
+      "remoteData": { "externalId": "EMP1074" },
+      "locationData": {
+        "gpsAccuracy": 0,
+        "latitude": -37.20331,
+        "longitude": 174.91015,
+        "speed": 0
+      }
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763587438286,
+    "timestampType": "CREATE_TIME",
+    "partition": 4,
+    "offset": 42913,
+    "key": "EMP620",
+    "value": {
+      "eventType": "Location",
+      "receivedAt": "2025-11-19T11:00:00.000Z",
+      "messageData": { "timestamp": "2025-11-19T21:23:58.011Z" },
+      "eventData": {},
+      "remoteData": { "externalId": "EMP620" },
+      "locationData": {
+        "gpsAccuracy": 0,
+        "latitude": -36.84448,
+        "longitude": 174.76915,
+        "speed": 0
+      }
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763587438286,
+    "timestampType": "CREATE_TIME",
+    "partition": 4,
+    "offset": 42914,
+    "key": "EMP849",
+    "value": {
+      "eventType": "Location",
+      "receivedAt": "2025-11-19T11:00:00.000Z",
+      "messageData": { "timestamp": "2025-11-19T21:23:58.011Z" },
+      "eventData": {},
+      "remoteData": { "externalId": "EMP849" },
+      "locationData": {
+        "gpsAccuracy": 0,
+        "latitude": -36.84448,
+        "longitude": 174.76915,
+        "speed": 0
+      }
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763587422115,
+    "timestampType": "CREATE_TIME",
+    "partition": 5,
+    "offset": 38495,
+    "key": "EMP306",
+    "value": {
+      "eventType": "Location",
+      "receivedAt": "2025-11-19T11:00:00.000Z",
+      "messageData": { "timestamp": "2025-11-19T21:23:41.629Z" },
+      "eventData": {},
+      "remoteData": { "externalId": "EMP306" },
+      "locationData": {
+        "gpsAccuracy": 0,
+        "latitude": -37.20299,
+        "longitude": 174.9099,
+        "speed": 0
+      }
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763587422115,
+    "timestampType": "CREATE_TIME",
+    "partition": 10,
+    "offset": 29147,
+    "key": "EMP402",
+    "value": {
+      "eventType": "Location",
+      "receivedAt": "2025-11-19T11:00:00.000Z",
+      "messageData": { "timestamp": "2025-11-19T21:23:41.629Z" },
+      "eventData": {},
+      "remoteData": { "externalId": "EMP402" },
+      "locationData": {
+        "gpsAccuracy": 0,
+        "latitude": -37.20299,
+        "longitude": 174.9099,
+        "speed": 0
+      }
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763587417053,
+    "timestampType": "CREATE_TIME",
+    "partition": 5,
+    "offset": 38494,
+    "key": "EMP306",
+    "value": {
+      "eventType": "Location",
+      "receivedAt": "2025-11-19T11:00:00.000Z",
+      "messageData": { "timestamp": "2025-11-19T21:23:36.629Z" },
+      "eventData": {},
+      "remoteData": { "externalId": "EMP306" },
+      "locationData": {
+        "gpsAccuracy": 0,
+        "latitude": -37.20299,
+        "longitude": 174.9099,
+        "speed": 0
+      }
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763587417053,
+    "timestampType": "CREATE_TIME",
+    "partition": 10,
+    "offset": 29146,
+    "key": "EMP402",
+    "value": {
+      "eventType": "Location",
+      "receivedAt": "2025-11-19T11:00:00.000Z",
+      "messageData": { "timestamp": "2025-11-19T21:23:36.629Z" },
+      "eventData": {},
+      "remoteData": { "externalId": "EMP402" },
+      "locationData": {
+        "gpsAccuracy": 0,
+        "latitude": -37.20299,
+        "longitude": 174.9099,
+        "speed": 0
+      }
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763587144208,
+    "timestampType": "CREATE_TIME",
+    "partition": 5,
+    "offset": 38493,
+    "key": "EMP306",
+    "value": {
+      "eventType": "Location",
+      "receivedAt": "2025-11-19T11:00:00.000Z",
+      "messageData": { "timestamp": "2025-11-19T21:19:03.939Z" },
+      "eventData": {},
+      "remoteData": { "externalId": "EMP306" },
+      "locationData": {
+        "gpsAccuracy": 0,
+        "latitude": -37.20331,
+        "longitude": 174.91015,
+        "speed": 0
+      }
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763587144208,
+    "timestampType": "CREATE_TIME",
+    "partition": 10,
+    "offset": 29145,
+    "key": "EMP402",
+    "value": {
+      "eventType": "Location",
+      "receivedAt": "2025-11-19T11:00:00.000Z",
+      "messageData": { "timestamp": "2025-11-19T21:19:03.939Z" },
+      "eventData": {},
+      "remoteData": { "externalId": "EMP402" },
+      "locationData": {
+        "gpsAccuracy": 0,
+        "latitude": -37.20331,
+        "longitude": 174.91015,
+        "speed": 0
+      }
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763587139123,
+    "timestampType": "CREATE_TIME",
+    "partition": 5,
+    "offset": 38492,
+    "key": "EMP306",
+    "value": {
+      "eventType": "Location",
+      "receivedAt": "2025-11-19T11:00:00.000Z",
+      "messageData": { "timestamp": "2025-11-19T21:18:58.939Z" },
+      "eventData": {},
+      "remoteData": { "externalId": "EMP306" },
+      "locationData": {
+        "gpsAccuracy": 0,
+        "latitude": -37.20331,
+        "longitude": 174.91015,
+        "speed": 0
+      }
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763587139123,
+    "timestampType": "CREATE_TIME",
+    "partition": 10,
+    "offset": 29144,
+    "key": "EMP402",
+    "value": {
+      "eventType": "Location",
+      "receivedAt": "2025-11-19T11:00:00.000Z",
+      "messageData": { "timestamp": "2025-11-19T21:18:58.939Z" },
+      "eventData": {},
+      "remoteData": { "externalId": "EMP402" },
+      "locationData": {
+        "gpsAccuracy": 0,
+        "latitude": -37.20331,
+        "longitude": 174.91015,
+        "speed": 0
+      }
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763587094588,
+    "timestampType": "CREATE_TIME",
+    "partition": 7,
+    "offset": 43345,
+    "key": "EMP511",
+    "value": {
+      "eventType": "Location",
+      "receivedAt": "2025-11-19T11:00:00.000Z",
+      "messageData": { "timestamp": "2025-11-19T21:18:14.202Z" },
+      "eventData": {},
+      "remoteData": { "externalId": "EMP511" },
+      "locationData": {
+        "gpsAccuracy": 0,
+        "latitude": -36.84448,
+        "longitude": 174.76915,
+        "speed": 0
+      }
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763587089539,
+    "timestampType": "CREATE_TIME",
+    "partition": 7,
+    "offset": 43344,
+    "key": "EMP511",
+    "value": {
+      "eventType": "Location",
+      "receivedAt": "2025-11-19T11:00:00.000Z",
+      "messageData": { "timestamp": "2025-11-19T21:18:09.202Z" },
+      "eventData": {},
+      "remoteData": { "externalId": "EMP511" },
+      "locationData": {
+        "gpsAccuracy": 0,
+        "latitude": -36.84448,
+        "longitude": 174.76915,
+        "speed": 0
+      }
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763586743039,
+    "timestampType": "CREATE_TIME",
+    "partition": 10,
+    "offset": 29143,
+    "key": "EMP661",
+    "value": {
+      "eventType": "Location",
+      "receivedAt": "2025-11-19T11:00:00.000Z",
+      "messageData": { "timestamp": "2025-11-19T21:12:22.923Z" },
+      "eventData": {},
+      "remoteData": { "externalId": "EMP661" },
+      "locationData": {
+        "gpsAccuracy": 0,
+        "latitude": -36.99412,
+        "longitude": 174.877,
+        "speed": 0
+      }
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763586737943,
+    "timestampType": "CREATE_TIME",
+    "partition": 10,
+    "offset": 29142,
+    "key": "EMP661",
+    "value": {
+      "eventType": "Location",
+      "receivedAt": "2025-11-19T11:00:00.000Z",
+      "messageData": { "timestamp": "2025-11-19T21:12:17.923Z" },
+      "eventData": {},
+      "remoteData": { "externalId": "EMP661" },
+      "locationData": {
+        "gpsAccuracy": 0,
+        "latitude": -36.99412,
+        "longitude": 174.877,
+        "speed": 0
+      }
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763586349867,
+    "timestampType": "CREATE_TIME",
+    "partition": 3,
+    "offset": 18119,
+    "key": "EMP129",
+    "value": {
+      "eventType": "Location",
+      "receivedAt": "2025-11-19T11:00:00.000Z",
+      "messageData": { "timestamp": "2025-11-19T21:05:49.593Z" },
+      "eventData": {},
+      "remoteData": { "externalId": "EMP129" },
+      "locationData": {
+        "gpsAccuracy": 0,
+        "latitude": -36.84448,
+        "longitude": 174.76915,
+        "speed": 0
+      }
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763586344818,
+    "timestampType": "CREATE_TIME",
+    "partition": 3,
+    "offset": 18118,
+    "key": "EMP129",
+    "value": {
+      "eventType": "Location",
+      "receivedAt": "2025-11-19T11:00:00.000Z",
+      "messageData": { "timestamp": "2025-11-19T21:05:44.593Z" },
+      "eventData": {},
+      "remoteData": { "externalId": "EMP129" },
+      "locationData": {
+        "gpsAccuracy": 0,
+        "latitude": -36.84448,
+        "longitude": 174.76915,
+        "speed": 0
+      }
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763585901965,
+    "timestampType": "CREATE_TIME",
+    "partition": 7,
+    "offset": 43343,
+    "key": "EMP390",
+    "value": {
+      "eventType": "Location",
+      "receivedAt": "2025-11-19T11:00:00.000Z",
+      "messageData": { "timestamp": "2025-11-19T20:58:21.556Z" },
+      "eventData": {},
+      "remoteData": { "externalId": "EMP390" },
+      "locationData": {
+        "gpsAccuracy": 0,
+        "latitude": -36.84448,
+        "longitude": 174.76915,
+        "speed": 0
+      }
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763585896937,
+    "timestampType": "CREATE_TIME",
+    "partition": 7,
+    "offset": 43342,
+    "key": "EMP390",
+    "value": {
+      "eventType": "Location",
+      "receivedAt": "2025-11-19T11:00:00.000Z",
+      "messageData": { "timestamp": "2025-11-19T20:58:16.556Z" },
+      "eventData": {},
+      "remoteData": { "externalId": "EMP390" },
+      "locationData": {
+        "gpsAccuracy": 0,
+        "latitude": -36.84448,
+        "longitude": 174.76915,
+        "speed": 0
+      }
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763585551720,
+    "timestampType": "CREATE_TIME",
+    "partition": 8,
+    "offset": 38053,
+    "key": "EMP362",
+    "value": {
+      "eventType": "Location",
+      "receivedAt": "2025-11-19T11:00:00.000Z",
+      "messageData": { "timestamp": "2025-11-19T20:52:28.347Z" },
+      "eventData": {},
+      "remoteData": { "externalId": "EMP362" },
+      "locationData": {
+        "gpsAccuracy": 0,
+        "latitude": -36.84448,
+        "longitude": 174.76915,
+        "speed": 0
+      }
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763585546637,
+    "timestampType": "CREATE_TIME",
+    "partition": 8,
+    "offset": 38052,
+    "key": "EMP362",
+    "value": {
+      "eventType": "Location",
+      "receivedAt": "2025-11-19T11:00:00.000Z",
+      "messageData": { "timestamp": "2025-11-19T20:52:23.347Z" },
+      "eventData": {},
+      "remoteData": { "externalId": "EMP362" },
+      "locationData": {
+        "gpsAccuracy": 0,
+        "latitude": -36.84448,
+        "longitude": 174.76915,
+        "speed": 0
+      }
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763585324923,
+    "timestampType": "CREATE_TIME",
+    "partition": 9,
+    "offset": 44017,
+    "key": "EMP279",
+    "value": {
+      "eventType": "Location",
+      "receivedAt": "2025-11-19T11:00:00.000Z",
+      "messageData": { "timestamp": "2025-11-19T20:48:44.170Z" },
+      "eventData": {},
+      "remoteData": { "externalId": "EMP279" },
+      "locationData": {
+        "gpsAccuracy": 0,
+        "latitude": -36.84448,
+        "longitude": 174.76915,
+        "speed": 0
+      }
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763585319845,
+    "timestampType": "CREATE_TIME",
+    "partition": 9,
+    "offset": 44016,
+    "key": "EMP279",
+    "value": {
+      "eventType": "Location",
+      "receivedAt": "2025-11-19T11:00:00.000Z",
+      "messageData": { "timestamp": "2025-11-19T20:48:39.170Z" },
+      "eventData": {},
+      "remoteData": { "externalId": "EMP279" },
+      "locationData": {
+        "gpsAccuracy": 0,
+        "latitude": -36.84448,
+        "longitude": 174.76915,
+        "speed": 0
+      }
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763585025360,
+    "timestampType": "CREATE_TIME",
+    "partition": 6,
+    "offset": 51918,
+    "key": "EMP185",
+    "value": {
+      "eventType": "Location",
+      "receivedAt": "2025-11-19T11:00:00.000Z",
+      "messageData": { "timestamp": "2025-11-19T20:43:45.126Z" },
+      "eventData": {},
+      "remoteData": { "externalId": "EMP185" },
+      "locationData": {
+        "gpsAccuracy": 0,
+        "latitude": -37.20331,
+        "longitude": 174.91015,
+        "speed": 0
+      }
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763585025360,
+    "timestampType": "CREATE_TIME",
+    "partition": 6,
+    "offset": 51919,
+    "key": "EMP701",
+    "value": {
+      "eventType": "Location",
+      "receivedAt": "2025-11-19T11:00:00.000Z",
+      "messageData": { "timestamp": "2025-11-19T20:43:45.126Z" },
+      "eventData": {},
+      "remoteData": { "externalId": "EMP701" },
+      "locationData": {
+        "gpsAccuracy": 0,
+        "latitude": -37.20331,
+        "longitude": 174.91015,
+        "speed": 0
+      }
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763585020301,
+    "timestampType": "CREATE_TIME",
+    "partition": 6,
+    "offset": 51916,
+    "key": "EMP185",
+    "value": {
+      "eventType": "Location",
+      "receivedAt": "2025-11-19T11:00:00.000Z",
+      "messageData": { "timestamp": "2025-11-19T20:43:40.126Z" },
+      "eventData": {},
+      "remoteData": { "externalId": "EMP185" },
+      "locationData": {
+        "gpsAccuracy": 0,
+        "latitude": -37.20331,
+        "longitude": 174.91015,
+        "speed": 0
+      }
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763585020301,
+    "timestampType": "CREATE_TIME",
+    "partition": 6,
+    "offset": 51917,
+    "key": "EMP701",
+    "value": {
+      "eventType": "Location",
+      "receivedAt": "2025-11-19T11:00:00.000Z",
+      "messageData": { "timestamp": "2025-11-19T20:43:40.126Z" },
+      "eventData": {},
+      "remoteData": { "externalId": "EMP701" },
+      "locationData": {
+        "gpsAccuracy": 0,
+        "latitude": -37.20331,
+        "longitude": 174.91015,
+        "speed": 0
+      }
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763584890218,
+    "timestampType": "CREATE_TIME",
+    "partition": 8,
+    "offset": 38051,
+    "key": "EMP157",
+    "value": {
+      "eventType": "Location",
+      "receivedAt": "2025-11-19T11:00:00.000Z",
+      "messageData": { "timestamp": "2025-11-19T20:41:29.874Z" },
+      "eventData": {},
+      "remoteData": { "externalId": "EMP157" },
+      "locationData": {
+        "gpsAccuracy": 0,
+        "latitude": -36.84448,
+        "longitude": 174.76915,
+        "speed": 0
+      }
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763584885199,
+    "timestampType": "CREATE_TIME",
+    "partition": 8,
+    "offset": 38050,
+    "key": "EMP157",
+    "value": {
+      "eventType": "Location",
+      "receivedAt": "2025-11-19T11:00:00.000Z",
+      "messageData": { "timestamp": "2025-11-19T20:41:24.874Z" },
+      "eventData": {},
+      "remoteData": { "externalId": "EMP157" },
+      "locationData": {
+        "gpsAccuracy": 0,
+        "latitude": -36.84448,
+        "longitude": 174.76915,
+        "speed": 0
+      }
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763584781715,
+    "timestampType": "CREATE_TIME",
+    "partition": 3,
+    "offset": 18117,
+    "key": "EMP714",
+    "value": {
+      "eventType": "Location",
+      "receivedAt": "2025-11-19T11:00:00.000Z",
+      "messageData": { "timestamp": "2025-11-19T20:39:41.499Z" },
+      "eventData": {},
+      "remoteData": { "externalId": "EMP714" },
+      "locationData": {
+        "gpsAccuracy": 0,
+        "latitude": -36.84448,
+        "longitude": 174.76915,
+        "speed": 0
+      }
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763584776652,
+    "timestampType": "CREATE_TIME",
+    "partition": 3,
+    "offset": 18116,
+    "key": "EMP714",
+    "value": {
+      "eventType": "Location",
+      "receivedAt": "2025-11-19T11:00:00.000Z",
+      "messageData": { "timestamp": "2025-11-19T20:39:36.499Z" },
+      "eventData": {},
+      "remoteData": { "externalId": "EMP714" },
+      "locationData": {
+        "gpsAccuracy": 0,
+        "latitude": -36.84448,
+        "longitude": 174.76915,
+        "speed": 0
+      }
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763584082713,
+    "timestampType": "CREATE_TIME",
+    "partition": 6,
+    "offset": 51915,
+    "key": "EMP537",
+    "value": {
+      "eventType": "Location",
+      "receivedAt": "2025-11-19T11:00:00.000Z",
+      "messageData": { "timestamp": "2025-11-19T20:28:02.516Z" },
+      "eventData": {},
+      "remoteData": { "externalId": "EMP537" },
+      "locationData": {
+        "gpsAccuracy": 0,
+        "latitude": -36.84448,
+        "longitude": 174.76915,
+        "speed": 0
+      }
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763584077626,
+    "timestampType": "CREATE_TIME",
+    "partition": 6,
+    "offset": 51914,
+    "key": "EMP537",
+    "value": {
+      "eventType": "Location",
+      "receivedAt": "2025-11-19T11:00:00.000Z",
+      "messageData": { "timestamp": "2025-11-19T20:27:57.516Z" },
+      "eventData": {},
+      "remoteData": { "externalId": "EMP537" },
+      "locationData": {
+        "gpsAccuracy": 0,
+        "latitude": -36.84448,
+        "longitude": 174.76915,
+        "speed": 0
+      }
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763583826395,
+    "timestampType": "CREATE_TIME",
+    "partition": 11,
+    "offset": 24535,
+    "key": "EMP1061",
+    "value": {
+      "eventType": "Location",
+      "receivedAt": "2025-11-19T11:00:00.000Z",
+      "messageData": { "timestamp": "2025-11-19T20:23:46.127Z" },
+      "eventData": {},
+      "remoteData": { "externalId": "EMP1061" },
+      "locationData": {
+        "gpsAccuracy": 0,
+        "latitude": -37.20331,
+        "longitude": 174.91015,
+        "speed": 0
+      }
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763583821355,
+    "timestampType": "CREATE_TIME",
+    "partition": 11,
+    "offset": 24534,
+    "key": "EMP1061",
+    "value": {
+      "eventType": "Location",
+      "receivedAt": "2025-11-19T11:00:00.000Z",
+      "messageData": { "timestamp": "2025-11-19T20:23:41.127Z" },
+      "eventData": {},
+      "remoteData": { "externalId": "EMP1061" },
+      "locationData": {
+        "gpsAccuracy": 0,
+        "latitude": -37.20331,
+        "longitude": 174.91015,
+        "speed": 0
+      }
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763583805739,
+    "timestampType": "CREATE_TIME",
+    "partition": 6,
+    "offset": 51913,
+    "key": "EMP580",
+    "value": {
+      "eventType": "Location",
+      "receivedAt": "2025-11-19T11:00:00.000Z",
+      "messageData": { "timestamp": "2025-11-19T20:23:25.326Z" },
+      "eventData": {},
+      "remoteData": { "externalId": "EMP580" },
+      "locationData": {
+        "gpsAccuracy": 0,
+        "latitude": -36.84448,
+        "longitude": 174.76915,
+        "speed": 0
+      }
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763583800701,
+    "timestampType": "CREATE_TIME",
+    "partition": 6,
+    "offset": 51912,
+    "key": "EMP580",
+    "value": {
+      "eventType": "Location",
+      "receivedAt": "2025-11-19T11:00:00.000Z",
+      "messageData": { "timestamp": "2025-11-19T20:23:20.326Z" },
+      "eventData": {},
+      "remoteData": { "externalId": "EMP580" },
+      "locationData": {
+        "gpsAccuracy": 0,
+        "latitude": -36.84448,
+        "longitude": 174.76915,
+        "speed": 0
+      }
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763583305903,
+    "timestampType": "CREATE_TIME",
+    "partition": 2,
+    "offset": 10511,
+    "key": "EMP917",
+    "value": {
+      "eventType": "Location",
+      "receivedAt": "2025-11-19T11:00:00.000Z",
+      "messageData": { "timestamp": "2025-11-19T20:15:05.674Z" },
+      "eventData": {},
+      "remoteData": { "externalId": "EMP917" },
+      "locationData": {
+        "gpsAccuracy": 0,
+        "latitude": -36.84448,
+        "longitude": 174.76915,
+        "speed": 0
+      }
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763583300846,
+    "timestampType": "CREATE_TIME",
+    "partition": 2,
+    "offset": 10510,
+    "key": "EMP917",
+    "value": {
+      "eventType": "Location",
+      "receivedAt": "2025-11-19T11:00:00.000Z",
+      "messageData": { "timestamp": "2025-11-19T20:15:00.674Z" },
+      "eventData": {},
+      "remoteData": { "externalId": "EMP917" },
+      "locationData": {
+        "gpsAccuracy": 0,
+        "latitude": -36.84448,
+        "longitude": 174.76915,
+        "speed": 0
+      }
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763581784223,
+    "timestampType": "CREATE_TIME",
+    "partition": 3,
+    "offset": 18115,
+    "key": "EMP714",
+    "value": {
+      "eventType": "Location",
+      "receivedAt": "2025-11-19T11:00:00.000Z",
+      "messageData": { "timestamp": "2025-11-19T19:49:43.763Z" },
+      "eventData": {},
+      "remoteData": { "externalId": "EMP714" },
+      "locationData": {
+        "gpsAccuracy": 0,
+        "latitude": -36.99412,
+        "longitude": 174.877,
+        "speed": 0
+      }
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763581779194,
+    "timestampType": "CREATE_TIME",
+    "partition": 3,
+    "offset": 18114,
+    "key": "EMP714",
+    "value": {
+      "eventType": "Location",
+      "receivedAt": "2025-11-19T11:00:00.000Z",
+      "messageData": { "timestamp": "2025-11-19T19:49:38.763Z" },
+      "eventData": {},
+      "remoteData": { "externalId": "EMP714" },
+      "locationData": {
+        "gpsAccuracy": 0,
+        "latitude": -36.99412,
+        "longitude": 174.877,
+        "speed": 0
+      }
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763581444582,
+    "timestampType": "CREATE_TIME",
+    "partition": 11,
+    "offset": 24533,
+    "key": "EMP509",
+    "value": {
+      "eventType": "Location",
+      "receivedAt": "2025-11-19T11:00:00.000Z",
+      "messageData": { "timestamp": "2025-11-19T19:44:04.191Z" },
+      "eventData": {},
+      "remoteData": { "externalId": "EMP509" },
+      "locationData": {
+        "gpsAccuracy": 0,
+        "latitude": -36.84448,
+        "longitude": 174.76915,
+        "speed": 0
+      }
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763581439462,
+    "timestampType": "CREATE_TIME",
+    "partition": 11,
+    "offset": 24532,
+    "key": "EMP509",
+    "value": {
+      "eventType": "Location",
+      "receivedAt": "2025-11-19T11:00:00.000Z",
+      "messageData": { "timestamp": "2025-11-19T19:43:59.191Z" },
+      "eventData": {},
+      "remoteData": { "externalId": "EMP509" },
+      "locationData": {
+        "gpsAccuracy": 0,
+        "latitude": -36.84448,
+        "longitude": 174.76915,
+        "speed": 0
+      }
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763580507582,
+    "timestampType": "CREATE_TIME",
+    "partition": 0,
+    "offset": 21669,
+    "key": "EMP823",
+    "value": {
+      "eventType": "Location",
+      "receivedAt": "2025-11-19T11:00:00.000Z",
+      "messageData": { "timestamp": "2025-11-19T19:28:27.271Z" },
+      "eventData": {},
+      "remoteData": { "externalId": "EMP823" },
+      "locationData": {
+        "gpsAccuracy": 0,
+        "latitude": -36.84448,
+        "longitude": 174.76915,
+        "speed": 0
+      }
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763580502555,
+    "timestampType": "CREATE_TIME",
+    "partition": 0,
+    "offset": 21668,
+    "key": "EMP823",
+    "value": {
+      "eventType": "Location",
+      "receivedAt": "2025-11-19T11:00:00.000Z",
+      "messageData": { "timestamp": "2025-11-19T19:28:22.271Z" },
+      "eventData": {},
+      "remoteData": { "externalId": "EMP823" },
+      "locationData": {
+        "gpsAccuracy": 0,
+        "latitude": -36.84448,
+        "longitude": 174.76915,
+        "speed": 0
+      }
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763579741930,
+    "timestampType": "CREATE_TIME",
+    "partition": 11,
+    "offset": 24531,
+    "key": "EMP1061",
+    "value": {
+      "eventType": "Location",
+      "receivedAt": "2025-11-19T11:00:00.000Z",
+      "messageData": { "timestamp": "2025-11-19T19:15:41.445Z" },
+      "eventData": {},
+      "remoteData": { "externalId": "EMP1061" },
+      "locationData": {
+        "gpsAccuracy": 0,
+        "latitude": -36.84448,
+        "longitude": 174.76915,
+        "speed": 0
+      }
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763579736833,
+    "timestampType": "CREATE_TIME",
+    "partition": 11,
+    "offset": 24530,
+    "key": "EMP1061",
+    "value": {
+      "eventType": "Location",
+      "receivedAt": "2025-11-19T11:00:00.000Z",
+      "messageData": { "timestamp": "2025-11-19T19:15:36.445Z" },
+      "eventData": {},
+      "remoteData": { "externalId": "EMP1061" },
+      "locationData": {
+        "gpsAccuracy": 0,
+        "latitude": -36.84448,
+        "longitude": 174.76915,
+        "speed": 0
+      }
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763579421289,
+    "timestampType": "CREATE_TIME",
+    "partition": 0,
+    "offset": 21667,
+    "key": "EMP973",
+    "value": {
+      "eventType": "Location",
+      "receivedAt": "2025-11-19T11:00:00.000Z",
+      "messageData": { "timestamp": "2025-11-19T19:10:20.914Z" },
+      "eventData": {},
+      "remoteData": { "externalId": "EMP973" },
+      "locationData": {
+        "gpsAccuracy": 0,
+        "latitude": -36.84448,
+        "longitude": 174.76915,
+        "speed": 0
+      }
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763579416219,
+    "timestampType": "CREATE_TIME",
+    "partition": 0,
+    "offset": 21666,
+    "key": "EMP973",
+    "value": {
+      "eventType": "Location",
+      "receivedAt": "2025-11-19T11:00:00.000Z",
+      "messageData": { "timestamp": "2025-11-19T19:10:15.914Z" },
+      "eventData": {},
+      "remoteData": { "externalId": "EMP973" },
+      "locationData": {
+        "gpsAccuracy": 0,
+        "latitude": -36.84448,
+        "longitude": 174.76915,
+        "speed": 0
+      }
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763578568569,
+    "timestampType": "CREATE_TIME",
+    "partition": 2,
+    "offset": 10509,
+    "key": "EMP917",
+    "value": {
+      "eventType": "Location",
+      "receivedAt": "2025-11-19T11:00:00.000Z",
+      "messageData": { "timestamp": "2025-11-19T18:56:07.777Z" },
+      "eventData": {},
+      "remoteData": { "externalId": "EMP917" },
+      "locationData": {
+        "gpsAccuracy": 0,
+        "latitude": -36.84448,
+        "longitude": 174.76915,
+        "speed": 0
+      }
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763578563474,
+    "timestampType": "CREATE_TIME",
+    "partition": 2,
+    "offset": 10508,
+    "key": "EMP917",
+    "value": {
+      "eventType": "Location",
+      "receivedAt": "2025-11-19T11:00:00.000Z",
+      "messageData": { "timestamp": "2025-11-19T18:56:02.777Z" },
+      "eventData": {},
+      "remoteData": { "externalId": "EMP917" },
+      "locationData": {
+        "gpsAccuracy": 0,
+        "latitude": -36.84448,
+        "longitude": 174.76915,
+        "speed": 0
+      }
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763574639260,
+    "timestampType": "CREATE_TIME",
+    "partition": 11,
+    "offset": 24529,
+    "key": "EMP1061",
+    "value": {
+      "eventType": "Location",
+      "receivedAt": "2025-11-19T11:00:00.000Z",
+      "messageData": { "timestamp": "2025-11-19T17:50:38.866Z" },
+      "eventData": {},
+      "remoteData": { "externalId": "EMP1061" },
+      "locationData": {
+        "gpsAccuracy": 0,
+        "latitude": -37.20299,
+        "longitude": 174.9099,
+        "speed": 0
+      }
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763574634224,
+    "timestampType": "CREATE_TIME",
+    "partition": 11,
+    "offset": 24528,
+    "key": "EMP1061",
+    "value": {
+      "eventType": "Location",
+      "receivedAt": "2025-11-19T11:00:00.000Z",
+      "messageData": { "timestamp": "2025-11-19T17:50:33.866Z" },
+      "eventData": {},
+      "remoteData": { "externalId": "EMP1061" },
+      "locationData": {
+        "gpsAccuracy": 0,
+        "latitude": -37.20299,
+        "longitude": 174.9099,
+        "speed": 0
+      }
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763574504281,
+    "timestampType": "CREATE_TIME",
+    "partition": 0,
+    "offset": 21665,
+    "key": "EMP823",
+    "value": {
+      "eventType": "Location",
+      "receivedAt": "2025-11-19T11:00:00.000Z",
+      "messageData": { "timestamp": "2025-11-19T17:48:24.092Z" },
+      "eventData": {},
+      "remoteData": { "externalId": "EMP823" },
+      "locationData": {
+        "gpsAccuracy": 0,
+        "latitude": -36.84448,
+        "longitude": 174.76915,
+        "speed": 0
+      }
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763574499206,
+    "timestampType": "CREATE_TIME",
+    "partition": 0,
+    "offset": 21664,
+    "key": "EMP823",
+    "value": {
+      "eventType": "Location",
+      "receivedAt": "2025-11-19T11:00:00.000Z",
+      "messageData": { "timestamp": "2025-11-19T17:48:19.092Z" },
+      "eventData": {},
+      "remoteData": { "externalId": "EMP823" },
+      "locationData": {
+        "gpsAccuracy": 0,
+        "latitude": -36.84448,
+        "longitude": 174.76915,
+        "speed": 0
+      }
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763569428934,
+    "timestampType": "CREATE_TIME",
+    "partition": 2,
+    "offset": 10507,
+    "key": "EMP917",
+    "value": {
+      "eventType": "Location",
+      "receivedAt": "2025-11-19T11:00:00.000Z",
+      "messageData": { "timestamp": "2025-11-19T16:23:48.716Z" },
+      "eventData": {},
+      "remoteData": { "externalId": "EMP917" },
+      "locationData": {
+        "gpsAccuracy": 0,
+        "latitude": -36.84448,
+        "longitude": 174.76915,
+        "speed": 0
+      }
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763569423910,
+    "timestampType": "CREATE_TIME",
+    "partition": 2,
+    "offset": 10506,
+    "key": "EMP917",
+    "value": {
+      "eventType": "Location",
+      "receivedAt": "2025-11-19T11:00:00.000Z",
+      "messageData": { "timestamp": "2025-11-19T16:23:43.716Z" },
+      "eventData": {},
+      "remoteData": { "externalId": "EMP917" },
+      "locationData": {
+        "gpsAccuracy": 0,
+        "latitude": -36.84448,
+        "longitude": 174.76915,
+        "speed": 0
+      }
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763542084734,
+    "timestampType": "CREATE_TIME",
+    "partition": 0,
+    "offset": 21663,
+    "key": "EMP973",
+    "value": {
+      "eventType": "Location",
+      "receivedAt": "2025-11-18T11:00:00.000Z",
+      "messageData": { "timestamp": "2025-11-19T08:48:04.460Z" },
+      "eventData": {},
+      "remoteData": { "externalId": "EMP973" },
+      "locationData": {
+        "gpsAccuracy": 0,
+        "latitude": -36.84448,
+        "longitude": 174.76915,
+        "speed": 0
+      }
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763542079694,
+    "timestampType": "CREATE_TIME",
+    "partition": 0,
+    "offset": 21662,
+    "key": "EMP973",
+    "value": {
+      "eventType": "Location",
+      "receivedAt": "2025-11-18T11:00:00.000Z",
+      "messageData": { "timestamp": "2025-11-19T08:47:59.460Z" },
+      "eventData": {},
+      "remoteData": { "externalId": "EMP973" },
+      "locationData": {
+        "gpsAccuracy": 0,
+        "latitude": -36.84448,
+        "longitude": 174.76915,
+        "speed": 0
+      }
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763539305018,
+    "timestampType": "CREATE_TIME",
+    "partition": 0,
+    "offset": 21661,
+    "key": "EMP973",
+    "value": {
+      "eventType": "Location",
+      "receivedAt": "2025-11-18T11:00:00.000Z",
+      "messageData": { "timestamp": "2025-11-19T08:01:44.755Z" },
+      "eventData": {},
+      "remoteData": { "externalId": "EMP973" },
+      "locationData": {
+        "gpsAccuracy": 0,
+        "latitude": -36.99412,
+        "longitude": 174.877,
+        "speed": 0
+      }
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763539299982,
+    "timestampType": "CREATE_TIME",
+    "partition": 0,
+    "offset": 21660,
+    "key": "EMP973",
+    "value": {
+      "eventType": "Location",
+      "receivedAt": "2025-11-18T11:00:00.000Z",
+      "messageData": { "timestamp": "2025-11-19T08:01:39.755Z" },
+      "eventData": {},
+      "remoteData": { "externalId": "EMP973" },
+      "locationData": {
+        "gpsAccuracy": 0,
+        "latitude": -36.99412,
+        "longitude": 174.877,
+        "speed": 0
+      }
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763502788162,
+    "timestampType": "CREATE_TIME",
+    "partition": 2,
+    "offset": 10505,
+    "key": "EMP917",
+    "value": {
+      "eventType": "Location",
+      "receivedAt": "2025-11-18T11:00:00.000Z",
+      "messageData": { "timestamp": "2025-11-18T21:53:08.015Z" },
+      "eventData": {},
+      "remoteData": { "externalId": "EMP917" },
+      "locationData": {
+        "gpsAccuracy": 0,
+        "latitude": -36.84448,
+        "longitude": 174.76915,
+        "speed": 0
+      }
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763502783105,
+    "timestampType": "CREATE_TIME",
+    "partition": 2,
+    "offset": 10504,
+    "key": "EMP917",
+    "value": {
+      "eventType": "Location",
+      "receivedAt": "2025-11-18T11:00:00.000Z",
+      "messageData": { "timestamp": "2025-11-18T21:53:03.015Z" },
+      "eventData": {},
+      "remoteData": { "externalId": "EMP917" },
+      "locationData": {
+        "gpsAccuracy": 0,
+        "latitude": -36.84448,
+        "longitude": 174.76915,
+        "speed": 0
+      }
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763495207146,
+    "timestampType": "CREATE_TIME",
+    "partition": 2,
+    "offset": 10503,
+    "key": "EMP917",
+    "value": {
+      "eventType": "Location",
+      "receivedAt": "2025-11-18T11:00:00.000Z",
+      "messageData": { "timestamp": "2025-11-18T19:46:46.525Z" },
+      "eventData": {},
+      "remoteData": { "externalId": "EMP917" },
+      "locationData": {
+        "gpsAccuracy": 0,
+        "latitude": -36.84448,
+        "longitude": 174.76915,
+        "speed": 0
+      }
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763495202073,
+    "timestampType": "CREATE_TIME",
+    "partition": 2,
+    "offset": 10502,
+    "key": "EMP917",
+    "value": {
+      "eventType": "Location",
+      "receivedAt": "2025-11-18T11:00:00.000Z",
+      "messageData": { "timestamp": "2025-11-18T19:46:41.525Z" },
+      "eventData": {},
+      "remoteData": { "externalId": "EMP917" },
+      "locationData": {
+        "gpsAccuracy": 0,
+        "latitude": -36.84448,
+        "longitude": 174.76915,
+        "speed": 0
+      }
+    },
+    "headers": []
+  }
+]

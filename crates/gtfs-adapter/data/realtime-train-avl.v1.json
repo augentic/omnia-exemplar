@@ -1,0 +1,877 @@
+[
+  {
+    "timestamp": 1763592060291,
+    "timestampType": "CREATE_TIME",
+    "partition": 11,
+    "offset": 5815871,
+    "key": "EM633",
+    "value": {
+      "eventType": "Location",
+      "companyId": 3381,
+      "messageData": {
+        "messageId": 17764431915,
+        "timestamp": "2025-11-19T22:40:57.000Z"
+      },
+      "remoteData": {
+        "remoteId": 134716,
+        "remoteName": "EM633",
+        "externalId": "EM633"
+      },
+      "eventData": {
+        "eventCode": 299,
+        "odometer": 735663214,
+        "nearestAddress": "",
+        "extraInfo": ""
+      },
+      "locationData": {
+        "latitude": -37.05160166666667,
+        "longitude": 174.934945,
+        "heading": 135,
+        "speed": 94,
+        "gpsAccuracy": 6
+      },
+      "receivedAt": "2025-11-19T22:41:00.258Z"
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763592060291,
+    "timestampType": "CREATE_TIME",
+    "partition": 11,
+    "offset": 5815872,
+    "key": "EM633",
+    "value": {
+      "eventType": "Location",
+      "companyId": 3381,
+      "messageData": {
+        "messageId": 17764431915,
+        "timestamp": "2025-11-19T22:40:57.000Z"
+      },
+      "remoteData": {
+        "remoteId": 134716,
+        "remoteName": "EM633",
+        "externalId": "EM633"
+      },
+      "eventData": {
+        "eventCode": 299,
+        "odometer": 735663214,
+        "nearestAddress": "",
+        "extraInfo": ""
+      },
+      "locationData": {
+        "latitude": -37.05160166666667,
+        "longitude": 174.934945,
+        "heading": 135,
+        "speed": 94,
+        "gpsAccuracy": 6
+      },
+      "receivedAt": "2025-11-19T22:41:00.290Z"
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763592060147,
+    "timestampType": "CREATE_TIME",
+    "partition": 8,
+    "offset": 28057498,
+    "key": "EM430",
+    "value": {
+      "eventType": "Location",
+      "companyId": 3381,
+      "messageData": {
+        "messageId": 17764431912,
+        "timestamp": "2025-11-19T22:40:57.000Z"
+      },
+      "remoteData": {
+        "remoteId": 134739,
+        "remoteName": "EM430",
+        "externalId": "EM430"
+      },
+      "eventData": {
+        "eventCode": 299,
+        "odometer": 438762695,
+        "nearestAddress": "",
+        "extraInfo": ""
+      },
+      "locationData": {
+        "latitude": -37.000615,
+        "longitude": 174.861625,
+        "heading": 161,
+        "speed": 0,
+        "gpsAccuracy": 0
+      },
+      "receivedAt": "2025-11-19T22:41:00.145Z"
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763592060132,
+    "timestampType": "CREATE_TIME",
+    "partition": 6,
+    "offset": 38318840,
+    "key": "EM836",
+    "value": {
+      "eventType": "Location",
+      "companyId": 3381,
+      "messageData": {
+        "messageId": 17764431900,
+        "timestamp": "2025-11-19T22:40:57.000Z"
+      },
+      "remoteData": {
+        "remoteId": 134735,
+        "remoteName": "EM836",
+        "externalId": "EM836"
+      },
+      "eventData": {
+        "eventCode": 299,
+        "odometer": 255496518,
+        "nearestAddress": "",
+        "extraInfo": ""
+      },
+      "locationData": {
+        "latitude": -36.86754666666667,
+        "longitude": 174.75848166666665,
+        "heading": 153,
+        "speed": 0,
+        "gpsAccuracy": 1
+      },
+      "receivedAt": "2025-11-19T22:41:00.035Z"
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763592060132,
+    "timestampType": "CREATE_TIME",
+    "partition": 6,
+    "offset": 38318841,
+    "key": "EM836",
+    "value": {
+      "eventType": "Location",
+      "companyId": 3381,
+      "messageData": {
+        "messageId": 17764431900,
+        "timestamp": "2025-11-19T22:40:57.000Z"
+      },
+      "remoteData": {
+        "remoteId": 134735,
+        "remoteName": "EM836",
+        "externalId": "EM836"
+      },
+      "eventData": {
+        "eventCode": 299,
+        "odometer": 255496518,
+        "nearestAddress": "",
+        "extraInfo": ""
+      },
+      "locationData": {
+        "latitude": -36.86754666666667,
+        "longitude": 174.75848166666665,
+        "heading": 153,
+        "speed": 0,
+        "gpsAccuracy": 1
+      },
+      "receivedAt": "2025-11-19T22:41:00.059Z"
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763592059370,
+    "timestampType": "CREATE_TIME",
+    "partition": 4,
+    "offset": 16242174,
+    "key": "EM129",
+    "value": {
+      "eventType": "Location",
+      "companyId": 3381,
+      "messageData": {
+        "messageId": 17764431814,
+        "timestamp": "2025-11-19T22:40:56.000Z"
+      },
+      "remoteData": {
+        "remoteId": 134758,
+        "remoteName": "EM129",
+        "externalId": "EM129"
+      },
+      "eventData": {
+        "eventCode": 299,
+        "odometer": 329874401,
+        "nearestAddress": "",
+        "extraInfo": ""
+      },
+      "locationData": {
+        "latitude": -36.86541166666667,
+        "longitude": 174.77013166666666,
+        "heading": 66,
+        "speed": 47,
+        "gpsAccuracy": 9
+      },
+      "receivedAt": "2025-11-19T22:40:59.306Z"
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763592059354,
+    "timestampType": "CREATE_TIME",
+    "partition": 4,
+    "offset": 16242173,
+    "key": "EM129",
+    "value": {
+      "eventType": "Location",
+      "companyId": 3381,
+      "messageData": {
+        "messageId": 17764431814,
+        "timestamp": "2025-11-19T22:40:56.000Z"
+      },
+      "remoteData": {
+        "remoteId": 134758,
+        "remoteName": "EM129",
+        "externalId": "EM129"
+      },
+      "eventData": {
+        "eventCode": 299,
+        "odometer": 329874401,
+        "nearestAddress": "",
+        "extraInfo": ""
+      },
+      "locationData": {
+        "latitude": -36.86541166666667,
+        "longitude": 174.77013166666666,
+        "heading": 66,
+        "speed": 47,
+        "gpsAccuracy": 9
+      },
+      "receivedAt": "2025-11-19T22:40:59.264Z"
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763592059226,
+    "timestampType": "CREATE_TIME",
+    "partition": 2,
+    "offset": 43790544,
+    "key": "EM131",
+    "value": {
+      "eventType": "Location",
+      "companyId": 3381,
+      "messageData": {
+        "messageId": 17764431804,
+        "timestamp": "2025-11-19T22:40:50.000Z"
+      },
+      "remoteData": {
+        "remoteId": 134760,
+        "remoteName": "EM131",
+        "externalId": "EM131"
+      },
+      "eventData": {
+        "eventCode": 299,
+        "odometer": 372754906,
+        "nearestAddress": "",
+        "extraInfo": ""
+      },
+      "locationData": {
+        "latitude": -37.001828333333336,
+        "longitude": 174.86226166666665,
+        "heading": 7,
+        "speed": 0,
+        "gpsAccuracy": 0
+      },
+      "receivedAt": "2025-11-19T22:40:59.185Z"
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763592059205,
+    "timestampType": "CREATE_TIME",
+    "partition": 2,
+    "offset": 43790543,
+    "key": "EM131",
+    "value": {
+      "eventType": "Location",
+      "companyId": 3381,
+      "messageData": {
+        "messageId": 17764431804,
+        "timestamp": "2025-11-19T22:40:50.000Z"
+      },
+      "remoteData": {
+        "remoteId": 134760,
+        "remoteName": "EM131",
+        "externalId": "EM131"
+      },
+      "eventData": {
+        "eventCode": 299,
+        "odometer": 372754906,
+        "nearestAddress": "",
+        "extraInfo": ""
+      },
+      "locationData": {
+        "latitude": -37.001828333333336,
+        "longitude": 174.86226166666665,
+        "heading": 7,
+        "speed": 0,
+        "gpsAccuracy": 0
+      },
+      "receivedAt": "2025-11-19T22:40:59.164Z"
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763592058933,
+    "timestampType": "CREATE_TIME",
+    "partition": 3,
+    "offset": 37469768,
+    "key": "EM362",
+    "value": {
+      "eventType": "Location",
+      "companyId": 3381,
+      "messageData": {
+        "messageId": 17764431750,
+        "timestamp": "2025-11-19T22:40:56.000Z"
+      },
+      "remoteData": {
+        "remoteId": 134755,
+        "remoteName": "EM362",
+        "externalId": "EM362"
+      },
+      "eventData": {
+        "eventCode": 299,
+        "odometer": 374463548,
+        "nearestAddress": "",
+        "extraInfo": ""
+      },
+      "locationData": {
+        "latitude": -37.02341333333333,
+        "longitude": 174.89643333333333,
+        "heading": 309,
+        "speed": 0,
+        "gpsAccuracy": 1
+      },
+      "receivedAt": "2025-11-19T22:40:58.833Z"
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763592058868,
+    "timestampType": "CREATE_TIME",
+    "partition": 3,
+    "offset": 37469767,
+    "key": "EM362",
+    "value": {
+      "eventType": "Location",
+      "companyId": 3381,
+      "messageData": {
+        "messageId": 17764431750,
+        "timestamp": "2025-11-19T22:40:56.000Z"
+      },
+      "remoteData": {
+        "remoteId": 134755,
+        "remoteName": "EM362",
+        "externalId": "EM362"
+      },
+      "eventData": {
+        "eventCode": 299,
+        "odometer": 374463548,
+        "nearestAddress": "",
+        "extraInfo": ""
+      },
+      "locationData": {
+        "latitude": -37.02341333333333,
+        "longitude": 174.89643333333333,
+        "heading": 309,
+        "speed": 0,
+        "gpsAccuracy": 1
+      },
+      "receivedAt": "2025-11-19T22:40:58.866Z"
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763592058824,
+    "timestampType": "CREATE_TIME",
+    "partition": 1,
+    "offset": 61764518,
+    "key": "EM851",
+    "value": {
+      "eventType": "Location",
+      "companyId": 3381,
+      "messageData": {
+        "messageId": 17764431746,
+        "timestamp": "2025-11-19T22:40:56.000Z"
+      },
+      "remoteData": {
+        "remoteId": 134711,
+        "remoteName": "EM851",
+        "externalId": "EM851"
+      },
+      "eventData": {
+        "eventCode": 299,
+        "odometer": 289617834,
+        "nearestAddress": "",
+        "extraInfo": ""
+      },
+      "locationData": {
+        "latitude": -36.910545,
+        "longitude": 174.665305,
+        "heading": 258,
+        "speed": 42,
+        "gpsAccuracy": 1
+      },
+      "receivedAt": "2025-11-19T22:40:58.754Z"
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763592058824,
+    "timestampType": "CREATE_TIME",
+    "partition": 10,
+    "offset": 32367383,
+    "key": "EM618",
+    "value": {
+      "eventType": "Location",
+      "companyId": 3381,
+      "messageData": {
+        "messageId": 17764431745,
+        "timestamp": "2025-11-19T22:40:56.000Z"
+      },
+      "remoteData": {
+        "remoteId": 134723,
+        "remoteName": "EM618",
+        "externalId": "EM618"
+      },
+      "eventData": {
+        "eventCode": 299,
+        "odometer": 757053471,
+        "nearestAddress": "",
+        "extraInfo": ""
+      },
+      "locationData": {
+        "latitude": -37.000703333333334,
+        "longitude": 174.86132,
+        "heading": 87,
+        "speed": 0,
+        "gpsAccuracy": 3
+      },
+      "receivedAt": "2025-11-19T22:40:58.756Z"
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763592058789,
+    "timestampType": "CREATE_TIME",
+    "partition": 1,
+    "offset": 61764517,
+    "key": "EM851",
+    "value": {
+      "eventType": "Location",
+      "companyId": 3381,
+      "messageData": {
+        "messageId": 17764431746,
+        "timestamp": "2025-11-19T22:40:56.000Z"
+      },
+      "remoteData": {
+        "remoteId": 134711,
+        "remoteName": "EM851",
+        "externalId": "EM851"
+      },
+      "eventData": {
+        "eventCode": 299,
+        "odometer": 289617834,
+        "nearestAddress": "",
+        "extraInfo": ""
+      },
+      "locationData": {
+        "latitude": -36.910545,
+        "longitude": 174.665305,
+        "heading": 258,
+        "speed": 42,
+        "gpsAccuracy": 1
+      },
+      "receivedAt": "2025-11-19T22:40:58.717Z"
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763592058788,
+    "timestampType": "CREATE_TIME",
+    "partition": 10,
+    "offset": 32367382,
+    "key": "EM618",
+    "value": {
+      "eventType": "Location",
+      "companyId": 3381,
+      "messageData": {
+        "messageId": 17764431745,
+        "timestamp": "2025-11-19T22:40:56.000Z"
+      },
+      "remoteData": {
+        "remoteId": 134723,
+        "remoteName": "EM618",
+        "externalId": "EM618"
+      },
+      "eventData": {
+        "eventCode": 299,
+        "odometer": 757053471,
+        "nearestAddress": "",
+        "extraInfo": ""
+      },
+      "locationData": {
+        "latitude": -37.000703333333334,
+        "longitude": 174.86132,
+        "heading": 87,
+        "speed": 0,
+        "gpsAccuracy": 3
+      },
+      "receivedAt": "2025-11-19T22:40:58.719Z"
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763592058540,
+    "timestampType": "CREATE_TIME",
+    "partition": 7,
+    "offset": 67819427,
+    "key": "EM593",
+    "value": {
+      "eventType": "Location",
+      "companyId": 3381,
+      "messageData": {
+        "messageId": 17764431719,
+        "timestamp": "2025-11-19T22:40:54.000Z"
+      },
+      "remoteData": {
+        "remoteId": 134734,
+        "remoteName": "EM593",
+        "externalId": "EM593"
+      },
+      "eventData": {
+        "eventCode": 299,
+        "odometer": 748977906,
+        "nearestAddress": "",
+        "extraInfo": ""
+      },
+      "locationData": {
+        "latitude": -36.919355,
+        "longitude": 174.82269166666666,
+        "heading": 145,
+        "speed": 42,
+        "gpsAccuracy": 8
+      },
+      "receivedAt": "2025-11-19T22:40:58.516Z"
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763592058540,
+    "timestampType": "CREATE_TIME",
+    "partition": 7,
+    "offset": 67819428,
+    "key": "EM593",
+    "value": {
+      "eventType": "Location",
+      "companyId": 3381,
+      "messageData": {
+        "messageId": 17764431719,
+        "timestamp": "2025-11-19T22:40:54.000Z"
+      },
+      "remoteData": {
+        "remoteId": 134734,
+        "remoteName": "EM593",
+        "externalId": "EM593"
+      },
+      "eventData": {
+        "eventCode": 299,
+        "odometer": 748977906,
+        "nearestAddress": "",
+        "extraInfo": ""
+      },
+      "locationData": {
+        "latitude": -36.919355,
+        "longitude": 174.82269166666666,
+        "heading": 145,
+        "speed": 42,
+        "gpsAccuracy": 8
+      },
+      "receivedAt": "2025-11-19T22:40:58.539Z"
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763592058058,
+    "timestampType": "CREATE_TIME",
+    "partition": 7,
+    "offset": 67819425,
+    "key": "EM225",
+    "value": {
+      "eventType": "Location",
+      "companyId": 3381,
+      "messageData": {
+        "messageId": 17764431664,
+        "timestamp": "2025-11-19T22:40:55.000Z"
+      },
+      "remoteData": {
+        "remoteId": 134741,
+        "remoteName": "EM225",
+        "externalId": "EM225"
+      },
+      "eventData": {
+        "eventCode": 299,
+        "odometer": 358514426,
+        "nearestAddress": "",
+        "extraInfo": ""
+      },
+      "locationData": {
+        "latitude": -36.8682,
+        "longitude": 174.756695,
+        "heading": 243,
+        "speed": 39,
+        "gpsAccuracy": 8
+      },
+      "receivedAt": "2025-11-19T22:40:57.960Z"
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763592058058,
+    "timestampType": "CREATE_TIME",
+    "partition": 7,
+    "offset": 67819426,
+    "key": "EM225",
+    "value": {
+      "eventType": "Location",
+      "companyId": 3381,
+      "messageData": {
+        "messageId": 17764431664,
+        "timestamp": "2025-11-19T22:40:55.000Z"
+      },
+      "remoteData": {
+        "remoteId": 134741,
+        "remoteName": "EM225",
+        "externalId": "EM225"
+      },
+      "eventData": {
+        "eventCode": 299,
+        "odometer": 358514426,
+        "nearestAddress": "",
+        "extraInfo": ""
+      },
+      "locationData": {
+        "latitude": -36.8682,
+        "longitude": 174.756695,
+        "heading": 243,
+        "speed": 39,
+        "gpsAccuracy": 8
+      },
+      "receivedAt": "2025-11-19T22:40:57.996Z"
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763592058007,
+    "timestampType": "CREATE_TIME",
+    "partition": 8,
+    "offset": 28057496,
+    "key": "EM253",
+    "value": {
+      "eventType": "Location",
+      "companyId": 3381,
+      "messageData": {
+        "messageId": 17764431668,
+        "timestamp": "2025-11-19T22:40:52.000Z"
+      },
+      "remoteData": {
+        "remoteId": 134757,
+        "remoteName": "EM253",
+        "externalId": "EM253"
+      },
+      "eventData": {
+        "eventCode": 299,
+        "odometer": 405185476,
+        "nearestAddress": "",
+        "extraInfo": ""
+      },
+      "locationData": {
+        "latitude": -37.00240333333333,
+        "longitude": 174.86112333333332,
+        "heading": 135,
+        "speed": 0,
+        "gpsAccuracy": 1
+      },
+      "receivedAt": "2025-11-19T22:40:57.954Z"
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763592058007,
+    "timestampType": "CREATE_TIME",
+    "partition": 8,
+    "offset": 28057497,
+    "key": "EM253",
+    "value": {
+      "eventType": "Location",
+      "companyId": 3381,
+      "messageData": {
+        "messageId": 17764431668,
+        "timestamp": "2025-11-19T22:40:52.000Z"
+      },
+      "remoteData": {
+        "remoteId": 134757,
+        "remoteName": "EM253",
+        "externalId": "EM253"
+      },
+      "eventData": {
+        "eventCode": 299,
+        "odometer": 405185476,
+        "nearestAddress": "",
+        "extraInfo": ""
+      },
+      "locationData": {
+        "latitude": -37.00240333333333,
+        "longitude": 174.86112333333332,
+        "heading": 135,
+        "speed": 0,
+        "gpsAccuracy": 1
+      },
+      "receivedAt": "2025-11-19T22:40:57.991Z"
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763592057778,
+    "timestampType": "CREATE_TIME",
+    "partition": 9,
+    "offset": 40432347,
+    "key": "EM620",
+    "value": {
+      "eventType": "Location",
+      "companyId": 3381,
+      "messageData": {
+        "messageId": 17764431626,
+        "timestamp": "2025-11-19T22:40:55.000Z"
+      },
+      "remoteData": {
+        "remoteId": 134720,
+        "remoteName": "EM620",
+        "externalId": "EM620"
+      },
+      "eventData": {
+        "eventCode": 299,
+        "odometer": 735503793,
+        "nearestAddress": "",
+        "extraInfo": ""
+      },
+      "locationData": {
+        "latitude": -36.910531666666664,
+        "longitude": 174.68047333333334,
+        "heading": 74,
+        "speed": 61,
+        "gpsAccuracy": 6
+      },
+      "receivedAt": "2025-11-19T22:40:57.673Z"
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763592057778,
+    "timestampType": "CREATE_TIME",
+    "partition": 9,
+    "offset": 40432348,
+    "key": "EM620",
+    "value": {
+      "eventType": "Location",
+      "companyId": 3381,
+      "messageData": {
+        "messageId": 17764431626,
+        "timestamp": "2025-11-19T22:40:55.000Z"
+      },
+      "remoteData": {
+        "remoteId": 134720,
+        "remoteName": "EM620",
+        "externalId": "EM620"
+      },
+      "eventData": {
+        "eventCode": 299,
+        "odometer": 735503793,
+        "nearestAddress": "",
+        "extraInfo": ""
+      },
+      "locationData": {
+        "latitude": -36.910531666666664,
+        "longitude": 174.68047333333334,
+        "heading": 74,
+        "speed": 61,
+        "gpsAccuracy": 6
+      },
+      "receivedAt": "2025-11-19T22:40:57.676Z"
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763592057730,
+    "timestampType": "CREATE_TIME",
+    "partition": 9,
+    "offset": 40432346,
+    "key": "EM334",
+    "value": {
+      "eventType": "Location",
+      "companyId": 3381,
+      "messageData": {
+        "messageId": 17764431625,
+        "timestamp": "2025-11-19T22:40:55.000Z"
+      },
+      "remoteData": {
+        "remoteId": 134753,
+        "remoteName": "EM334",
+        "externalId": "EM334"
+      },
+      "eventData": {
+        "eventCode": 299,
+        "odometer": 398888858,
+        "nearestAddress": "",
+        "extraInfo": ""
+      },
+      "locationData": {
+        "latitude": -37.00178833333333,
+        "longitude": 174.86098666666666,
+        "heading": 151,
+        "speed": 0,
+        "gpsAccuracy": 1
+      },
+      "receivedAt": "2025-11-19T22:40:57.656Z"
+    },
+    "headers": []
+  },
+  {
+    "timestamp": 1763592057679,
+    "timestampType": "CREATE_TIME",
+    "partition": 9,
+    "offset": 40432345,
+    "key": "EM334",
+    "value": {
+      "eventType": "Location",
+      "companyId": 3381,
+      "messageData": {
+        "messageId": 17764431625,
+        "timestamp": "2025-11-19T22:40:55.000Z"
+      },
+      "remoteData": {
+        "remoteId": 134753,
+        "remoteName": "EM334",
+        "externalId": "EM334"
+      },
+      "eventData": {
+        "eventCode": 299,
+        "odometer": 398888858,
+        "nearestAddress": "",
+        "extraInfo": ""
+      },
+      "locationData": {
+        "latitude": -37.00178833333333,
+        "longitude": 174.86098666666666,
+        "heading": 151,
+        "speed": 0,
+        "gpsAccuracy": 1
+      },
+      "receivedAt": "2025-11-19T22:40:57.627Z"
+    },
+    "headers": []
+  }
+]

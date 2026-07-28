@@ -1,0 +1,32 @@
+<CCO xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" stream="7c104b58-25cb-437a-8c39-297633a6638e" sequence="1214699" xsi:type="CCO">
+    <ActualizarDatosTren>
+        <trenPar>1234</trenPar>
+        <trenImpar>5678</trenImpar>
+        <fechaCreacion>02/08/2025</fechaCreacion>
+        <numeroRegistro>REG-001</numeroRegistro>
+        <operadorComercial>METRO</operadorComercial>
+        <codigoOperadorComercial>MT</codigoOperadorComercial>
+        <trenCompleto>YES</trenCompleto>
+        <origenActualizaTren>SYSTEM</origenActualizaTren>
+        <pasoTren>
+            <tipoCambio>3</tipoCambio>
+            <estacion>101</estacion>
+            <idPaso>entry-001</idPaso>
+            <horaEntrada>3600</horaEntrada>
+            <horaEntradaReal>3620</horaEntradaReal>
+            <haEntrado>true</haEntrado>
+            <retrasoEntrada>20</retrasoEntrada>
+            <horaSalida>3700</horaSalida>
+            <horaSalidaReal>3720</horaSalidaReal>
+            <haSalido>true</haSalido>
+            <retrasoSalida>20</retrasoSalida>
+            <horaInicioDetencion>0</horaInicioDetencion>
+            <duracionDetencion>0</duracionDetencion>
+            <viaEntradaMallas>Platform 1</viaEntradaMallas>
+            <viaCirculacionMallas>Line A</viaCirculacionMallas>
+            <sentido>0</sentido>
+            <tipoParada>4</tipoParada>
+            <paridad>even</paridad>
+        </pasoTren>
+    </ActualizarDatosTren>
+</CCO>

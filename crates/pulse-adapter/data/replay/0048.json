@@ -1,0 +1,11 @@
+{
+    "input": "<CCO xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"\n               stream=\"3bedad6f-a633-4e5e-841f-80230c5b70cf\"\n               sequence=\"8704149\"\n               xsi:type=\"CCO\">\n             <ActualizarDatosTren>\n                <trenPar>7W80</trenPar>\n                <trenImpar>7W80</trenImpar>\n                <fechaCreacion>08/10/2025</fechaCreacion>\n                <numeroRegistro>12635387</numeroRegistro>\n                <operadorComercial>METRO</operadorComercial>\n                <pasoTren>\n                   <tipoCambio>2</tipoCambio>\n                   <estacion>11</estacion>\n                   <idPaso>224641600</idPaso>\n                   <horaEntrada>77220</horaEntrada>\n                   <horaEntradaReal>77229</horaEntradaReal>\n                   <haEntrado>true</haEntrado>\n                   <tipoParada>5</tipoParada>\n                   <paridad>p</paridad>\n                   <sentido>0</sentido>\n                   <horaSalida>-1</horaSalida>\n                   <horaSalidaReal>-1</horaSalidaReal>\n                   <haSalido>true</haSalido>\n                   <viaEntradaMallas>2</viaEntradaMallas>\n                   <retrasoEntrada>-32</retrasoEntrada>\n                   <viaCirculacionMallas>-</viaCirculacionMallas>\n                   <retrasoSalida>0</retrasoSalida>\n                   <horaInicioDetencion>-1</horaInicioDetencion>\n                   <duracionDetencion>-1</duracionDetencion>\n                </pasoTren>\n                <codigoOperadorComercial>-1</codigoOperadorComercial>\n                <origenActualizaTren>GAC</origenActualizaTren>\n             </ActualizarDatosTren>\n          </CCO>\n",
+    "output": {
+        "failure": {
+            "BadRequest": {
+                "code": "no_update",
+                "description": "arrival/departure time <= 0"
+            }
+        }
+    }
+}

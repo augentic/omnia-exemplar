@@ -1,0 +1,29 @@
+[package]
+name = "pulse-connector"
+description = "Pulse HTTP connector"
+readme = "README.md"
+publish = false
+authors.workspace = true
+categories.workspace = true
+edition.workspace = true
+keywords.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+version.workspace = true
+
+[lints]
+workspace = true
+
+[lib]
+crate-type = ["lib"]
+
+[dependencies]
+anyhow.workspace = true
+omnia-guest.workspace = true
+quick-xml.workspace = true
+serde.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+tokio.workspace = true

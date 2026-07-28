@@ -1,0 +1,11 @@
+{
+    "input": "<CCO xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" stream=\"7c104b58-25cb-437a-8c39-297633a6638e\" sequence=\"1214699\" xsi:type=\"CCO\"></CCO>",
+    "output": {
+        "failure": {
+            "BadRequest": {
+                "code": "no_update",
+                "description": "contains no updates"
+            }
+        }
+    }
+}

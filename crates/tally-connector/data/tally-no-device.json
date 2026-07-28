@@ -1,0 +1,30 @@
+{
+  "tly_vers": "1.0",
+  "tly_type": "td",
+  "driving": true,
+  "atstop": false,
+  "operational": true,
+  "distance_laststop": 10213,
+  "distance_start": 40301,
+  "departure_utc": "1764194985",
+  "arrival_utc": "1764194937",
+  "speed": 0,
+  "trigger": "station_left_summary",
+  "wpt": { "sat": "12", "lat": "-36.909900", "lon": "174.815500", "speed": 0 },
+  "clock": { "utc": "1764194985", "tz": "NZST-12NZDT,M9.5.0,M4.1.0/3" },
+  "pis": { "line": "54", "stop": "12343" },
+  "doors": [
+    { "name": "M1D1", "in": 0, "out": 0, "art": 0, "st": "open" },
+    { "name": "M1D2", "in": 0, "out": 0, "art": 0, "st": "closed" },
+    { "name": "M1D3", "in": 0, "out": 0, "art": 0, "st": "open" },
+    { "name": "M1D4", "in": 0, "out": 0, "art": 0, "st": "closed" },
+    { "name": "TD1", "in": 1, "out": 1, "art": 1, "st": "open" },
+    { "name": "TD2", "in": 0, "out": 0, "art": 0, "st": "closed" },
+    { "name": "TD3", "in": 0, "out": 0, "art": 0, "st": "open" },
+    { "name": "TD4", "in": 0, "out": 0, "art": 0, "st": "closed" },
+    { "name": "M2D1", "in": 0, "out": 0, "art": 0, "st": "closed" },
+    { "name": "M2D2", "in": 0, "out": 0, "art": 0, "st": "open" },
+    { "name": "M2D3", "in": 0, "out": 0, "art": 0, "st": "closed" },
+    { "name": "M2D4", "in": 0, "out": 0, "art": 0, "st": "open" }
+  ]
+}
