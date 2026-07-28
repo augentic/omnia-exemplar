@@ -1,9 +1,0 @@
-[registries]
-augentic = { index = "sparse+https://pkgs.dev.azure.com/augentic/_packaging/augentic/Cargo/index/" }
-credibil = { index = "sparse+https://pkgs.dev.azure.com/credibil/_packaging/credibil/Cargo/index/" }
-
-[registry]
-global-credential-providers = [
-  "cargo:macos-keychain",
-  "cargo:token",
-]
