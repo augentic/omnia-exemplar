@@ -1,0 +1,79 @@
+# Guest template contract: the single source-to-target map for the Omnia
+# base-repo scaffold. Consumed verbatim by the Emery omnia target
+# adapter's `build.rs` after `cargo make sync-omnia-exemplar` vendors
+# this subtree; validated here by `cargo make template-check`.
+#
+# Proof modes:
+#   exact — the file must contain no tokens and must byte-match the file
+#           at `target` in this repository's root: the exemplar's own
+#           green CI is the template's proof.
+#   seed  — a project-start baseline the consuming project immediately
+#           evolves (vet state, clippy duplicate lists, deploy
+#           parameters); rendered with `values.yaml` and syntax-checked,
+#           never diffed against the root.
+
+schema-version: 2
+
+tokens:
+  PACKAGE_NAME: Cargo package name of the deployable guest, filled by the guest writer.
+  STORAGE_ACCOUNT: Azure storage account receiving the built component.
+  RESOURCE_GROUP: Azure resource group owning the storage account.
+
+assemblies:
+  core:
+    path-mode: content-only
+    files:
+      - source: Makefile
+        target: Makefile
+        proof: exact
+      - source: Makefile.toml
+        target: Makefile.toml
+        proof: exact
+      - source: deny.toml
+        target: deny.toml
+        proof: seed
+      - source: rust-toolchain.toml
+        target: rust-toolchain.toml
+        proof: exact
+      - source: rustfmt.toml
+        target: rustfmt.toml
+        proof: exact
+      - source: clippy.toml
+        target: clippy.toml
+        proof: seed
+      - source: taplo.toml
+        target: taplo.toml
+        proof: exact
+      - source: gitignore
+        target: .gitignore
+        proof: exact
+      - source: cargo-config.toml
+        target: .cargo/config.toml
+        proof: exact
+      - source: vscode-settings.json
+        target: .vscode/settings.json
+        proof: exact
+      - source: supply-chain-README.md
+        target: supply-chain/README.md
+        proof: exact
+      - source: supply-chain-config.toml
+        target: supply-chain/config.toml
+        proof: seed
+      - source: supply-chain-audits.toml
+        target: supply-chain/audits.toml
+        proof: seed
+      - source: workflow-audit.yaml
+        target: .github/workflows/audit.yaml
+        proof: exact
+      - source: workflow-ci.yaml
+        target: .github/workflows/ci.yaml
+        proof: exact
+      - source: workflow-patch.yaml
+        target: .github/workflows/patch.yaml
+        proof: exact
+      - source: workflow-release.yaml
+        target: .github/workflows/release.yaml
+        proof: exact
+      - source: workflow-publish.yaml
+        target: .github/workflows/publish.yaml
+        proof: seed

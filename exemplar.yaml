@@ -1,0 +1,20 @@
+# Exemplar compatibility contract.
+#
+# The single machine-readable statement of which Omnia this repository is
+# green against, and where the guest template contract lives. Consumers
+# (the Emery omnia target adapter and its build agents) read this file
+# instead of inferring compatibility from an incidental lock resolution.
+#
+# `omnia.rev` must agree with the `[patch.crates-io]` entries in
+# `Cargo.toml` and the resolved sources in `Cargo.lock`;
+# `cargo make template-check` enforces the agreement.
+
+schema-version: 1
+
+omnia:
+  version: 0.35.0
+  repository: https://github.com/augentic/omnia
+  rev: 08cd05a3363260e7f47e1cf3848a923d7ed5df2d
+
+templates:
+  manifest: templates/guest/manifest.yaml

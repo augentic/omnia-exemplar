@@ -219,6 +219,36 @@ cargo nextest run            # or: cargo test --workspace --all-features
 - `crates/pulse-adapter/tests` — static fixtures plus `augentic-test` replay
   sessions captured from a live system (`data/replay`, `data/static`)
 
+## Guest template contract
+
+This repository is the source of truth for the reusable Omnia guest
+tooling. [`templates/guest/`](templates/guest/) carries the tokenized
+base-repo templates ([contract and authoring rules](templates/guest/README.md)),
+and [`exemplar.yaml`](exemplar.yaml) declares the exact Omnia
+`{ version, repository, rev }` this repository is green against — the
+`[patch.crates-io]` entries in `Cargo.toml` pin the same rev.
+
+The Emery omnia target adapter vendors `templates/guest/` byte-for-byte
+and directs consumer build agents to a fresh checkout of `main` as the
+worked-code reference. **Merges to `main` are therefore release acts**:
+the CI gate (including the template contract check below) is required
+on merge, not advisory, because downstream consumers track `main`
+unpinned.
+
+The contract is enforced by the `template-check` gate, which runs
+inside the standard test suite and stand-alone:
+
+```shell
+cargo run -p template-check   # schema, tokens, render, root render-diff
+```
+
+`exact` templates must byte-match their repository-root counterparts —
+the root files are the rendered output of the template subtree, so a
+green root vouches for the templates. To change a tooling convention,
+edit the template and the root file in the same commit. To move to a
+new Omnia rev: update `exemplar.yaml`, the `[patch.crates-io]` revs,
+and `Cargo.lock` together; `template-check` fails on any disagreement.
+
 ## Development
 
 ```shell

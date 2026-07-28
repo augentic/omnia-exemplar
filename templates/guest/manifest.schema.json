@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.emery.dev/omnia/template-manifest.schema.json",
+  "title": "Omnia guest template manifest",
+  "description": "Validates `templates/guest/manifest.yaml`: the single source of truth for the Omnia base-repo scaffold source-to-target mappings, owned by omnia-exemplar and vendored into the Emery omnia target adapter.",
+  "type": "object",
+  "required": ["schema-version", "tokens", "assemblies"],
+  "additionalProperties": false,
+  "properties": {
+    "schema-version": {
+      "type": "integer",
+      "const": 2,
+      "description": "Manifest schema version. Bump on breaking wire changes."
+    },
+    "tokens": {
+      "type": "object",
+      "description": "The closed set of `<UPPER_SNAKE>` tokens template sources may carry, with a one-line description each.",
+      "propertyNames": { "pattern": "^[A-Z][A-Z0-9_]*$" },
+      "additionalProperties": { "type": "string", "minLength": 1 }
+    },
+    "assemblies": {
+      "type": "object",
+      "required": ["core"],
+      "additionalProperties": false,
+      "properties": {
+        "core": { "$ref": "#/$defs/assembly" }
+      }
+    }
+  },
+  "$defs": {
+    "assembly": {
+      "type": "object",
+      "required": ["path-mode", "files"],
+      "additionalProperties": false,
+      "properties": {
+        "path-mode": {
+          "type": "string",
+          "enum": ["content-only"],
+          "description": "Omnia templates are static: target paths are written verbatim."
+        },
+        "files": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/file-entry" }
+        }
+      }
+    },
+    "file-entry": {
+      "type": "object",
+      "required": ["source", "target", "proof"],
+      "additionalProperties": false,
+      "properties": {
+        "source": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Basename under `templates/guest/<assembly>/`."
+        },
+        "target": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Relative path under the project root."
+        },
+        "proof": {
+          "type": "string",
+          "enum": ["exact", "seed"],
+          "description": "`exact`: token-free and byte-identical to the repository root file at `target`. `seed`: project-start baseline; rendered with values.yaml and syntax-checked only."
+        }
+      }
+    }
+  }
+}
