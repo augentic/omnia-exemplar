@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://schemas.emery.dev/omnia/template-manifest.schema.json",
   "title": "Omnia guest template manifest",
-  "description": "Validates `templates/guest/manifest.yaml`: the single source of truth for the Omnia base-repo scaffold source-to-target mappings, owned by omnia-exemplar and vendored into the Emery omnia target adapter.",
+  "description": "Validates `templates/guest/manifest.yaml`: the single source of truth for the Omnia base-repo scaffold source-to-target mappings, owned by omnia-exemplar and fetched at build time by the Emery omnia target adapter.",
   "type": "object",
   "required": ["schema-version", "tokens", "assemblies"],
   "additionalProperties": false,

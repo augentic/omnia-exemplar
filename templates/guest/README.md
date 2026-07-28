@@ -1,10 +1,11 @@
 # Guest template contract
 
 The tokenized base-repo tooling files every Omnia guest workspace starts
-from. The Emery omnia target adapter vendors this subtree byte-for-byte
-(`cargo make sync-omnia-exemplar` in `augentic/emery-adapters`) and its
-deterministic scaffold prelude writes the listed targets, fill-only, at
-the start of every build.
+from. The Emery omnia target adapter fetches this subtree at adapter
+build time (`targets/omnia/build.rs` in `augentic/emery-adapters`),
+bakes it into the component, and its deterministic scaffold prelude
+writes the listed targets, fill-only, at the start of every consumer
+build. There is no committed second copy in the adapter repository.
 
 [`manifest.yaml`](manifest.yaml) is the sole source-to-target map. It
 declares the closed token set and a per-file proof mode:

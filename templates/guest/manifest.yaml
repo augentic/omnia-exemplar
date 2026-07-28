@@ -1,7 +1,7 @@
 # Guest template contract: the single source-to-target map for the Omnia
-# base-repo scaffold. Consumed verbatim by the Emery omnia target
-# adapter's `build.rs` after `cargo make sync-omnia-exemplar` vendors
-# this subtree; validated here by `cargo make template-check`.
+# base-repo scaffold. Fetched by the Emery omnia target adapter's
+# `build.rs` at adapter-build time (no vendored copy in emery-adapters);
+# validated here by `cargo make template-check`.
 #
 # Proof modes:
 #   exact — the file must contain no tokens and must byte-match the file

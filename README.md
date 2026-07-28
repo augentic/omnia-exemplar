@@ -228,7 +228,8 @@ and [`exemplar.yaml`](exemplar.yaml) declares the exact Omnia
 `{ version, repository, rev }` this repository is green against — the
 `[patch.crates-io]` entries in `Cargo.toml` pin the same rev.
 
-The Emery omnia target adapter vendors `templates/guest/` byte-for-byte
+The Emery omnia target adapter fetches `templates/guest/` at adapter
+build time (bakes it into the published component; no second git tree)
 and directs consumer build agents to a fresh checkout of `main` as the
 worked-code reference. **Merges to `main` are therefore release acts**:
 the CI gate (including the template contract check below) is required
