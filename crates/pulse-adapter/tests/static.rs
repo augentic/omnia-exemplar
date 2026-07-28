@@ -7,7 +7,7 @@ use std::fs::File;
 use std::ops::Sub;
 
 use acme_common::TIMEZONE;
-use augentic_test::{TestCase, TestDef};
+use acme_test::{TestCase, TestDef};
 use chrono::{Duration, Timelike, Utc};
 use omnia_guest::Error;
 use omnia_guest::api::{Invocation, Invoker};

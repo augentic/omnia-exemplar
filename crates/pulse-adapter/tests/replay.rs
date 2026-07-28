@@ -6,7 +6,7 @@ mod provider;
 use std::fs::{self, File};
 
 use acme_common::TIMEZONE;
-use augentic_test::{TestCase, TestDef};
+use acme_test::{TestCase, TestDef};
 use chrono::Utc;
 use omnia_guest::Error;
 use omnia_guest::api::{Invocation, Invoker};

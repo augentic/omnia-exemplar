@@ -15,4 +15,4 @@ behaviour.
 - `tests/static.rs` — hand-authored scenarios exercising arrival/departure
   handling, unmapped stations, and validation failures.
 - `tests/replay.rs` — snapshot fixtures captured from a live system, replayed
-  through the adapter with mocked HTTP responses (`augentic-test`).
+  through the adapter with mocked HTTP responses (`acme-test`).

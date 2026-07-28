@@ -216,7 +216,7 @@ cargo nextest run            # or: cargo test --workspace --all-features
 - `crates/gtfs-adapter/tests` — in-memory `Config`/`StateStore`/`Publish`/
   `HttpRequest` mocks covering motion, dead reckoning, sign-on, filtering,
   occupancy, and (feature-gated) god-mode
-- `crates/pulse-adapter/tests` — static fixtures plus `augentic-test` replay
+- `crates/pulse-adapter/tests` — static fixtures plus `acme-test` replay
   sessions captured from a live system (`data/replay`, `data/static`)
 
 ## Guest template contract

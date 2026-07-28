@@ -7,7 +7,7 @@ use std::sync::{Arc, Mutex};
 
 use acme_common::TIMEZONE;
 use anyhow::{Context, Result, anyhow};
-use augentic_test::{Fetcher, Fixture, PreparedTestCase, TestDef, TestResult};
+use acme_test::{Fetcher, Fixture, PreparedTestCase, TestDef, TestResult};
 use bytes::Bytes;
 use chrono::{Timelike, Utc};
 use http::{Request, Response};

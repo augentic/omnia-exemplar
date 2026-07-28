@@ -47,9 +47,6 @@ assemblies:
       - source: gitignore
         target: .gitignore
         proof: exact
-      - source: cargo-config.toml
-        target: .cargo/config.toml
-        proof: exact
       - source: vscode-settings.json
         target: .vscode/settings.json
         proof: exact

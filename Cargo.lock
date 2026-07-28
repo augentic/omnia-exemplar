@@ -19,6 +19,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "acme-test"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "bytes",
+ "http",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "addr2line"
 version = "0.26.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -122,18 +133,6 @@ name = "atomic-waker"
 version = "1.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1505bd5d3d116872e7271a6d4e16d81d0c8570876c8de68093a09ac269d8aac0"
-
-[[package]]
-name = "augentic-test"
-version = "0.1.0"
-source = "git+https://github.com/augentic/test.git?branch=main#32e226b1aaf696f758a5d20bf2972b6b17814e50"
-dependencies = [
- "anyhow",
- "bytes",
- "http",
- "serde",
- "serde_json",
-]
 
 [[package]]
 name = "autocfg"
@@ -2768,8 +2767,8 @@ name = "pulse-adapter"
 version = "0.1.0"
 dependencies = [
  "acme-common",
+ "acme-test",
  "anyhow",
- "augentic-test",
  "bytes",
  "chrono",
  "http",
