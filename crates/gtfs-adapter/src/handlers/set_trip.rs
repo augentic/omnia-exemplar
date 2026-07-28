@@ -21,7 +21,8 @@ pub struct SetTripRequest {
 pub struct SetTripReply {
     /// Human-readable result.
     pub message: String,
-    /// Process identifier (always 0).
+    /// Always `0`. Retained solely so the reply shape matches the legacy
+    /// system this exemplar was ported from — do not copy into new services.
     pub process: u32,
 }
 
@@ -33,6 +34,11 @@ where
     type Input = Self;
     type Output = SetTripReply;
 
+    #[tracing::instrument(
+        name = "set_trip_request",
+        skip_all,
+        fields(owner = context.owner, vehicle_id = input.vehicle_id, trip_id = input.trip_id),
+    )]
     async fn call(input: Self, context: CallContext<'_, P>) -> Result<SetTripReply> {
         let provider = context.provider;
 

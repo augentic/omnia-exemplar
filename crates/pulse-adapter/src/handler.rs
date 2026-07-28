@@ -2,11 +2,9 @@
 //!
 //! Transform a Pulse XML message into Motion events.
 
+use acme_common::{block_mgt, config, routes};
 use anyhow::Context as _;
-use bytes::Bytes;
 use chrono::Utc;
-use http::header::AUTHORIZATION;
-use http_body_util::Empty;
 use omnia_guest::api::{CallContext, Operation, Provider};
 use omnia_guest::{Config, Error, HttpRequest, Identity, Message, Publish, Result};
 use serde::Deserialize;
@@ -15,7 +13,17 @@ use crate::motion::{EventType, MessageData, MotionEvent, RemoteData};
 use crate::pulse::TrainUpdate;
 use crate::stops;
 
-const MOTION_TOPIC: &str = "realtime-pulse-to-motion.v1";
+/// Each Motion event is published this many times: the downstream schedule
+/// adherence process treats the repeated location event as confirmation that
+/// the train has departed the station, so a single publish would leave
+/// departures unsignalled.
+///
+/// The legacy system spaced the repeats five seconds apart with a blocking
+/// `thread::sleep`. Do not copy that pattern — blocking stalls the entire
+/// WASM guest. If spacing between publishes ever matters, use a scheduled or
+/// delayed message, or debounce in the consumer, instead of sleeping in the
+/// operation.
+const PUBLISH_REPEATS: usize = 2;
 
 /// Pulse train update message as deserialized from the XML received from the
 /// track-side sensor network.
@@ -46,6 +54,15 @@ where
     type Input = Self;
     type Output = ();
 
+    #[tracing::instrument(
+        name = "pulse_message",
+        skip_all,
+        fields(
+            owner = context.owner,
+            vehicle_id = input.train_update.train_id(),
+            topic = routes::topic::PULSE,
+        ),
+    )]
     async fn call(input: Self, context: CallContext<'_, P>) -> Result<()> {
         let provider = context.provider;
 
@@ -56,16 +73,10 @@ where
         // convert to Motion events
         let events = update.into_events(context.owner, provider).await?;
 
-        // publish events to Motion topic
-        // publish 2x in order to properly signal departure from the station
-        // (for schedule adherence)
-        let env = Config::get(provider, "ENV").await.unwrap_or_else(|_| "dev".to_string());
-        let topic = format!("{env}-{MOTION_TOPIC}");
+        // publish events to Motion topic (repeated — see `PUBLISH_REPEATS`)
+        let topic = config::topic(provider, routes::topic::PULSE_TO_MOTION).await;
 
-        for _ in 0..2 {
-            #[cfg(not(debug_assertions))]
-            std::thread::sleep(std::time::Duration::from_secs(5));
-
+        for _ in 0..PUBLISH_REPEATS {
             for event in &events {
                 tracing::info!(monotonic_counter.motion_events_published = 1);
 
@@ -108,22 +119,9 @@ impl TrainUpdate {
         };
 
         // get train allocations for this trip
-        let url = Config::get(provider, "BLOCK_MGT_URL").await?;
-        let identity = Config::get(provider, "API_IDENTITY").await?;
-
-        let token = Identity::access_token(provider, identity).await?;
-
-        let request = http::Request::builder()
-            .uri(format!("{url}/allocations/trips?externalRefId={}", self.train_id()))
-            .header(AUTHORIZATION, format!("Bearer {token}"))
-            .body(Empty::<Bytes>::new())
-            .context("building block management request")?;
-        let response =
-            HttpRequest::fetch(provider, request).await.context("fetching train allocations")?;
-
-        let bytes = response.into_body();
-        let allocated: Vec<String> =
-            serde_json::from_slice(&bytes).context("deserializing block management response")?;
+        let allocated = block_mgt::trip_allocations(&self.train_id(), provider)
+            .await
+            .context("fetching train allocations")?;
 
         // publish Motion events
         let mut events = Vec::new();

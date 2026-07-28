@@ -1,17 +1,19 @@
 //! # Axum guest (style B)
 //!
 //! Wires the shared transit operations to WASI HTTP and WASI Messaging with
-//! hand-written Axum handlers served through [`omnia_wasi_http::serve`], and
-//! a raw `incoming-handler` messaging export. Each handler decodes the
+//! hand-written Axum handlers served through `omnia_wasi_http::serve`, and a
+//! raw `incoming-handler` messaging export. Each handler decodes the
 //! transport payload itself and invokes the shared operation through an
-//! [`Invoker`].
+//! `Invoker`.
 //!
-//! Compare with `guests/typed` (style A), which serves the same routes and
-//! topics through the typed `omnia_guest::api` routers.
+//! Routes and topics come from the canonical tables in
+//! [`acme_common::routes`], shared with `guests/typed` (style A), which
+//! serves the same surface through the typed `omnia_guest::api` routers.
 
 #![cfg(target_arch = "wasm32")]
 
-use anyhow::{Context, Result};
+use acme_common::{config, routes};
+use anyhow::Context;
 use axum::extract::Path;
 use axum::http::header::CONTENT_TYPE;
 use axum::response::{IntoResponse, Response};
@@ -19,9 +21,10 @@ use axum::routing::{get, post};
 use axum::{Json, Router};
 use bytes::Bytes;
 use gtfs_adapter::{
-    MotionMessage, PassengerCountMessage, SetTripReply, SetTripRequest, TrainAvlMessage,
-    VehicleInfoReply, VehicleInfoRequest,
+    MotionMessage, PassengerCountMessage, TrainAvlMessage, VehicleInfoReply, VehicleInfoRequest,
 };
+#[cfg(feature = "god-mode")]
+use gtfs_adapter::{SetTripReply, SetTripRequest};
 use omnia_guest::api::{Invocation, Invoker};
 use omnia_guest::{HttpError, HttpResult};
 use omnia_wasi_messaging::types::{Error, Message};
@@ -57,10 +60,13 @@ impl Guest for Http {
     #[omnia_wasi_otel::instrument(name = "http_guest_handle", level = Level::INFO)]
     async fn handle(request: p3::Request) -> Result<p3::Response, p3::ErrorCode> {
         let router = Router::new()
-            .route("/api/apc", post(tally_message))
-            .route("/inbound/xml", post(pulse_message))
-            .route("/info/{vehicle_id}", get(vehicle_info))
-            .route("/god-mode/set-trip/{vehicle_id}/{trip_id}", get(set_trip));
+            .route(routes::http::APC, post(tally_message))
+            .route(routes::http::PULSE_XML, post(pulse_message))
+            .route(routes::http::VEHICLE_INFO, get(vehicle_info));
+
+        #[cfg(feature = "god-mode")]
+        let router = router.route(routes::http::SET_TRIP, post(set_trip));
+
         omnia_wasi_http::serve(router, request).await
     }
 }
@@ -83,6 +89,7 @@ async fn vehicle_info(Path(vehicle_id): Path<String>) -> HttpResult<Json<Vehicle
     Ok(Json(reply))
 }
 
+#[cfg(feature = "god-mode")]
 async fn set_trip(
     Path((vehicle_id, trip_id)): Path<(String, String)>,
 ) -> HttpResult<Json<SetTripReply>> {
@@ -98,41 +105,55 @@ omnia_wasi_messaging::export!(Messaging with_types_in omnia_wasi_messaging);
 impl omnia_wasi_messaging::incoming_handler::Guest for Messaging {
     #[omnia_wasi_otel::instrument(name = "messaging_guest_handle")]
     async fn handle(message: Message) -> Result<(), Error> {
-        if let Err(e) = match &message.topic().unwrap_or_default() {
-            t if t.contains("realtime-pulse.v1") => pulse(message.data()).await,
-            t if t.contains("realtime-pulse-to-motion.v1") => motion(message.data()).await,
-            t if t.contains("realtime-train-avl.v1") => train_avl(message.data()).await,
-            t if t.contains("realtime-passenger-count.v1") => passenger_count(message.data()).await,
-            _ => {
-                return Err(Error::Other("Unhandled topic".to_string()));
+        let Some(topic) = message.topic() else {
+            return Err(Error::Other("missing topic".to_string()));
+        };
+
+        // Match the exact `{env}-` qualified topics — the same names the
+        // typed guest registers — rather than a substring, so a topic from
+        // another environment is rejected instead of silently consumed.
+        let env = config::env(&Provider).await;
+        let result = match &topic {
+            t if *t == config::topic_for(&env, routes::topic::PULSE) => pulse(message.data()).await,
+            t if *t == config::topic_for(&env, routes::topic::PULSE_TO_MOTION) => {
+                motion(message.data()).await
             }
-        } {
-            return Err(Error::Other(e.to_string()));
-        }
-        Ok(())
+            t if *t == config::topic_for(&env, routes::topic::TRAIN_AVL) => {
+                train_avl(message.data()).await
+            }
+            t if *t == config::topic_for(&env, routes::topic::PASSENGER_COUNT) => {
+                passenger_count(message.data()).await
+            }
+            _ => return Err(Error::Other(format!("unhandled topic: {topic}"))),
+        };
+
+        // The WIT contract only carries a string, so forward the domain
+        // error's full display — including its structured code — instead of
+        // discarding it behind a generic message.
+        result.map_err(|error| Error::Other(error.to_string()))
     }
 }
 
 #[omnia_wasi_otel::instrument]
-async fn pulse(payload: Vec<u8>) -> Result<()> {
+async fn pulse(payload: Vec<u8>) -> omnia_guest::Result<()> {
     let message = PulseMessage::from_xml(&payload)?;
-    invoker().invoke::<PulseMessage>(Invocation::new(message)).await.map_err(Into::into)
+    invoker().invoke::<PulseMessage>(Invocation::new(message)).await
 }
 
 #[omnia_wasi_otel::instrument]
-async fn motion(payload: Vec<u8>) -> Result<()> {
+async fn motion(payload: Vec<u8>) -> omnia_guest::Result<()> {
     let message: MotionMessage = serde_json::from_slice(&payload)?;
-    invoker().invoke::<MotionMessage>(Invocation::new(message)).await.map_err(Into::into)
+    invoker().invoke::<MotionMessage>(Invocation::new(message)).await
 }
 
 #[omnia_wasi_otel::instrument]
-async fn train_avl(payload: Vec<u8>) -> Result<()> {
+async fn train_avl(payload: Vec<u8>) -> omnia_guest::Result<()> {
     let message: TrainAvlMessage = serde_json::from_slice(&payload)?;
-    invoker().invoke::<TrainAvlMessage>(Invocation::new(message)).await.map_err(Into::into)
+    invoker().invoke::<TrainAvlMessage>(Invocation::new(message)).await
 }
 
 #[omnia_wasi_otel::instrument]
-async fn passenger_count(payload: Vec<u8>) -> Result<()> {
+async fn passenger_count(payload: Vec<u8>) -> omnia_guest::Result<()> {
     let message: PassengerCountMessage = serde_json::from_slice(&payload)?;
-    invoker().invoke::<PassengerCountMessage>(Invocation::new(message)).await.map_err(Into::into)
+    invoker().invoke::<PassengerCountMessage>(Invocation::new(message)).await
 }

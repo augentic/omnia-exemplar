@@ -19,6 +19,7 @@ workspace = true
 crate-type = ["lib"]
 
 [dependencies]
+acme-common.workspace = true
 anyhow.workspace = true
 omnia-guest.workspace = true
 serde.workspace = true

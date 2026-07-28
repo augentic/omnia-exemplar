@@ -1,10 +1,10 @@
 //! Trip Management API client and GTFS-realtime types.
 
+use acme_common::TIMEZONE;
 use anyhow::{Context, Result};
 use bytes::Bytes;
 use chrono::{Duration, NaiveDate, TimeZone, Timelike};
 use chrono_tz::Tz;
-use common::TIMEZONE;
 use http::header::{CACHE_CONTROL, CONTENT_TYPE};
 use http::{Method, StatusCode};
 use http_body_util::Full;
@@ -98,7 +98,7 @@ async fn fetch<P>(trip_id: &str, service_date: &str, provider: &P) -> Result<Vec
 where
     P: HttpRequest + Config,
 {
-    let base_url = Config::get(provider, "TRIP_MANAGEMENT_URL").await?;
+    let base_url = Config::get(provider, acme_common::config::TRIP_MANAGEMENT_URL).await?;
     let endpoint = format!("{}/tripinstances", base_url.trim_end_matches('/'));
 
     let payload = serde_json::json!({

@@ -1,5 +1,5 @@
 [workspace]
-members = ["crates/*", "guests/*"]
+members = ["crates/*", "guests/*", "templates/check"]
 resolver = "3"
 
 [workspace.package]
@@ -65,9 +65,11 @@ http-body = "1.1.0"
 http-body-util = "0.1.4"
 quick-xml = { version = "0.41.0", features = ["serde", "serialize"] }
 serde = { version = "1.0.229", features = ["derive"] }
+serde-saphyr = "0.0.29"
 serde_json = "1.0.151"
 serde_repr = "0.1.20"
 thiserror = "2.0.18"
+toml = "1.1.3"
 tokio = { version = "1.53.1", default-features = false, features = [
     "io-util",
     "macros",
@@ -90,25 +92,25 @@ omnia-wasi-keyvalue = "0.35.0"
 omnia-wasi-messaging = "0.35.0"
 omnia-wasi-otel = "0.35.0"
 
-# Shared repositories
-augentic-test = { git = "https://github.com/augentic/test.git", branch = "main" }
-
 # Internally referenced crates
-common = { path = "crates/common" }
+acme-common = { path = "crates/common" }
+acme-test = { path = "crates/test" }
 gtfs-adapter = { path = "crates/gtfs-adapter" }
 pulse-adapter = { path = "crates/pulse-adapter" }
 pulse-connector = { path = "crates/pulse-connector" }
 tally-connector = { path = "crates/tally-connector" }
 
+# Pinned to the exact rev declared in `exemplar.yaml`; the manifest, not
+# an incidental lock resolution, declares Omnia compatibility.
 [patch.crates-io]
-omnia = { git = "https://github.com/augentic/omnia" }
-omnia-guest = { git = "https://github.com/augentic/omnia" }
-omnia-wasi-config = { git = "https://github.com/augentic/omnia" }
-omnia-wasi-http = { git = "https://github.com/augentic/omnia" }
-omnia-wasi-identity = { git = "https://github.com/augentic/omnia" }
-omnia-wasi-keyvalue = { git = "https://github.com/augentic/omnia" }
-omnia-wasi-messaging = { git = "https://github.com/augentic/omnia" }
-omnia-wasi-otel = { git = "https://github.com/augentic/omnia" }
+omnia = { git = "https://github.com/augentic/omnia", rev = "08cd05a3363260e7f47e1cf3848a923d7ed5df2d" }
+omnia-guest = { git = "https://github.com/augentic/omnia", rev = "08cd05a3363260e7f47e1cf3848a923d7ed5df2d" }
+omnia-wasi-config = { git = "https://github.com/augentic/omnia", rev = "08cd05a3363260e7f47e1cf3848a923d7ed5df2d" }
+omnia-wasi-http = { git = "https://github.com/augentic/omnia", rev = "08cd05a3363260e7f47e1cf3848a923d7ed5df2d" }
+omnia-wasi-identity = { git = "https://github.com/augentic/omnia", rev = "08cd05a3363260e7f47e1cf3848a923d7ed5df2d" }
+omnia-wasi-keyvalue = { git = "https://github.com/augentic/omnia", rev = "08cd05a3363260e7f47e1cf3848a923d7ed5df2d" }
+omnia-wasi-messaging = { git = "https://github.com/augentic/omnia", rev = "08cd05a3363260e7f47e1cf3848a923d7ed5df2d" }
+omnia-wasi-otel = { git = "https://github.com/augentic/omnia", rev = "08cd05a3363260e7f47e1cf3848a923d7ed5df2d" }
 
 # `wrpc-wasmtime` 0.1.0 is unpublished on crates.io.
 wrpc-transport = { git = "https://github.com/bytecodealliance/wrpc" }

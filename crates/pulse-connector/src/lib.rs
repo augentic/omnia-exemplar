@@ -8,15 +8,19 @@ pub use handler::*;
 use omnia_guest::Error;
 use thiserror::Error;
 
-/// Errors raised while validating an inbound Pulse message.
+/// Errors raised while validating an inbound Pulse SOAP request.
+///
+/// Distinct from `pulse_adapter::PulseMessageError`: this type covers the
+/// SOAP envelope received over HTTP, while the adapter's covers the embedded
+/// train update message consumed from messaging.
 #[derive(Error, Debug)]
-pub enum PulseError {
+pub enum PulseRequestError {
     /// The XML is invalid.
     #[error("{0}")]
     InvalidXml(String),
 }
 
-impl PulseError {
+impl PulseRequestError {
     fn code(&self) -> String {
         match self {
             Self::InvalidXml(_) => "invalid_message".to_string(),
@@ -24,8 +28,8 @@ impl PulseError {
     }
 }
 
-impl From<PulseError> for Error {
-    fn from(err: PulseError) -> Self {
+impl From<PulseRequestError> for Error {
+    fn from(err: PulseRequestError) -> Self {
         Self::BadRequest {
             code: err.code(),
             description: err.to_string(),
@@ -33,7 +37,7 @@ impl From<PulseError> for Error {
     }
 }
 
-impl From<quick_xml::DeError> for PulseError {
+impl From<quick_xml::DeError> for PulseRequestError {
     fn from(err: quick_xml::DeError) -> Self {
         Self::InvalidXml(err.to_string())
     }

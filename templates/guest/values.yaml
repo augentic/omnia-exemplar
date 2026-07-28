@@ -1,0 +1,9 @@
+# Representative render values for `cargo make template-check`.
+#
+# Seed templates are rendered with these values and syntax-checked so a
+# filled-in file is proven parseable; the exemplar itself deploys
+# nowhere, so the deploy values are representative in shape only.
+
+PACKAGE_NAME: guest-typed
+STORAGE_ACCOUNT: acmetransitguests
+RESOURCE_GROUP: acme-transit-rt

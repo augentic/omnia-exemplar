@@ -35,8 +35,9 @@ where
         return Ok(None);
     };
 
-    let static_api_url =
-        Config::get(provider, "STATIC_API_URL").await.context("getting `STATIC_API_URL`")?;
+    let static_api_url = Config::get(provider, acme_common::config::STATIC_API_URL)
+        .await
+        .context("getting `STATIC_API_URL`")?;
     let request = http::Request::builder()
         .uri(format!("{static_api_url}/gtfs/stops?fields=stop_code,stop_lon,stop_lat"))
         .body(Empty::<Bytes>::new())

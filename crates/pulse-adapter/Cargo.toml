@@ -19,10 +19,10 @@ workspace = true
 crate-type = ["lib"]
 
 [dependencies]
+acme-common.workspace = true
 anyhow.workspace = true
 bytes.workspace = true
 chrono.workspace = true
-common.workspace = true
 http.workspace = true
 http-body-util.workspace = true
 omnia-guest.workspace = true
@@ -34,6 +34,6 @@ thiserror.workspace = true
 tracing.workspace = true
 
 [dev-dependencies]
-augentic-test.workspace = true
+acme-test.workspace = true
 http-body.workspace = true
 tokio.workspace = true

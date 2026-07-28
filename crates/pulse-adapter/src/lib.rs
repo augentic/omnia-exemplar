@@ -15,9 +15,13 @@ pub use self::motion::*;
 pub use self::pulse::*;
 pub use self::stops::StopInfo;
 
-/// Errors raised while validating an inbound Pulse message.
+/// Errors raised while validating an inbound Pulse train update message.
+///
+/// Distinct from `pulse_connector::PulseRequestError`: this type covers the
+/// train update consumed from messaging, while the connector's covers the
+/// SOAP envelope received over HTTP.
 #[derive(Error, Debug)]
-pub enum PulseError {
+pub enum PulseMessageError {
     /// The message timestamp is invalid (too old or future-dated).
     #[error("{0}")]
     BadTime(String),
@@ -32,7 +36,7 @@ pub enum PulseError {
     InvalidXml(String),
 }
 
-impl PulseError {
+impl PulseMessageError {
     fn code(&self) -> String {
         match self {
             Self::BadTime(_) => "bad_time".to_string(),
@@ -42,8 +46,8 @@ impl PulseError {
     }
 }
 
-impl From<PulseError> for Error {
-    fn from(err: PulseError) -> Self {
+impl From<PulseMessageError> for Error {
+    fn from(err: PulseMessageError) -> Self {
         Self::BadRequest {
             code: err.code(),
             description: err.to_string(),
@@ -51,7 +55,7 @@ impl From<PulseError> for Error {
     }
 }
 
-impl From<quick_xml::DeError> for PulseError {
+impl From<quick_xml::DeError> for PulseMessageError {
     fn from(err: quick_xml::DeError) -> Self {
         Self::InvalidXml(err.to_string())
     }

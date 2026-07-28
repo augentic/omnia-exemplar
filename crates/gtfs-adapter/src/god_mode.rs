@@ -1,4 +1,14 @@
 //! God-mode trip overrides for testing and operations.
+//!
+//! This is an operational tool, not part of the production pipeline: it lets
+//! an operator force a vehicle onto a specific trip while diagnosing
+//! allocation issues. The whole module — and the HTTP operation that drives
+//! it ([`crate::SetTripRequest`]) — is compiled only when the `god-mode`
+//! cargo feature is enabled, and does nothing at runtime unless the
+//! `GOD_MODE_ENABLED` configuration key is set to a truthy value.
+//!
+//! Overrides live in the state store under the `god_mode:` prefix, separate
+//! from the `motionGtfs:` pipeline state (see [`crate::state_keys`]).
 
 use std::collections::HashMap;
 
@@ -45,12 +55,31 @@ pub async fn set_vehicle_to_trip(
     save_state(state_store, &state).await
 }
 
+/// Apply any god-mode trip overrides to a serial data event.
+///
+/// Returns the event unchanged when god mode is disabled or no override is
+/// registered for the vehicle.
+///
+/// # Errors
+///
+/// Returns an error if the configuration or state store cannot be read.
+pub async fn apply_overrides<P>(event: MotionMessage, provider: &P) -> Result<MotionMessage>
+where
+    P: Config + StateStore,
+{
+    let mut event = event;
+    if is_enabled(provider).await? {
+        preprocess(provider, &mut event).await?;
+    }
+    Ok(event)
+}
+
 /// Preprocess a Motion message, applying any vehicle overrides.
 ///
 /// # Errors
 ///
 /// Returns an error if the state cannot be loaded from the state store.
-pub async fn preprocess(state_store: &impl StateStore, event: &mut MotionMessage) -> Result<()> {
+async fn preprocess(state_store: &impl StateStore, event: &mut MotionMessage) -> Result<()> {
     if event.event_type != EventType::SerialData {
         return Ok(());
     }
@@ -93,8 +122,10 @@ pub async fn preprocess(state_store: &impl StateStore, event: &mut MotionMessage
 ///
 /// Returns an error if the configuration cannot be read.
 pub async fn is_enabled(provider: &impl Config) -> Result<bool> {
-    Ok(Config::get(provider, "GOD_MODE_ENABLED").await.ok().is_some_and(|value| {
-        let normalized = value.trim().to_ascii_lowercase();
-        matches!(normalized.as_str(), "1" | "true" | "yes" | "on")
-    }))
+    Ok(Config::get(provider, acme_common::config::GOD_MODE_ENABLED).await.ok().is_some_and(
+        |value| {
+            let normalized = value.trim().to_ascii_lowercase();
+            matches!(normalized.as_str(), "1" | "true" | "yes" | "on")
+        },
+    ))
 }

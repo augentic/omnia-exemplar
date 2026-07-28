@@ -1,11 +1,11 @@
 //! Location event processing.
 
+use acme_common::TIMEZONE;
+use acme_common::block_mgt::{self, BlockInstance};
+use acme_common::fleet::{self, Vehicle};
 use anyhow::Context as _;
 use chrono::{Duration, NaiveDate, TimeZone};
 use chrono_tz::Tz;
-use common::TIMEZONE;
-use common::block_mgt::{self, BlockInstance};
-use common::fleet::{self, Vehicle};
 use omnia_guest::{Config, HttpRequest, Identity, Result, StateStore};
 use serde::de::DeserializeOwned;
 use uuid::Uuid;
@@ -14,7 +14,7 @@ use crate::trip::{
     self, DeadReckoningMessage, FeedEntity, Position, PositionDr, TripDescriptor, TripInstance,
     VehicleDescriptor, VehicleDr, VehiclePosition,
 };
-use crate::{EventType, MotionMessage};
+use crate::{EventType, MotionMessage, state_keys};
 
 const TTL_TRIP_TRAIN: Duration = Duration::seconds(3 * 60 * 60);
 const TTL_SIGN_ON: Duration = Duration::seconds(24 * 60 * 60);
@@ -135,8 +135,8 @@ async fn allocate<P>(
 where
     P: Config + HttpRequest + StateStore,
 {
-    let trip_key = format!("motionGtfs:trip:vehicle:{}", vehicle.id);
-    let sign_on_key = format!("motionGtfs:vehicle:signOn:{}", vehicle.id);
+    let trip_key = state_keys::trip(&vehicle.id);
+    let sign_on_key = state_keys::sign_on(&vehicle.id);
 
     // no allocation for this vehicle
     let Some(alloc) = allocation else {
@@ -197,8 +197,8 @@ async fn current_trip<P>(
 where
     P: StateStore,
 {
-    let trip_key = format!("motionGtfs:trip:vehicle:{vehicle_id}");
-    let sign_on_key = format!("motionGtfs:vehicle:signOn:{vehicle_id}");
+    let trip_key = state_keys::trip(vehicle_id);
+    let sign_on_key = state_keys::sign_on(vehicle_id);
     let bytes = StateStore::get(provider, &trip_key).await?;
 
     if let Some(instance) = deserialize_optional::<TripInstance>(bytes.as_deref()) {
@@ -236,10 +236,7 @@ where
         return Ok(None);
     };
 
-    let key = format!(
-        "motionGtfs:occupancyStatus:{}:{}:{}:{}",
-        vehicle.id, trip.trip_id, start_date, start_time
-    );
+    let key = state_keys::occupancy_status(&vehicle.id, &trip.trip_id, start_date, start_time);
 
     let Some(bytes) = StateStore::get(provider, &key).await? else {
         return Ok(None);

@@ -2,11 +2,14 @@
 //!
 //! This module stores occupancy status for a given vehicle and trip.
 
+use acme_common::routes;
 use omnia_guest::api::{CallContext, Operation, Provider};
 use omnia_guest::{Error, Result, StateStore};
 use serde::{Deserialize, Serialize};
 
-const OCCUPANY_STATUS_TTL: u64 = 3 * 60 * 60; // 3 hours
+use crate::state_keys;
+
+const OCCUPANCY_STATUS_TTL: u64 = 3 * 60 * 60; // 3 hours
 
 impl<P> Operation<P> for PassengerCountMessage
 where
@@ -16,6 +19,15 @@ where
     type Input = Self;
     type Output = ();
 
+    #[tracing::instrument(
+        name = "passenger_count_message",
+        skip_all,
+        fields(
+            owner = context.owner,
+            vehicle_id = input.vehicle.id,
+            topic = routes::topic::PASSENGER_COUNT,
+        ),
+    )]
     async fn call(input: Self, context: CallContext<'_, P>) -> Result<()> {
         let provider = context.provider;
 
@@ -26,13 +38,12 @@ where
             start_date,
             start_time,
         } = &input.trip;
-        let key =
-            format!("motionGtfs:occupancyStatus:{vehicle_id}:{trip_id}:{start_date}:{start_time}");
+        let key = state_keys::occupancy_status(vehicle_id, trip_id, start_date, start_time);
 
         // save occupancy status to state if set, otherwise remove
         if let Some(occupancy_status) = input.occupancy_status {
             let bytes = serde_json::to_vec(&occupancy_status)?;
-            StateStore::set(provider, &key, &bytes, Some(OCCUPANY_STATUS_TTL)).await?;
+            StateStore::set(provider, &key, &bytes, Some(OCCUPANCY_STATUS_TTL)).await?;
         } else {
             StateStore::delete(provider, &key).await?;
         }

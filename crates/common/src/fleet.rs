@@ -11,6 +11,8 @@ use http_body_util::Empty;
 use omnia_guest::{Config, HttpRequest, Identity};
 use serde::{Deserialize, Serialize};
 
+use crate::config;
+
 /// Retrieves a vehicle (train) by label.
 ///
 /// # Errors
@@ -23,7 +25,8 @@ where
 {
     let identifier = Identifier::from_str(vehicle_id)?;
     let query = identifier.to_query();
-    let fleet_url = Config::get(provider, "FLEET_URL").await.context("getting `FLEET_URL`")?;
+    let fleet_url =
+        Config::get(provider, config::FLEET_URL).await.context("getting `FLEET_URL`")?;
 
     let request = http::Request::builder()
         .method(Method::GET)
