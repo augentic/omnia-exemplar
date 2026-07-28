@@ -7,8 +7,7 @@
 //! `Invoker`.
 //!
 //! Routes and topics come from the canonical tables in
-//! [`acme_common::routes`], shared with `guests/typed` (style A), which
-//! serves the same surface through the typed `omnia_guest::api` routers.
+//! [`acme_common::routes`].
 
 #![cfg(target_arch = "wasm32")]
 
