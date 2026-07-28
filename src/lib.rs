@@ -1,4 +1,4 @@
-//! # Axum guest (style B)
+//! # Root-package Axum guest
 //!
 //! Wires the shared transit operations to WASI HTTP and WASI Messaging with
 //! hand-written Axum handlers served through `omnia_wasi_http::serve`, and a
@@ -6,7 +6,8 @@
 //! transport payload itself and invokes the shared operation through an
 //! `Invoker`.
 //!
-//! Routes and topics come from the canonical tables in
+//! This root-package layout (`src/lib.rs`) is the compiling reference for
+//! new Omnia services. Routes and topics come from the canonical tables in
 //! [`acme_common::routes`].
 
 #![cfg(target_arch = "wasm32")]
