@@ -90,9 +90,17 @@ where
         let data = D::from_data(&self.test_def);
         let output = data.output();
         if data.input().is_none() {
-            return PreparedTestCase { input: None, http_requests, output };
+            return PreparedTestCase {
+                input: None,
+                http_requests,
+                output,
+            };
         }
         let input = data.transform(transform);
-        PreparedTestCase { input: Some(input), http_requests, output }
+        PreparedTestCase {
+            input: Some(input),
+            http_requests,
+            output,
+        }
     }
 }

@@ -6,8 +6,8 @@ use std::error::Error;
 use std::sync::{Arc, Mutex};
 
 use acme_common::TIMEZONE;
-use anyhow::{Context, Result, anyhow};
 use acme_test::{Fetcher, Fixture, PreparedTestCase, TestDef, TestResult};
+use anyhow::{Context, Result, anyhow};
 use bytes::Bytes;
 use chrono::{Timelike, Utc};
 use http::{Request, Response};

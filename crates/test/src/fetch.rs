@@ -75,7 +75,10 @@ pub struct Response {
 
 impl Default for Response {
     fn default() -> Self {
-        Self { status: 200, body: Value::String(String::new()) }
+        Self {
+            status: 200,
+            body: Value::String(String::new()),
+        }
     }
 }
 
@@ -91,7 +94,9 @@ impl Fetcher {
     /// Create a new Fetcher with the given fetch request configurations.
     #[must_use]
     pub fn new(fetches: &[Fetch]) -> Self {
-        Self { fetches: fetches.to_vec() }
+        Self {
+            fetches: fetches.to_vec(),
+        }
     }
 
     /// Simulate fetching a request by finding a matching fetch configuration
@@ -216,7 +221,10 @@ mod tests {
             method: Method::Get,
             path: "/data".to_string(),
             request: Some("q=42".to_string()),
-            response: Response { status: 201, body: json!({"value": 42}) },
+            response: Response {
+                status: 201,
+                body: json!({"value": 42}),
+            },
         };
         let fetcher = Fetcher::new(&[fetch]);
 
@@ -234,7 +242,10 @@ mod tests {
             method: Method::Get,
             path: "/allocations".to_string(),
             request: Some("vehicle=1".to_string()),
-            response: Response { status: 200, body: json!([1]) },
+            response: Response {
+                status: 200,
+                body: json!([1]),
+            },
         };
         let fetcher = Fetcher::new(&[fetch]);
 
