@@ -14,7 +14,7 @@ schema-version: 1
 omnia:
   version: 0.35.0
   repository: https://github.com/augentic/omnia
-  rev: a02ea7980586228c85604249a485b922ad4642d4
+  rev: d239f5c98352161c8eb21ac3dede49d678b4358a
 
 templates:
   manifest: templates/guest/manifest.yaml
