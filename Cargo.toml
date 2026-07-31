@@ -164,15 +164,15 @@ tally-connector = { path = "crates/tally-connector" }
 # Pinned to the exact rev declared in `exemplar.yaml`; the manifest, not
 # an incidental lock resolution, declares Omnia compatibility.
 [patch.crates-io]
-omnia = { git = "https://github.com/augentic/omnia", rev = "a02ea7980586228c85604249a485b922ad4642d4" }
-omnia-guest = { git = "https://github.com/augentic/omnia", rev = "a02ea7980586228c85604249a485b922ad4642d4" }
-omnia-wasi-config = { git = "https://github.com/augentic/omnia", rev = "a02ea7980586228c85604249a485b922ad4642d4" }
-omnia-wasi-http = { git = "https://github.com/augentic/omnia", rev = "a02ea7980586228c85604249a485b922ad4642d4" }
-omnia-wasi-identity = { git = "https://github.com/augentic/omnia", rev = "a02ea7980586228c85604249a485b922ad4642d4" }
-omnia-wasi-keyvalue = { git = "https://github.com/augentic/omnia", rev = "a02ea7980586228c85604249a485b922ad4642d4" }
-omnia-wasi-messaging = { git = "https://github.com/augentic/omnia", rev = "a02ea7980586228c85604249a485b922ad4642d4" }
-omnia-wasi-otel = { git = "https://github.com/augentic/omnia", rev = "a02ea7980586228c85604249a485b922ad4642d4" }
-omnia-wasi-sql = { git = "https://github.com/augentic/omnia", rev = "a02ea7980586228c85604249a485b922ad4642d4" }
+omnia = { git = "https://github.com/augentic/omnia", rev = "d239f5c98352161c8eb21ac3dede49d678b4358a" }
+omnia-guest = { git = "https://github.com/augentic/omnia", rev = "d239f5c98352161c8eb21ac3dede49d678b4358a" }
+omnia-wasi-config = { git = "https://github.com/augentic/omnia", rev = "d239f5c98352161c8eb21ac3dede49d678b4358a" }
+omnia-wasi-http = { git = "https://github.com/augentic/omnia", rev = "d239f5c98352161c8eb21ac3dede49d678b4358a" }
+omnia-wasi-identity = { git = "https://github.com/augentic/omnia", rev = "d239f5c98352161c8eb21ac3dede49d678b4358a" }
+omnia-wasi-keyvalue = { git = "https://github.com/augentic/omnia", rev = "d239f5c98352161c8eb21ac3dede49d678b4358a" }
+omnia-wasi-messaging = { git = "https://github.com/augentic/omnia", rev = "d239f5c98352161c8eb21ac3dede49d678b4358a" }
+omnia-wasi-otel = { git = "https://github.com/augentic/omnia", rev = "d239f5c98352161c8eb21ac3dede49d678b4358a" }
+omnia-wasi-sql = { git = "https://github.com/augentic/omnia", rev = "d239f5c98352161c8eb21ac3dede49d678b4358a" }
 
 # `wrpc-wasmtime` 0.1.0 is unpublished on crates.io.
 wrpc-transport = { git = "https://github.com/bytecodealliance/wrpc" }
