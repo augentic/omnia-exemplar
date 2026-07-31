@@ -7,7 +7,7 @@ mod motion;
 mod pulse;
 mod stops;
 
-use omnia_guest::Error;
+use omnia_guest::{Error, ErrorKind};
 use thiserror::Error;
 
 pub use self::handler::*;
@@ -48,10 +48,7 @@ impl PulseMessageError {
 
 impl From<PulseMessageError> for Error {
     fn from(err: PulseMessageError) -> Self {
-        Self::BadRequest {
-            code: err.code(),
-            description: err.to_string(),
-        }
+        Self::new(ErrorKind::BadRequest, err.code(), err.to_string())
     }
 }
 

@@ -5,7 +5,7 @@
 mod handler;
 
 pub use handler::*;
-use omnia_guest::Error;
+use omnia_guest::{Error, ErrorKind};
 use thiserror::Error;
 
 /// Errors raised while validating an inbound Pulse SOAP request.
@@ -30,10 +30,7 @@ impl PulseRequestError {
 
 impl From<PulseRequestError> for Error {
     fn from(err: PulseRequestError) -> Self {
-        Self::BadRequest {
-            code: err.code(),
-            description: err.to_string(),
-        }
+        Self::new(ErrorKind::BadRequest, err.code(), err.to_string())
     }
 }
 
