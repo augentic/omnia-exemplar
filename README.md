@@ -15,6 +15,24 @@ Typed `omnia_guest::api` HTTP / messaging routers are a documented fallback
 in the Emery omnia target adapter only; this repository does not ship a
 compiling typed guest.
 
+## Relation to omnia
+
+This repository is the application-scale complement to the
+[omnia](https://github.com/augentic/omnia) runtime's per-capability
+[`examples/`](https://github.com/augentic/omnia/tree/main/examples): one real
+service instead of twenty snippets. The guest is built on the `omnia-guest`
+SDK (`Operation<P>` domain logic behind capability traits) and exercises
+`wasi:http`, `wasi:messaging`, `wasi:keyvalue`, `wasi:config`,
+`wasi:identity`, and — via `crates/capability-examples` — blobstore,
+websocket broadcast, docstore, and SQL. The example host
+(`examples/runtime.rs`) is a single `omnia::runtime!` invocation running
+against the in-tree default backends; swapping in production backends from
+[omnia-backends](https://github.com/augentic/omnia-backends) is a host-side
+change only (see the omnia
+[Production Backends guide](https://github.com/augentic/omnia/blob/main/docs/guides/production-backends.md)).
+The pinned omnia revision this exemplar tracks is recorded in
+[`exemplar.yaml`](exemplar.yaml).
+
 ## Quick start
 
 ```shell

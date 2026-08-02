@@ -15,8 +15,9 @@ capability trait:
 | `table` | `TableStore` | `ReadingRequest` — insert a reading and count the sensor's rows |
 
 The crate-level tests (`tests/`) drive every operation through an in-memory
-mock provider, and `guests/typed` routes them under `/examples/*` so the
-default WASM capability implementations are instantiated in a real guest.
+mock provider. Route constants for mounting the operations under `/examples/*`
+live in `src/routes.rs`; the workspace-root guest does not wire them by
+default (there is no `guests/` tree — see the repository README).
 
 `Broadcast::send` is client-side only — the guest connects out to the
 broadcast channel — so serving it requires no WebSocket export.
