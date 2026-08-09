@@ -123,10 +123,10 @@ http-body = "1.1.0"
 http-body-util = "0.1.4"
 quick-xml = { version = "0.41.0", features = ["serde", "serialize"] }
 serde = { version = "1.0.229", features = ["derive"] }
-serde-saphyr = "1.0.0"
+serde-saphyr = "1.0.1"
 serde_json = "1.0.151"
 serde_repr = "0.1.21"
-thiserror = "2.0.19"
+thiserror = "2.0.20"
 tokio = { version = "1.53.1", default-features = false, features = [
     "io-util",
     "macros",
