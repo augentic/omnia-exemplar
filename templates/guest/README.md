@@ -43,6 +43,6 @@ Authoring rules:
   value, and may appear only in `seed` templates.
 - Merges to `main` are release acts: the omnia adapter and its consumer
   builds track `main` unpinned.
-- The adapter pins exact `schema-version` values for `exemplar.yaml` and
-  this manifest. Bumping either version here requires a coordinated
-  adapter release, or consumer builds fail closed at the scaffold prelude.
+- The adapter pins an exact `schema-version` for this manifest. Bumping
+  that version here requires a coordinated adapter release, or consumer
+  builds fail closed at the scaffold prelude.

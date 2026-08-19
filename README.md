@@ -30,8 +30,9 @@ against the in-tree default backends; swapping in production backends from
 [omnia-backends](https://github.com/augentic/omnia-backends) is a host-side
 change only (see the omnia
 [Production Backends guide](https://github.com/augentic/omnia/blob/main/docs/guides/production-backends.md)).
-The pinned omnia revision this exemplar tracks is recorded in
-[`exemplar.yaml`](exemplar.yaml).
+The omnia crates are resolved from the GitHub monorepo via
+`[patch.crates-io]` in `Cargo.toml`; `Cargo.lock` records the exact
+revision.
 
 ## Quick start
 
@@ -246,10 +247,7 @@ cargo nextest run            # or: cargo test --workspace --all-features
 This repository is the source of truth for the reusable Omnia guest
 tooling. [`templates/guest/manifest.yaml`](templates/guest/manifest.yaml)
 maps repository files to consumer scaffold targets
-([contract and authoring rules](templates/guest/README.md)), and
-[`exemplar.yaml`](exemplar.yaml) declares the exact Omnia
-`{ version, repository, rev }` this repository is green against — the
-`[patch.crates-io]` entries in `Cargo.toml` pin the same rev.
+([contract and authoring rules](templates/guest/README.md)).
 
 The Emery omnia target adapter directs each consumer build to a fresh
 checkout of `main` and reads the contract from that checkout at build
@@ -260,8 +258,8 @@ therefore release acts**: the CI gate (including the template contract
 check below) is required on merge, not advisory, because downstream
 consumers track `main` unpinned.
 
-The adapter pins exact `schema-version` values for `exemplar.yaml` and
-`templates/guest/manifest.yaml`. Bumping either version here requires a
+The adapter pins an exact `schema-version` for
+`templates/guest/manifest.yaml`. Bumping that version here requires a
 coordinated adapter release, or consumer builds fail closed at the
 scaffold prelude.
 
@@ -274,9 +272,9 @@ cargo run -p template-check   # schema, tokens, path safety, seed render
 
 `exact` entries reference their repository-root file in place
 (`source == target`, token-free), so a green root vouches for the
-scaffold with no diff to maintain. To move to a new Omnia rev: update
-`exemplar.yaml`, the `[patch.crates-io]` revs, and `Cargo.lock`
-together; `template-check` fails on any disagreement.
+scaffold with no diff to maintain. To move to a new Omnia rev, update
+`Cargo.lock` (and any explicit `rev` on the `[patch.crates-io]` git
+sources).
 
 ## Development
 
