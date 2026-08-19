@@ -7,8 +7,8 @@ use std::fmt::{self, Display};
 
 use acme_common::{config, routes};
 use anyhow::Context as _;
-use omnia_guest::api::{CallContext, Operation, Provider};
-use omnia_guest::{Config, Error, Message, Publish, Result, bad_request};
+use omnia_guest::api::{CallContext, Provider};
+use omnia_guest::{Config, Message, Publish, Result, bad_request};
 use serde::{Deserialize, Serialize};
 
 const ERROR: Fault = Fault {
@@ -18,35 +18,30 @@ const ERROR: Fault = Fault {
     },
 };
 
-impl<P> Operation<P> for PulseRequest
+#[omnia_guest::operation]
+async fn pulse_request<P>(input: PulseRequest, context: CallContext<'_, P>) -> Result<PulseReply>
 where
     P: Provider + Config + Publish,
 {
-    type Error = Error;
-    type Input = Self;
-    type Output = PulseReply;
+    let provider = context.provider;
+    let message = &input.body.receive_message.axml_message;
 
-    async fn call(input: Self, context: CallContext<'_, P>) -> Result<PulseReply> {
-        let provider = context.provider;
-        let message = &input.body.receive_message.axml_message;
-
-        // Verify the message. The rejection body is a pre-rendered SOAP
-        // <Fault> because the Pulse vendor protocol requires an XML fault
-        // envelope. This is a vendor-protocol accommodation, not a general
-        // error-handling pattern — prefer plain structured errors (see the
-        // domain error enums) unless a wire protocol dictates otherwise.
-        if message.is_empty() || !message.contains("<ActualizarDatosTren>") {
-            return Err(bad_request!("{ERROR}"));
-        }
-
-        // forward to pulse-adapter topic
-        let topic = config::topic(provider, routes::topic::PULSE).await;
-
-        let msg = Message::new(message.as_bytes());
-        Publish::send(provider, &topic, &msg).await?;
-
-        Ok(PulseReply("OK"))
+    // Verify the message. The rejection body is a pre-rendered SOAP
+    // <Fault> because the Pulse vendor protocol requires an XML fault
+    // envelope. This is a vendor-protocol accommodation, not a general
+    // error-handling pattern — prefer plain structured errors (see the
+    // domain error enums) unless a wire protocol dictates otherwise.
+    if message.is_empty() || !message.contains("<ActualizarDatosTren>") {
+        return Err(bad_request!("{ERROR}"));
     }
+
+    // forward to pulse-adapter topic
+    let topic = config::topic(provider, routes::topic::PULSE).await;
+
+    let msg = Message::new(message.as_bytes());
+    Publish::send(provider, &topic, &msg).await?;
+
+    Ok(PulseReply("OK"))
 }
 
 impl PulseRequest {

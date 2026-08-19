@@ -42,16 +42,10 @@ use wasip3::http::types as p3;
 /// The tenant that owns this deployment.
 const OWNER: &str = "acme";
 
-/// Bare provider backed by the default WASI capability implementations.
-#[derive(Clone)]
-pub struct Provider;
-
-impl omnia_guest::Config for Provider {}
-impl omnia_guest::HttpRequest for Provider {}
-impl omnia_guest::Identity for Provider {}
-impl omnia_guest::Publish for Provider {}
-impl omnia_guest::StateStore for Provider {}
-impl omnia_guest::TableStore for Provider {}
+omnia_guest::provider! {
+    /// Bare provider backed by the default WASI capability implementations.
+    pub struct Provider: Config + HttpRequest + Identity + Publish + StateStore + TableStore;
+}
 
 fn invoker() -> Invoker<Provider> {
     Invoker::new(OWNER, Provider)

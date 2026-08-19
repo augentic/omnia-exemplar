@@ -4,8 +4,8 @@
 //! broadcast channel — so serving this operation requires no WebSocket
 //! export.
 
-use omnia_guest::api::{CallContext, Operation, Provider};
-use omnia_guest::{Broadcast, Error, Result};
+use omnia_guest::api::{CallContext, Provider};
+use omnia_guest::{Broadcast, Result};
 use serde::{Deserialize, Serialize};
 
 /// Broadcast an alert to a channel.
@@ -24,17 +24,12 @@ pub struct AlertRequest {
 #[serde(transparent)]
 pub struct AlertReply(pub &'static str);
 
-impl<P> Operation<P> for AlertRequest
+#[omnia_guest::operation]
+async fn alert_request<P>(input: AlertRequest, context: CallContext<'_, P>) -> Result<AlertReply>
 where
     P: Provider + Broadcast,
 {
-    type Error = Error;
-    type Input = Self;
-    type Output = AlertReply;
-
-    async fn call(input: Self, context: CallContext<'_, P>) -> Result<AlertReply> {
-        Broadcast::send(context.provider, &input.channel, input.message.as_bytes(), input.sockets)
-            .await?;
-        Ok(AlertReply("OK"))
-    }
+    Broadcast::send(context.provider, &input.channel, input.message.as_bytes(), input.sockets)
+        .await?;
+    Ok(AlertReply("OK"))
 }

@@ -5,11 +5,11 @@ services. It models a fictional transit operator ("Acme") that consolidates
 realtime vehicle data processing into a WASM guest: SOAP/XML position feeds,
 passenger counting, and GTFS realtime adaptation.
 
-Domain logic lives under `crates/*` as `Operation<P>` implementations. The
-**guest is the workspace root package** (`src/lib.rs`) — hand-written Axum
-HTTP handlers and exact-topic messaging over a shared `Invoker`. Match this
-layout when creating a new Omnia service: root `src/`, not a `guests/<name>/`
-tree.
+Domain logic lives under `crates/*` as `#[omnia_guest::operation]` handler
+functions (each derives its `Operation<P>` impl). The **guest is the
+workspace root package** (`src/lib.rs`) — hand-written Axum HTTP handlers
+and exact-topic messaging over a shared `Invoker`. Match this layout when
+creating a new Omnia service: root `src/`, not a `guests/<name>/` tree.
 
 Typed `omnia_guest::api` HTTP / messaging routers are a documented fallback
 in the Emery omnia target adapter only; this repository does not ship a
@@ -30,8 +30,9 @@ against the in-tree default backends; swapping in production backends from
 [omnia-backends](https://github.com/augentic/omnia-backends) is a host-side
 change only (see the omnia
 [Production Backends guide](https://github.com/augentic/omnia/blob/main/docs/guides/production-backends.md)).
-The pinned omnia revision this exemplar tracks is recorded in
-[`exemplar.yaml`](exemplar.yaml).
+The omnia crates are resolved from the GitHub monorepo via
+`[patch.crates-io]` in `Cargo.toml`; `Cargo.lock` records the exact
+revision.
 
 ## Quick start
 
@@ -92,8 +93,9 @@ The guest:
 - Serves hand-written Axum handlers through `omnia_wasi_http::serve`
 - Exports messaging with `omnia_wasi_messaging::export!`, matching **exact**
   env-qualified topics
-- Uses a unit `Provider` with WASI-backed default capability impls
-  (`Config`, `HttpRequest`, `Identity`, `Publish`, `StateStore`)
+- Uses a unit `Provider` declared with `omnia_guest::provider!`, giving it
+  the WASI-backed default capability impls (`Config`, `HttpRequest`,
+  `Identity`, `Publish`, `StateStore`)
 - Invokes domain operations through a shared `Invoker`
 - Ships a native host example at `examples/runtime.rs` via `omnia::runtime!`
 
@@ -141,8 +143,10 @@ tests.
    adapter.
 2. Create the crate under `crates/`, register it in the workspace
    `Cargo.toml` under `# Internally referenced crates`.
-3. Implement the input type and `Operation<P>` with the narrowest capability
-   bounds it needs (e.g. `P: Provider + Config + Publish`).
+3. Implement the input type and an `#[omnia_guest::operation]` handler fn
+   (`async fn name<P>(input: Input, context: CallContext<'_, P>) -> Result<Reply>`)
+   with the narrowest capability bounds it needs
+   (e.g. `P: Provider + Config + Publish`).
 4. Add any new topic suffix or HTTP path to `acme_common::routes`, and any
    new configuration key to `acme_common::config` plus `.env.example`.
 5. Wire the operation into `src/lib.rs` from the shared route tables.
@@ -243,10 +247,7 @@ cargo nextest run            # or: cargo test --workspace --all-features
 This repository is the source of truth for the reusable Omnia guest
 tooling. [`templates/guest/manifest.yaml`](templates/guest/manifest.yaml)
 maps repository files to consumer scaffold targets
-([contract and authoring rules](templates/guest/README.md)), and
-[`exemplar.yaml`](exemplar.yaml) declares the exact Omnia
-`{ version, repository, rev }` this repository is green against — the
-`[patch.crates-io]` entries in `Cargo.toml` pin the same rev.
+([contract and authoring rules](templates/guest/README.md)).
 
 The Emery omnia target adapter directs each consumer build to a fresh
 checkout of `main` and reads the contract from that checkout at build
@@ -257,8 +258,8 @@ therefore release acts**: the CI gate (including the template contract
 check below) is required on merge, not advisory, because downstream
 consumers track `main` unpinned.
 
-The adapter pins exact `schema-version` values for `exemplar.yaml` and
-`templates/guest/manifest.yaml`. Bumping either version here requires a
+The adapter pins an exact `schema-version` for
+`templates/guest/manifest.yaml`. Bumping that version here requires a
 coordinated adapter release, or consumer builds fail closed at the
 scaffold prelude.
 
@@ -271,9 +272,9 @@ cargo run -p template-check   # schema, tokens, path safety, seed render
 
 `exact` entries reference their repository-root file in place
 (`source == target`, token-free), so a green root vouches for the
-scaffold with no diff to maintain. To move to a new Omnia rev: update
-`exemplar.yaml`, the `[patch.crates-io]` revs, and `Cargo.lock`
-together; `template-check` fails on any disagreement.
+scaffold with no diff to maintain. To move to a new Omnia rev, update
+`Cargo.lock` (and any explicit `rev` on the `[patch.crates-io]` git
+sources).
 
 ## Development
 

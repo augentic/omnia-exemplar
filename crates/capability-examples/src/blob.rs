@@ -1,7 +1,7 @@
 //! Blobstore example: archive a payload and report its stored size.
 
-use omnia_guest::api::{CallContext, Operation, Provider};
-use omnia_guest::{BlobStore, Error, Result};
+use omnia_guest::api::{CallContext, Provider};
+use omnia_guest::{BlobStore, Result};
 use serde::{Deserialize, Serialize};
 
 /// Archive a payload into a blobstore container.
@@ -22,23 +22,20 @@ pub struct ArchiveReply {
     pub size: u64,
 }
 
-impl<P> Operation<P> for ArchiveRequest
+#[omnia_guest::operation]
+async fn archive_request<P>(
+    input: ArchiveRequest, context: CallContext<'_, P>,
+) -> Result<ArchiveReply>
 where
     P: Provider + BlobStore,
 {
-    type Error = Error;
-    type Input = Self;
-    type Output = ArchiveReply;
+    let provider = context.provider;
 
-    async fn call(input: Self, context: CallContext<'_, P>) -> Result<ArchiveReply> {
-        let provider = context.provider;
-
-        if !BlobStore::container_exists(provider, &input.container).await? {
-            BlobStore::create_container(provider, &input.container).await?;
-        }
-        BlobStore::put(provider, &input.container, &input.name, input.payload.as_bytes()).await?;
-
-        let info = BlobStore::object_info(provider, &input.container, &input.name).await?;
-        Ok(ArchiveReply { size: info.size })
+    if !BlobStore::container_exists(provider, &input.container).await? {
+        BlobStore::create_container(provider, &input.container).await?;
     }
+    BlobStore::put(provider, &input.container, &input.name, input.payload.as_bytes()).await?;
+
+    let info = BlobStore::object_info(provider, &input.container, &input.name).await?;
+    Ok(ArchiveReply { size: info.size })
 }

@@ -2,54 +2,42 @@
 //!
 //! This module stores occupancy status for a given vehicle and trip.
 
-use acme_common::routes;
-use omnia_guest::api::{CallContext, Operation, Provider};
-use omnia_guest::{Error, Result, StateStore};
+use omnia_guest::api::{CallContext, Provider};
+use omnia_guest::{Result, StateStore};
 use serde::{Deserialize, Serialize};
 
 use crate::state_keys;
 
 const OCCUPANCY_STATUS_TTL: u64 = 3 * 60 * 60; // 3 hours
 
-impl<P> Operation<P> for PassengerCountMessage
+#[omnia_guest::operation]
+#[tracing::instrument(skip_all)]
+async fn passenger_count_message<P>(
+    input: PassengerCountMessage, context: CallContext<'_, P>,
+) -> Result<()>
 where
     P: Provider + StateStore,
 {
-    type Error = Error;
-    type Input = Self;
-    type Output = ();
+    let provider = context.provider;
 
-    #[tracing::instrument(
-        name = "passenger_count_message",
-        skip_all,
-        fields(
-            owner = context.owner,
-            vehicle_id = input.vehicle.id,
-            topic = routes::topic::PASSENGER_COUNT,
-        ),
-    )]
-    async fn call(input: Self, context: CallContext<'_, P>) -> Result<()> {
-        let provider = context.provider;
+    // create state key
+    let vehicle_id = &input.vehicle.id;
+    let Trip {
+        trip_id,
+        start_date,
+        start_time,
+    } = &input.trip;
+    let key = state_keys::occupancy_status(vehicle_id, trip_id, start_date, start_time);
 
-        // create state key
-        let vehicle_id = &input.vehicle.id;
-        let Trip {
-            trip_id,
-            start_date,
-            start_time,
-        } = &input.trip;
-        let key = state_keys::occupancy_status(vehicle_id, trip_id, start_date, start_time);
-
-        // save occupancy status to state if set, otherwise remove
-        if let Some(occupancy_status) = input.occupancy_status {
-            let bytes = serde_json::to_vec(&occupancy_status)?;
-            StateStore::set(provider, &key, &bytes, Some(OCCUPANCY_STATUS_TTL)).await?;
-        } else {
-            StateStore::delete(provider, &key).await?;
-        }
-
-        Ok(())
+    // save occupancy status to state if set, otherwise remove
+    if let Some(occupancy_status) = input.occupancy_status {
+        let bytes = serde_json::to_vec(&occupancy_status)?;
+        StateStore::set(provider, &key, &bytes, Some(OCCUPANCY_STATUS_TTL)).await?;
+    } else {
+        StateStore::delete(provider, &key).await?;
     }
+
+    Ok(())
 }
 
 /// An occupancy status update for a vehicle on a trip.

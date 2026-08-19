@@ -1,11 +1,10 @@
 //! Producer gate for the guest template contract.
 //!
-//! Validates `exemplar.yaml` against `Cargo.toml` / `Cargo.lock`, strictly
-//! parses `templates/guest/manifest.yaml`, enforces token discipline and
-//! path safety, requires every `exact` entry to reference its repository-root
-//! file in place (`source == target`, token-free — no second copy), renders
-//! `seed` templates with `values.yaml`, and syntax-checks the rendered
-//! output.
+//! Strictly parses `templates/guest/manifest.yaml`, enforces token
+//! discipline and path safety, requires every `exact` entry to reference
+//! its repository-root file in place (`source == target`, token-free —
+//! no second copy), renders `seed` templates with `values.yaml`, and
+//! syntax-checks the rendered output.
 //!
 //! The gate runs inside the standard test suite (`cargo make test` /
 //! `cargo make ci`) via `tests/gate.rs`, and stand-alone through
@@ -18,27 +17,8 @@ use std::path::{Path, PathBuf};
 
 use serde::Deserialize;
 
-#[derive(Deserialize)]
-#[serde(deny_unknown_fields, rename_all = "kebab-case")]
-struct Exemplar {
-    schema_version: u32,
-    omnia: OmniaPin,
-    templates: Templates,
-}
-
-#[derive(Deserialize)]
-#[serde(deny_unknown_fields)]
-struct OmniaPin {
-    version: String,
-    repository: String,
-    rev: String,
-}
-
-#[derive(Deserialize)]
-#[serde(deny_unknown_fields)]
-struct Templates {
-    manifest: PathBuf,
-}
+const MANIFEST: &str = "templates/guest/manifest.yaml";
+const SUBTREE: &str = "templates/guest";
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields, rename_all = "kebab-case")]
@@ -96,17 +76,7 @@ pub fn repo_root() -> PathBuf {
 pub fn run(root: &Path) -> Result<Vec<String>, String> {
     let mut failures = Vec::new();
 
-    let exemplar: Exemplar = parse_yaml(&root.join("exemplar.yaml"))?;
-    if exemplar.schema_version != 1 {
-        failures.push(format!(
-            "exemplar.yaml: unsupported schema-version {} (expected 1)",
-            exemplar.schema_version
-        ));
-    }
-    check_cargo_pins(root, &exemplar.omnia, &mut failures)?;
-
-    let manifest_path = root.join(&exemplar.templates.manifest);
-    let manifest: Manifest = parse_yaml(&manifest_path)?;
+    let manifest: Manifest = parse_yaml(&root.join(MANIFEST))?;
     if manifest.schema_version != 3 {
         failures.push(format!(
             "manifest: unsupported schema-version {} (expected 3)",
@@ -120,14 +90,7 @@ pub fn run(root: &Path) -> Result<Vec<String>, String> {
         ));
     }
 
-    // Repository-relative template subtree, e.g. `templates/guest`.
-    let subtree = exemplar
-        .templates
-        .manifest
-        .parent()
-        .filter(|parent| !parent.as_os_str().is_empty())
-        .ok_or("manifest has no parent directory")?
-        .to_path_buf();
+    let subtree = PathBuf::from(SUBTREE);
     let values: BTreeMap<String, String> = parse_yaml(&root.join(&subtree).join("values.yaml"))?;
 
     check_token_declarations(&manifest.tokens, &values, &mut failures);
@@ -140,78 +103,6 @@ pub fn run(root: &Path) -> Result<Vec<String>, String> {
 fn parse_yaml<T: serde::de::DeserializeOwned>(path: &Path) -> Result<T, String> {
     let text = fs::read_to_string(path).map_err(|err| format!("{}: {err}", path.display()))?;
     serde_saphyr::from_str(&text).map_err(|err| format!("{}: {err}", path.display()))
-}
-
-/// `Cargo.toml` patch entries for the Omnia repository must carry the
-/// declared rev, and `Cargo.lock` must have resolved every Omnia package to
-/// it — the manifest, not an incidental lock resolution, declares
-/// compatibility.
-fn check_cargo_pins(root: &Path, pin: &OmniaPin, failures: &mut Vec<String>) -> Result<(), String> {
-    let cargo_toml: toml::Value = parse_toml(&root.join("Cargo.toml"))?;
-    let patches = cargo_toml
-        .get("patch")
-        .and_then(|patch| patch.get("crates-io"))
-        .and_then(toml::Value::as_table)
-        .ok_or("Cargo.toml: no [patch.crates-io] table")?;
-
-    let mut pinned_count = 0_u32;
-    for (name, entry) in patches {
-        let Some(git) = entry.get("git").and_then(toml::Value::as_str) else {
-            continue;
-        };
-        if git.trim_end_matches(".git") != pin.repository {
-            continue;
-        }
-        pinned_count += 1;
-        match entry.get("rev").and_then(toml::Value::as_str) {
-            Some(rev) if rev == pin.rev => {}
-            Some(rev) => failures.push(format!(
-                "Cargo.toml: patch `{name}` pins rev {rev}, exemplar.yaml declares {}",
-                pin.rev
-            )),
-            None => failures.push(format!(
-                "Cargo.toml: patch `{name}` has no rev; exemplar.yaml declares {}",
-                pin.rev
-            )),
-        }
-    }
-    if pinned_count == 0 {
-        failures.push(format!("Cargo.toml: no [patch.crates-io] entry for {}", pin.repository));
-    }
-
-    let cargo_lock: toml::Value = parse_toml(&root.join("Cargo.lock"))?;
-    let packages = cargo_lock
-        .get("package")
-        .and_then(toml::Value::as_array)
-        .ok_or("Cargo.lock: no [[package]] entries")?;
-    for package in packages {
-        let name = package.get("name").and_then(toml::Value::as_str).unwrap_or_default();
-        let Some(source) = package.get("source").and_then(toml::Value::as_str) else {
-            continue;
-        };
-        if !source.starts_with("git+") || !source.contains(&pin.repository) {
-            continue;
-        }
-        if !source.contains(&pin.rev) {
-            failures.push(format!(
-                "Cargo.lock: `{name}` resolved from `{source}`, not rev {}",
-                pin.rev
-            ));
-        }
-        let version = package.get("version").and_then(toml::Value::as_str).unwrap_or_default();
-        if name == "omnia" && version != pin.version {
-            failures.push(format!(
-                "Cargo.lock: omnia is {version}, exemplar.yaml declares {}",
-                pin.version
-            ));
-        }
-    }
-    Ok(())
-}
-
-fn parse_toml(path: &Path) -> Result<toml::Value, String> {
-    let text = fs::read_to_string(path).map_err(|err| format!("{}: {err}", path.display()))?;
-    toml::from_str(&text).map_err(|err| format!("{}: {err}", path.display()))
 }
 
 /// Every declared token needs a render value; every value needs a

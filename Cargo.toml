@@ -151,7 +151,6 @@ omnia-wasi-messaging = "0.35.0"
 omnia-wasi-otel = "0.35.0"
 omnia-wasi-sql = "0.35.0"
 
-# Internally referenced crates
 acme-common = { path = "crates/common" }
 acme-test = { path = "crates/test" }
 capability-examples = { path = "crates/capability-examples" }
@@ -161,8 +160,6 @@ pulse-adapter = { path = "crates/pulse-adapter" }
 pulse-connector = { path = "crates/pulse-connector" }
 tally-connector = { path = "crates/tally-connector" }
 
-# Pinned to the exact rev declared in `exemplar.yaml`; the manifest, not
-# an incidental lock resolution, declares Omnia compatibility.
 [patch.crates-io]
 omnia = { git = "https://github.com/augentic/omnia" }
 omnia-guest = { git = "https://github.com/augentic/omnia" }
@@ -173,6 +170,16 @@ omnia-wasi-keyvalue = { git = "https://github.com/augentic/omnia" }
 omnia-wasi-messaging = { git = "https://github.com/augentic/omnia" }
 omnia-wasi-otel = { git = "https://github.com/augentic/omnia" }
 omnia-wasi-sql = { git = "https://github.com/augentic/omnia" }
+
+# omnia = { path = "../omnia/crates/omnia" }
+# omnia-guest = { path = "../omnia/crates/omnia-guest" }
+# omnia-wasi-config = { path = "../omnia/crates/wasi-config" }
+# omnia-wasi-http = { path = "../omnia/crates/wasi-http" }
+# omnia-wasi-identity = { path = "../omnia/crates/wasi-identity" }
+# omnia-wasi-keyvalue = { path = "../omnia/crates/wasi-keyvalue" }
+# omnia-wasi-messaging = { path = "../omnia/crates/wasi-messaging" }
+# omnia-wasi-otel = { path = "../omnia/crates/wasi-otel" }
+# omnia-wasi-sql = { path = "../omnia/crates/wasi-sql" }
 
 # `wrpc-wasmtime` 0.1.0 is unpublished on crates.io.
 wrpc-transport = { git = "https://github.com/bytecodealliance/wrpc" }

@@ -12,8 +12,8 @@ use anyhow::Context as _;
 use bytes::Bytes;
 use http::Method;
 use http_body_util::Full;
-use omnia_guest::api::{CallContext, Operation, Provider};
-use omnia_guest::{Config, Error, HttpRequest, Result, StateStore, bad_gateway};
+use omnia_guest::api::{CallContext, Provider};
+use omnia_guest::{Config, HttpRequest, Result, StateStore, bad_gateway};
 use serde::{Deserialize, Serialize};
 
 /// Config key naming the decoder endpoint URL.
@@ -56,58 +56,55 @@ pub struct DecodeSegmentReply {
     pub segment: Segment,
 }
 
-impl<P> Operation<P> for DecodeSegmentRequest
+#[omnia_guest::operation]
+async fn decode_segment_request<P>(
+    input: DecodeSegmentRequest, context: CallContext<'_, P>,
+) -> Result<DecodeSegmentReply>
 where
     P: Provider + Config + HttpRequest + StateStore,
 {
-    type Error = Error;
-    type Input = Self;
-    type Output = DecodeSegmentReply;
+    let provider = context.provider;
+    let key = segment_key(&input.code);
 
-    async fn call(input: Self, context: CallContext<'_, P>) -> Result<DecodeSegmentReply> {
-        let provider = context.provider;
-        let key = segment_key(&input.code);
-
-        // Cache hit: no config read, no outbound request.
-        if let Some(bytes) = StateStore::get(provider, &key).await? {
-            let segment = serde_json::from_slice(&bytes).context("parsing cached segment")?;
-            return Ok(DecodeSegmentReply {
-                cached: true,
-                segment,
-            });
-        }
-
-        // Cache miss: endpoint and credential material both come from
-        // config; the certificate rides an ordinary header so the HTTP
-        // capability stays generic.
-        let url = Config::get(provider, DECODER_URL).await?;
-        let cert = Config::get(provider, CLIENT_CERT).await?;
-
-        let body = serde_json::to_vec(&serde_json::json!({ "code": input.code }))
-            .context("serializing decode request")?;
-        let request = http::Request::builder()
-            .method(Method::POST)
-            .uri(url)
-            .header("Content-Type", "application/json")
-            .header("Client-Cert", cert)
-            .body(Full::new(Bytes::from(body)))
-            .context("building decode request")?;
-
-        let response = HttpRequest::fetch(provider, request).await?;
-        if !response.status().is_success() {
-            return Err(bad_gateway!("decoder returned {}", response.status()));
-        }
-
-        let body = response.into_body();
-        let segment: Segment = serde_json::from_slice(&body).context("parsing decoder response")?;
-
-        // Write back through the cache so the next lookup short-circuits.
-        let bytes = serde_json::to_vec(&segment).context("serializing segment for cache")?;
-        StateStore::set(provider, &key, &bytes, Some(SEGMENT_TTL_SECS)).await?;
-
-        Ok(DecodeSegmentReply {
-            cached: false,
+    // Cache hit: no config read, no outbound request.
+    if let Some(bytes) = StateStore::get(provider, &key).await? {
+        let segment = serde_json::from_slice(&bytes).context("parsing cached segment")?;
+        return Ok(DecodeSegmentReply {
+            cached: true,
             segment,
-        })
+        });
     }
+
+    // Cache miss: endpoint and credential material both come from
+    // config; the certificate rides an ordinary header so the HTTP
+    // capability stays generic.
+    let url = Config::get(provider, DECODER_URL).await?;
+    let cert = Config::get(provider, CLIENT_CERT).await?;
+
+    let body = serde_json::to_vec(&serde_json::json!({ "code": input.code }))
+        .context("serializing decode request")?;
+    let request = http::Request::builder()
+        .method(Method::POST)
+        .uri(url)
+        .header("Content-Type", "application/json")
+        .header("Client-Cert", cert)
+        .body(Full::new(Bytes::from(body)))
+        .context("building decode request")?;
+
+    let response = HttpRequest::fetch(provider, request).await?;
+    if !response.status().is_success() {
+        return Err(bad_gateway!("decoder returned {}", response.status()));
+    }
+
+    let body = response.into_body();
+    let segment: Segment = serde_json::from_slice(&body).context("parsing decoder response")?;
+
+    // Write back through the cache so the next lookup short-circuits.
+    let bytes = serde_json::to_vec(&segment).context("serializing segment for cache")?;
+    StateStore::set(provider, &key, &bytes, Some(SEGMENT_TTL_SECS)).await?;
+
+    Ok(DecodeSegmentReply {
+        cached: false,
+        segment,
+    })
 }

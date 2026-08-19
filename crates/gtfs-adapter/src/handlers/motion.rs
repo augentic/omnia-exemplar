@@ -2,7 +2,7 @@
 
 use acme_common::{config, routes};
 use chrono::{DateTime, Utc};
-use omnia_guest::api::{CallContext, Operation, Provider};
+use omnia_guest::api::{CallContext, Provider};
 use omnia_guest::{
     Config, HttpRequest, Identity, Message, Publish, Result, StateStore, bad_request,
 };
@@ -11,28 +11,6 @@ use serde::{Deserialize, Serialize};
 use crate::location::Location;
 use crate::{location, serial_data};
 
-impl<P> Operation<P> for MotionMessage
-where
-    P: Provider + Config + HttpRequest + Identity + Publish + StateStore,
-{
-    type Error = omnia_guest::Error;
-    type Input = Self;
-    type Output = ();
-
-    #[tracing::instrument(
-        name = "motion_message",
-        skip_all,
-        fields(
-            owner = context.owner,
-            vehicle_id = input.vehicle_id(),
-            topic = routes::topic::PULSE_TO_MOTION,
-        ),
-    )]
-    async fn call(input: Self, context: CallContext<'_, P>) -> Result<()> {
-        process(input, context.provider).await
-    }
-}
-
 /// Processes a Motion AVL message, publishing a GTFS-realtime vehicle
 /// position or dead-reckoning event when applicable.
 ///
@@ -40,10 +18,15 @@ where
 ///
 /// Returns an error when the payload cannot be processed or a provider
 /// request fails.
-pub async fn process<P>(message: MotionMessage, provider: &P) -> Result<()>
+#[omnia_guest::operation]
+#[tracing::instrument(skip_all)]
+pub async fn motion_message<P>(input: MotionMessage, context: CallContext<'_, P>) -> Result<()>
 where
-    P: Config + HttpRequest + Identity + Publish + StateStore,
+    P: Provider + Config + HttpRequest + Identity + Publish + StateStore,
 {
+    let provider = context.provider;
+    let message = input;
+
     // serial data event
     if message.event_type == EventType::SerialData {
         #[cfg(feature = "god-mode")]

@@ -1,7 +1,7 @@
 //! Table-store example: record a sensor reading and count the sensor's rows.
 
-use omnia_guest::api::{CallContext, Operation, Provider};
-use omnia_guest::{Error, Result, TableStore};
+use omnia_guest::api::{CallContext, Provider};
+use omnia_guest::{Result, TableStore};
 use omnia_wasi_sql::DataType;
 use serde::{Deserialize, Serialize};
 
@@ -34,36 +34,33 @@ pub struct ReadingReply {
     pub rows: usize,
 }
 
-impl<P> Operation<P> for ReadingRequest
+#[omnia_guest::operation]
+async fn reading_request<P>(
+    input: ReadingRequest, context: CallContext<'_, P>,
+) -> Result<ReadingReply>
 where
     P: Provider + TableStore,
 {
-    type Error = Error;
-    type Input = Self;
-    type Output = ReadingReply;
+    let provider = context.provider;
 
-    async fn call(input: Self, context: CallContext<'_, P>) -> Result<ReadingReply> {
-        let provider = context.provider;
+    let affected = TableStore::exec(
+        provider,
+        input.connection.clone(),
+        sql::INSERT.to_string(),
+        vec![DataType::Str(Some(input.sensor.clone())), DataType::Double(Some(input.value))],
+    )
+    .await?;
 
-        let affected = TableStore::exec(
-            provider,
-            input.connection.clone(),
-            sql::INSERT.to_string(),
-            vec![DataType::Str(Some(input.sensor.clone())), DataType::Double(Some(input.value))],
-        )
-        .await?;
+    let rows = TableStore::query(
+        provider,
+        input.connection,
+        sql::SELECT.to_string(),
+        vec![DataType::Str(Some(input.sensor))],
+    )
+    .await?;
 
-        let rows = TableStore::query(
-            provider,
-            input.connection,
-            sql::SELECT.to_string(),
-            vec![DataType::Str(Some(input.sensor))],
-        )
-        .await?;
-
-        Ok(ReadingReply {
-            affected,
-            rows: rows.len(),
-        })
-    }
+    Ok(ReadingReply {
+        affected,
+        rows: rows.len(),
+    })
 }
