@@ -1,9 +1,9 @@
 //! Document-store example: upsert a JSON note and read it back.
 
 use anyhow::Context as _;
-use omnia_guest::api::{CallContext, Operation, Provider};
+use omnia_guest::api::{CallContext, Provider};
 use omnia_guest::document_store::Document;
-use omnia_guest::{DocumentStore, Error, Result};
+use omnia_guest::{DocumentStore, Result};
 use serde::{Deserialize, Serialize};
 
 /// Upsert a JSON note document.
@@ -24,28 +24,23 @@ pub struct NoteReply {
     pub size: usize,
 }
 
-impl<P> Operation<P> for NoteRequest
+#[omnia_guest::operation]
+async fn note_request<P>(input: NoteRequest, context: CallContext<'_, P>) -> Result<NoteReply>
 where
     P: Provider + DocumentStore,
 {
-    type Error = Error;
-    type Input = Self;
-    type Output = NoteReply;
+    let provider = context.provider;
 
-    async fn call(input: Self, context: CallContext<'_, P>) -> Result<NoteReply> {
-        let provider = context.provider;
+    let document = Document {
+        id: input.id.clone(),
+        data: serde_json::to_vec(&input.body).context("failed to serialize note body")?,
+    };
+    DocumentStore::put(provider, &input.store, &document).await?;
 
-        let document = Document {
-            id: input.id.clone(),
-            data: serde_json::to_vec(&input.body).context("failed to serialize note body")?,
-        };
-        DocumentStore::put(provider, &input.store, &document).await?;
-
-        let stored = DocumentStore::get(provider, &input.store, &input.id)
-            .await?
-            .context("note missing after upsert")?;
-        Ok(NoteReply {
-            size: stored.data.len(),
-        })
-    }
+    let stored = DocumentStore::get(provider, &input.store, &input.id)
+        .await?
+        .context("note missing after upsert")?;
+    Ok(NoteReply {
+        size: stored.data.len(),
+    })
 }

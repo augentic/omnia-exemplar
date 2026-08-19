@@ -7,9 +7,9 @@
 //! builder; [`NearbyPlacesRequest`] is the `GEORADIUS` replacement.
 
 use anyhow::Context as _;
-use omnia_guest::api::{CallContext, Operation, Provider};
+use omnia_guest::api::{CallContext, Provider};
 use omnia_guest::orm::{Entity as _, Filter, InsertBuilder, SelectBuilder};
-use omnia_guest::{Error, Result, TableStore, entity};
+use omnia_guest::{Result, TableStore, entity};
 use serde::{Deserialize, Serialize};
 
 /// Named connection configured by the host.
@@ -54,34 +54,30 @@ pub struct UpsertPlaceReply {
     pub affected: u32,
 }
 
-impl<P> Operation<P> for UpsertPlaceRequest
+#[omnia_guest::operation]
+async fn upsert_place_request<P>(
+    input: UpsertPlaceRequest, context: CallContext<'_, P>,
+) -> Result<UpsertPlaceReply>
 where
     P: Provider + TableStore,
 {
-    type Error = Error;
-    type Input = Self;
-    type Output = UpsertPlaceReply;
+    let place = Place {
+        id: input.id,
+        name: input.name,
+        lat: input.lat,
+        lon: input.lon,
+    };
 
-    async fn call(input: Self, context: CallContext<'_, P>) -> Result<UpsertPlaceReply> {
-        let place = Place {
-            id: input.id,
-            name: input.name,
-            lat: input.lat,
-            lon: input.lon,
-        };
+    let query = InsertBuilder::from_entity(&place)
+        .on_conflict("id")
+        .do_update_all()
+        .build()
+        .context("building place upsert")?;
 
-        let query = InsertBuilder::from_entity(&place)
-            .on_conflict("id")
-            .do_update_all()
-            .build()
-            .context("building place upsert")?;
+    let affected =
+        TableStore::exec(context.provider, CONNECTION.to_string(), query.sql, query.params).await?;
 
-        let affected =
-            TableStore::exec(context.provider, CONNECTION.to_string(), query.sql, query.params)
-                .await?;
-
-        Ok(UpsertPlaceReply { affected })
-    }
+    Ok(UpsertPlaceReply { affected })
 }
 
 /// Find places within a radius of a point.
@@ -111,49 +107,45 @@ pub struct NearbyPlacesReply {
     pub places: Vec<NearbyPlace>,
 }
 
-impl<P> Operation<P> for NearbyPlacesRequest
+#[omnia_guest::operation]
+async fn nearby_places_request<P>(
+    input: NearbyPlacesRequest, context: CallContext<'_, P>,
+) -> Result<NearbyPlacesReply>
 where
     P: Provider + TableStore,
 {
-    type Error = Error;
-    type Input = Self;
-    type Output = NearbyPlacesReply;
+    // A degree bounding box over-approximates the radius: cheap for the
+    // database (plain comparisons, indexable), refined exactly below.
+    // The longitude span widens with latitude; near the poles it covers
+    // the full circle, which is harmless for a pre-filter.
+    let lat_delta = input.radius_m / METRES_PER_DEGREE;
+    let lon_delta = lat_delta / input.lat.to_radians().cos().abs().max(f64::EPSILON);
 
-    async fn call(input: Self, context: CallContext<'_, P>) -> Result<NearbyPlacesReply> {
-        // A degree bounding box over-approximates the radius: cheap for the
-        // database (plain comparisons, indexable), refined exactly below.
-        // The longitude span widens with latitude; near the poles it covers
-        // the full circle, which is harmless for a pre-filter.
-        let lat_delta = input.radius_m / METRES_PER_DEGREE;
-        let lon_delta = lat_delta / input.lat.to_radians().cos().abs().max(f64::EPSILON);
+    let query = SelectBuilder::<Place>::new()
+        .r#where(Filter::and([
+            Filter::gte("lat", input.lat - lat_delta),
+            Filter::lte("lat", input.lat + lat_delta),
+            Filter::gte("lon", input.lon - lon_delta),
+            Filter::lte("lon", input.lon + lon_delta),
+        ]))
+        .build()
+        .context("building nearby query")?;
 
-        let query = SelectBuilder::<Place>::new()
-            .r#where(Filter::and([
-                Filter::gte("lat", input.lat - lat_delta),
-                Filter::lte("lat", input.lat + lat_delta),
-                Filter::gte("lon", input.lon - lon_delta),
-                Filter::lte("lon", input.lon + lon_delta),
-            ]))
-            .build()
-            .context("building nearby query")?;
+    let rows = TableStore::query(context.provider, CONNECTION.to_string(), query.sql, query.params)
+        .await?;
 
-        let rows =
-            TableStore::query(context.provider, CONNECTION.to_string(), query.sql, query.params)
-                .await?;
-
-        // Refine the box to the true radius in Rust — no GEORADIUS required.
-        let mut places = Vec::new();
-        for row in &rows {
-            let place = Place::from_row(row).context("mapping place row")?;
-            let distance_m = haversine_m(input.lat, input.lon, place.lat, place.lon);
-            if distance_m <= input.radius_m {
-                places.push(NearbyPlace { place, distance_m });
-            }
+    // Refine the box to the true radius in Rust — no GEORADIUS required.
+    let mut places = Vec::new();
+    for row in &rows {
+        let place = Place::from_row(row).context("mapping place row")?;
+        let distance_m = haversine_m(input.lat, input.lon, place.lat, place.lon);
+        if distance_m <= input.radius_m {
+            places.push(NearbyPlace { place, distance_m });
         }
-        places.sort_by(|a, b| a.distance_m.total_cmp(&b.distance_m));
-
-        Ok(NearbyPlacesReply { places })
     }
+    places.sort_by(|a, b| a.distance_m.total_cmp(&b.distance_m));
+
+    Ok(NearbyPlacesReply { places })
 }
 
 /// Great-circle distance in metres between two WGS-84 points.

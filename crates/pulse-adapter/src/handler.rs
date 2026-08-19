@@ -5,8 +5,8 @@
 use acme_common::{block_mgt, config, routes};
 use anyhow::Context as _;
 use chrono::Utc;
-use omnia_guest::api::{CallContext, Operation, Provider};
-use omnia_guest::{Config, Error, HttpRequest, Identity, Message, Publish, Result};
+use omnia_guest::api::{CallContext, Provider};
+use omnia_guest::{Config, HttpRequest, Identity, Message, Publish, Result};
 use serde::Deserialize;
 
 use crate::motion::{EventType, MessageData, MotionEvent, RemoteData};
@@ -46,52 +46,39 @@ impl PulseMessage {
     }
 }
 
-impl<P> Operation<P> for PulseMessage
+#[omnia_guest::operation]
+#[tracing::instrument(skip_all)]
+async fn pulse_message<P>(input: PulseMessage, context: CallContext<'_, P>) -> Result<()>
 where
     P: Provider + Config + HttpRequest + Identity + Publish,
 {
-    type Error = Error;
-    type Input = Self;
-    type Output = ();
+    let provider = context.provider;
 
-    #[tracing::instrument(
-        name = "pulse_message",
-        skip_all,
-        fields(
-            owner = context.owner,
-            vehicle_id = input.train_update.train_id(),
-            topic = routes::topic::PULSE,
-        ),
-    )]
-    async fn call(input: Self, context: CallContext<'_, P>) -> Result<()> {
-        let provider = context.provider;
+    // validate message
+    let update = input.train_update;
+    update.validate()?;
 
-        // validate message
-        let update = input.train_update;
-        update.validate()?;
+    // convert to Motion events
+    let events = update.into_events(context.owner, provider).await?;
 
-        // convert to Motion events
-        let events = update.into_events(context.owner, provider).await?;
+    // publish events to Motion topic (repeated — see `PUBLISH_REPEATS`)
+    let topic = config::topic(provider, routes::topic::PULSE_TO_MOTION).await;
 
-        // publish events to Motion topic (repeated — see `PUBLISH_REPEATS`)
-        let topic = config::topic(provider, routes::topic::PULSE_TO_MOTION).await;
+    for _ in 0..PUBLISH_REPEATS {
+        for event in &events {
+            tracing::info!(monotonic_counter.motion_events_published = 1);
 
-        for _ in 0..PUBLISH_REPEATS {
-            for event in &events {
-                tracing::info!(monotonic_counter.motion_events_published = 1);
+            let payload = serde_json::to_vec(&event).context("serializing event")?;
+            let external_id = &event.remote_data.external_id;
 
-                let payload = serde_json::to_vec(&event).context("serializing event")?;
-                let external_id = &event.remote_data.external_id;
+            let mut message = Message::new(&payload);
+            message.headers.insert("key".to_string(), external_id.clone());
 
-                let mut message = Message::new(&payload);
-                message.headers.insert("key".to_string(), external_id.clone());
-
-                Publish::send(provider, &topic, &message).await?;
-            }
+            Publish::send(provider, &topic, &message).await?;
         }
-
-        Ok(())
     }
+
+    Ok(())
 }
 
 impl TrainUpdate {

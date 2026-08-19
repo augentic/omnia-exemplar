@@ -1,8 +1,8 @@
 //! Train AVL message filtering.
 
-use acme_common::{fleet, routes};
-use omnia_guest::api::{CallContext, Operation, Provider};
-use omnia_guest::{Config, Error, HttpRequest, Identity, Publish, Result, StateStore};
+use acme_common::fleet;
+use omnia_guest::api::{CallContext, Provider};
+use omnia_guest::{Config, HttpRequest, Identity, Publish, Result, StateStore};
 use serde::Deserialize;
 
 use crate::handlers::motion::{self, MotionMessage};
@@ -13,43 +13,30 @@ use crate::handlers::motion::{self, MotionMessage};
 #[serde(transparent)]
 pub struct TrainAvlMessage(pub MotionMessage);
 
-impl<P> Operation<P> for TrainAvlMessage
+#[omnia_guest::operation]
+#[tracing::instrument(skip_all)]
+async fn train_avl_message<P>(input: TrainAvlMessage, context: CallContext<'_, P>) -> Result<()>
 where
     P: Provider + Config + HttpRequest + Identity + Publish + StateStore,
 {
-    type Error = Error;
-    type Input = Self;
-    type Output = ();
+    let provider = context.provider;
+    let request = input.0;
 
-    #[tracing::instrument(
-        name = "train_avl_message",
-        skip_all,
-        fields(
-            owner = context.owner,
-            vehicle_id = input.0.vehicle_id(),
-            topic = routes::topic::TRAIN_AVL,
-        ),
-    )]
-    async fn call(input: Self, context: CallContext<'_, P>) -> Result<()> {
-        let provider = context.provider;
-        let request = input.0;
-
-        // verify vehicle tag is 'motion'
-        let Some(vehicle_id) = request.vehicle_id() else {
-            tracing::debug!("no vehicle identifier found");
-            return Ok(());
-        };
-        let Some(vehicle) = fleet::vehicle(vehicle_id, provider).await? else {
-            tracing::debug!("vehicle info not found for {vehicle_id}");
-            return Ok(());
-        };
-        if let Some(tag) = vehicle.tag.as_deref().map(str::to_lowercase)
-            && tag != "motion"
-        {
-            tracing::debug!("vehicle tag {tag} did not match rules");
-            return Ok(());
-        }
-
-        motion::process(request, provider).await
+    // verify vehicle tag is 'motion'
+    let Some(vehicle_id) = request.vehicle_id() else {
+        tracing::debug!("no vehicle identifier found");
+        return Ok(());
+    };
+    let Some(vehicle) = fleet::vehicle(vehicle_id, provider).await? else {
+        tracing::debug!("vehicle info not found for {vehicle_id}");
+        return Ok(());
+    };
+    if let Some(tag) = vehicle.tag.as_deref().map(str::to_lowercase)
+        && tag != "motion"
+    {
+        tracing::debug!("vehicle tag {tag} did not match rules");
+        return Ok(());
     }
+
+    motion::motion_message(request, context).await
 }

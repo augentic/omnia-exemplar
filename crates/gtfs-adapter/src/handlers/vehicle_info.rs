@@ -1,8 +1,8 @@
 //! Vehicle information lookup.
 
 use acme_common::fleet::{self, Vehicle};
-use omnia_guest::api::{CallContext, Operation, Provider};
-use omnia_guest::{Config, Error, HttpRequest, Identity, Result, StateStore};
+use omnia_guest::api::{CallContext, Provider};
+use omnia_guest::{Config, HttpRequest, Identity, Result, StateStore};
 use serde::{Deserialize, Serialize};
 
 use crate::state_keys;
@@ -37,43 +37,36 @@ pub struct VehicleInfoReply {
     pub fleet_info: Option<Vehicle>,
 }
 
-impl<P> Operation<P> for VehicleInfoRequest
+#[omnia_guest::operation]
+#[tracing::instrument(skip_all)]
+async fn vehicle_info_request<P>(
+    input: VehicleInfoRequest, context: CallContext<'_, P>,
+) -> Result<VehicleInfoReply>
 where
     P: Provider + Config + HttpRequest + Identity + StateStore,
 {
-    type Error = Error;
-    type Input = Self;
-    type Output = VehicleInfoReply;
+    let provider = context.provider;
+    let vehicle_id = input.vehicle_id;
 
-    #[tracing::instrument(
-        name = "vehicle_info_request",
-        skip_all,
-        fields(owner = context.owner, vehicle_id = input.vehicle_id),
-    )]
-    async fn call(input: Self, context: CallContext<'_, P>) -> Result<VehicleInfoReply> {
-        let provider = context.provider;
-        let vehicle_id = input.vehicle_id;
+    let trip_key = state_keys::trip(&vehicle_id);
+    let trip_info = if let Some(bytes) = StateStore::get(provider, &trip_key).await? {
+        Some(serde_json::from_slice::<TripInstance>(&bytes)?)
+    } else {
+        None
+    };
 
-        let trip_key = state_keys::trip(&vehicle_id);
-        let trip_info = if let Some(bytes) = StateStore::get(provider, &trip_key).await? {
-            Some(serde_json::from_slice::<TripInstance>(&bytes)?)
-        } else {
-            None
-        };
+    let sign_on_key = state_keys::sign_on(&vehicle_id);
+    let sign_on_time = StateStore::get(provider, &sign_on_key)
+        .await?
+        .map(|bytes| String::from_utf8_lossy(&bytes).to_string());
 
-        let sign_on_key = state_keys::sign_on(&vehicle_id);
-        let sign_on_time = StateStore::get(provider, &sign_on_key)
-            .await?
-            .map(|bytes| String::from_utf8_lossy(&bytes).to_string());
+    let fleet_info = fleet::vehicle(&vehicle_id, provider).await?;
 
-        let fleet_info = fleet::vehicle(&vehicle_id, provider).await?;
-
-        Ok(VehicleInfoReply {
-            pid: PROCESS_ID,
-            vehicle_id,
-            sign_on_time,
-            trip_info,
-            fleet_info,
-        })
-    }
+    Ok(VehicleInfoReply {
+        pid: PROCESS_ID,
+        vehicle_id,
+        sign_on_time,
+        trip_info,
+        fleet_info,
+    })
 }

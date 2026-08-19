@@ -1,8 +1,8 @@
 //! God-mode trip override.
 
 use anyhow::Context as _;
-use omnia_guest::api::{CallContext, Operation, Provider};
-use omnia_guest::{Config, Error, Result, StateStore, bad_request};
+use omnia_guest::api::{CallContext, Provider};
+use omnia_guest::{Config, Result, StateStore, bad_request};
 use serde::{Deserialize, Serialize};
 
 use crate::god_mode;
@@ -26,32 +26,25 @@ pub struct SetTripReply {
     pub process: u32,
 }
 
-impl<P> Operation<P> for SetTripRequest
+#[omnia_guest::operation]
+#[tracing::instrument(skip_all)]
+async fn set_trip_request<P>(
+    input: SetTripRequest, context: CallContext<'_, P>,
+) -> Result<SetTripReply>
 where
     P: Provider + Config + StateStore,
 {
-    type Error = Error;
-    type Input = Self;
-    type Output = SetTripReply;
+    let provider = context.provider;
 
-    #[tracing::instrument(
-        name = "set_trip_request",
-        skip_all,
-        fields(owner = context.owner, vehicle_id = input.vehicle_id, trip_id = input.trip_id),
-    )]
-    async fn call(input: Self, context: CallContext<'_, P>) -> Result<SetTripReply> {
-        let provider = context.provider;
-
-        if !god_mode::is_enabled(provider).await? {
-            return Err(bad_request!("God mode not enabled"));
-        }
-
-        god_mode::set_vehicle_to_trip(provider, input.vehicle_id, input.trip_id)
-            .await
-            .context("setting vehicle to trip")?;
-        Ok(SetTripReply {
-            message: "Ok".to_string(),
-            process: 0,
-        })
+    if !god_mode::is_enabled(provider).await? {
+        return Err(bad_request!("God mode not enabled"));
     }
+
+    god_mode::set_vehicle_to_trip(provider, input.vehicle_id, input.trip_id)
+        .await
+        .context("setting vehicle to trip")?;
+    Ok(SetTripReply {
+        message: "Ok".to_string(),
+        process: 0,
+    })
 }

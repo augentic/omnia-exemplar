@@ -163,16 +163,18 @@ tally-connector = { path = "crates/tally-connector" }
 
 # Pinned to the exact rev declared in `exemplar.yaml`; the manifest, not
 # an incidental lock resolution, declares Omnia compatibility.
+# TEMPORARY: pointed at the sibling checkout while the #[operation]/provider!
+# macros land in omnia; restore the git form before merging.
 [patch.crates-io]
-omnia = { git = "https://github.com/augentic/omnia" }
-omnia-guest = { git = "https://github.com/augentic/omnia" }
-omnia-wasi-config = { git = "https://github.com/augentic/omnia" }
-omnia-wasi-http = { git = "https://github.com/augentic/omnia" }
-omnia-wasi-identity = { git = "https://github.com/augentic/omnia" }
-omnia-wasi-keyvalue = { git = "https://github.com/augentic/omnia" }
-omnia-wasi-messaging = { git = "https://github.com/augentic/omnia" }
-omnia-wasi-otel = { git = "https://github.com/augentic/omnia" }
-omnia-wasi-sql = { git = "https://github.com/augentic/omnia" }
+omnia = { path = "../omnia/crates/omnia" }
+omnia-guest = { path = "../omnia/crates/omnia-guest" }
+omnia-wasi-config = { path = "../omnia/crates/wasi-config" }
+omnia-wasi-http = { path = "../omnia/crates/wasi-http" }
+omnia-wasi-identity = { path = "../omnia/crates/wasi-identity" }
+omnia-wasi-keyvalue = { path = "../omnia/crates/wasi-keyvalue" }
+omnia-wasi-messaging = { path = "../omnia/crates/wasi-messaging" }
+omnia-wasi-otel = { path = "../omnia/crates/wasi-otel" }
+omnia-wasi-sql = { path = "../omnia/crates/wasi-sql" }
 
 # `wrpc-wasmtime` 0.1.0 is unpublished on crates.io.
 wrpc-transport = { git = "https://github.com/bytecodealliance/wrpc" }

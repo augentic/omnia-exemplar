@@ -5,11 +5,11 @@ services. It models a fictional transit operator ("Acme") that consolidates
 realtime vehicle data processing into a WASM guest: SOAP/XML position feeds,
 passenger counting, and GTFS realtime adaptation.
 
-Domain logic lives under `crates/*` as `Operation<P>` implementations. The
-**guest is the workspace root package** (`src/lib.rs`) — hand-written Axum
-HTTP handlers and exact-topic messaging over a shared `Invoker`. Match this
-layout when creating a new Omnia service: root `src/`, not a `guests/<name>/`
-tree.
+Domain logic lives under `crates/*` as `#[omnia_guest::operation]` handler
+functions (each derives its `Operation<P>` impl). The **guest is the
+workspace root package** (`src/lib.rs`) — hand-written Axum HTTP handlers
+and exact-topic messaging over a shared `Invoker`. Match this layout when
+creating a new Omnia service: root `src/`, not a `guests/<name>/` tree.
 
 Typed `omnia_guest::api` HTTP / messaging routers are a documented fallback
 in the Emery omnia target adapter only; this repository does not ship a
@@ -92,8 +92,9 @@ The guest:
 - Serves hand-written Axum handlers through `omnia_wasi_http::serve`
 - Exports messaging with `omnia_wasi_messaging::export!`, matching **exact**
   env-qualified topics
-- Uses a unit `Provider` with WASI-backed default capability impls
-  (`Config`, `HttpRequest`, `Identity`, `Publish`, `StateStore`)
+- Uses a unit `Provider` declared with `omnia_guest::provider!`, giving it
+  the WASI-backed default capability impls (`Config`, `HttpRequest`,
+  `Identity`, `Publish`, `StateStore`)
 - Invokes domain operations through a shared `Invoker`
 - Ships a native host example at `examples/runtime.rs` via `omnia::runtime!`
 
@@ -141,8 +142,10 @@ tests.
    adapter.
 2. Create the crate under `crates/`, register it in the workspace
    `Cargo.toml` under `# Internally referenced crates`.
-3. Implement the input type and `Operation<P>` with the narrowest capability
-   bounds it needs (e.g. `P: Provider + Config + Publish`).
+3. Implement the input type and an `#[omnia_guest::operation]` handler fn
+   (`async fn name<P>(input: Input, context: CallContext<'_, P>) -> Result<Reply>`)
+   with the narrowest capability bounds it needs
+   (e.g. `P: Provider + Config + Publish`).
 4. Add any new topic suffix or HTTP path to `acme_common::routes`, and any
    new configuration key to `acme_common::config` plus `.env.example`.
 5. Wire the operation into `src/lib.rs` from the shared route tables.
