@@ -17,9 +17,8 @@ pub use self::stops::StopInfo;
 
 /// Errors raised while validating an inbound Pulse train update message.
 ///
-/// Distinct from `pulse_connector::PulseRequestError`: this type covers the
-/// train update consumed from messaging, while the connector's covers the
-/// SOAP envelope received over HTTP.
+/// This type covers the train update consumed from messaging, while the
+/// connector's covers the SOAP envelope received over HTTP.
 #[derive(Error, Debug)]
 pub enum PulseMessageError {
     /// The message timestamp is invalid (too old or future-dated).
