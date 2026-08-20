@@ -19,12 +19,10 @@ allow = [
   "BSD-2-Clause",
   "BSD-3-Clause",
   "BSL-1.0",
-  "CC0-1.0",
   "CDLA-Permissive-2.0",
   "ISC",
   "MIT",
   "MIT-0",
-  "OpenSSL",
   "Unicode-3.0",
   "Zlib",
 ]
@@ -40,11 +38,9 @@ license-files = [{ path = "LICENSE", hash = 0xbd0eed23 }]
 [sources]
 allow-git = [
   "https://github.com/augentic/omnia",
-  "https://github.com/augentic/test.git",
   "https://github.com/bytecodealliance/wrpc",
 ]
 private = [
-  "sparse+https://pkgs.dev.azure.com/augentic/_packaging/augentic/Cargo/index/",
 ]
 
 [bans]
