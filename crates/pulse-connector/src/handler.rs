@@ -5,18 +5,19 @@
 
 use std::fmt::{self, Display};
 
-use acme_common::{config, routes};
-use anyhow::Context as _;
-use omnia_guest::api::{CallContext, Provider};
-use omnia_guest::{Config, Message, Publish, Result, bad_request};
-use serde::{Deserialize, Serialize};
-
-const ERROR: Fault = Fault {
+/// The default SOAP fault envelope returned on error.
+const SOAP_FAULT: Fault = Fault {
     status_code: 500,
     response: FaultMessage {
         message: "Internal Server Error",
     },
 };
+
+use acme_common::{config, routes};
+use anyhow::Context as _;
+use omnia_guest::api::{CallContext, Provider};
+use omnia_guest::{Config, Message, Publish, Result, bad_request};
+use serde::{Deserialize, Serialize};
 
 #[omnia_guest::operation]
 async fn pulse_request<P>(input: PulseRequest, context: CallContext<'_, P>) -> Result<PulseReply>
@@ -32,7 +33,7 @@ where
     // error-handling pattern — prefer plain structured errors (see the
     // domain error enums) unless a wire protocol dictates otherwise.
     if message.is_empty() || !message.contains("<ActualizarDatosTren>") {
-        return Err(bad_request!("{ERROR}"));
+        return Err(bad_request!(SOAP_FAULT));
     }
 
     // forward to pulse-adapter topic
@@ -144,7 +145,7 @@ mod tests {
 
     #[test]
     fn serialize_error() {
-        let xml = ERROR.to_string();
+        let xml = SOAP_FAULT.to_string();
         assert_eq!(
             xml,
             "<Fault><StatusCode>500</StatusCode><Response><Message>Internal Server Error</Message></Response></Fault>"

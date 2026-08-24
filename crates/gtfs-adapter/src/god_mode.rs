@@ -122,10 +122,8 @@ async fn preprocess(state_store: &impl StateStore, event: &mut MotionMessage) ->
 ///
 /// Returns an error if the configuration cannot be read.
 pub async fn is_enabled(provider: &impl Config) -> Result<bool> {
-    Ok(Config::get(provider, acme_common::config::GOD_MODE_ENABLED).await.ok().is_some_and(
-        |value| {
-            let normalized = value.trim().to_ascii_lowercase();
-            matches!(normalized.as_str(), "1" | "true" | "yes" | "on")
-        },
-    ))
+    Ok(Config::get(provider, acme_common::config::GOD_MODE_ENABLED).await.is_ok_and(|value| {
+        let normalized = value.trim().to_ascii_lowercase();
+        matches!(normalized.as_str(), "1" | "true" | "yes" | "on")
+    }))
 }

@@ -5,10 +5,10 @@
     },
     "output": {
         "failure": {
-            "kind": "BadRequest",
-            "code": "bad_time",
-            "description": "too early by 32 seconds",
-            "body": null
+            "BadRequest": {
+                "code": "bad_time",
+                "description": "too early by 32 seconds"
+            }
         }
     }
 }

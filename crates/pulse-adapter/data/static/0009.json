@@ -5,10 +5,10 @@
     },
     "output": {
         "failure": {
-            "kind": "BadRequest",
-            "code": "bad_time",
-            "description": "outdated by 61 seconds",
-            "body": null
+            "BadRequest": {
+                "code": "bad_time",
+                "description": "outdated by 61 seconds"
+            }
         }
     }
 }

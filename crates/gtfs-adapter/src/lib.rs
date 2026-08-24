@@ -19,7 +19,7 @@ pub use handlers::passenger_count::{PassengerCountMessage, Trip, Vehicle};
 pub use handlers::set_trip::{SetTripReply, SetTripRequest};
 pub use handlers::train_avl::TrainAvlMessage;
 pub use handlers::vehicle_info::{VehicleInfoReply, VehicleInfoRequest};
-use omnia_guest::{Error, ErrorKind};
+use omnia_guest::Error;
 use thiserror::Error;
 
 /// Errors raised while validating an inbound Motion message.
@@ -40,6 +40,9 @@ impl MotionError {
 
 impl From<MotionError> for Error {
     fn from(err: MotionError) -> Self {
-        Self::new(ErrorKind::BadRequest, err.code(), err.to_string())
+        Self::BadRequest {
+            code: err.code(),
+            description: err.to_string(),
+        }
     }
 }

@@ -34,7 +34,7 @@ impl Publish for MockProvider {
 }
 
 impl Config for MockProvider {
-    async fn get(&self, _key: &str) -> Result<String> {
-        Ok("dev".to_string())
+    fn get(&self, _key: &str) -> impl Future<Output = Result<String>> {
+        std::future::ready(Ok("dev".to_string()))
     }
 }
