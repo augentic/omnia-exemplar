@@ -6,7 +6,7 @@
 use std::collections::BTreeMap;
 use std::sync::{Arc, Mutex};
 
-use anyhow::{Context as _, Result, anyhow};
+use anyhow::{Result, anyhow};
 use omnia_guest::document_store::{Document, QueryOptions, QueryResult};
 use omnia_guest::{
     BlobStore, Broadcast, ContainerMetadata, DocumentStore, ObjectMetadata, TableStore,
@@ -90,80 +90,117 @@ impl BlobStore for MockProvider {
         std::future::ready(Ok(objects.keys().cloned().collect()))
     }
 
-    async fn get_range(
+    fn get_range(
         &self, container: &str, name: &str, start: u64, end: u64,
-    ) -> Result<Vec<u8>> {
-        let data = self.object(container, name).context("object does not exist")?;
-        let start = usize::try_from(start)?;
-        let end = usize::try_from(end)?.min(data.len().saturating_sub(1));
-        Ok(data.get(start..=end).unwrap_or_default().to_vec())
+    ) -> impl Future<Output = Result<Vec<u8>>> {
+        let Ok(containers) = self.containers.lock() else {
+            return std::future::ready(Err(anyhow!("failed to obtain lock on containers")));
+        };
+        let Some(data) = containers.get(container).and_then(|objects| objects.get(name)) else {
+            return std::future::ready(Err(anyhow!("object does not exist")));
+        };
+        let start = match usize::try_from(start) {
+            Ok(start) => start,
+            Err(error) => return std::future::ready(Err(error.into())),
+        };
+        let end = match usize::try_from(end) {
+            Ok(end) => end.min(data.len().saturating_sub(1)),
+            Err(error) => return std::future::ready(Err(error.into())),
+        };
+        std::future::ready(Ok(data.get(start..=end).unwrap_or_default().to_vec()))
     }
 
-    async fn object_info(&self, container: &str, name: &str) -> Result<ObjectMetadata> {
-        let data = self.object(container, name).context("object does not exist")?;
-        Ok(ObjectMetadata {
+    fn object_info(&self, container: &str, name: &str) -> impl Future<Output = Result<ObjectMetadata>> {
+        let Ok(containers) = self.containers.lock() else {
+            return std::future::ready(Err(anyhow!("failed to obtain lock on containers")));
+        };
+        let Some(data) = containers.get(container).and_then(|objects| objects.get(name)) else {
+            return std::future::ready(Err(anyhow!("object does not exist")));
+        };
+        std::future::ready(Ok(ObjectMetadata {
             name: name.to_string(),
             container: container.to_string(),
             created_at: 0,
             size: data.len() as u64,
-        })
+        }))
     }
 
-    async fn delete_objects(&self, container: &str, names: &[String]) -> Result<()> {
-        let mut containers = self.containers.lock().expect("lock");
-        let objects = containers.get_mut(container).context("container does not exist")?;
+    fn delete_objects(&self, container: &str, names: &[String]) -> impl Future<Output = Result<()>> {
+        let Ok(mut containers) = self.containers.lock() else {
+            return std::future::ready(Err(anyhow!("failed to obtain lock on containers")));
+        };
+        let Some(objects) = containers.get_mut(container) else {
+            return std::future::ready(Err(anyhow!("container does not exist")));
+        };
         for name in names {
             objects.remove(name);
         }
-        drop(containers);
-        Ok(())
+        std::future::ready(Ok(()))
     }
 
-    async fn clear(&self, container: &str) -> Result<()> {
-        self.containers
-            .lock()
-            .expect("lock")
-            .get_mut(container)
-            .context("container does not exist")?
-            .clear();
-        Ok(())
+    fn clear(&self, container: &str) -> impl Future<Output = Result<()>> {
+        let Ok(mut containers) = self.containers.lock() else {
+            return std::future::ready(Err(anyhow!("failed to obtain lock on containers")));
+        };
+        let Some(objects) = containers.get_mut(container) else {
+            return std::future::ready(Err(anyhow!("container does not exist")));
+        };
+        objects.clear();
+        std::future::ready(Ok(()))
     }
 
-    async fn create_container(&self, name: &str) -> Result<()> {
-        self.containers.lock().expect("lock").entry(name.to_string()).or_default();
-        Ok(())
+    fn create_container(&self, name: &str) -> impl Future<Output = Result<()>> {
+        let Ok(mut containers) = self.containers.lock() else {
+            return std::future::ready(Err(anyhow!("failed to obtain lock on containers")));
+        };
+        containers.entry(name.to_string()).or_default();
+        std::future::ready(Ok(()))
     }
 
-    async fn delete_container(&self, name: &str) -> Result<()> {
-        self.containers.lock().expect("lock").remove(name);
-        Ok(())
+    fn delete_container(&self, name: &str) -> impl Future<Output = Result<()>> {
+        let Ok(mut containers) = self.containers.lock() else {
+            return std::future::ready(Err(anyhow!("failed to obtain lock on containers")));
+        };
+        containers.remove(name);
+        std::future::ready(Ok(()))
     }
 
-    async fn container_exists(&self, name: &str) -> Result<bool> {
-        Ok(self.containers.lock().expect("lock").contains_key(name))
+    fn container_exists(&self, name: &str) -> impl Future<Output = Result<bool>> {
+        let Ok(containers) = self.containers.lock() else {
+            return std::future::ready(Err(anyhow!("failed to obtain lock on containers")));
+        };
+        std::future::ready(Ok(containers.contains_key(name)))
     }
 
-    async fn container_info(&self, container: &str) -> Result<ContainerMetadata> {
-        if !self.containers.lock().expect("lock").contains_key(container) {
-            return Err(anyhow!("container does not exist"));
+    fn container_info(&self, container: &str) -> impl Future<Output = Result<ContainerMetadata>> {
+        let Ok(containers) = self.containers.lock() else {
+            return std::future::ready(Err(anyhow!("failed to obtain lock on containers")));
+        };
+        if !containers.contains_key(container) {
+            return std::future::ready(Err(anyhow!("container does not exist")));
         }
-        Ok(ContainerMetadata {
+        std::future::ready(Ok(ContainerMetadata {
             name: container.to_string(),
             created_at: 0,
-        })
+        }))
     }
 
-    async fn copy_object(
+    fn copy_object(
         &self, src_container: &str, src_name: &str, dest_container: &str, dest_name: &str,
-    ) -> Result<()> {
-        let data = self.object(src_container, src_name).context("object does not exist")?;
-        self.containers
-            .lock()
-            .expect("lock")
-            .get_mut(dest_container)
-            .context("destination container does not exist")?
-            .insert(dest_name.to_string(), data);
-        Ok(())
+    ) -> impl Future<Output = Result<()>> {
+        let Ok(mut containers) = self.containers.lock() else {
+            return std::future::ready(Err(anyhow!("failed to obtain lock on containers")));
+        };
+        let Some(data) =
+            containers.get(src_container).and_then(|objects| objects.get(src_name)).cloned()
+        else {
+            return std::future::ready(Err(anyhow!("object does not exist")));
+        };
+        let Some(dest_objects) = containers.get_mut(dest_container) else {
+            return std::future::ready(Err(anyhow!("destination container does not exist")));
+        };
+        dest_objects.insert(dest_name.to_string(), data);
+        std::future::ready(Ok(()))
     }
 
     async fn move_object(
@@ -175,53 +212,62 @@ impl BlobStore for MockProvider {
 }
 
 impl Broadcast for MockProvider {
-    async fn send(&self, name: &str, data: &[u8], sockets: Option<Vec<String>>) -> Result<()> {
-        self.broadcasts.lock().expect("lock").push((name.to_string(), data.to_vec(), sockets));
-        Ok(())
+    fn send(
+        &self, name: &str, data: &[u8], sockets: Option<Vec<String>>,
+    ) -> impl Future<Output = Result<()>> {
+        let Ok(mut broadcasts) = self.broadcasts.lock() else {
+            return std::future::ready(Err(anyhow!("failed to obtain lock on broadcasts")));
+        };
+        broadcasts.push((name.to_string(), data.to_vec(), sockets));
+        std::future::ready(Ok(()))
     }
 }
 
 impl DocumentStore for MockProvider {
-    async fn get(&self, store: &str, id: &str) -> Result<Option<Document>> {
-        Ok(self.document(store, id).map(|data| Document {
-            id: id.to_string(),
-            data,
-        }))
+    fn get(&self, store: &str, id: &str) -> impl Future<Output = Result<Option<Document>>> {
+        let Ok(documents) = self.documents.lock() else {
+            return std::future::ready(Err(anyhow!("failed to obtain lock on documents")));
+        };
+        std::future::ready(Ok(documents.get(&(store.to_string(), id.to_string())).cloned().map(
+            |data| Document {
+                id: id.to_string(),
+                data,
+            },
+        )))
     }
 
-    async fn insert(&self, store: &str, doc: &Document) -> Result<()> {
+    fn insert(&self, store: &str, doc: &Document) -> impl Future<Output = Result<()>> {
         let key = (store.to_string(), doc.id.clone());
-        let mut documents = self.documents.lock().expect("lock");
+        let Ok(mut documents) = self.documents.lock() else {
+            return std::future::ready(Err(anyhow!("failed to obtain lock on documents")));
+        };
         if documents.contains_key(&key) {
-            return Err(anyhow!("document already exists"));
+            return std::future::ready(Err(anyhow!("document already exists")));
         }
         documents.insert(key, doc.data.clone());
-        drop(documents);
-        Ok(())
+        std::future::ready(Ok(()))
     }
 
-    async fn put(&self, store: &str, doc: &Document) -> Result<()> {
-        self.documents
-            .lock()
-            .expect("lock")
-            .insert((store.to_string(), doc.id.clone()), doc.data.clone());
-        Ok(())
+    fn put(&self, store: &str, doc: &Document) -> impl Future<Output = Result<()>> {
+        let Ok(mut documents) = self.documents.lock() else {
+            return std::future::ready(Err(anyhow!("failed to obtain lock on documents")));
+        };
+        documents.insert((store.to_string(), doc.id.clone()), doc.data.clone());
+        std::future::ready(Ok(()))
     }
 
-    async fn delete(&self, store: &str, id: &str) -> Result<bool> {
-        Ok(self
-            .documents
-            .lock()
-            .expect("lock")
-            .remove(&(store.to_string(), id.to_string()))
-            .is_some())
+    fn delete(&self, store: &str, id: &str) -> impl Future<Output = Result<bool>> {
+        let Ok(mut documents) = self.documents.lock() else {
+            return std::future::ready(Err(anyhow!("failed to obtain lock on documents")));
+        };
+        std::future::ready(Ok(documents.remove(&(store.to_string(), id.to_string())).is_some()))
     }
 
-    async fn query(&self, store: &str, _options: QueryOptions) -> Result<QueryResult> {
-        let documents = self
-            .documents
-            .lock()
-            .expect("lock")
+    fn query(&self, store: &str, _options: QueryOptions) -> impl Future<Output = Result<QueryResult>> {
+        let Ok(documents) = self.documents.lock() else {
+            return std::future::ready(Err(anyhow!("failed to obtain lock on documents")));
+        };
+        let documents = documents
             .iter()
             .filter(|((owner, _), _)| owner == store)
             .map(|((_, id), data)| Document {
@@ -229,24 +275,27 @@ impl DocumentStore for MockProvider {
                 data: data.clone(),
             })
             .collect();
-        Ok(QueryResult {
+        std::future::ready(Ok(QueryResult {
             documents,
             continuation: None,
-        })
+        }))
     }
 }
 
 impl TableStore for MockProvider {
-    async fn query(
+    fn query(
         &self, _conn: String, _query: String, params: Vec<DataType>,
-    ) -> Result<Vec<Row>> {
-        let DataType::Str(Some(sensor)) = params.first().context("missing sensor param")? else {
-            return Err(anyhow!("expected string sensor param"));
+    ) -> impl Future<Output = Result<Vec<Row>>> {
+        let Some(first) = params.first() else {
+            return std::future::ready(Err(anyhow!("missing sensor param")));
         };
-        Ok(self
-            .readings
-            .lock()
-            .expect("lock")
+        let DataType::Str(Some(sensor)) = first else {
+            return std::future::ready(Err(anyhow!("expected string sensor param")));
+        };
+        let Ok(readings) = self.readings.lock() else {
+            return std::future::ready(Err(anyhow!("failed to obtain lock on readings")));
+        };
+        std::future::ready(Ok(readings
             .iter()
             .filter(|(name, _)| name == sensor)
             .enumerate()
@@ -263,17 +312,28 @@ impl TableStore for MockProvider {
                     },
                 ],
             })
-            .collect())
+            .collect()))
     }
 
-    async fn exec(&self, _conn: String, _query: String, params: Vec<DataType>) -> Result<u32> {
-        let DataType::Str(Some(sensor)) = params.first().context("missing sensor param")? else {
-            return Err(anyhow!("expected string sensor param"));
+    fn exec(
+        &self, _conn: String, _query: String, params: Vec<DataType>,
+    ) -> impl Future<Output = Result<u32>> {
+        let Some(first) = params.first() else {
+            return std::future::ready(Err(anyhow!("missing sensor param")));
         };
-        let DataType::Double(Some(value)) = params.get(1).context("missing value param")? else {
-            return Err(anyhow!("expected double value param"));
+        let DataType::Str(Some(sensor)) = first else {
+            return std::future::ready(Err(anyhow!("expected string sensor param")));
         };
-        self.readings.lock().expect("lock").push((sensor.clone(), *value));
-        Ok(1)
+        let Some(second) = params.get(1) else {
+            return std::future::ready(Err(anyhow!("missing value param")));
+        };
+        let DataType::Double(Some(value)) = second else {
+            return std::future::ready(Err(anyhow!("expected double value param")));
+        };
+        let Ok(mut readings) = self.readings.lock() else {
+            return std::future::ready(Err(anyhow!("failed to obtain lock on readings")));
+        };
+        readings.push((sensor.clone(), *value));
+        std::future::ready(Ok(1))
     }
 }
