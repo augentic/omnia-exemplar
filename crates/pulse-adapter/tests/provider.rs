@@ -1,6 +1,5 @@
 #![allow(missing_docs)]
 
-use core::panic;
 use std::any::Any;
 use std::error::Error;
 use std::sync::{Arc, Mutex};
@@ -118,39 +117,44 @@ impl MockProvider {
 }
 
 impl Config for MockProvider {
-    async fn get(&self, _key: &str) -> Result<String> {
+    fn get(&self, _key: &str) -> impl Future<Output = Result<String>> {
         // BLOCK_MGT_URL, STATIC_API_URL
-        Ok("http://localhost:8080".to_string())
+        std::future::ready(Ok("http://localhost:8080".to_string()))
     }
 }
 
 impl HttpRequest for MockProvider {
-    async fn fetch<T>(&self, request: Request<T>) -> Result<Response<Bytes>>
+    fn fetch<T>(&self, request: Request<T>) -> impl Future<Output = Result<Response<Bytes>>>
     where
         T: http_body::Body + Any + Send,
         T::Data: Into<Vec<u8>>,
         T::Error: Into<Box<dyn Error + Send + Sync + 'static>>,
     {
         let Some(http_requests) = &self.test_case.http_requests else {
-            return Err(anyhow!("no http requests defined in replay session"));
+            return std::future::ready(Err(anyhow!("no http requests defined in replay session")));
         };
         let fetcher = Fetcher::new(http_requests);
-        fetcher.fetch(&request)
+        std::future::ready(fetcher.fetch(&request))
     }
 }
 
 impl Publish for MockProvider {
-    async fn send(&self, _topic: &str, message: &Message) -> Result<()> {
-        let event: MotionEvent =
-            serde_json::from_slice(&message.payload).context("deserializing event")?;
-        self.events.lock().map_err(|e| anyhow!("{e}"))?.push(event);
-        Ok(())
+    fn send(&self, _topic: &str, message: &Message) -> impl Future<Output = Result<()>> {
+        let event = match serde_json::from_slice(&message.payload).context("deserializing event") {
+            Ok(event) => event,
+            Err(error) => return std::future::ready(Err(error)),
+        };
+        let Ok(mut events) = self.events.lock() else {
+            return std::future::ready(Err(anyhow!("failed to obtain lock on events")));
+        };
+        events.push(event);
+        std::future::ready(Ok(()))
     }
 }
 
 impl Identity for MockProvider {
-    async fn access_token(&self, _identity: String) -> Result<String> {
-        Ok("mock_access_token".to_string())
+    fn access_token(&self, _identity: String) -> impl Future<Output = Result<String>> {
+        std::future::ready(Ok("mock_access_token".to_string()))
     }
 }
 
