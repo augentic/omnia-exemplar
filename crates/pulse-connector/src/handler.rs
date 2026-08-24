@@ -11,13 +11,6 @@ use omnia_guest::api::{CallContext, Provider};
 use omnia_guest::{Config, Message, Publish, Result, bad_request};
 use serde::{Deserialize, Serialize};
 
-const ERROR: Fault = Fault {
-    status_code: 500,
-    response: FaultMessage {
-        message: "Internal Server Error",
-    },
-};
-
 #[omnia_guest::operation]
 async fn pulse_request<P>(input: PulseRequest, context: CallContext<'_, P>) -> Result<PulseReply>
 where
@@ -144,7 +137,12 @@ mod tests {
 
     #[test]
     fn serialize_error() {
-        let xml = ERROR.to_string();
+        let xml = Fault {
+            status_code: 500,
+            response: FaultMessage {
+                message: "Internal Server Error",
+            },
+        }.to_string();
         assert_eq!(
             xml,
             "<Fault><StatusCode>500</StatusCode><Response><Message>Internal Server Error</Message></Response></Fault>"
