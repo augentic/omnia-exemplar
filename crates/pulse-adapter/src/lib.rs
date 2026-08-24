@@ -46,7 +46,10 @@ impl PulseMessageError {
 
 impl From<PulseMessageError> for Error {
     fn from(err: PulseMessageError) -> Self {
-        Self::BadRequest { code: err.code(), description: err.to_string() }
+        Self::BadRequest {
+            code: err.code(),
+            description: err.to_string(),
+        }
     }
 }
 

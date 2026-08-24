@@ -110,7 +110,9 @@ impl BlobStore for MockProvider {
         std::future::ready(Ok(data.get(start..=end).unwrap_or_default().to_vec()))
     }
 
-    fn object_info(&self, container: &str, name: &str) -> impl Future<Output = Result<ObjectMetadata>> {
+    fn object_info(
+        &self, container: &str, name: &str,
+    ) -> impl Future<Output = Result<ObjectMetadata>> {
         let Ok(containers) = self.containers.lock() else {
             return std::future::ready(Err(anyhow!("failed to obtain lock on containers")));
         };
@@ -125,7 +127,9 @@ impl BlobStore for MockProvider {
         }))
     }
 
-    fn delete_objects(&self, container: &str, names: &[String]) -> impl Future<Output = Result<()>> {
+    fn delete_objects(
+        &self, container: &str, names: &[String],
+    ) -> impl Future<Output = Result<()>> {
         let Ok(mut containers) = self.containers.lock() else {
             return std::future::ready(Err(anyhow!("failed to obtain lock on containers")));
         };
@@ -263,7 +267,9 @@ impl DocumentStore for MockProvider {
         std::future::ready(Ok(documents.remove(&(store.to_string(), id.to_string())).is_some()))
     }
 
-    fn query(&self, store: &str, _options: QueryOptions) -> impl Future<Output = Result<QueryResult>> {
+    fn query(
+        &self, store: &str, _options: QueryOptions,
+    ) -> impl Future<Output = Result<QueryResult>> {
         let Ok(documents) = self.documents.lock() else {
             return std::future::ready(Err(anyhow!("failed to obtain lock on documents")));
         };

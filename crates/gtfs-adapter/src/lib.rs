@@ -40,6 +40,9 @@ impl MotionError {
 
 impl From<MotionError> for Error {
     fn from(err: MotionError) -> Self {
-        Self::BadRequest { code: err.code(), description:err.to_string() }
+        Self::BadRequest {
+            code: err.code(),
+            description: err.to_string(),
+        }
     }
 }
