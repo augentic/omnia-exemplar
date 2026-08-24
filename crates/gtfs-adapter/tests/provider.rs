@@ -176,10 +176,10 @@ impl HttpRequest for MockProvider {
             .find(|(prefix, _)| uri.starts_with(prefix.as_str()))
             .map(|(_, body)| body.clone());
 
-        let response = match body {
-            Some(body) => Response::builder().status(StatusCode::OK).body(Bytes::from(body)),
-            None => Response::builder().status(StatusCode::NOT_FOUND).body(Bytes::new()),
-        };
+        let response = body.map_or_else(
+            || Response::builder().status(StatusCode::NOT_FOUND).body(Bytes::new()),
+            |body| Response::builder().status(StatusCode::OK).body(Bytes::from(body)),
+        );
         match response {
             Ok(response) => std::future::ready(Ok(response)),
             Err(error) => std::future::ready(Err(error.into())),
