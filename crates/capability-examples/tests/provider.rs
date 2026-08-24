@@ -50,44 +50,44 @@ impl MockProvider {
 }
 
 impl BlobStore for MockProvider {
-    async fn get(&self, container: &str, name: &str) -> Result<Option<Vec<u8>>> {
-        Ok(self.object(container, name))
+    fn get(&self, container: &str, name: &str) -> impl Future<Output = Result<Option<Vec<u8>>>> {
+        std::future::ready(Ok(self.object(container, name)))
     }
 
-    async fn put(&self, container: &str, name: &str, data: &[u8]) -> Result<()> {
-        self.containers
-            .lock()
-            .expect("lock")
-            .get_mut(container)
-            .context("container does not exist")?
-            .insert(name.to_string(), data.to_vec());
-        Ok(())
+    fn put(&self, container: &str, name: &str, data: &[u8]) -> impl Future<Output = Result<()>> {
+        let Ok(mut containers) = self.containers.lock() else {
+            return std::future::ready(Err(anyhow!("failed to obtain lock on containers")));
+        };
+        let Some(objects) = containers.get_mut(container) else {
+            return std::future::ready(Err(anyhow!("container does not exist")));
+        };
+        objects.insert(name.to_string(), data.to_vec());
+        std::future::ready(Ok(()))
     }
 
-    async fn delete(&self, container: &str, name: &str) -> Result<()> {
-        self.containers
-            .lock()
-            .expect("lock")
-            .get_mut(container)
-            .context("container does not exist")?
-            .remove(name);
-        Ok(())
+    fn delete(&self, container: &str, name: &str) -> impl Future<Output = Result<()>> {
+        let Ok(mut containers) = self.containers.lock() else {
+            return std::future::ready(Err(anyhow!("failed to obtain lock on containers")));
+        };
+        let Some(objects) = containers.get_mut(container) else {
+            return std::future::ready(Err(anyhow!("container does not exist")));
+        };
+        objects.remove(name);
+        std::future::ready(Ok(()))
     }
 
-    async fn has(&self, container: &str, name: &str) -> Result<bool> {
-        Ok(self.object(container, name).is_some())
+    fn has(&self, container: &str, name: &str) -> impl Future<Output = Result<bool>> {
+        std::future::ready(Ok(self.object(container, name).is_some()))
     }
 
-    async fn list(&self, container: &str) -> Result<Vec<String>> {
-        Ok(self
-            .containers
-            .lock()
-            .expect("lock")
-            .get(container)
-            .context("container does not exist")?
-            .keys()
-            .cloned()
-            .collect())
+    fn list(&self, container: &str) -> impl Future<Output = Result<Vec<String>>> {
+        let Ok(containers) = self.containers.lock() else {
+            return std::future::ready(Err(anyhow!("failed to obtain lock on containers")));
+        };
+        let Some(objects) = containers.get(container) else {
+            return std::future::ready(Err(anyhow!("container does not exist")));
+        };
+        std::future::ready(Ok(objects.keys().cloned().collect()))
     }
 
     async fn get_range(
