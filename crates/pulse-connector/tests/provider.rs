@@ -1,5 +1,5 @@
 //! In-memory mock provider for pulse-connector operation tests.
-#![allow(missing_docs, clippy::missing_panics_doc)]
+#![allow(missing_docs)]
 
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
@@ -15,6 +15,7 @@ pub struct MockProvider {
     published: Arc<Mutex<Vec<(String, Message)>>>,
 }
 
+#[allow(clippy::missing_panics_doc)]
 impl MockProvider {
     #[must_use]
     pub fn new() -> Self {
@@ -30,19 +31,22 @@ impl MockProvider {
 }
 
 impl Config for MockProvider {
-    async fn get(&self, key: &str) -> Result<String> {
-        self.config
-            .lock()
-            .expect("lock")
-            .get(key)
-            .cloned()
-            .ok_or_else(|| anyhow!("no config value for `{key}`"))
+    fn get(&self, key: &str) -> impl Future<Output = Result<String>> {
+        let Ok(config) = self.config.lock() else {
+            return std::future::ready(Err(anyhow!("failed to obtain lock on config")));
+        };
+        std::future::ready(
+            config.get(key).cloned().ok_or_else(|| anyhow!("no config value for `{key}`")),
+        )
     }
 }
 
 impl Publish for MockProvider {
-    async fn send(&self, topic: &str, message: &Message) -> Result<()> {
-        self.published.lock().expect("lock").push((topic.to_string(), message.clone()));
-        Ok(())
+    fn send(&self, topic: &str, message: &Message) -> impl Future<Output = Result<()>> {
+        let Ok(mut published) = self.published.lock() else {
+            return std::future::ready(Err(anyhow!("failed to obtain lock on published")));
+        };
+        published.push((topic.to_string(), message.clone()));
+        std::future::ready(Ok(()))
     }
 }
