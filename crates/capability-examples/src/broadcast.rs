@@ -1,10 +1,10 @@
 //! Broadcast example: push an alert to connected WebSocket clients.
 //!
 //! [`Broadcast::send`] is client-side only — the guest connects out to the
-//! broadcast channel — so serving this operation requires no WebSocket
+//! broadcast channel — so serving this handler requires no WebSocket
 //! export.
 
-use omnia_guest::api::{CallContext, Provider};
+use omnia_guest::api::Context;
 use omnia_guest::{Broadcast, Result};
 use serde::{Deserialize, Serialize};
 
@@ -24,10 +24,10 @@ pub struct AlertRequest {
 #[serde(transparent)]
 pub struct AlertReply(pub &'static str);
 
-#[omnia_guest::operation]
-async fn alert_request<P>(input: AlertRequest, context: CallContext<'_, P>) -> Result<AlertReply>
+#[omnia_guest::handler]
+async fn alert_request<P>(input: AlertRequest, context: Context<'_, P>) -> Result<AlertReply>
 where
-    P: Provider + Broadcast,
+    P: Broadcast,
 {
     Broadcast::send(context.provider, &input.channel, input.message.as_bytes(), input.sockets)
         .await?;

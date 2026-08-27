@@ -24,9 +24,7 @@ crate-type = ["cdylib"]
 
 [dependencies]
 acme-common.workspace = true
-anyhow.workspace = true
 axum.workspace = true
-bytes.workspace = true
 gtfs-adapter.workspace = true
 omnia-guest.workspace = true
 omnia-wasi-http.workspace = true

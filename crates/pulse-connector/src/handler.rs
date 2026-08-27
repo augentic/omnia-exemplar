@@ -15,14 +15,14 @@ const SOAP_FAULT: Fault = Fault {
 
 use acme_common::{config, routes};
 use anyhow::Context as _;
-use omnia_guest::api::{CallContext, Provider};
+use omnia_guest::api::Context;
 use omnia_guest::{Config, Message, Publish, Result, bad_request};
 use serde::{Deserialize, Serialize};
 
-#[omnia_guest::operation]
-async fn pulse_request<P>(input: PulseRequest, context: CallContext<'_, P>) -> Result<PulseReply>
+#[omnia_guest::handler]
+async fn pulse_request<P>(input: PulseRequest, context: Context<'_, P>) -> Result<PulseReply>
 where
-    P: Provider + Config + Publish,
+    P: Config + Publish,
 {
     let provider = context.provider;
     let message = &input.body.receive_message.axml_message;

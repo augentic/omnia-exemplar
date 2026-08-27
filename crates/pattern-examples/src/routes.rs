@@ -1,4 +1,4 @@
-//! HTTP routes for the pattern-example operations.
+//! HTTP routes for the pattern-example handlers.
 //!
 //! Served by the guest to instantiate the composed default WASM capability
 //! implementations, deliberately outside the canonical transit tables in

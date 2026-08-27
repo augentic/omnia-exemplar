@@ -29,6 +29,7 @@ allowed-duplicate-crates = [
   "itertools",
   "linux-raw-sys",
   "matchit",
+  "prettyplease",
   "quick-xml",
   "r-efi",
   "rand",

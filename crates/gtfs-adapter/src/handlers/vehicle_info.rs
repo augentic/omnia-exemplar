@@ -1,7 +1,7 @@
 //! Vehicle information lookup.
 
 use acme_common::fleet::{self, Vehicle};
-use omnia_guest::api::{CallContext, Provider};
+use omnia_guest::api::Context;
 use omnia_guest::{Config, HttpRequest, Identity, Result, StateStore};
 use serde::{Deserialize, Serialize};
 
@@ -37,13 +37,13 @@ pub struct VehicleInfoReply {
     pub fleet_info: Option<Vehicle>,
 }
 
-#[omnia_guest::operation]
+#[omnia_guest::handler]
 #[tracing::instrument(skip_all)]
 async fn vehicle_info_request<P>(
-    input: VehicleInfoRequest, context: CallContext<'_, P>,
+    input: VehicleInfoRequest, context: Context<'_, P>,
 ) -> Result<VehicleInfoReply>
 where
-    P: Provider + Config + HttpRequest + Identity + StateStore,
+    P: Config + HttpRequest + Identity + StateStore,
 {
     let provider = context.provider;
     let vehicle_id = input.vehicle_id;

@@ -5,7 +5,7 @@
 use acme_common::{block_mgt, config, routes};
 use anyhow::Context as _;
 use chrono::Utc;
-use omnia_guest::api::{CallContext, Provider};
+use omnia_guest::api::Context;
 use omnia_guest::{Config, HttpRequest, Identity, Message, Publish, Result};
 use serde::Deserialize;
 
@@ -22,7 +22,7 @@ use crate::stops;
 /// `thread::sleep`. Do not copy that pattern — blocking stalls the entire
 /// WASM guest. If spacing between publishes ever matters, use a scheduled or
 /// delayed message, or debounce in the consumer, instead of sleeping in the
-/// operation.
+/// handler.
 const PUBLISH_REPEATS: usize = 2;
 
 /// Pulse train update message as deserialized from the XML received from the
@@ -46,11 +46,11 @@ impl PulseMessage {
     }
 }
 
-#[omnia_guest::operation]
+#[omnia_guest::handler]
 #[tracing::instrument(skip_all)]
-async fn pulse_message<P>(input: PulseMessage, context: CallContext<'_, P>) -> Result<()>
+async fn pulse_message<P>(input: PulseMessage, context: Context<'_, P>) -> Result<()>
 where
-    P: Provider + Config + HttpRequest + Identity + Publish,
+    P: Config + HttpRequest + Identity + Publish,
 {
     let provider = context.provider;
 

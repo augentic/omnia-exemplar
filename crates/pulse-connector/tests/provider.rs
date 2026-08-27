@@ -1,4 +1,4 @@
-//! In-memory mock provider for pulse-connector operation tests.
+//! In-memory mock provider for pulse-connector handler tests.
 #![allow(missing_docs)]
 
 use std::collections::HashMap;

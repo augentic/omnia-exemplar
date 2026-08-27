@@ -4,7 +4,7 @@
 mod provider;
 
 use gtfs_adapter::SetTripRequest;
-use omnia_guest::api::{Invocation, Invoker};
+use omnia_guest::api::{Client, Metadata};
 use serde_json::Value;
 
 use self::provider::MockProvider;
@@ -13,15 +13,15 @@ const OWNER: &str = "acme";
 
 #[tokio::test]
 async fn set_trip_rejected_when_disabled() {
-    // `GOD_MODE_ENABLED` is not configured, so the operation must refuse
+    // `GOD_MODE_ENABLED` is not configured, so the handler must refuse
     let provider = MockProvider::new();
 
     let request = SetTripRequest {
         vehicle_id: "EM580".to_string(),
         trip_id: "TRIP-9".to_string(),
     };
-    let error = Invoker::new(OWNER, provider.clone())
-        .invoke::<SetTripRequest>(Invocation::new(request))
+    let error = Client::new(OWNER, provider.clone())
+        .call(request, &Metadata::default())
         .await
         .expect_err("should reject when god mode is disabled");
 
@@ -38,8 +38,8 @@ async fn set_trip_stores_override_when_enabled() {
         vehicle_id: "EM580".to_string(),
         trip_id: "TRIP-9".to_string(),
     };
-    let reply = Invoker::new(OWNER, provider.clone())
-        .invoke::<SetTripRequest>(Invocation::new(request))
+    let reply = Client::new(OWNER, provider.clone())
+        .call(request, &Metadata::default())
         .await
         .expect("should succeed");
 

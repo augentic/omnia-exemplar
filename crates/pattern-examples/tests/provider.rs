@@ -2,7 +2,7 @@
 // Shared by several test binaries; not every binary uses every helper.
 #![allow(dead_code)]
 
-//! Spy mock provider for the pattern-example operations.
+//! Spy mock provider for the pattern-example handlers.
 //!
 //! Beyond canned responses, the mock *records* every outbound HTTP request
 //! so tests can assert on the request shape — method, path, and the
@@ -185,7 +185,7 @@ impl TableStore for MockProvider {
             return std::future::ready(Err(anyhow!("unexpected query: {query}")));
         }
 
-        // Bound params in the order the nearby operation's filters push
+        // Bound params in the order the nearby handler's filters push
         // them: lat >=, lat <=, lon >=, lon <=.
         let [
             DataType::Double(Some(lat_min)),

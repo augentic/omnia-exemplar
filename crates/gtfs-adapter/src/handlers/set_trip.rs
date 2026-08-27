@@ -1,7 +1,7 @@
 //! God-mode trip override.
 
 use anyhow::Context as _;
-use omnia_guest::api::{CallContext, Provider};
+use omnia_guest::api::Context;
 use omnia_guest::{Config, Result, StateStore, bad_request};
 use serde::{Deserialize, Serialize};
 
@@ -26,13 +26,11 @@ pub struct SetTripReply {
     pub process: u32,
 }
 
-#[omnia_guest::operation]
+#[omnia_guest::handler]
 #[tracing::instrument(skip_all)]
-async fn set_trip_request<P>(
-    input: SetTripRequest, context: CallContext<'_, P>,
-) -> Result<SetTripReply>
+async fn set_trip_request<P>(input: SetTripRequest, context: Context<'_, P>) -> Result<SetTripReply>
 where
-    P: Provider + Config + StateStore,
+    P: Config + StateStore,
 {
     let provider = context.provider;
 

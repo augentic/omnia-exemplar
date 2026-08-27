@@ -2,7 +2,7 @@
 //!
 //! Composition patterns over the Omnia guest capabilities, distilled from
 //! real replatformed services. Where `capability-examples` proves one
-//! capability at a time, each operation here composes several:
+//! capability at a time, each handler here composes several:
 //!
 //! - [`DecodeSegmentRequest`] — decode-through-cache: [`StateStore`] miss →
 //!   [`Config`] (endpoint and client certificate) → [`HttpRequest`] → write
@@ -14,7 +14,7 @@
 //!   refined by a haversine check, replacing the "geospatial index bolted
 //!   onto a KV store" anti-pattern.
 //!
-//! The crate-level tests drive every operation through a spy mock provider
+//! The crate-level tests drive every handler through a spy mock provider
 //! that records outbound HTTP requests, and the guest routes them under
 //! `/examples/patterns/*` so the default WASM capability implementations are
 //! instantiated in a real guest.

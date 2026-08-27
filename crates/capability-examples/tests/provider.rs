@@ -1,7 +1,7 @@
 #![allow(missing_docs)]
 
 //! In-memory mock provider implementing the native side of every capability
-//! the example operations require.
+//! the example handlers require.
 
 use std::collections::BTreeMap;
 use std::sync::{Arc, Mutex};

@@ -1,13 +1,13 @@
-//! Static fixture tests for the gtfs-adapter operations.
+//! Static fixture tests for the gtfs-adapter handlers.
 //!
 //! Fixtures under `data/` are captured Kafka records from a live system;
-//! each test takes a record's `value` and invokes the operation natively
+//! each test takes a record's `value` and invokes the handler natively
 //! against the in-memory [`provider::MockProvider`].
 
 mod provider;
 
 use gtfs_adapter::{MotionMessage, PassengerCountMessage, TrainAvlMessage, VehicleInfoRequest};
-use omnia_guest::api::{Invocation, Invoker};
+use omnia_guest::api::{Client, Metadata};
 use serde_json::{Value, json};
 
 use self::provider::MockProvider;
@@ -42,8 +42,8 @@ async fn motion_location_publishes_vehicle_position() {
     let value = fixture_value(include_bytes!("../data/realtime-pulse-to-motion.v1.json"), 0);
     let message: MotionMessage = serde_json::from_value(value).expect("should deserialize");
 
-    Invoker::new(OWNER, provider.clone())
-        .invoke::<MotionMessage>(Invocation::new(message))
+    Client::new(OWNER, provider.clone())
+        .call(message, &Metadata::default())
         .await
         .expect("should succeed");
 
@@ -90,8 +90,8 @@ async fn motion_without_gps_publishes_dead_reckoning() {
     }))
     .expect("should deserialize");
 
-    Invoker::new(OWNER, provider.clone())
-        .invoke::<MotionMessage>(Invocation::new(message))
+    Client::new(OWNER, provider.clone())
+        .call(message, &Metadata::default())
         .await
         .expect("should succeed");
 
@@ -118,8 +118,8 @@ async fn motion_unknown_event_type_is_ignored() {
     }))
     .expect("should deserialize");
 
-    Invoker::new(OWNER, provider.clone())
-        .invoke::<MotionMessage>(Invocation::new(message))
+    Client::new(OWNER, provider.clone())
+        .call(message, &Metadata::default())
         .await
         .expect("should succeed");
 
@@ -135,8 +135,8 @@ async fn train_avl_skips_non_motion_tag() {
     let value = fixture_value(include_bytes!("../data/realtime-train-avl.v1.json"), 0);
     let message: TrainAvlMessage = serde_json::from_value(value).expect("should deserialize");
 
-    Invoker::new(OWNER, provider.clone())
-        .invoke::<TrainAvlMessage>(Invocation::new(message))
+    Client::new(OWNER, provider.clone())
+        .call(message, &Metadata::default())
         .await
         .expect("should succeed");
 
@@ -156,8 +156,8 @@ async fn train_avl_processes_motion_tag() {
     let value = fixture_value(include_bytes!("../data/realtime-train-avl.v1.json"), 0);
     let message: TrainAvlMessage = serde_json::from_value(value).expect("should deserialize");
 
-    Invoker::new(OWNER, provider.clone())
-        .invoke::<TrainAvlMessage>(Invocation::new(message))
+    Client::new(OWNER, provider.clone())
+        .call(message, &Metadata::default())
         .await
         .expect("should succeed");
 
@@ -173,8 +173,8 @@ async fn passenger_count_stores_occupancy_status() {
     let value = fixture_value(include_bytes!("../data/realtime-passenger-count.v1.json"), 0);
     let message: PassengerCountMessage = serde_json::from_value(value).expect("should deserialize");
 
-    Invoker::new(OWNER, provider.clone())
-        .invoke::<PassengerCountMessage>(Invocation::new(message))
+    Client::new(OWNER, provider.clone())
+        .call(message, &Metadata::default())
         .await
         .expect("should succeed");
 
@@ -193,8 +193,8 @@ async fn passenger_count_clears_occupancy_status() {
     value.as_object_mut().expect("object").remove("occupancyStatus");
     let message: PassengerCountMessage = serde_json::from_value(value).expect("should deserialize");
 
-    Invoker::new(OWNER, provider.clone())
-        .invoke::<PassengerCountMessage>(Invocation::new(message))
+    Client::new(OWNER, provider.clone())
+        .call(message, &Metadata::default())
         .await
         .expect("should succeed");
 
@@ -233,8 +233,8 @@ async fn serial_data_sign_on_updates_trip_state() {
     }))
     .expect("should deserialize");
 
-    Invoker::new(OWNER, provider.clone())
-        .invoke::<MotionMessage>(Invocation::new(message))
+    Client::new(OWNER, provider.clone())
+        .call(message, &Metadata::default())
         .await
         .expect("should succeed");
 
@@ -261,8 +261,8 @@ async fn serial_data_rejects_future_dated_message() {
     }))
     .expect("should deserialize");
 
-    let error = Invoker::new(OWNER, provider.clone())
-        .invoke::<MotionMessage>(Invocation::new(message))
+    let error = Client::new(OWNER, provider.clone())
+        .call(message, &Metadata::default())
         .await
         .expect_err("should reject future-dated message");
     assert!(error.to_string().contains("future-dated"));
@@ -281,8 +281,8 @@ async fn vehicle_info_assembles_state_and_fleet_data() {
     let request = VehicleInfoRequest {
         vehicle_id: "EMP484".to_string(),
     };
-    let reply = Invoker::new(OWNER, provider.clone())
-        .invoke::<VehicleInfoRequest>(Invocation::new(request))
+    let reply = Client::new(OWNER, provider.clone())
+        .call(request, &Metadata::default())
         .await
         .expect("should succeed");
 

@@ -2,7 +2,7 @@
 
 use acme_common::{config, routes};
 use chrono::{DateTime, Utc};
-use omnia_guest::api::{CallContext, Provider};
+use omnia_guest::api::Context;
 use omnia_guest::{
     Config, HttpRequest, Identity, Message, Publish, Result, StateStore, bad_request,
 };
@@ -18,11 +18,11 @@ use crate::{location, serial_data};
 ///
 /// Returns an error when the payload cannot be processed or a provider
 /// request fails.
-#[omnia_guest::operation]
+#[omnia_guest::handler]
 #[tracing::instrument(skip_all)]
-pub async fn motion_message<P>(input: MotionMessage, context: CallContext<'_, P>) -> Result<()>
+pub async fn motion_message<P>(input: MotionMessage, context: Context<'_, P>) -> Result<()>
 where
-    P: Provider + Config + HttpRequest + Identity + Publish + StateStore,
+    P: Config + HttpRequest + Identity + Publish + StateStore,
 {
     let provider = context.provider;
     let message = input;

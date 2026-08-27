@@ -1,11 +1,11 @@
 //! Canonical HTTP routes and messaging topics.
 //!
-//! Both guests (`guests/typed` and `guests/axum`) build their routers from
-//! these tables, so the two guest styles serve the same surface by
-//! construction rather than by review. Domain crates publish to the same
-//! topic constants their consumers subscribe to.
+//! The root-package guest builds its HTTP and messaging routers from these
+//! tables, and domain crates publish to the same topic constants their
+//! consumers subscribe to, so producers and consumers agree on the surface
+//! by construction rather than by review.
 
-/// HTTP ingress paths served by both guests.
+/// HTTP ingress paths served by the guest.
 pub mod http {
     /// Tally passenger-count (APC) ingress.
     pub const APC: &str = "/api/apc";

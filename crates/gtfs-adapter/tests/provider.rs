@@ -1,4 +1,4 @@
-//! In-memory mock provider for gtfs-adapter operation tests.
+//! In-memory mock provider for gtfs-adapter handler tests.
 #![allow(missing_docs)]
 // Shared by several test binaries; not every binary uses every helper.
 #![allow(dead_code)]
@@ -29,7 +29,7 @@ pub struct MockProvider {
 
 #[allow(clippy::missing_panics_doc)]
 impl MockProvider {
-    /// A provider pre-populated with the configuration keys the operations
+    /// A provider pre-populated with the configuration keys the handlers
     /// read (see `acme_common::config`).
     #[must_use]
     pub fn new() -> Self {

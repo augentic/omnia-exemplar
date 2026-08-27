@@ -1,10 +1,10 @@
 //! Integration tests driving each capability example through the mock
-//! provider, invoked exactly as the guests invoke them.
+//! provider, invoked exactly as the guest invokes them.
 
 mod provider;
 
 use capability_examples::{AlertRequest, ArchiveRequest, NoteRequest, ReadingRequest};
-use omnia_guest::api::{Invocation, Invoker};
+use omnia_guest::api::{Client, Metadata};
 
 use self::provider::MockProvider;
 
@@ -17,8 +17,8 @@ async fn archive_object() {
         payload: r#"{"total":42}"#.to_string(),
     };
 
-    let reply = Invoker::new("acme", provider.clone())
-        .invoke::<ArchiveRequest>(Invocation::new(request))
+    let reply = Client::new("acme", provider.clone())
+        .call(request, &Metadata::default())
         .await
         .expect("should succeed");
 
@@ -35,8 +35,8 @@ async fn broadcast_alert() {
         sockets: Some(vec!["socket-1".to_string()]),
     };
 
-    Invoker::new("acme", provider.clone())
-        .invoke::<AlertRequest>(Invocation::new(request))
+    Client::new("acme", provider.clone())
+        .call(request, &Metadata::default())
         .await
         .expect("should succeed");
 
@@ -57,8 +57,8 @@ async fn upsert_note() {
         body: serde_json::json!({ "text": "hello" }),
     };
 
-    let reply = Invoker::new("acme", provider.clone())
-        .invoke::<NoteRequest>(Invocation::new(request))
+    let reply = Client::new("acme", provider.clone())
+        .call(request, &Metadata::default())
         .await
         .expect("should succeed");
 
@@ -71,15 +71,14 @@ async fn upsert_note() {
 #[tokio::test]
 async fn record_reading() {
     let provider = MockProvider::default();
-    let invoker = Invoker::new("acme", provider.clone());
+    let client = Client::new("acme", provider.clone());
 
     let first = ReadingRequest {
         connection: "telemetry".to_string(),
         sensor: "temp-1".to_string(),
         value: 21.5,
     };
-    let reply =
-        invoker.invoke::<ReadingRequest>(Invocation::new(first)).await.expect("should succeed");
+    let reply = client.call(first, &Metadata::default()).await.expect("should succeed");
     assert_eq!(reply.affected, 1);
     assert_eq!(reply.rows, 1);
 
@@ -88,8 +87,7 @@ async fn record_reading() {
         sensor: "temp-1".to_string(),
         value: 22.0,
     };
-    let reply =
-        invoker.invoke::<ReadingRequest>(Invocation::new(second)).await.expect("should succeed");
+    let reply = client.call(second, &Metadata::default()).await.expect("should succeed");
     assert_eq!(reply.affected, 1);
     assert_eq!(reply.rows, 2);
 

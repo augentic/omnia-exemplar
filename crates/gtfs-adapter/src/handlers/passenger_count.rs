@@ -2,7 +2,7 @@
 //!
 //! This module stores occupancy status for a given vehicle and trip.
 
-use omnia_guest::api::{CallContext, Provider};
+use omnia_guest::api::Context;
 use omnia_guest::{Result, StateStore};
 use serde::{Deserialize, Serialize};
 
@@ -10,13 +10,13 @@ use crate::state_keys;
 
 const OCCUPANCY_STATUS_TTL: u64 = 3 * 60 * 60; // 3 hours
 
-#[omnia_guest::operation]
+#[omnia_guest::handler]
 #[tracing::instrument(skip_all)]
 async fn passenger_count_message<P>(
-    input: PassengerCountMessage, context: CallContext<'_, P>,
+    input: PassengerCountMessage, context: Context<'_, P>,
 ) -> Result<()>
 where
-    P: Provider + StateStore,
+    P: StateStore,
 {
     let provider = context.provider;
 
