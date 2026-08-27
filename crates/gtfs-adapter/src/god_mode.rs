@@ -2,7 +2,7 @@
 //!
 //! This is an operational tool, not part of the production pipeline: it lets
 //! an operator force a vehicle onto a specific trip while diagnosing
-//! allocation issues. The whole module — and the HTTP operation that drives
+//! allocation issues. The whole module — and the HTTP handler that drives
 //! it ([`crate::SetTripRequest`]) — is compiled only when the `god-mode`
 //! cargo feature is enabled, and does nothing at runtime unless the
 //! `GOD_MODE_ENABLED` configuration key is set to a truthy value.

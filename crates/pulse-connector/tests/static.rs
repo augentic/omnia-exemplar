@@ -2,7 +2,7 @@
 
 mod provider;
 
-use omnia_guest::api::{Invocation, Invoker};
+use omnia_guest::api::{Client, Metadata};
 use pulse_connector::PulseRequest;
 
 use self::provider::MockProvider;
@@ -17,8 +17,8 @@ async fn forwards_train_update_to_pulse_topic() {
     let request = PulseRequest::from_xml(xml).expect("should deserialize");
     let expected_payload = request.body.receive_message.axml_message.clone();
 
-    let reply = Invoker::new(OWNER, provider.clone())
-        .invoke::<PulseRequest>(Invocation::new(request))
+    let reply = Client::new(OWNER, provider.clone())
+        .call(request, &Metadata::default())
         .await
         .expect("should succeed");
 
@@ -49,8 +49,8 @@ async fn rejects_message_without_train_update() {
         </soap:Envelope>"#;
     let request = PulseRequest::from_xml(xml).expect("should deserialize");
 
-    let error = Invoker::new(OWNER, provider.clone())
-        .invoke::<PulseRequest>(Invocation::new(request))
+    let error = Client::new(OWNER, provider.clone())
+        .call(request, &Metadata::default())
         .await
         .expect_err("should reject a message without a train update");
 

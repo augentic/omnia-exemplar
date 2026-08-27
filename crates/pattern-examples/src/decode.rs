@@ -12,7 +12,7 @@ use anyhow::Context as _;
 use bytes::Bytes;
 use http::Method;
 use http_body_util::Full;
-use omnia_guest::api::{CallContext, Provider};
+use omnia_guest::api::Context;
 use omnia_guest::{Config, HttpRequest, Result, StateStore, bad_gateway};
 use serde::{Deserialize, Serialize};
 
@@ -56,12 +56,12 @@ pub struct DecodeSegmentReply {
     pub segment: Segment,
 }
 
-#[omnia_guest::operation]
+#[omnia_guest::handler]
 async fn decode_segment_request<P>(
-    input: DecodeSegmentRequest, context: CallContext<'_, P>,
+    input: DecodeSegmentRequest, context: Context<'_, P>,
 ) -> Result<DecodeSegmentReply>
 where
-    P: Provider + Config + HttpRequest + StateStore,
+    P: Config + HttpRequest + StateStore,
 {
     let provider = context.provider;
     let key = segment_key(&input.code);

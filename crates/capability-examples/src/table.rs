@@ -1,6 +1,6 @@
 //! Table-store example: record a sensor reading and count the sensor's rows.
 
-use omnia_guest::api::{CallContext, Provider};
+use omnia_guest::api::Context;
 use omnia_guest::{Result, TableStore};
 use omnia_wasi_sql::DataType;
 use serde::{Deserialize, Serialize};
@@ -34,12 +34,10 @@ pub struct ReadingReply {
     pub rows: usize,
 }
 
-#[omnia_guest::operation]
-async fn reading_request<P>(
-    input: ReadingRequest, context: CallContext<'_, P>,
-) -> Result<ReadingReply>
+#[omnia_guest::handler]
+async fn reading_request<P>(input: ReadingRequest, context: Context<'_, P>) -> Result<ReadingReply>
 where
-    P: Provider + TableStore,
+    P: TableStore,
 {
     let provider = context.provider;
 

@@ -1,7 +1,7 @@
 //! Train AVL message filtering.
 
 use acme_common::fleet;
-use omnia_guest::api::{CallContext, Provider};
+use omnia_guest::api::Context;
 use omnia_guest::{Config, HttpRequest, Identity, Publish, Result, StateStore};
 use serde::Deserialize;
 
@@ -13,11 +13,11 @@ use crate::handlers::motion::{self, MotionMessage};
 #[serde(transparent)]
 pub struct TrainAvlMessage(pub MotionMessage);
 
-#[omnia_guest::operation]
+#[omnia_guest::handler]
 #[tracing::instrument(skip_all)]
-async fn train_avl_message<P>(input: TrainAvlMessage, context: CallContext<'_, P>) -> Result<()>
+async fn train_avl_message<P>(input: TrainAvlMessage, context: Context<'_, P>) -> Result<()>
 where
-    P: Provider + Config + HttpRequest + Identity + Publish + StateStore,
+    P: Config + HttpRequest + Identity + Publish + StateStore,
 {
     let provider = context.provider;
     let request = input.0;

@@ -1,9 +1,9 @@
-//! Tests for the decode-through-cache operation, driven through the spy
+//! Tests for the decode-through-cache handler, driven through the spy
 //! mock provider exactly as the guest invokes it.
 
 mod provider;
 
-use omnia_guest::api::{Invocation, Invoker};
+use omnia_guest::api::{Client, Metadata};
 use pattern_examples::Segment;
 use pattern_examples::decode::{DecodeSegmentRequest, segment_key};
 
@@ -12,15 +12,12 @@ use self::provider::MockProvider;
 #[tokio::test]
 async fn miss_fetches_with_cert_and_caches() {
     let provider = MockProvider::default();
-    let invoker = Invoker::new("acme", provider.clone());
+    let client = Client::new("acme", provider.clone());
 
     let request = DecodeSegmentRequest {
         code: "seg-1".to_string(),
     };
-    let reply = invoker
-        .invoke::<DecodeSegmentRequest>(Invocation::new(request))
-        .await
-        .expect("should succeed");
+    let reply = client.call(request, &Metadata::default()).await.expect("should succeed");
 
     assert!(!reply.cached);
     assert_eq!(reply.segment.code, "seg-1");
@@ -42,10 +39,7 @@ async fn miss_fetches_with_cert_and_caches() {
     let request = DecodeSegmentRequest {
         code: "seg-1".to_string(),
     };
-    let reply = invoker
-        .invoke::<DecodeSegmentRequest>(Invocation::new(request))
-        .await
-        .expect("should succeed");
+    let reply = client.call(request, &Metadata::default()).await.expect("should succeed");
     assert!(reply.cached);
     assert_eq!(provider.requests().len(), 1);
 }
@@ -59,8 +53,8 @@ async fn hit_skips_config_and_http() {
     let request = DecodeSegmentRequest {
         code: "seg-2".to_string(),
     };
-    let reply = Invoker::new("acme", provider.clone())
-        .invoke::<DecodeSegmentRequest>(Invocation::new(request))
+    let reply = Client::new("acme", provider.clone())
+        .call(request, &Metadata::default())
         .await
         .expect("should succeed");
 

@@ -9,8 +9,7 @@ use acme_common::TIMEZONE;
 use acme_test::{TestCase, TestDef};
 use chrono::Utc;
 use omnia_guest::Error;
-use omnia_guest::api::{Invocation, Invoker};
-use pulse_adapter::PulseMessage;
+use omnia_guest::api::{Client, Metadata};
 
 use crate::provider::{Replay, shift_time};
 
@@ -29,10 +28,10 @@ async fn run() {
 async fn replay(test_def: TestDef<Error>) {
     let test_case = TestCase::<Replay>::new(test_def).prepare(shift_time);
     let provider = provider::MockProvider::new(test_case.clone());
-    let invoker = Invoker::new("acme", provider.clone());
+    let client = Client::new("acme", provider.clone());
 
     let input = test_case.input.expect("replay test input expected");
-    let result = invoker.invoke::<PulseMessage>(Invocation::new(input)).await;
+    let result = client.call(input, &Metadata::default()).await;
     let curr_events = provider.events();
 
     let Some(expected_result) = &test_case.output else {

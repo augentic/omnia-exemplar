@@ -2,9 +2,9 @@
 
 Composition patterns over the Omnia guest capabilities, distilled from real
 replatformed services. Where `capability-examples` proves one capability at a
-time, each operation here composes several:
+time, each handler here composes several:
 
-| Module | Capabilities | Operation |
+| Module | Capabilities | Handler |
 | --- | --- | --- |
 | `decode` | `Config` + `HttpRequest` + `StateStore` | `DecodeSegmentRequest` — decode-through-cache with a config-carried client certificate |
 | `place` | `TableStore` | `UpsertPlaceRequest` — ORM `INSERT … ON CONFLICT` upsert |
@@ -47,11 +47,11 @@ it is good at:
 `UpsertPlaceRequest` writes the rows with the ORM's `entity!` macro and
 `InsertBuilder::on_conflict("id").do_update_all()`; `NearbyPlacesRequest`
 runs the query. Workloads that outgrow this pattern want a real geospatial
-backend (e.g. PostGIS behind its own operation), not a richer `StateStore`.
+backend (e.g. PostGIS behind its own handler), not a richer `StateStore`.
 
 ## Spy mock tests
 
-The crate-level tests (`tests/`) drive every operation through a mock
+The crate-level tests (`tests/`) drive every handler through a mock
 provider that *records* outbound HTTP requests as well as answering them.
 Tests assert on the request shape — method, path, and the `Client-Cert`
 header — and on the exact number of calls, which is how the cache tests

@@ -1,9 +1,9 @@
-//! HTTP routes for the capability-example operations.
+//! HTTP routes for the capability-example handlers.
 //!
-//! Served by `guests/typed` only: these routes exist to instantiate the
-//! default WASM capability implementations in a real guest, deliberately
-//! outside the canonical transit tables in `acme_common::routes` that both
-//! guest styles share.
+//! Route constants for mounting the handlers under `/examples/*`,
+//! deliberately outside the canonical transit tables in
+//! `acme_common::routes`. The workspace-root guest does not wire them by
+//! default.
 
 /// Blobstore archive ingress.
 pub const ARCHIVE: &str = "/examples/archive";

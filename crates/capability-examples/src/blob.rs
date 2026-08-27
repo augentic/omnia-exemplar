@@ -1,6 +1,6 @@
 //! Blobstore example: archive a payload and report its stored size.
 
-use omnia_guest::api::{CallContext, Provider};
+use omnia_guest::api::Context;
 use omnia_guest::{BlobStore, Result};
 use serde::{Deserialize, Serialize};
 
@@ -22,12 +22,10 @@ pub struct ArchiveReply {
     pub size: u64,
 }
 
-#[omnia_guest::operation]
-async fn archive_request<P>(
-    input: ArchiveRequest, context: CallContext<'_, P>,
-) -> Result<ArchiveReply>
+#[omnia_guest::handler]
+async fn archive_request<P>(input: ArchiveRequest, context: Context<'_, P>) -> Result<ArchiveReply>
 where
-    P: Provider + BlobStore,
+    P: BlobStore,
 {
     let provider = context.provider;
 

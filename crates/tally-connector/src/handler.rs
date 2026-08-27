@@ -2,16 +2,16 @@
 
 use acme_common::{config, routes};
 use anyhow::Context as _;
-use omnia_guest::api::{CallContext, Provider};
+use omnia_guest::api::Context;
 use omnia_guest::{Config, Message, Publish, Result};
 use serde::{Deserialize, Serialize};
 
 use crate::TallyMessage;
 
-#[omnia_guest::operation]
-async fn tally_request<P>(input: TallyRequest, context: CallContext<'_, P>) -> Result<TallyReply>
+#[omnia_guest::handler]
+async fn tally_request<P>(input: TallyRequest, context: Context<'_, P>) -> Result<TallyReply>
 where
-    P: Provider + Config + Publish,
+    P: Config + Publish,
 {
     let provider = context.provider;
     let message = &input.message;

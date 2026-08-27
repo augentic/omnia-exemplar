@@ -1,6 +1,6 @@
-//! Motion GTFS adapter operations.
+//! Motion GTFS adapter handlers.
 //!
-//! Each operation and the payload types callers need are re-exported from
+//! Each handler and the payload types callers need are re-exported from
 //! the crate root; these modules stay crate-internal.
 
 pub mod motion;

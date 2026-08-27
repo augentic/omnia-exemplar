@@ -24,9 +24,7 @@ crate-type = ["cdylib"]
 
 [dependencies]
 acme-common.workspace = true
-anyhow.workspace = true
 axum.workspace = true
-bytes.workspace = true
 gtfs-adapter.workspace = true
 omnia-guest.workspace = true
 omnia-wasi-http.workspace = true
@@ -138,8 +136,7 @@ toml = "1.1.4"
 tracing = "0.1.44"
 urlencoding = "2.1.3"
 uuid = { version = "1.24.0", features = ["v4"] }
-wasip3 = { version = "0.7.0", features = ["http-compat"] }
-wit-bindgen = { version = "0.60.0", features = ["async-spawn"] }
+wasip3 = { version = "0.8.0", features = ["http-compat"] }
 
 omnia = "0.35.0"
 omnia-guest = "0.35.0"

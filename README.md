@@ -5,15 +5,11 @@ services. It models a fictional transit operator ("Acme") that consolidates
 realtime vehicle data processing into a WASM guest: SOAP/XML position feeds,
 passenger counting, and GTFS realtime adaptation.
 
-Domain logic lives under `crates/*` as `#[omnia_guest::operation]` handler
-functions (each derives its `Operation<P>` impl). The **guest is the
-workspace root package** (`src/lib.rs`) — hand-written Axum HTTP handlers
-and exact-topic messaging over a shared `Invoker`. Match this layout when
+Domain logic lives under `crates/*` as `#[omnia_guest::handler]` functions
+(each derives its `Handler<P>` impl). The **guest is the workspace root
+package** (`src/lib.rs`) — explicit typed HTTP routes and an exact-topic
+messaging router over a provider-owning `Client`. Match this layout when
 creating a new Omnia service: root `src/`, not a `guests/<name>/` tree.
-
-Typed `omnia_guest::api` HTTP / messaging routers are a documented fallback
-in the Emery omnia target adapter only; this repository does not ship a
-compiling typed guest.
 
 ## Relation to omnia
 
@@ -21,7 +17,7 @@ This repository is the application-scale complement to the
 [omnia](https://github.com/augentic/omnia) runtime's per-capability
 [`examples/`](https://github.com/augentic/omnia/tree/main/examples): one real
 service instead of twenty snippets. The guest is built on the `omnia-guest`
-SDK (`Operation<P>` domain logic behind capability traits) and exercises
+SDK (`Handler<P>` domain logic behind capability traits) and exercises
 `wasi:http`, `wasi:messaging`, `wasi:keyvalue`, `wasi:config`,
 `wasi:identity`, and — via `crates/capability-examples` — blobstore,
 websocket broadcast, docstore, and SQL. The example host
@@ -90,25 +86,28 @@ The root `Cargo.toml` is both the workspace and the deployable guest package
 
 The guest:
 
-- Serves hand-written Axum handlers through `omnia_wasi_http::serve`
-- Exports messaging with `omnia_wasi_messaging::export!`, matching **exact**
+- Registers typed HTTP routes (`omnia_guest::api::http::{get, post}`, with
+  `get_with`/`post_with` for non-JSON wire formats) on an `axum::Router` and
+  serves them through `omnia_guest::api::http::serve`
+- Exports messaging with `omnia_wasi_messaging::export!`, dispatching through
+  an exact-topic `omnia_guest::api::messaging::Router` of **exact**
   env-qualified topics
 - Uses a unit `Provider` declared with `omnia_guest::provider!`, giving it
   the WASI-backed default capability impls (`Config`, `HttpRequest`,
   `Identity`, `Publish`, `StateStore`)
-- Invokes domain operations through a shared `Invoker`
+- Routes both transports through one provider-owning `Client` per request
 - Ships a native host example at `examples/runtime.rs` via `omnia::runtime!`
 
 ## Routes and topics
 
-| HTTP route | Operation |
+| HTTP route | Handler |
 | --- | --- |
 | `POST /api/apc` | `tally_connector::TallyRequest` — passenger-count ingress |
 | `POST /inbound/xml` | `pulse_connector::PulseRequest` — SOAP/XML position ingress |
 | `GET /info/{vehicle_id}` | `gtfs_adapter::VehicleInfoRequest` |
 | `POST /god-mode/set-trip/{vehicle_id}/{trip_id}` | `gtfs_adapter::SetTripRequest` (requires the `god-mode` feature) |
 
-| Messaging topic | Operation |
+| Messaging topic | Handler |
 | --- | --- |
 | `{env}-realtime-pulse.v1` | `pulse_adapter::PulseMessage` (XML) |
 | `{env}-realtime-pulse-to-motion.v1` | `gtfs_adapter::MotionMessage` |
@@ -127,9 +126,9 @@ consumer is out of scope for the exemplar.
 | `crates/pulse-adapter` | Converts Pulse train updates into Motion location events |
 | `crates/tally-connector` | HTTP ingress for the vendor "Tally" passenger-count feed |
 | `crates/gtfs-adapter` | Converts Motion events into GTFS-realtime vehicle positions |
-| `crates/capability-examples` | Domain-free operations proving the remaining capabilities: `BlobStore`, `Broadcast`, `DocumentStore`, `TableStore` |
+| `crates/capability-examples` | Domain-free handlers proving the remaining capabilities: `BlobStore`, `Broadcast`, `DocumentStore`, `TableStore` |
 | `crates/pattern-examples` | Composition patterns: decode-through-cache, config-carried client certificates, and relational geo queries through the ORM |
-| root package (`guest`) | Axum + exact-topic WASM guest binary |
+| root package (`guest`) | Typed-router HTTP + exact-topic messaging WASM guest binary |
 
 Domain crates depend only on the `omnia-guest` capability traits (`Config`,
 `HttpRequest`, `Identity`, `Publish`, `StateStore`; `capability-examples`
@@ -137,19 +136,21 @@ covers `BlobStore`, `Broadcast`, `DocumentStore`, and `TableStore`), so the
 same code runs inside the WASM guest and against native mock providers in
 tests.
 
-## Adding a new operation
+## Adding a new handler
 
 1. Pick a template: `tally-connector` for a connector, `pulse-adapter` for an
    adapter.
 2. Create the crate under `crates/`, register it in the workspace
    `Cargo.toml` under `# Internally referenced crates`.
-3. Implement the input type and an `#[omnia_guest::operation]` handler fn
-   (`async fn name<P>(input: Input, context: CallContext<'_, P>) -> Result<Reply>`)
+3. Implement the input type and an `#[omnia_guest::handler]` fn
+   (`async fn name<P>(input: Input, context: Context<'_, P>) -> Result<Reply>`)
    with the narrowest capability bounds it needs
-   (e.g. `P: Provider + Config + Publish`).
+   (e.g. `P: Config + Publish`).
 4. Add any new topic suffix or HTTP path to `acme_common::routes`, and any
    new configuration key to `acme_common::config` plus `.env.example`.
-5. Wire the operation into `src/lib.rs` from the shared route tables.
+5. Wire the handler into the HTTP or messaging router in `src/lib.rs` from
+   the shared route tables (`post::<Input, Provider>()`, `consume::<Input>()`,
+   or a `_with` variant for custom wire formats).
 6. Add fixtures under the crate's `data/` and native tests under `tests/`
    with a mock provider (copy the shape of `crates/tally-connector/tests` or
    `crates/gtfs-adapter/tests`).
@@ -184,7 +185,7 @@ state.
 
 Patterns worth copying into new services:
 
-- `Operation<P>` domain logic behind capability traits, with the guest as a
+- `Handler<P>` domain logic behind capability traits, with the guest as a
   thin routing layer at the **workspace root** (`src/lib.rs`).
 - One canonical route/topic table (`acme_common::routes`) consumed by
   producers, consumers, and the guest.
@@ -193,7 +194,7 @@ Patterns worth copying into new services:
 - Native mock-provider tests plus captured fixtures (`tests/` +
   `data/` in each crate).
 - Decode-through-cache: expensive lookups go through `StateStore` in one
-  operation — miss → `Config` → `HttpRequest` → write back with a TTL —
+  handler — miss → `Config` → `HttpRequest` → write back with a TTL —
   instead of a separate cache-population process
   (`pattern_examples::decode`).
 - Credential material in `Config`, carried as ordinary request data (the

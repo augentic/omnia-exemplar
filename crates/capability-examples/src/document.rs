@@ -1,7 +1,7 @@
 //! Document-store example: upsert a JSON note and read it back.
 
 use anyhow::Context as _;
-use omnia_guest::api::{CallContext, Provider};
+use omnia_guest::api::Context;
 use omnia_guest::document_store::Document;
 use omnia_guest::{DocumentStore, Result};
 use serde::{Deserialize, Serialize};
@@ -24,10 +24,10 @@ pub struct NoteReply {
     pub size: usize,
 }
 
-#[omnia_guest::operation]
-async fn note_request<P>(input: NoteRequest, context: CallContext<'_, P>) -> Result<NoteReply>
+#[omnia_guest::handler]
+async fn note_request<P>(input: NoteRequest, context: Context<'_, P>) -> Result<NoteReply>
 where
-    P: Provider + DocumentStore,
+    P: DocumentStore,
 {
     let provider = context.provider;
 

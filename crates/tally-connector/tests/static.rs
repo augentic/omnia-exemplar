@@ -2,15 +2,15 @@
 
 mod provider;
 
-use omnia_guest::api::{Invocation, Invoker};
+use omnia_guest::api::{Client, Metadata};
 use tally_connector::{TallyMessage, TallyRequest};
 
 use self::provider::MockProvider;
 
 async fn forward(provider: &MockProvider, payload: &[u8]) {
     let request: TallyRequest = serde_json::from_slice(payload).expect("should deserialize");
-    Invoker::new("acme", provider.clone())
-        .invoke::<TallyRequest>(Invocation::new(request))
+    Client::new("acme", provider.clone())
+        .call(request, &Metadata::default())
         .await
         .expect("should succeed");
 }

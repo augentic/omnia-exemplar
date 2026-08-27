@@ -7,7 +7,7 @@
 //! builder; [`NearbyPlacesRequest`] is the `GEORADIUS` replacement.
 
 use anyhow::Context as _;
-use omnia_guest::api::{CallContext, Provider};
+use omnia_guest::api::Context;
 use omnia_guest::orm::{Entity as _, Filter, InsertBuilder, SelectBuilder};
 use omnia_guest::{Result, TableStore, entity};
 use serde::{Deserialize, Serialize};
@@ -54,12 +54,12 @@ pub struct UpsertPlaceReply {
     pub affected: u32,
 }
 
-#[omnia_guest::operation]
+#[omnia_guest::handler]
 async fn upsert_place_request<P>(
-    input: UpsertPlaceRequest, context: CallContext<'_, P>,
+    input: UpsertPlaceRequest, context: Context<'_, P>,
 ) -> Result<UpsertPlaceReply>
 where
-    P: Provider + TableStore,
+    P: TableStore,
 {
     let place = Place {
         id: input.id,
@@ -107,12 +107,12 @@ pub struct NearbyPlacesReply {
     pub places: Vec<NearbyPlace>,
 }
 
-#[omnia_guest::operation]
+#[omnia_guest::handler]
 async fn nearby_places_request<P>(
-    input: NearbyPlacesRequest, context: CallContext<'_, P>,
+    input: NearbyPlacesRequest, context: Context<'_, P>,
 ) -> Result<NearbyPlacesReply>
 where
-    P: Provider + TableStore,
+    P: TableStore,
 {
     // A degree bounding box over-approximates the radius: cheap for the
     // database (plain comparisons, indexable), refined exactly below.

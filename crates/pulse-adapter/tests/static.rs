@@ -10,7 +10,7 @@ use acme_common::TIMEZONE;
 use acme_test::{TestCase, TestDef};
 use chrono::{Duration, Timelike, Utc};
 use omnia_guest::Error;
-use omnia_guest::api::{Invocation, Invoker};
+use omnia_guest::api::{Client, Metadata};
 use pulse_adapter::{ChangeType, EventType, PulseMessage};
 
 use self::provider::MockProvider;
@@ -40,8 +40,8 @@ async fn arrival_event() {
     let message = test_case.input.as_ref().expect("should have input message").clone();
     let provider = MockProvider::new(test_case);
 
-    let invoker = Invoker::new("acme", provider.clone());
-    invoker.invoke::<PulseMessage>(Invocation::new(message)).await.expect("should process");
+    let client = Client::new("acme", provider.clone());
+    client.call(message, &Metadata::default()).await.expect("should process");
 
     let events = provider.events();
     assert_eq!(events.len(), 2);
@@ -65,8 +65,8 @@ async fn departure_event() {
     let message = test_case.input.as_ref().expect("should have input message").clone();
     let provider = MockProvider::new(test_case);
 
-    let invoker = Invoker::new("acme", provider.clone());
-    invoker.invoke::<PulseMessage>(Invocation::new(message)).await.expect("should process");
+    let client = Client::new("acme", provider.clone());
+    client.call(message, &Metadata::default()).await.expect("should process");
 
     let events = provider.events();
     assert_eq!(events.len(), 2);
@@ -89,8 +89,8 @@ async fn unmapped_station() {
     let message = test_case.input.as_ref().expect("should have input message").clone();
     let provider = MockProvider::new(test_case);
 
-    let invoker = Invoker::new("acme", provider.clone());
-    invoker.invoke::<PulseMessage>(Invocation::new(message)).await.expect("should process");
+    let client = Client::new("acme", provider.clone());
+    client.call(message, &Metadata::default()).await.expect("should process");
 
     let events = provider.events();
     assert!(events.is_empty());
@@ -106,8 +106,8 @@ async fn no_matching_vehicle() {
     let message = test_case.input.as_ref().expect("should have input message").clone();
     let provider = MockProvider::new(test_case);
 
-    let invoker = Invoker::new("acme", provider.clone());
-    invoker.invoke::<PulseMessage>(Invocation::new(message)).await.expect("should process");
+    let client = Client::new("acme", provider.clone());
+    client.call(message, &Metadata::default()).await.expect("should process");
 
     let events = provider.events();
     assert!(events.is_empty());
@@ -123,8 +123,8 @@ async fn no_matching_stop() {
     let message = test_case.input.as_ref().expect("should have input message").clone();
     let provider = MockProvider::new(test_case);
 
-    let invoker = Invoker::new("acme", provider.clone());
-    invoker.invoke::<PulseMessage>(Invocation::new(message)).await.expect("should process");
+    let client = Client::new("acme", provider.clone());
+    client.call(message, &Metadata::default()).await.expect("should process");
 
     let events = provider.events();
     assert!(events.is_empty());
@@ -174,7 +174,7 @@ async fn expect_error(path: &str) {
     let message = test_case.input.as_ref().expect("should have input message").clone();
     let provider = MockProvider::new(test_case.clone());
 
-    let invoker = Invoker::new("acme", provider.clone());
+    let client = Client::new("acme", provider.clone());
 
     let Some(expected_result) = &test_case.output else {
         panic!("should have expected output");
@@ -182,10 +182,8 @@ async fn expect_error(path: &str) {
     match expected_result {
         Ok(_) => panic!("should have error"),
         Err(expected_error) => {
-            let actual_error = invoker
-                .invoke::<PulseMessage>(Invocation::new(message))
-                .await
-                .expect_err("should have error");
+            let actual_error =
+                client.call(message, &Metadata::default()).await.expect_err("should have error");
             assert_eq!(actual_error.code(), expected_error.code());
             assert_eq!(actual_error.description(), expected_error.description());
         }

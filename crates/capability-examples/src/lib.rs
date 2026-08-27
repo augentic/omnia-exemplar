@@ -3,12 +3,12 @@
 //! Compiling proof for the Omnia guest capabilities the transit crates do
 //! not otherwise exercise: [`BlobStore`], [`Broadcast`], [`DocumentStore`],
 //! and [`TableStore`]. Each module carries one small, deliberately
-//! domain-free [`Operation`] over its capability trait; the crate-level
-//! tests drive every operation through an in-memory mock provider, and
-//! `guests/typed` routes them so the default WASM capability
-//! implementations are instantiated in a real guest.
+//! domain-free [`Handler`] over its capability trait; the crate-level
+//! tests drive every handler through an in-memory mock provider. Route
+//! constants for mounting the handlers under `/examples/*` live in
+//! [`routes`]; the workspace-root guest does not wire them by default.
 //!
-//! [`Operation`]: omnia_guest::api::Operation
+//! [`Handler`]: omnia_guest::api::Handler
 //! [`BlobStore`]: omnia_guest::BlobStore
 //! [`Broadcast`]: omnia_guest::Broadcast
 //! [`DocumentStore`]: omnia_guest::DocumentStore

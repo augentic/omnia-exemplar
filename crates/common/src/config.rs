@@ -25,7 +25,7 @@ pub const FLEET_URL: &str = "FLEET_URL";
 /// Base URL of the Trip Management API.
 pub const TRIP_MANAGEMENT_URL: &str = "TRIP_MANAGEMENT_URL";
 
-/// Enables the god-mode trip override operation. Off unless set to a truthy
+/// Enables the god-mode trip override handler. Off unless set to a truthy
 /// value (`1`, `true`, `yes`, `on`).
 pub const GOD_MODE_ENABLED: &str = "GOD_MODE_ENABLED";
 

@@ -1,10 +1,11 @@
-//! # Root-package Axum guest
+//! # Root-package guest
 //!
-//! Wires the shared transit operations to WASI HTTP and WASI Messaging with
-//! hand-written Axum handlers served through `omnia_wasi_http::serve`, and a
-//! raw `incoming-handler` messaging export. Each handler decodes the
-//! transport payload itself and invokes the shared operation through an
-//! `Invoker`.
+//! Wires the shared transit handlers to WASI HTTP and WASI Messaging with
+//! the explicit typed routers from `omnia_guest::api`: HTTP routes are
+//! `axum::routing::MethodRouter`s over a provider-owning `Client`, and
+//! messaging topics dispatch through an exact-topic `messaging::Router`.
+//! Routes that speak JSON use the default `get` / `post` / `consume`
+//! codecs; the Pulse SOAP/XML routes supply their own.
 //!
 //! This root-package layout (`src/lib.rs`) is the compiling reference for
 //! new Omnia services. Routes and topics come from the canonical tables in
@@ -13,28 +14,23 @@
 #![cfg(target_arch = "wasm32")]
 
 use acme_common::{config, routes};
-use anyhow::Context;
-use axum::extract::Path;
+use axum::Json;
 use axum::http::header::CONTENT_TYPE;
 use axum::response::{IntoResponse, Response};
-use axum::routing::{get, post};
-use axum::{Json, Router};
-use bytes::Bytes;
-use gtfs_adapter::{
-    MotionMessage, PassengerCountMessage, TrainAvlMessage, VehicleInfoReply, VehicleInfoRequest,
-};
 #[cfg(feature = "god-mode")]
-use gtfs_adapter::{SetTripReply, SetTripRequest};
-use omnia_guest::api::{Invocation, Invoker};
-use omnia_guest::{HttpError, HttpResult};
+use gtfs_adapter::SetTripRequest;
+use gtfs_adapter::{MotionMessage, PassengerCountMessage, TrainAvlMessage, VehicleInfoRequest};
+use omnia_guest::HttpError;
+use omnia_guest::api::http::{RawRequest, get, get_with, post, post_with, serve};
+use omnia_guest::api::messaging::{self, Delivery, consume, consume_with};
+use omnia_guest::api::{Client, DecodeError};
 use omnia_wasi_messaging::types::{Error, Message};
 use pattern_examples::{
-    DecodeSegmentReply, DecodeSegmentRequest, NearbyPlacesReply, NearbyPlacesRequest,
-    UpsertPlaceReply, UpsertPlaceRequest,
+    DecodeSegmentRequest, NearbyPlacesReply, NearbyPlacesRequest, UpsertPlaceRequest,
 };
 use pulse_adapter::PulseMessage;
-use pulse_connector::PulseRequest;
-use tally_connector::{TallyReply, TallyRequest};
+use pulse_connector::{PulseReply, PulseRequest};
+use tally_connector::TallyRequest;
 use tracing::Level;
 use wasip3::exports::http::handler::Guest;
 use wasip3::http::types as p3;
@@ -47,10 +43,6 @@ omnia_guest::provider! {
     pub struct Provider: Config + HttpRequest + Identity + Publish + StateStore + TableStore;
 }
 
-fn invoker() -> Invoker<Provider> {
-    Invoker::new(OWNER, Provider)
-}
-
 /// WASI HTTP export.
 pub struct Http;
 wasip3::http::service::export!(Http);
@@ -58,68 +50,59 @@ wasip3::http::service::export!(Http);
 impl Guest for Http {
     #[omnia_wasi_otel::instrument(name = "http_guest_handle", level = Level::INFO)]
     async fn handle(request: p3::Request) -> Result<p3::Response, p3::ErrorCode> {
-        let router = Router::new()
-            .route(routes::http::APC, post(tally_message))
-            .route(routes::http::PULSE_XML, post(pulse_message))
-            .route(routes::http::VEHICLE_INFO, get(vehicle_info))
-            // Pattern-example routes, outside the canonical transit tables.
-            .route(pattern_examples::routes::DECODE, post(decode_segment))
-            .route(pattern_examples::routes::PLACES, post(upsert_place))
-            .route(pattern_examples::routes::NEARBY, get(nearby_places));
-
-        #[cfg(feature = "god-mode")]
-        let router = router.route(routes::http::SET_TRIP, post(set_trip));
-
-        omnia_wasi_http::serve(router, request).await
+        serve(router(), request).await
     }
 }
 
-async fn tally_message(Json(request): Json<TallyRequest>) -> HttpResult<Json<TallyReply>> {
-    let reply = invoker().invoke::<TallyRequest>(Invocation::new(request)).await?;
-    Ok(Json(reply))
+/// Build the HTTP router over one provider-owning [`Client`].
+///
+/// Omnia creates one WASI component instance per HTTP request, so the router
+/// and client are constructed inside each `handle` call; axum's route-state
+/// clones share the client's provider allocation for that request only.
+fn router() -> axum::Router {
+    let router = axum::Router::new()
+        .route(routes::http::APC, post::<TallyRequest, Provider>())
+        .route(
+            routes::http::PULSE_XML,
+            post_with(|raw: RawRequest<'_>| decode_pulse(raw.body), |reply| encode_pulse(&reply)),
+        )
+        .route(routes::http::VEHICLE_INFO, get::<VehicleInfoRequest, Provider>())
+        // Pattern-example routes, outside the canonical transit tables.
+        .route(pattern_examples::routes::DECODE, post::<DecodeSegmentRequest, Provider>())
+        .route(pattern_examples::routes::PLACES, post::<UpsertPlaceRequest, Provider>())
+        // A JSON-body GET is this route's pedagogical wire format; the
+        // custom codec keeps it from becoming the default query-string GET.
+        .route(
+            pattern_examples::routes::NEARBY,
+            get_with(|raw: RawRequest<'_>| decode_nearby(raw.body), encode_nearby),
+        );
+
+    #[cfg(feature = "god-mode")]
+    let router = router.route(routes::http::SET_TRIP, post::<SetTripRequest, Provider>());
+
+    router.with_state(Client::new(OWNER, Provider))
 }
 
-async fn pulse_message(body: Bytes) -> HttpResult<Response> {
-    let request = PulseRequest::from_xml(&body).map_err(HttpError::from)?;
-    let reply = invoker().invoke::<PulseRequest>(Invocation::new(request)).await?;
-    let xml = reply.to_xml().context("serializing reply")?;
-    Ok(([(CONTENT_TYPE, "text/xml")], xml).into_response())
+/// Decode the Pulse vendor's SOAP envelope from the raw XML body.
+fn decode_pulse(body: &[u8]) -> Result<PulseRequest, DecodeError> {
+    PulseRequest::from_xml(body).map_err(|error| DecodeError::new(error.to_string()))
 }
 
-async fn vehicle_info(Path(vehicle_id): Path<String>) -> HttpResult<Json<VehicleInfoReply>> {
-    let request = VehicleInfoRequest { vehicle_id };
-    let reply = invoker().invoke::<VehicleInfoRequest>(Invocation::new(request)).await?;
-    Ok(Json(reply))
+/// Encode the Pulse acknowledgement in the vendor's XML shape.
+fn encode_pulse(reply: &PulseReply) -> Response {
+    match reply.to_xml() {
+        Ok(xml) => ([(CONTENT_TYPE, "text/xml")], xml).into_response(),
+        Err(error) => HttpError::from(error).into_response(),
+    }
 }
 
-#[cfg(feature = "god-mode")]
-async fn set_trip(
-    Path((vehicle_id, trip_id)): Path<(String, String)>,
-) -> HttpResult<Json<SetTripReply>> {
-    let request = SetTripRequest { vehicle_id, trip_id };
-    let reply = invoker().invoke::<SetTripRequest>(Invocation::new(request)).await?;
-    Ok(Json(reply))
+fn decode_nearby(body: &[u8]) -> Result<NearbyPlacesRequest, DecodeError> {
+    serde_json::from_slice(body)
+        .map_err(|error| DecodeError::new(format!("malformed JSON body: {error}")))
 }
 
-async fn decode_segment(
-    Json(request): Json<DecodeSegmentRequest>,
-) -> HttpResult<Json<DecodeSegmentReply>> {
-    let reply = invoker().invoke::<DecodeSegmentRequest>(Invocation::new(request)).await?;
-    Ok(Json(reply))
-}
-
-async fn upsert_place(
-    Json(request): Json<UpsertPlaceRequest>,
-) -> HttpResult<Json<UpsertPlaceReply>> {
-    let reply = invoker().invoke::<UpsertPlaceRequest>(Invocation::new(request)).await?;
-    Ok(Json(reply))
-}
-
-async fn nearby_places(
-    Json(request): Json<NearbyPlacesRequest>,
-) -> HttpResult<Json<NearbyPlacesReply>> {
-    let reply = invoker().invoke::<NearbyPlacesRequest>(Invocation::new(request)).await?;
-    Ok(Json(reply))
+fn encode_nearby(reply: NearbyPlacesReply) -> Response {
+    Json(reply).into_response()
 }
 
 /// WASI Messaging export.
@@ -129,55 +112,31 @@ omnia_wasi_messaging::export!(Messaging with_types_in omnia_wasi_messaging);
 impl omnia_wasi_messaging::incoming_handler::Guest for Messaging {
     #[omnia_wasi_otel::instrument(name = "messaging_guest_handle")]
     async fn handle(message: Message) -> Result<(), Error> {
-        let Some(topic) = message.topic() else {
-            return Err(Error::Other("missing topic".to_string()));
-        };
-
-        // Match the exact `{env}-` qualified topics — the same names the
-        // typed guest registers — rather than a substring, so a topic from
-        // another environment is rejected instead of silently consumed.
-        let env = config::env(&Provider).await;
-        let result = match &topic {
-            t if *t == config::topic_for(&env, routes::topic::PULSE) => pulse(message.data()).await,
-            t if *t == config::topic_for(&env, routes::topic::PULSE_TO_MOTION) => {
-                motion(message.data()).await
-            }
-            t if *t == config::topic_for(&env, routes::topic::TRAIN_AVL) => {
-                train_avl(message.data()).await
-            }
-            t if *t == config::topic_for(&env, routes::topic::PASSENGER_COUNT) => {
-                passenger_count(message.data()).await
-            }
-            _ => return Err(Error::Other(format!("unhandled topic: {topic}"))),
-        };
-
-        // The WIT contract only carries a string, so forward the domain
-        // error's full display — including its structured code — instead of
-        // discarding it behind a generic message.
-        result.map_err(|error| Error::Other(error.to_string()))
+        let router = messaging_router().await;
+        messaging::handle(&router, message).await
     }
 }
 
-#[omnia_wasi_otel::instrument]
-async fn pulse(payload: Vec<u8>) -> omnia_guest::Result<()> {
-    let message = PulseMessage::from_xml(&payload)?;
-    invoker().invoke::<PulseMessage>(Invocation::new(message)).await
+/// Build the exact-topic messaging router.
+///
+/// Topics are registered with their full `{env}-` qualified names, so a
+/// topic from another environment is rejected as unhandled instead of
+/// silently consumed. Router failures — including handler errors with their
+/// structured codes — flow back as `error.other` with the full display
+/// string, since the WIT contract only carries a string.
+async fn messaging_router() -> messaging::Router<Provider> {
+    let env = config::env(&Provider).await;
+    messaging::Router::new(Client::new(OWNER, Provider))
+        .route(config::topic_for(&env, routes::topic::PULSE), consume_with(decode_pulse_xml))
+        .route(config::topic_for(&env, routes::topic::PULSE_TO_MOTION), consume::<MotionMessage>())
+        .route(config::topic_for(&env, routes::topic::TRAIN_AVL), consume::<TrainAvlMessage>())
+        .route(
+            config::topic_for(&env, routes::topic::PASSENGER_COUNT),
+            consume::<PassengerCountMessage>(),
+        )
 }
 
-#[omnia_wasi_otel::instrument]
-async fn motion(payload: Vec<u8>) -> omnia_guest::Result<()> {
-    let message: MotionMessage = serde_json::from_slice(&payload)?;
-    invoker().invoke::<MotionMessage>(Invocation::new(message)).await
-}
-
-#[omnia_wasi_otel::instrument]
-async fn train_avl(payload: Vec<u8>) -> omnia_guest::Result<()> {
-    let message: TrainAvlMessage = serde_json::from_slice(&payload)?;
-    invoker().invoke::<TrainAvlMessage>(Invocation::new(message)).await
-}
-
-#[omnia_wasi_otel::instrument]
-async fn passenger_count(payload: Vec<u8>) -> omnia_guest::Result<()> {
-    let message: PassengerCountMessage = serde_json::from_slice(&payload)?;
-    invoker().invoke::<PassengerCountMessage>(Invocation::new(message)).await
+/// Decode an inbound Pulse train update from its raw XML payload.
+fn decode_pulse_xml(delivery: &Delivery) -> Result<PulseMessage, DecodeError> {
+    PulseMessage::from_xml(&delivery.payload).map_err(|error| DecodeError::new(error.to_string()))
 }
