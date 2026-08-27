@@ -1,8 +1,5 @@
 //! Station-to-stop mapping and stop location lookups.
 
-use std::collections::HashMap;
-use std::sync::LazyLock;
-
 use anyhow::{Context, Result, anyhow};
 use bytes::Bytes;
 use http_body_util::Empty;
@@ -31,7 +28,7 @@ where
     }
 
     // get station's stop code
-    let Some(stop_code) = STATION_STOP.get(&station) else {
+    let Some(stop_code) = station_stop(station) else {
         return Ok(None);
     };
 
@@ -48,12 +45,12 @@ where
     let stops: Vec<StopInfo> =
         serde_json::from_slice(&bytes).context("deserializing stops response")?;
 
-    let Some(mut stop_info) = stops.into_iter().find(|stop| stop.stop_code == *stop_code) else {
+    let Some(mut stop_info) = stops.into_iter().find(|stop| stop.stop_code == stop_code) else {
         return Err(anyhow!("stop info not found for stop code {stop_code}"));
     };
 
     if !is_arrival {
-        stop_info = DEPARTURES.get(&stop_info.stop_code).cloned().unwrap_or(stop_info);
+        stop_info = departure(&stop_info.stop_code).unwrap_or(stop_info);
     }
 
     Ok(Some(stop_info))
@@ -61,35 +58,27 @@ where
 
 const ACTIVE_STATIONS: &[u32] = &[0, 19, 40];
 
-static STATION_STOP: LazyLock<HashMap<u32, &str>> =
-    LazyLock::new(|| HashMap::from([(0, "133"), (19, "9218"), (40, "134")]));
+/// Map a station to its GTFS stop code.
+const fn station_stop(station: u32) -> Option<&'static str> {
+    match station {
+        0 => Some("133"),
+        19 => Some("9218"),
+        40 => Some("134"),
+        _ => None,
+    }
+}
 
-// Correct stops that have separate departure and arrival locations.
-static DEPARTURES: LazyLock<HashMap<String, StopInfo>> = LazyLock::new(|| {
-    HashMap::from([
-        (
-            "133".to_string(),
-            StopInfo {
-                stop_code: "133".to_string(),
-                stop_lat: -36.84448,
-                stop_lon: 174.76915,
-            },
-        ),
-        (
-            "134".to_string(),
-            StopInfo {
-                stop_code: "134".to_string(),
-                stop_lat: -37.20299,
-                stop_lon: 174.90990,
-            },
-        ),
-        (
-            "9218".to_string(),
-            StopInfo {
-                stop_code: "9218".to_string(),
-                stop_lat: -36.99412,
-                stop_lon: 174.8770,
-            },
-        ),
-    ])
-});
+/// Correct stops that have separate departure and arrival locations.
+fn departure(stop_code: &str) -> Option<StopInfo> {
+    let (stop_lat, stop_lon) = match stop_code {
+        "133" => (-36.84448, 174.76915),
+        "134" => (-37.20299, 174.90990),
+        "9218" => (-36.99412, 174.8770),
+        _ => return None,
+    };
+    Some(StopInfo {
+        stop_code: stop_code.to_string(),
+        stop_lat,
+        stop_lon,
+    })
+}
