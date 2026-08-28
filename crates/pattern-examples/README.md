@@ -7,7 +7,7 @@ time, each handler here composes several:
 | Module | Capabilities | Handler |
 | --- | --- | --- |
 | `decode` | `Config` + `HttpRequest` + `StateStore` | `DecodeSegmentRequest` — decode-through-cache with a config-carried client certificate |
-| `place` | `TableStore` | `UpsertPlaceRequest` — ORM `INSERT … ON CONFLICT` upsert |
+| `place` | `TableStore` | `UpsertPlaceRequest` — ORM `INSERT … ON CONFLICT` upsert, rejecting bad coordinates with a structured JSON error body (`PlaceError`) |
 | `place` | `TableStore` | `NearbyPlacesRequest` — bounding-box `SELECT` refined by haversine |
 
 The guest serves these under `/examples/patterns/*` (see `src/routes.rs`).
@@ -48,6 +48,32 @@ it is good at:
 `InsertBuilder::on_conflict("id").do_update_all()`; `NearbyPlacesRequest`
 runs the query. Workloads that outgrow this pattern want a real geospatial
 backend (e.g. PostGIS behind its own handler), not a richer `StateStore`.
+
+## Custom JSON error bodies
+
+Handler failures never pass through a route's success encoder: the
+handler's error type converts to `HttpError`, and that conversion alone
+decides the wire shape. The default `omnia_guest::Error` renders as a
+plain-text `code: …, description: …` body — even on JSON routes.
+
+`UpsertPlaceRequest` demonstrates the structured alternative. The handler
+returns its own error type (`Result<UpsertPlaceReply, PlaceError>` — the
+`#[omnia_guest::handler]` macro accepts an explicit error), and a
+`From<PlaceError> for HttpError` impl serializes it with
+`HttpError::with_body`, so a rejected upsert answers in the same content
+type as a successful one:
+
+```json
+{ "code": "invalid_coordinate", "field": "lat", "value": 123.4, "min": -90.0, "max": 90.0 }
+```
+
+Two things to note:
+
+- This works with the **default** `post` codec — custom error bodies come
+  from the error type's `HttpError` conversion, not from `post_with`.
+- Decode failures (malformed request JSON) are converted upstream of the
+  handler and stay plain-text 400s; the structured body covers failures
+  raised by the handler itself.
 
 ## Spy mock tests
 

@@ -1,6 +1,6 @@
 [package]
 name = "pattern-examples"
-description = "Composition patterns over the Omnia guest capabilities: cache-aside decoding, config-carried credentials, and relational geo queries"
+description = "Composition patterns over the Omnia guest capabilities: cache-aside decoding, config-carried credentials, relational geo queries, and structured JSON error bodies"
 readme = "README.md"
 publish = false
 authors.workspace = true
@@ -26,6 +26,7 @@ http-body-util.workspace = true
 omnia-guest.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+thiserror.workspace = true
 
 [dev-dependencies]
 http-body.workspace = true

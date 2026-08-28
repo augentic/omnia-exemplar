@@ -5,11 +5,19 @@
 //! bounding box, and refine the survivors with a haversine check in Rust.
 //! [`UpsertPlaceRequest`] writes rows with the ORM's `INSERT … ON CONFLICT`
 //! builder; [`NearbyPlacesRequest`] is the `GEORADIUS` replacement.
+//!
+//! The upsert also demonstrates a structured wire error: [`PlaceError`]
+//! replaces `omnia_guest::Error` as the handler's error type, and its
+//! [`HttpError`] conversion serializes it as an `application/json` body —
+//! so error responses carry domain fields in the same content type as
+//! success responses, instead of the default plain-text
+//! `code: …, description: …` body.
 
 use anyhow::Context as _;
+use http::{HeaderValue, StatusCode};
 use omnia_guest::api::Context;
 use omnia_guest::orm::{Entity as _, Filter, InsertBuilder, SelectBuilder};
-use omnia_guest::{Result, TableStore, entity};
+use omnia_guest::{Error, HttpError, TableStore, entity};
 use serde::{Deserialize, Serialize};
 
 /// Named connection configured by the host.
@@ -54,13 +62,99 @@ pub struct UpsertPlaceReply {
     pub affected: u32,
 }
 
+/// Why a place request was rejected, serialized verbatim as the wire body.
+///
+/// The exemplar for structured error responses: instead of flattening
+/// failures into `omnia_guest::Error`'s plain-text `code: …, description: …`
+/// body, the handler keeps its own error type with domain fields, and the
+/// [`HttpError`] conversion below puts the JSON on the wire. The serde `tag`
+/// doubles as the error code, keeping the code/description convention.
+#[derive(Debug, Serialize, thiserror::Error)]
+#[serde(tag = "code", rename_all = "snake_case")]
+pub enum PlaceError {
+    /// A coordinate is outside its valid range (or not a number).
+    #[error("{field} {value} is outside [{min}, {max}]")]
+    InvalidCoordinate {
+        /// The rejected field.
+        field: &'static str,
+        /// The offending value.
+        value: f64,
+        /// The smallest allowed value.
+        min: f64,
+        /// The largest allowed value.
+        max: f64,
+    },
+
+    /// The statement could not be built or executed.
+    #[error("{description}")]
+    Storage {
+        /// What failed, including the error chain.
+        description: String,
+    },
+}
+
+impl PlaceError {
+    /// The HTTP status paired with the JSON body.
+    const fn status(&self) -> StatusCode {
+        match self {
+            Self::InvalidCoordinate { .. } => StatusCode::BAD_REQUEST,
+            Self::Storage { .. } => StatusCode::INTERNAL_SERVER_ERROR,
+        }
+    }
+}
+
+/// Encode the error as an `application/json` response body.
+///
+/// This conversion is what the HTTP route uses on the error path: handler
+/// errors bypass the route's success encoder, so the wire shape of an error
+/// lives here. `HttpError::with_body` carries the preformatted bytes and
+/// content type to the response unchanged.
+impl From<PlaceError> for HttpError {
+    fn from(error: PlaceError) -> Self {
+        serde_json::to_vec(&error).map_or_else(
+            // Unreachable in practice (a non-finite coordinate is the only
+            // unserializable field); degrade to the plain-text form.
+            |_| Self::new(error.status(), error.to_string()),
+            |body| {
+                Self::with_body(error.status(), HeaderValue::from_static("application/json"), body)
+            },
+        )
+    }
+}
+
+/// Storage failures keep their error chain but no domain fields.
+impl From<anyhow::Error> for PlaceError {
+    fn from(error: anyhow::Error) -> Self {
+        Self::Storage {
+            description: format!("{error:#}"),
+        }
+    }
+}
+
+/// Reject a coordinate outside its inclusive range (`NaN` always fails).
+fn coordinate(field: &'static str, value: f64, min: f64, max: f64) -> Result<(), PlaceError> {
+    if (min..=max).contains(&value) {
+        Ok(())
+    } else {
+        Err(PlaceError::InvalidCoordinate {
+            field,
+            value,
+            min,
+            max,
+        })
+    }
+}
+
 #[omnia_guest::handler]
 async fn upsert_place_request<P>(
     input: UpsertPlaceRequest, context: Context<'_, P>,
-) -> Result<UpsertPlaceReply>
+) -> Result<UpsertPlaceReply, PlaceError>
 where
     P: TableStore,
 {
+    coordinate("lat", input.lat, -90.0, 90.0)?;
+    coordinate("lon", input.lon, -180.0, 180.0)?;
+
     let place = Place {
         id: input.id,
         name: input.name,
@@ -110,7 +204,7 @@ pub struct NearbyPlacesReply {
 #[omnia_guest::handler]
 async fn nearby_places_request<P>(
     input: NearbyPlacesRequest, context: Context<'_, P>,
-) -> Result<NearbyPlacesReply>
+) -> Result<NearbyPlacesReply, Error>
 where
     P: TableStore,
 {
