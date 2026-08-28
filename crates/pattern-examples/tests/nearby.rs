@@ -62,6 +62,35 @@ async fn bounding_box_corner_is_refined_by_haversine() {
 }
 
 #[tokio::test]
+async fn upsert_rejects_out_of_range_coordinates() {
+    let provider = MockProvider::default();
+    let client = Client::new("acme", provider.clone());
+
+    let request = UpsertPlaceRequest {
+        id: "bad".to_string(),
+        name: "Nowhere".to_string(),
+        lat: 123.4,
+        lon: 0.0,
+    };
+    let error = client.call(request, &Metadata::default()).await.expect_err("should reject");
+
+    // The error serializes to the exact JSON body the HTTP route puts on
+    // the wire via the `From<PlaceError> for HttpError` conversion.
+    let body = serde_json::to_value(&error).expect("should serialize");
+    assert_eq!(
+        body,
+        serde_json::json!({
+            "code": "invalid_coordinate",
+            "field": "lat",
+            "value": 123.4,
+            "min": -90.0,
+            "max": 90.0,
+        })
+    );
+    assert!(provider.place("bad").is_none(), "rejected row must not be stored");
+}
+
+#[tokio::test]
 async fn conflicting_upsert_updates_in_place() {
     let provider = MockProvider::default();
     let client = Client::new("acme", provider.clone());

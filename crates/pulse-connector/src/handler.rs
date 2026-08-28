@@ -5,45 +5,71 @@
 
 use std::fmt::{self, Display};
 
-/// The default SOAP fault envelope returned on error.
-const SOAP_FAULT: Fault = Fault {
+use acme_common::{config, routes};
+use anyhow::Context as _;
+use http::{HeaderValue, StatusCode};
+use omnia_guest::api::Context;
+use omnia_guest::{Config, HttpError, Message, Publish};
+use serde::{Deserialize, Serialize};
+
+/// The SOAP fault envelope answering requests that cannot be parsed or
+/// fail validation.
+const BAD_REQUEST_FAULT: Fault = Fault {
+    status_code: 400,
+    response: FaultMessage {
+        message: "Bad Request",
+    },
+};
+
+/// The SOAP fault envelope answering internal failures.
+const SERVER_FAULT: Fault = Fault {
     status_code: 500,
     response: FaultMessage {
         message: "Internal Server Error",
     },
 };
 
-use acme_common::{config, routes};
-use anyhow::Context as _;
-use omnia_guest::api::Context;
-use omnia_guest::{Config, Message, Publish, Result, bad_request};
-use serde::{Deserialize, Serialize};
-
 #[omnia_guest::handler]
-async fn pulse_request<P>(input: PulseRequest, context: Context<'_, P>) -> Result<PulseReply>
+async fn pulse_request<P>(input: PulseXml, context: Context<'_, P>) -> Result<PulseReply, Fault>
 where
     P: Config + Publish,
 {
     let provider = context.provider;
-    let message = &input.body.receive_message.axml_message;
 
-    // Verify the message. The rejection body is a pre-rendered SOAP
-    // <Fault> because the Pulse vendor protocol requires an XML fault
-    // envelope. This is a vendor-protocol accommodation, not a general
-    // error-handling pattern — prefer plain structured errors (see the
-    // domain error enums) unless a wire protocol dictates otherwise.
+    // Parse and verify the message. Rejections are SOAP <Fault> envelopes
+    // because the Pulse vendor protocol requires an XML fault body. This is
+    // a vendor-protocol accommodation, not a general error-handling pattern
+    // — prefer plain structured errors (see the domain error enums) unless
+    // a wire protocol dictates otherwise.
+    let request = PulseRequest::from_xml(&input.0).map_err(|error| {
+        tracing::debug!("rejecting unparseable Pulse envelope: {error:#}");
+        BAD_REQUEST_FAULT
+    })?;
+
+    let message = &request.body.receive_message.axml_message;
     if message.is_empty() || !message.contains("<ActualizarDatosTren>") {
-        return Err(bad_request!(SOAP_FAULT));
+        return Err(BAD_REQUEST_FAULT);
     }
 
     // forward to pulse-adapter topic
     let topic = config::topic(provider, routes::topic::PULSE).await;
 
     let msg = Message::new(message.as_bytes());
-    Publish::send(provider, &topic, &msg).await?;
+    Publish::send(provider, &topic, &msg).await.map_err(|error| {
+        tracing::error!("failed to forward Pulse message: {error:#}");
+        SERVER_FAULT
+    })?;
 
     Ok(PulseReply("OK"))
 }
+
+/// The raw XML body of an incoming Pulse request.
+///
+/// The HTTP route passes the body through undecoded: parsing happens inside
+/// the handler so that a malformed envelope is answered with the vendor's
+/// SOAP [`Fault`] rather than the framework's plain-text decode error.
+#[derive(Debug, Clone)]
+pub struct PulseXml(pub Vec<u8>);
 
 impl PulseRequest {
     /// Deserialize a Pulse SOAP envelope from raw XML.
@@ -51,8 +77,8 @@ impl PulseRequest {
     /// # Errors
     ///
     /// Returns an error if the XML cannot be deserialized.
-    pub fn from_xml(input: &[u8]) -> Result<Self> {
-        quick_xml::de::from_reader(input).context("deserializing PulseRequest").map_err(Into::into)
+    pub fn from_xml(input: &[u8]) -> anyhow::Result<Self> {
+        quick_xml::de::from_reader(input).context("deserializing PulseRequest")
     }
 }
 
@@ -98,6 +124,10 @@ impl PulseReply {
 }
 
 /// Pulse SOAP fault envelope returned on error.
+///
+/// The handler's error type: its [`HttpError`] conversion below decides the
+/// wire shape of rejections, so faults reach the client as `text/xml` with
+/// the HTTP status the envelope itself carries.
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct Fault {
@@ -112,6 +142,26 @@ impl Display for Fault {
     }
 }
 
+impl std::error::Error for Fault {}
+
+/// Encode the fault as the vendor's `text/xml` response body.
+///
+/// Handler errors bypass the route's success encoder, so this conversion
+/// alone decides the wire shape: [`HttpError::with_body`] carries the
+/// pre-rendered envelope and content type to the response unchanged.
+impl From<Fault> for HttpError {
+    fn from(fault: Fault) -> Self {
+        let status =
+            StatusCode::from_u16(fault.status_code).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR);
+        quick_xml::se::to_string(&fault).map_or_else(
+            // Unreachable in practice for this static envelope; degrade to
+            // the plain-text form.
+            |_| Self::new(status, fault.response.message),
+            |xml| Self::with_body(status, HeaderValue::from_static("text/xml"), xml.into_bytes()),
+        )
+    }
+}
+
 /// The message carried by a SOAP [`Fault`].
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "PascalCase")]
@@ -122,6 +172,9 @@ pub struct FaultMessage {
 
 #[cfg(test)]
 mod tests {
+    use axum::response::IntoResponse as _;
+    use http::header::CONTENT_TYPE;
+
     use super::*;
 
     #[test]
@@ -145,10 +198,30 @@ mod tests {
 
     #[test]
     fn serialize_error() {
-        let xml = SOAP_FAULT.to_string();
+        let xml = SERVER_FAULT.to_string();
         assert_eq!(
             xml,
             "<Fault><StatusCode>500</StatusCode><Response><Message>Internal Server Error</Message></Response></Fault>"
+        );
+    }
+
+    /// The fault reaches the wire as a `text/xml` body whose HTTP status
+    /// matches the envelope's own status code.
+    #[tokio::test]
+    async fn fault_responds_as_xml() {
+        let response = HttpError::from(BAD_REQUEST_FAULT).into_response();
+
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+        assert_eq!(
+            response.headers().get(CONTENT_TYPE),
+            Some(&HeaderValue::from_static("text/xml"))
+        );
+
+        let body =
+            axum::body::to_bytes(response.into_body(), usize::MAX).await.expect("should read body");
+        assert_eq!(
+            body.as_ref(),
+            b"<Fault><StatusCode>400</StatusCode><Response><Message>Bad Request</Message></Response></Fault>"
         );
     }
 }

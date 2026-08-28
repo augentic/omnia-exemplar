@@ -103,7 +103,7 @@ The guest:
 | HTTP route | Handler |
 | --- | --- |
 | `POST /api/apc` | `tally_connector::TallyRequest` — passenger-count ingress |
-| `POST /inbound/xml` | `pulse_connector::PulseRequest` — SOAP/XML position ingress |
+| `POST /inbound/xml` | `pulse_connector::PulseXml` — SOAP/XML position ingress |
 | `GET /info/{vehicle_id}` | `gtfs_adapter::VehicleInfoRequest` |
 | `POST /god-mode/set-trip/{vehicle_id}/{trip_id}` | `gtfs_adapter::SetTripRequest` (requires the `god-mode` feature) |
 
@@ -127,7 +127,7 @@ consumer is out of scope for the exemplar.
 | `crates/tally-connector` | HTTP ingress for the vendor "Tally" passenger-count feed |
 | `crates/gtfs-adapter` | Converts Motion events into GTFS-realtime vehicle positions |
 | `crates/capability-examples` | Domain-free handlers proving the remaining capabilities: `BlobStore`, `Broadcast`, `DocumentStore`, `TableStore` |
-| `crates/pattern-examples` | Composition patterns: decode-through-cache, config-carried client certificates, and relational geo queries through the ORM |
+| `crates/pattern-examples` | Composition patterns: decode-through-cache, config-carried client certificates, relational geo queries through the ORM, and structured JSON error bodies |
 | root package (`guest`) | Typed-router HTTP + exact-topic messaging WASM guest binary |
 
 Domain crates depend only on the `omnia-guest` capability traits (`Config`,
@@ -205,6 +205,11 @@ Patterns worth copying into new services:
 - Radius queries as bounding-box `SELECT`s through `TableStore` and the
   ORM, refined by haversine in Rust — never a geospatial extension bolted
   onto the KV state store (`pattern_examples::place`).
+- Structured JSON error bodies: the handler owns its error type and its
+  `From<…> for HttpError` conversion serializes it as `application/json`
+  via `HttpError::with_body`, so errors match the route's success content
+  type instead of the default plain-text `code: …, description: …` body
+  (`pattern_examples::place::PlaceError`).
 
 Acme domain quirks that are **not** general patterns:
 
@@ -215,8 +220,10 @@ Acme domain quirks that are **not** general patterns:
 - **God-mode** — an operational override tool, off by default behind the
   `god-mode` cargo feature and the `GOD_MODE_ENABLED` config key. Not part of
   a production pipeline.
-- **SOAP fault in `bad_request!`** — `pulse-connector` returns a pre-rendered
-  XML fault because the vendor protocol demands it. Prefer plain structured
+- **SOAP fault as the handler error** — `pulse-connector` rejects requests
+  with a pre-rendered XML `<Fault>` (`HttpError::with_body`, `text/xml`)
+  because the vendor protocol demands it, and parses the envelope inside the
+  handler so even malformed bodies get the fault. Prefer plain structured
   errors unless a wire protocol dictates otherwise.
 - **UTC as the local timezone** — `acme_common::TIMEZONE` is UTC to keep
   fixtures reproducible. A real operator sets its actual IANA zone.
@@ -240,8 +247,8 @@ cargo nextest run            # or: cargo test --workspace --all-features
 - `crates/capability-examples/tests` — one in-memory mock provider covering
   `BlobStore`/`Broadcast`/`DocumentStore`/`TableStore`
 - `crates/pattern-examples/tests` — a spy mock provider that records
-  outbound HTTP requests, covering the decode cache (hit and miss) and the
-  ORM-backed nearby query
+  outbound HTTP requests, covering the decode cache (hit and miss), the
+  ORM-backed nearby query, and the structured-error upsert rejection
 
 ## Guest template contract
 

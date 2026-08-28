@@ -13,6 +13,10 @@
 //! - [`NearbyPlacesRequest`] — a radius query as a bounding-box `SELECT`
 //!   refined by a haversine check, replacing the "geospatial index bolted
 //!   onto a KV store" anti-pattern.
+//! - [`PlaceError`] — a structured JSON error body: the upsert handler owns
+//!   its error type, and the `HttpError` conversion serializes it as
+//!   `application/json`, matching the success content type instead of the
+//!   default plain-text error body.
 //!
 //! The crate-level tests drive every handler through a spy mock provider
 //! that records outbound HTTP requests, and the guest routes them under
@@ -30,6 +34,6 @@ pub mod routes;
 
 pub use decode::{DecodeSegmentReply, DecodeSegmentRequest, Segment};
 pub use place::{
-    NearbyPlace, NearbyPlacesReply, NearbyPlacesRequest, Place, UpsertPlaceReply,
+    NearbyPlace, NearbyPlacesReply, NearbyPlacesRequest, Place, PlaceError, UpsertPlaceReply,
     UpsertPlaceRequest,
 };

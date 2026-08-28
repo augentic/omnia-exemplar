@@ -29,7 +29,7 @@ use pattern_examples::{
     DecodeSegmentRequest, NearbyPlacesReply, NearbyPlacesRequest, UpsertPlaceRequest,
 };
 use pulse_adapter::PulseMessage;
-use pulse_connector::{PulseReply, PulseRequest};
+use pulse_connector::{PulseReply, PulseXml};
 use tally_connector::TallyRequest;
 use tracing::Level;
 use wasip3::exports::http::handler::Guest;
@@ -70,8 +70,9 @@ fn router() -> axum::Router {
         // Pattern-example routes, outside the canonical transit tables.
         .route(pattern_examples::routes::DECODE, post::<DecodeSegmentRequest, Provider>())
         .route(pattern_examples::routes::PLACES, post::<UpsertPlaceRequest, Provider>())
-        // A JSON-body GET is this route's pedagogical wire format; the
-        // custom codec keeps it from becoming the default query-string GET.
+        // The default `get` codec only reads path and query parameters. The
+        // custom codec passed in here decodes the body instead, to demonstrate
+        // `get_with`.
         .route(
             pattern_examples::routes::NEARBY,
             get_with(|raw: RawRequest<'_>| decode_nearby(raw.body), encode_nearby),
@@ -83,9 +84,15 @@ fn router() -> axum::Router {
     router.with_state(Client::new(OWNER, Provider))
 }
 
-/// Decode the Pulse vendor's SOAP envelope from the raw XML body.
-fn decode_pulse(body: &[u8]) -> Result<PulseRequest, DecodeError> {
-    PulseRequest::from_xml(body).map_err(|error| DecodeError::new(error.to_string()))
+/// Pass the Pulse body through undecoded.
+///
+/// The handler parses the SOAP envelope itself so a malformed body is
+/// answered with the vendor's XML `<Fault>` (via the handler error's
+/// `HttpError` conversion). A decoder that failed here would instead reach
+/// the client as the framework's plain-text 400.
+#[allow(clippy::unnecessary_wraps, reason = "the route codec requires a fallible decoder")]
+fn decode_pulse(body: &[u8]) -> Result<PulseXml, DecodeError> {
+    Ok(PulseXml(body.to_vec()))
 }
 
 /// Encode the Pulse acknowledgement in the vendor's XML shape.
@@ -96,11 +103,24 @@ fn encode_pulse(reply: &PulseReply) -> Response {
     }
 }
 
+/// Decode the nearby request from a JSON body.
+///
+/// Demonstration only: this does exactly what the built-in `post` codec
+/// does. It exists because this route is a GET, whose default codec reads
+/// the query string, not the body. Routes with ordinary JSON bodies should
+/// use `post::<Input, Provider>()` — no custom decoder needed.
 fn decode_nearby(body: &[u8]) -> Result<NearbyPlacesRequest, DecodeError> {
     serde_json::from_slice(body)
         .map_err(|error| DecodeError::new(format!("malformed JSON body: {error}")))
 }
 
+/// Encode the nearby reply as JSON — identical to the built-in encoder.
+///
+/// Demonstration only: `get_with` requires both halves of the codec, so
+/// this supplies the same JSON encoding the default routes already use.
+///
+/// You could also use this technique to implement a custom decoding that is
+/// not just a straight serialization.
 fn encode_nearby(reply: NearbyPlacesReply) -> Response {
     Json(reply).into_response()
 }

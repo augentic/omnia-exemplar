@@ -3,7 +3,7 @@
 mod provider;
 
 use omnia_guest::api::{Client, Metadata};
-use pulse_connector::PulseRequest;
+use pulse_connector::{PulseRequest, PulseXml};
 
 use self::provider::MockProvider;
 
@@ -15,10 +15,10 @@ async fn forwards_train_update_to_pulse_topic() {
 
     let xml = include_bytes!("../data/receive-message.xml");
     let request = PulseRequest::from_xml(xml).expect("should deserialize");
-    let expected_payload = request.body.receive_message.axml_message.clone();
+    let expected_payload = request.body.receive_message.axml_message;
 
     let reply = Client::new(OWNER, provider.clone())
-        .call(request, &Metadata::default())
+        .call(PulseXml(xml.to_vec()), &Metadata::default())
         .await
         .expect("should succeed");
 
@@ -47,14 +47,31 @@ async fn rejects_message_without_train_update() {
             </ReceiveMessage>
           </soap:Body>
         </soap:Envelope>"#;
-    let request = PulseRequest::from_xml(xml).expect("should deserialize");
 
     let error = Client::new(OWNER, provider.clone())
-        .call(request, &Metadata::default())
+        .call(PulseXml(xml.to_vec()), &Metadata::default())
         .await
         .expect_err("should reject a message without a train update");
 
-    // the rejection carries the vendor's SOAP fault envelope
+    // the rejection is the vendor's SOAP fault envelope
+    assert_eq!(
+        error.to_string(),
+        "<Fault><StatusCode>400</StatusCode><Response><Message>Bad Request</Message></Response></Fault>"
+    );
+    assert!(provider.published().is_empty());
+}
+
+#[tokio::test]
+async fn rejects_malformed_envelope() {
+    let provider = MockProvider::new();
+
+    // parsing happens inside the handler, so even an unparseable body is
+    // answered with the vendor's SOAP fault rather than a plain-text 400
+    let error = Client::new(OWNER, provider.clone())
+        .call(PulseXml(b"not xml at all".to_vec()), &Metadata::default())
+        .await
+        .expect_err("should reject a malformed envelope");
+
     assert!(error.to_string().contains("<Fault>"));
     assert!(provider.published().is_empty());
 }
