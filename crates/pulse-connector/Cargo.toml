@@ -21,10 +21,13 @@ crate-type = ["lib"]
 [dependencies]
 acme-common.workspace = true
 anyhow.workspace = true
+http.workspace = true
 omnia-guest.workspace = true
 quick-xml.workspace = true
 serde.workspace = true
 thiserror.workspace = true
+tracing.workspace = true
 
 [dev-dependencies]
+axum.workspace = true
 tokio.workspace = true

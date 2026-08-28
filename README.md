@@ -103,7 +103,7 @@ The guest:
 | HTTP route | Handler |
 | --- | --- |
 | `POST /api/apc` | `tally_connector::TallyRequest` — passenger-count ingress |
-| `POST /inbound/xml` | `pulse_connector::PulseRequest` — SOAP/XML position ingress |
+| `POST /inbound/xml` | `pulse_connector::PulseXml` — SOAP/XML position ingress |
 | `GET /info/{vehicle_id}` | `gtfs_adapter::VehicleInfoRequest` |
 | `POST /god-mode/set-trip/{vehicle_id}/{trip_id}` | `gtfs_adapter::SetTripRequest` (requires the `god-mode` feature) |
 
@@ -220,8 +220,10 @@ Acme domain quirks that are **not** general patterns:
 - **God-mode** — an operational override tool, off by default behind the
   `god-mode` cargo feature and the `GOD_MODE_ENABLED` config key. Not part of
   a production pipeline.
-- **SOAP fault in `bad_request!`** — `pulse-connector` returns a pre-rendered
-  XML fault because the vendor protocol demands it. Prefer plain structured
+- **SOAP fault as the handler error** — `pulse-connector` rejects requests
+  with a pre-rendered XML `<Fault>` (`HttpError::with_body`, `text/xml`)
+  because the vendor protocol demands it, and parses the envelope inside the
+  handler so even malformed bodies get the fault. Prefer plain structured
   errors unless a wire protocol dictates otherwise.
 - **UTC as the local timezone** — `acme_common::TIMEZONE` is UTC to keep
   fixtures reproducible. A real operator sets its actual IANA zone.

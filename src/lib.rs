@@ -29,7 +29,7 @@ use pattern_examples::{
     DecodeSegmentRequest, NearbyPlacesReply, NearbyPlacesRequest, UpsertPlaceRequest,
 };
 use pulse_adapter::PulseMessage;
-use pulse_connector::{PulseReply, PulseRequest};
+use pulse_connector::{PulseReply, PulseXml};
 use tally_connector::TallyRequest;
 use tracing::Level;
 use wasip3::exports::http::handler::Guest;
@@ -84,9 +84,15 @@ fn router() -> axum::Router {
     router.with_state(Client::new(OWNER, Provider))
 }
 
-/// Decode the Pulse vendor's SOAP envelope from the raw XML body.
-fn decode_pulse(body: &[u8]) -> Result<PulseRequest, DecodeError> {
-    PulseRequest::from_xml(body).map_err(|error| DecodeError::new(error.to_string()))
+/// Pass the Pulse body through undecoded.
+///
+/// The handler parses the SOAP envelope itself so a malformed body is
+/// answered with the vendor's XML `<Fault>` (via the handler error's
+/// `HttpError` conversion). A decoder that failed here would instead reach
+/// the client as the framework's plain-text 400.
+#[allow(clippy::unnecessary_wraps, reason = "the route codec requires a fallible decoder")]
+fn decode_pulse(body: &[u8]) -> Result<PulseXml, DecodeError> {
+    Ok(PulseXml(body.to_vec()))
 }
 
 /// Encode the Pulse acknowledgement in the vendor's XML shape.
@@ -112,7 +118,7 @@ fn decode_nearby(body: &[u8]) -> Result<NearbyPlacesRequest, DecodeError> {
 ///
 /// Demonstration only: `get_with` requires both halves of the codec, so
 /// this supplies the same JSON encoding the default routes already use.
-/// 
+///
 /// You could also use this technique to implement a custom decoding that is
 /// not just a straight serialization.
 fn encode_nearby(reply: NearbyPlacesReply) -> Response {

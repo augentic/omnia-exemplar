@@ -2682,11 +2682,14 @@ version = "0.1.0"
 dependencies = [
  "acme-common",
  "anyhow",
+ "axum",
+ "http",
  "omnia-guest",
  "quick-xml",
  "serde",
  "thiserror 2.0.20",
  "tokio",
+ "tracing",
 ]
 
 [[package]]
