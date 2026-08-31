@@ -70,7 +70,8 @@ type as a successful one:
 Two things to note:
 
 - This works with the **default** `post` codec — custom error bodies come
-  from the error type's `HttpError` conversion, not from `post_with`.
+  from the error type's `HttpError` conversion, not from a `handle_with`
+  custom codec.
 - Decode failures (malformed request JSON) are converted upstream of the
   handler and stay plain-text 400s; the structured body covers failures
   raised by the handler itself.

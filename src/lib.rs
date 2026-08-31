@@ -21,7 +21,7 @@ use axum::response::{IntoResponse, Response};
 use gtfs_adapter::SetTripRequest;
 use gtfs_adapter::{MotionMessage, PassengerCountMessage, TrainAvlMessage, VehicleInfoRequest};
 use omnia_guest::HttpError;
-use omnia_guest::api::http::{RawRequest, get, get_with, post, post_with, serve};
+use omnia_guest::api::http::{MethodFilter, RawRequest, get, handle_with, post, serve};
 use omnia_guest::api::messaging::{self, Delivery, consume, consume_with};
 use omnia_guest::api::{Client, DecodeError};
 use omnia_wasi_messaging::types::{Error, Message};
@@ -64,7 +64,11 @@ fn router() -> axum::Router {
         .route(routes::http::APC, post::<TallyRequest, Provider>())
         .route(
             routes::http::PULSE_XML,
-            post_with(|raw: RawRequest<'_>| decode_pulse(raw.body), |reply| encode_pulse(&reply)),
+            handle_with(
+                MethodFilter::POST,
+                |raw: RawRequest<'_>| decode_pulse(raw.body),
+                |reply| encode_pulse(&reply),
+            ),
         )
         .route(routes::http::VEHICLE_INFO, get::<VehicleInfoRequest, Provider>())
         // Pattern-example routes, outside the canonical transit tables.
@@ -72,10 +76,14 @@ fn router() -> axum::Router {
         .route(pattern_examples::routes::PLACES, post::<UpsertPlaceRequest, Provider>())
         // The default `get` codec only reads path and query parameters. The
         // custom codec passed in here decodes the body instead, to demonstrate
-        // `get_with`.
+        // `handle_with`.
         .route(
             pattern_examples::routes::NEARBY,
-            get_with(|raw: RawRequest<'_>| decode_nearby(raw.body), encode_nearby),
+            handle_with(
+                MethodFilter::GET,
+                |raw: RawRequest<'_>| decode_nearby(raw.body),
+                encode_nearby,
+            ),
         );
 
     #[cfg(feature = "god-mode")]
@@ -116,7 +124,7 @@ fn decode_nearby(body: &[u8]) -> Result<NearbyPlacesRequest, DecodeError> {
 
 /// Encode the nearby reply as JSON — identical to the built-in encoder.
 ///
-/// Demonstration only: `get_with` requires both halves of the codec, so
+/// Demonstration only: `handle_with` requires both halves of the codec, so
 /// this supplies the same JSON encoding the default routes already use.
 ///
 /// You could also use this technique to implement a custom decoding that is

@@ -87,7 +87,7 @@ The root `Cargo.toml` is both the workspace and the deployable guest package
 The guest:
 
 - Registers typed HTTP routes (`omnia_guest::api::http::{get, post}`, with
-  `get_with`/`post_with` for non-JSON wire formats) on an `axum::Router` and
+  `handle_with` for non-JSON wire formats) on an `axum::Router` and
   serves them through `omnia_guest::api::http::serve`
 - Exports messaging with `omnia_wasi_messaging::export!`, dispatching through
   an exact-topic `omnia_guest::api::messaging::Router` of **exact**
