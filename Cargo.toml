@@ -138,15 +138,15 @@ urlencoding = "2.1.3"
 uuid = { version = "1.24.0", features = ["v4"] }
 wasip3 = { version = "0.8.0", features = ["http-compat"] }
 
-omnia = "0.36.0"
-omnia-guest = "0.36.0"
-omnia-wasi-config = "0.36.0"
-omnia-wasi-http = "0.36.0"
-omnia-wasi-identity = "0.36.0"
-omnia-wasi-keyvalue = "0.36.0"
-omnia-wasi-messaging = "0.36.0"
-omnia-wasi-otel = "0.36.0"
-omnia-wasi-sql = "0.36.0"
+omnia = "0.35.0"
+omnia-guest = "0.35.0"
+omnia-wasi-config = "0.35.0"
+omnia-wasi-http = "0.35.0"
+omnia-wasi-identity = "0.35.0"
+omnia-wasi-keyvalue = "0.35.0"
+omnia-wasi-messaging = "0.35.0"
+omnia-wasi-otel = "0.35.0"
+omnia-wasi-sql = "0.35.0"
 
 acme-common = { path = "crates/common" }
 acme-test = { path = "crates/test" }
