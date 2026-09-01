@@ -1,0 +1,28 @@
+[package]
+name = "sql-examples"
+description = "Rich wasi-sql showcase: agency/feed schema exercising the guest ORM builders, a multi-column JOIN entity, and server-assigned ids"
+readme = "README.md"
+publish = false
+authors.workspace = true
+categories.workspace = true
+edition.workspace = true
+keywords.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+version.workspace = true
+
+[lints]
+workspace = true
+
+[lib]
+crate-type = ["lib"]
+
+[dependencies]
+anyhow.workspace = true
+chrono.workspace = true
+omnia-guest.workspace = true
+serde.workspace = true
+
+[dev-dependencies]
+tokio.workspace = true

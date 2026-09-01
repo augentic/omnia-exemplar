@@ -17,11 +17,18 @@ use acme_common::{config, routes};
 use axum::Json;
 use axum::http::header::CONTENT_TYPE;
 use axum::response::{IntoResponse, Response};
+use docstore_examples::{
+    CreateRouteRequest, CreateStopRequest, CreateStopTimeRequest, DeleteStopRequest,
+    GetRouteRequest, GetStopRequest, GetStopTimeRequest, ListRoutesRequest, ListStopTimesRequest,
+    ListStopsRequest, UpsertStopRequest,
+};
 #[cfg(feature = "god-mode")]
 use gtfs_adapter::SetTripRequest;
 use gtfs_adapter::{MotionMessage, PassengerCountMessage, TrainAvlMessage, VehicleInfoRequest};
 use omnia_guest::HttpError;
-use omnia_guest::api::http::{MethodFilter, RawRequest, get, handle_with, post, serve};
+use omnia_guest::api::http::{
+    MethodFilter, RawRequest, delete, get, handle_with, patch, post, put, serve,
+};
 use omnia_guest::api::messaging::{self, Delivery, consume, consume_with};
 use omnia_guest::api::{Client, DecodeError};
 use omnia_wasi_messaging::types::{Error, Message};
@@ -30,6 +37,10 @@ use pattern_examples::{
 };
 use pulse_adapter::PulseMessage;
 use pulse_connector::{PulseReply, PulseXml};
+use sql_examples::{
+    CreateAgencyRequest, CreateFeedRequest, DeleteFeedRequest, GetAgencyRequest,
+    ListAgenciesRequest, ListAgencyFeedsRequest, ListAllFeedsRequest, UpdateAgencyRequest,
+};
 use tally_connector::TallyRequest;
 use tracing::Level;
 use wasip3::exports::http::handler::Guest;
@@ -40,7 +51,8 @@ const OWNER: &str = "acme";
 
 omnia_guest::provider! {
     /// Bare provider backed by the default WASI capability implementations.
-    pub struct Provider: Config + HttpRequest + Identity + Publish + StateStore + TableStore;
+    pub struct Provider: Config + DocumentStore + HttpRequest + Identity + Publish + StateStore
+        + TableStore;
 }
 
 /// WASI HTTP export.
@@ -84,7 +96,46 @@ fn router() -> axum::Router {
                 |raw: RawRequest<'_>| decode_nearby(raw.body),
                 encode_nearby,
             ),
-        );
+        )
+        // Docstore-example routes: the rich `wasi:docstore` showcase (full
+        // CRUD and every filter type over GTFS-like collections).
+        .route(
+            docstore_examples::paths::STOPS,
+            get::<ListStopsRequest, Provider>().merge(post::<CreateStopRequest, Provider>()),
+        )
+        .route(
+            docstore_examples::paths::STOP,
+            get::<GetStopRequest, Provider>()
+                .merge(put::<UpsertStopRequest, Provider>())
+                .merge(delete::<DeleteStopRequest, Provider>()),
+        )
+        .route(
+            docstore_examples::paths::ROUTES,
+            get::<ListRoutesRequest, Provider>().merge(post::<CreateRouteRequest, Provider>()),
+        )
+        .route(docstore_examples::paths::ROUTE, get::<GetRouteRequest, Provider>())
+        .route(
+            docstore_examples::paths::STOP_TIMES,
+            get::<ListStopTimesRequest, Provider>()
+                .merge(post::<CreateStopTimeRequest, Provider>()),
+        )
+        .route(docstore_examples::paths::STOP_TIME, get::<GetStopTimeRequest, Provider>())
+        // SQL-example routes: the rich `wasi-sql` ORM showcase (agency/feed
+        // schema with JOINs and server-assigned ids).
+        .route(
+            sql_examples::paths::AGENCIES,
+            get::<ListAgenciesRequest, Provider>().merge(post::<CreateAgencyRequest, Provider>()),
+        )
+        .route(
+            sql_examples::paths::AGENCY,
+            get::<GetAgencyRequest, Provider>().merge(patch::<UpdateAgencyRequest, Provider>()),
+        )
+        .route(
+            sql_examples::paths::AGENCY_FEEDS,
+            get::<ListAgencyFeedsRequest, Provider>().merge(post::<CreateFeedRequest, Provider>()),
+        )
+        .route(sql_examples::paths::FEEDS, get::<ListAllFeedsRequest, Provider>())
+        .route(sql_examples::paths::FEED, delete::<DeleteFeedRequest, Provider>());
 
     #[cfg(feature = "god-mode")]
     let router = router.route(routes::http::SET_TRIP, post::<SetTripRequest, Provider>());

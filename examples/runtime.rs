@@ -10,6 +10,7 @@
 cfg_if::cfg_if! {
     if #[cfg(not(target_arch = "wasm32"))] {
         use omnia_wasi_config::{WasiConfig, ConfigDefault};
+        use omnia_wasi_docstore::{WasiDocStore, DocStoreDefault};
         use omnia_wasi_http::{WasiHttp, HttpDefault};
         use omnia_wasi_identity::{WasiIdentity, IdentityDefault};
         use omnia_wasi_keyvalue::{WasiKeyValue, KeyValueDefault};
@@ -20,6 +21,7 @@ cfg_if::cfg_if! {
         omnia::runtime!({
             hosts: {
                 WasiConfig: ConfigDefault,
+                WasiDocStore: DocStoreDefault,
                 WasiHttp: HttpDefault,
                 WasiIdentity: IdentityDefault,
                 WasiKeyValue: KeyValueDefault,
