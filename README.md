@@ -19,15 +19,17 @@ This repository is the application-scale complement to the
 service instead of twenty snippets. The guest is built on the `omnia-guest`
 SDK (`Handler<P>` domain logic behind capability traits) and exercises
 `wasi:http`, `wasi:messaging`, `wasi:keyvalue`, `wasi:config`,
-`wasi:identity`, and — via `crates/capability-examples` — blobstore,
-websocket broadcast, docstore, and SQL. Two capabilities get a deeper
-treatment: `crates/docstore-examples` and `crates/sql-examples` rebuild the
-rich docstore and SQL examples that omnia trimmed from its own
-`examples/` tree (commit `c4666ca`, "Example tidy"), rewritten as typed
-handlers — every portable docstore filter type, every ORM builder, a
-JOIN entity, and server-assigned ids. The example host
-(`examples/runtime.rs`) is a single `omnia::runtime!` invocation running
-against the in-tree default backends; swapping in production backends from
+`wasi:identity`, and — through the `crates/capability-examples` routes the
+root guest mounts under `/examples/*` — blobstore, websocket broadcast,
+docstore, and SQL. Two capabilities get a deeper treatment:
+`crates/docstore-examples` and `crates/sql-examples` rebuild the rich
+docstore and SQL examples that omnia trimmed from its own `examples/` tree
+(commit `c4666ca`, "Example tidy"), rewritten as typed handlers — every
+portable docstore filter type, every ORM builder, a JOIN entity, and
+server-assigned ids. The example host (`examples/runtime.rs`) is a single
+`omnia::runtime!` invocation wiring every capability the guest imports —
+including `WasiBlobstore` and `WasiWebSocket` — to the in-tree default
+backends; swapping in production backends from
 [omnia-backends](https://github.com/augentic/omnia-backends) is a host-side
 change only (see the omnia
 [Production Backends guide](https://github.com/augentic/omnia/blob/main/docs/guides/production-backends.md)).
@@ -98,10 +100,13 @@ The guest:
   an exact-topic `omnia_guest::api::messaging::Router` of **exact**
   env-qualified topics
 - Uses a unit `Provider` declared with `omnia_guest::provider!`, giving it
-  the WASI-backed default capability impls (`Config`, `HttpRequest`,
-  `Identity`, `Publish`, `StateStore`)
+  the WASI-backed default capability impls (`BlobStore`, `Broadcast`,
+  `Config`, `DocumentStore`, `HttpRequest`, `Identity`, `Publish`,
+  `StateStore`, `TableStore`)
 - Routes both transports through one provider-owning `Client` per request
-- Ships a native host example at `examples/runtime.rs` via `omnia::runtime!`
+- Ships a native host example at `examples/runtime.rs` via `omnia::runtime!`,
+  with a default host for every imported capability (config, docstore,
+  http, identity, keyvalue, messaging, otel, sql, blobstore, websocket)
 
 ## Routes and topics
 
@@ -117,6 +122,10 @@ The guest:
 | `GET/POST /examples/agencies`, `GET/PATCH /examples/agencies/{id}` | `sql_examples::agency` — ORM CRUD with server-assigned ids |
 | `GET/POST /examples/agencies/{agency_id}/feeds` | `sql_examples::feed` — per-agency feeds with referential checks |
 | `GET /examples/feeds`, `DELETE /examples/feeds/{id}` | `sql_examples::feed` — JOIN listing and delete with 404-on-zero-rows |
+| `POST /examples/archive` | `capability_examples::ArchiveRequest` — `BlobStore` object write |
+| `POST /examples/alert` | `capability_examples::AlertRequest` — `Broadcast` over websocket |
+| `POST /examples/note` | `capability_examples::NoteRequest` — `DocumentStore` upsert |
+| `POST /examples/reading` | `capability_examples::ReadingRequest` — `TableStore` insert |
 
 | Messaging topic | Handler |
 | --- | --- |
@@ -137,7 +146,7 @@ consumer is out of scope for the exemplar.
 | `crates/pulse-adapter` | Converts Pulse train updates into Motion location events |
 | `crates/tally-connector` | HTTP ingress for the vendor "Tally" passenger-count feed |
 | `crates/gtfs-adapter` | Converts Motion events into GTFS-realtime vehicle positions |
-| `crates/capability-examples` | Domain-free handlers proving the remaining capabilities: `BlobStore`, `Broadcast`, `DocumentStore`, `TableStore` |
+| `crates/capability-examples` | Domain-free handlers proving the remaining capabilities: `BlobStore`, `Broadcast`, `DocumentStore`, `TableStore`; mounted by the guest at `POST /examples/{archive,alert,note,reading}` |
 | `crates/docstore-examples` | Rich `wasi:docstore` showcase: GTFS-like collections exercising every portable filter type, sorting, and continuation pagination |
 | `crates/sql-examples` | Rich `wasi-sql` showcase: agency/feed schema exercising every ORM builder, a JOIN entity, and server-assigned ids |
 | `crates/pattern-examples` | Composition patterns: decode-through-cache, config-carried client certificates, relational geo queries through the ORM, and structured JSON error bodies |
@@ -185,6 +194,10 @@ carries sample values.
 | `GOD_MODE_ENABLED` | gtfs-adapter | Runtime switch for the god-mode override (also requires the `god-mode` build feature) |
 | `PATTERN_DECODER_URL` | pattern-examples | Decoder endpoint for the decode-through-cache example |
 | `PATTERN_CLIENT_CERT` | pattern-examples | Client certificate forwarded to the decoder as a `Client-Cert` header |
+
+`WEBSOCKET_ADDR` in `.env.example` is read by the example host, not the
+guest: it is the bind address for `WebSocketDefault` (the backend behind
+`POST /examples/alert`), which otherwise defaults to `0.0.0.0:80`.
 
 ## State keys
 

@@ -17,6 +17,7 @@ use acme_common::{config, routes};
 use axum::Json;
 use axum::http::header::CONTENT_TYPE;
 use axum::response::{IntoResponse, Response};
+use capability_examples::{AlertRequest, ArchiveRequest, NoteRequest, ReadingRequest};
 use docstore_examples::{
     CreateRouteRequest, CreateStopRequest, CreateStopTimeRequest, DeleteStopRequest,
     GetRouteRequest, GetStopRequest, GetStopTimeRequest, ListRoutesRequest, ListStopTimesRequest,
@@ -51,8 +52,8 @@ const OWNER: &str = "acme";
 
 omnia_guest::provider! {
     /// Bare provider backed by the default WASI capability implementations.
-    pub struct Provider: Config + DocumentStore + HttpRequest + Identity + Publish + StateStore
-        + TableStore;
+    pub struct Provider: BlobStore + Broadcast + Config + DocumentStore + HttpRequest + Identity
+        + Publish + StateStore + TableStore;
 }
 
 /// WASI HTTP export.
@@ -97,6 +98,12 @@ fn router() -> axum::Router {
                 encode_nearby,
             ),
         )
+        // Capability-example routes: one domain-free handler each for
+        // `BlobStore`, `Broadcast`, `DocumentStore`, and `TableStore`.
+        .route(capability_examples::routes::ARCHIVE, post::<ArchiveRequest, Provider>())
+        .route(capability_examples::routes::ALERT, post::<AlertRequest, Provider>())
+        .route(capability_examples::routes::NOTE, post::<NoteRequest, Provider>())
+        .route(capability_examples::routes::READING, post::<ReadingRequest, Provider>())
         // Docstore-example routes: the rich `wasi:docstore` showcase (full
         // CRUD and every filter type over GTFS-like collections).
         .route(

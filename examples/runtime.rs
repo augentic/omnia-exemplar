@@ -9,6 +9,7 @@
 
 cfg_if::cfg_if! {
     if #[cfg(not(target_arch = "wasm32"))] {
+        use omnia_wasi_blobstore::{WasiBlobstore, BlobstoreDefault};
         use omnia_wasi_config::{WasiConfig, ConfigDefault};
         use omnia_wasi_docstore::{WasiDocStore, DocStoreDefault};
         use omnia_wasi_http::{WasiHttp, HttpDefault};
@@ -17,9 +18,11 @@ cfg_if::cfg_if! {
         use omnia_wasi_messaging::{WasiMessaging, MessagingDefault};
         use omnia_wasi_otel::{WasiOtel, OtelDefault};
         use omnia_wasi_sql::{WasiSql, SqlDefault};
+        use omnia_wasi_websocket::{WasiWebSocket, WebSocketDefault};
 
         omnia::runtime!({
             hosts: {
+                WasiBlobstore: BlobstoreDefault,
                 WasiConfig: ConfigDefault,
                 WasiDocStore: DocStoreDefault,
                 WasiHttp: HttpDefault,
@@ -28,6 +31,7 @@ cfg_if::cfg_if! {
                 WasiMessaging: MessagingDefault,
                 WasiOtel: OtelDefault,
                 WasiSql: SqlDefault,
+                WasiWebSocket: WebSocketDefault,
             }
         });
     } else {
