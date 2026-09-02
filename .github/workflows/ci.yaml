@@ -24,6 +24,10 @@ jobs:
           targets: wasm32-wasip2
           components: clippy
       - uses: Swatinem/rust-cache@v2
+        with:
+          # rust-cache only saves on a key miss, so re-key whenever the build
+          # steps change or the cache never picks up newly built dependencies.
+          key: ${{ hashFiles('Makefile.toml', '.github/workflows/ci.yaml') }}
       - uses: taiki-e/install-action@v2
         with:
           tool: cargo-make,nextest
