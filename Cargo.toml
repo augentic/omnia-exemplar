@@ -82,10 +82,15 @@ unused_extern_crates = "warn"
 
 [workspace.lints.clippy]
 # https://doc.rust-lang.org/stable/clippy/index.html
-all = "warn"      # correctness, suspicious, style, complexity, perf
-cargo = "warn"
-nursery = "warn"
-pedantic = "warn"
+all = { level = "warn", priority = -1 }      # correctness, suspicious, style, complexity, perf
+cargo = { level = "warn", priority = -1 }
+nursery = { level = "warn", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
+
+# rustls/aws-lc vs ring pin conflicting `untrusted` versions, and wasmtime's
+# `witx` still depends on `wast` 35 while wasm-tools uses 258. Deduplication
+# is upstream territory, so the whole workspace accepts the duplication.
+multiple_crate_versions = "allow"
 
 # Cherry-picked lints are from the `restriction` lint group in order to drive up
 # consistency, quality, and brevity
@@ -165,6 +170,8 @@ tally-connector = { path = "crates/tally-connector" }
 
 [patch.crates-io]
 omnia = { git = "https://github.com/augentic/omnia" }
+omnia-core = { git = "https://github.com/augentic/omnia" }
+omnia-plugin = { git = "https://github.com/augentic/omnia" }
 omnia-guest = { git = "https://github.com/augentic/omnia" }
 omnia-wasi-config = { git = "https://github.com/augentic/omnia" }
 omnia-wasi-docstore = { git = "https://github.com/augentic/omnia" }
@@ -176,6 +183,8 @@ omnia-wasi-otel = { git = "https://github.com/augentic/omnia" }
 omnia-wasi-sql = { git = "https://github.com/augentic/omnia" }
 
 # omnia = { path = "../omnia/crates/omnia" }
+# omnia-core = { path = "../omnia/crates/omnia-core" }
+# omnia-plugin = { path = "../omnia/crates/omnia-plugin" }
 # omnia-guest = { path = "../omnia/crates/omnia-guest" }
 # omnia-wasi-config = { path = "../omnia/crates/wasi-config" }
 # omnia-wasi-docstore = { path = "../omnia/crates/wasi-docstore" }
