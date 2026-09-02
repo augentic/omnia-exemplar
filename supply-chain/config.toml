@@ -295,10 +295,6 @@ version = "0.13.4"
 criteria = "safe-to-deploy"
 
 [[exemptions.darling_macro]]
-version = "0.21.3"
-criteria = "safe-to-deploy"
-
-[[exemptions.darling_macro]]
 version = "0.24.1"
 criteria = "safe-to-deploy"
 
