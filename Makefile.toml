@@ -106,3 +106,11 @@ install_crate = "cargo-vet"
 [tasks.wasm]
 command = "cargo"
 args = ["build", "--locked", "--workspace", "--all-features", "--target", "wasm32-wasip2", "--release"]
+
+# End-to-end smoke: build the guests and hosts, then run only #[ignore]d tests.
+[tasks.smoke]
+dependencies = ["wasm"]
+script = '''
+cargo build --locked --workspace --examples --all-features
+cargo nextest run --locked --workspace --all-features --run-ignored ignored-only --no-tests=pass --no-capture
+'''

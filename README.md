@@ -282,6 +282,24 @@ cargo nextest run            # or: cargo test --workspace --all-features
   outbound HTTP requests, covering the decode cache (hit and miss), the
   ORM-backed nearby query, and the structured-error upsert rejection
 
+The crate tests above cover handler semantics against mock providers; none of
+them executes the assembled artefact. `tests/smoke.rs` closes that gap:
+
+```shell
+cargo make smoke             # builds guest.wasm and the example host, then runs it
+```
+
+It spawns `examples/runtime.rs` with the release `guest.wasm`, drives one
+request through every route, and requires the host log to show a messaging
+delivery. Starting the host is itself the link proof (`omnia::runtime!`
+pre-instantiates the component, so Provider/host drift fails before the port
+opens). The checks assert **dispatch, not semantics** — a `404`/`405` means
+a route is miswired; any other status means the handler ran — and full
+success only where the in-tree default backends suffice. The test is
+`#[ignore]`d, so `cargo make test` compiles it but skips it; the `smoke` task
+runs only ignored tests. It uses `std` alone, so the dependency tree and
+`cargo vet` are unaffected.
+
 ## Guest template contract
 
 This repository is the source of truth for the reusable Omnia guest
@@ -320,6 +338,7 @@ sources).
 
 ```shell
 make ci         # fmt, clippy (native + wasm), test, docs, vet, deny — same targets as omnia
+make smoke      # end-to-end: build guest.wasm + host, run the ignored smoke test (not part of ci)
 ```
 
 The workspace follows omnia's conventions: stable toolchain
