@@ -60,7 +60,7 @@ install_crate = { rustup_component_name = "clippy" }
 # Lint the guests for the WASM target
 [tasks.lint-wasm]
 command = "cargo"
-args = ["clippy", "--workspace", "--target", "wasm32-wasip2", "--", "-D", "warnings"]
+args = ["clippy", "--locked", "--workspace", "--all-features", "--target", "wasm32-wasip2", "--", "-D", "warnings"]
 install_crate = { rustup_component_name = "clippy" }
 
 # Miri
@@ -105,4 +105,4 @@ install_crate = "cargo-vet"
 # Build the WASM guests
 [tasks.wasm]
 command = "cargo"
-args = ["build", "--workspace", "--target", "wasm32-wasip2", "--release"]
+args = ["build", "--locked", "--workspace", "--all-features", "--target", "wasm32-wasip2", "--release"]
