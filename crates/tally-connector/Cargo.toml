@@ -27,3 +27,7 @@ serde_json.workspace = true
 
 [dev-dependencies]
 tokio.workspace = true
+
+# Target-gated so the guest's wasm32 dependency graph never sees the doubles.
+[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
+omnia-test.workspace = true

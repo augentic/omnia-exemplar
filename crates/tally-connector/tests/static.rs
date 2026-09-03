@@ -1,13 +1,21 @@
 //! Static tests for the Tally APC connector.
 
-mod provider;
-
 use omnia_guest::api::{Client, Metadata};
+use omnia_test::guest::MapConfig;
 use tally_connector::{TallyMessage, TallyRequest};
 
-use self::provider::MockProvider;
+omnia_test::doubles! {
+    /// The handler's capability pair, as doubles.
+    pub struct TestProvider: Config + Publish;
+}
 
-async fn forward(provider: &MockProvider, payload: &[u8]) {
+// `config::env` falls back to `dev` when `ENV` is unset; seeding it keeps the
+// topic assertions honest rather than leaning on the fallback.
+fn provider() -> TestProvider {
+    TestProvider::default().config(MapConfig::default().with([("ENV", "dev")]))
+}
+
+async fn forward(provider: &TestProvider, payload: &[u8]) {
     let request: TallyRequest = serde_json::from_slice(payload).expect("should deserialize");
     Client::new("acme", provider.clone())
         .call(request, &Metadata::default())
@@ -17,12 +25,12 @@ async fn forward(provider: &MockProvider, payload: &[u8]) {
 
 #[tokio::test]
 async fn device_site_header() {
-    let provider = MockProvider::default();
+    let provider = provider();
     let payload = include_bytes!("../data/tally-message.json");
 
     forward(&provider, payload).await;
 
-    let published = provider.published();
+    let published = provider.publish.sent();
     assert_eq!(published.len(), 1);
 
     let (topic, record) = &published[0];
@@ -39,12 +47,12 @@ async fn device_site_header() {
 
 #[tokio::test]
 async fn device_missing() {
-    let provider = MockProvider::default();
+    let provider = provider();
     let payload = include_bytes!("../data/tally-no-device.json");
 
     forward(&provider, payload).await;
 
-    let published = provider.published();
+    let published = provider.publish.sent();
     assert_eq!(published.len(), 1);
 
     let (topic, record) = &published[0];
@@ -58,12 +66,12 @@ async fn device_missing() {
 
 #[tokio::test]
 async fn device_site_whitespace() {
-    let provider = MockProvider::default();
+    let provider = provider();
     let payload = include_bytes!("../data/tally-whitespace.json");
 
     forward(&provider, payload).await;
 
-    let published = provider.published();
+    let published = provider.publish.sent();
     assert_eq!(published.len(), 1);
 
     let (topic, record) = &published[0];
