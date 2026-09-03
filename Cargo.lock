@@ -2418,6 +2418,7 @@ dependencies = [
 [[package]]
 name = "omnia"
 version = "0.36.0"
+source = "git+https://github.com/augentic/omnia#0b79dfaa22ecbeecaf53d8443306a273e7f3bfaf"
 dependencies = [
  "anyhow",
  "futures",
@@ -2429,6 +2430,7 @@ dependencies = [
 [[package]]
 name = "omnia-core"
 version = "0.36.0"
+source = "git+https://github.com/augentic/omnia#0b79dfaa22ecbeecaf53d8443306a273e7f3bfaf"
 dependencies = [
  "anyhow",
  "bytes",
@@ -2462,6 +2464,7 @@ dependencies = [
 [[package]]
 name = "omnia-guest"
 version = "0.36.0"
+source = "git+https://github.com/augentic/omnia#0b79dfaa22ecbeecaf53d8443306a273e7f3bfaf"
 dependencies = [
  "anyhow",
  "axum",
@@ -2496,6 +2499,7 @@ dependencies = [
 [[package]]
 name = "omnia-guest-macros"
 version = "0.36.0"
+source = "git+https://github.com/augentic/omnia#0b79dfaa22ecbeecaf53d8443306a273e7f3bfaf"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2505,6 +2509,7 @@ dependencies = [
 [[package]]
 name = "omnia-host-macros"
 version = "0.36.0"
+source = "git+https://github.com/augentic/omnia#0b79dfaa22ecbeecaf53d8443306a273e7f3bfaf"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2514,6 +2519,7 @@ dependencies = [
 [[package]]
 name = "omnia-plugin"
 version = "0.36.0"
+source = "git+https://github.com/augentic/omnia#0b79dfaa22ecbeecaf53d8443306a273e7f3bfaf"
 dependencies = [
  "anyhow",
  "cap-std",
@@ -2528,6 +2534,7 @@ dependencies = [
 [[package]]
 name = "omnia-test"
 version = "0.36.0"
+source = "git+https://github.com/augentic/omnia#0b79dfaa22ecbeecaf53d8443306a273e7f3bfaf"
 dependencies = [
  "anyhow",
  "bytes",
@@ -2542,6 +2549,7 @@ dependencies = [
 [[package]]
 name = "omnia-wasi-blobstore"
 version = "0.36.0"
+source = "git+https://github.com/augentic/omnia#0b79dfaa22ecbeecaf53d8443306a273e7f3bfaf"
 dependencies = [
  "anyhow",
  "bytes",
@@ -2557,6 +2565,7 @@ dependencies = [
 [[package]]
 name = "omnia-wasi-config"
 version = "0.36.0"
+source = "git+https://github.com/augentic/omnia#0b79dfaa22ecbeecaf53d8443306a273e7f3bfaf"
 dependencies = [
  "anyhow",
  "omnia-core",
@@ -2569,6 +2578,7 @@ dependencies = [
 [[package]]
 name = "omnia-wasi-docstore"
 version = "0.36.0"
+source = "git+https://github.com/augentic/omnia#0b79dfaa22ecbeecaf53d8443306a273e7f3bfaf"
 dependencies = [
  "anyhow",
  "chrono",
@@ -2584,6 +2594,7 @@ dependencies = [
 [[package]]
 name = "omnia-wasi-http"
 version = "0.36.0"
+source = "git+https://github.com/augentic/omnia#0b79dfaa22ecbeecaf53d8443306a273e7f3bfaf"
 dependencies = [
  "anyhow",
  "axum",
@@ -2613,6 +2624,7 @@ dependencies = [
 [[package]]
 name = "omnia-wasi-identity"
 version = "0.36.0"
+source = "git+https://github.com/augentic/omnia#0b79dfaa22ecbeecaf53d8443306a273e7f3bfaf"
 dependencies = [
  "anyhow",
  "fromenv",
@@ -2629,6 +2641,7 @@ dependencies = [
 [[package]]
 name = "omnia-wasi-keyvalue"
 version = "0.36.0"
+source = "git+https://github.com/augentic/omnia#0b79dfaa22ecbeecaf53d8443306a273e7f3bfaf"
 dependencies = [
  "anyhow",
  "chrono",
@@ -2646,6 +2659,7 @@ dependencies = [
 [[package]]
 name = "omnia-wasi-messaging"
 version = "0.36.0"
+source = "git+https://github.com/augentic/omnia#0b79dfaa22ecbeecaf53d8443306a273e7f3bfaf"
 dependencies = [
  "anyhow",
  "futures",
@@ -2661,6 +2675,7 @@ dependencies = [
 [[package]]
 name = "omnia-wasi-model"
 version = "0.36.0"
+source = "git+https://github.com/augentic/omnia#0b79dfaa22ecbeecaf53d8443306a273e7f3bfaf"
 dependencies = [
  "anyhow",
  "cap-std",
@@ -2680,6 +2695,7 @@ dependencies = [
 [[package]]
 name = "omnia-wasi-otel"
 version = "0.36.0"
+source = "git+https://github.com/augentic/omnia#0b79dfaa22ecbeecaf53d8443306a273e7f3bfaf"
 dependencies = [
  "anyhow",
  "futures",
@@ -2700,6 +2716,7 @@ dependencies = [
 [[package]]
 name = "omnia-wasi-sql"
 version = "0.36.0"
+source = "git+https://github.com/augentic/omnia#0b79dfaa22ecbeecaf53d8443306a273e7f3bfaf"
 dependencies = [
  "anyhow",
  "fromenv",
@@ -2717,6 +2734,7 @@ dependencies = [
 [[package]]
 name = "omnia-wasi-websocket"
 version = "0.36.0"
+source = "git+https://github.com/augentic/omnia#0b79dfaa22ecbeecaf53d8443306a273e7f3bfaf"
 dependencies = [
  "anyhow",
  "dashmap",
