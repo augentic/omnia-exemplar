@@ -2,8 +2,8 @@
 //!
 //! Route constants for mounting the handlers under `/examples/*`,
 //! deliberately outside the canonical transit tables in
-//! `acme_common::routes`. The workspace-root guest does not wire them by
-//! default.
+//! `acme_common::routes`. The workspace-root guest wires all four as
+//! body-JSON POSTs.
 
 /// Blobstore archive ingress.
 pub const ARCHIVE: &str = "/examples/archive";

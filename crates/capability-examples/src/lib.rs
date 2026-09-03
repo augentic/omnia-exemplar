@@ -6,7 +6,7 @@
 //! domain-free [`Handler`] over its capability trait; the crate-level
 //! tests drive every handler through an in-memory mock provider. Route
 //! constants for mounting the handlers under `/examples/*` live in
-//! [`routes`]; the workspace-root guest does not wire them by default.
+//! [`routes`]; the workspace-root guest wires all four.
 //!
 //! [`Handler`]: omnia_guest::api::Handler
 //! [`BlobStore`]: omnia_guest::BlobStore

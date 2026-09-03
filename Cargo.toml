@@ -25,6 +25,7 @@ crate-type = ["cdylib"]
 [dependencies]
 acme-common.workspace = true
 axum.workspace = true
+capability-examples.workspace = true
 docstore-examples.workspace = true
 gtfs-adapter.workspace = true
 omnia-guest.workspace = true
@@ -46,11 +47,13 @@ cfg-if.workspace = true
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 anyhow.workspace = true
 omnia.workspace = true
+omnia-wasi-blobstore.workspace = true
 omnia-wasi-config.workspace = true
 omnia-wasi-docstore.workspace = true
 omnia-wasi-identity.workspace = true
 omnia-wasi-keyvalue.workspace = true
 omnia-wasi-sql.workspace = true
+omnia-wasi-websocket.workspace = true
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 
 [[example]]
@@ -142,6 +145,7 @@ wasip3 = { version = "0.8.0", features = ["http-compat"] }
 
 omnia = "0.36.0"
 omnia-guest = "0.36.0"
+omnia-wasi-blobstore = "0.36.0"
 omnia-wasi-config = "0.36.0"
 omnia-wasi-docstore = "0.36.0"
 omnia-wasi-http = "0.36.0"
@@ -150,6 +154,7 @@ omnia-wasi-keyvalue = "0.36.0"
 omnia-wasi-messaging = "0.36.0"
 omnia-wasi-otel = "0.36.0"
 omnia-wasi-sql = "0.36.0"
+omnia-wasi-websocket = "0.36.0"
 
 acme-common = { path = "crates/common" }
 acme-test = { path = "crates/test" }
@@ -167,6 +172,7 @@ omnia = { git = "https://github.com/augentic/omnia" }
 omnia-core = { git = "https://github.com/augentic/omnia" }
 omnia-plugin = { git = "https://github.com/augentic/omnia" }
 omnia-guest = { git = "https://github.com/augentic/omnia" }
+omnia-wasi-blobstore = { git = "https://github.com/augentic/omnia" }
 omnia-wasi-config = { git = "https://github.com/augentic/omnia" }
 omnia-wasi-docstore = { git = "https://github.com/augentic/omnia" }
 omnia-wasi-http = { git = "https://github.com/augentic/omnia" }
@@ -175,11 +181,13 @@ omnia-wasi-keyvalue = { git = "https://github.com/augentic/omnia" }
 omnia-wasi-messaging = { git = "https://github.com/augentic/omnia" }
 omnia-wasi-otel = { git = "https://github.com/augentic/omnia" }
 omnia-wasi-sql = { git = "https://github.com/augentic/omnia" }
+omnia-wasi-websocket = { git = "https://github.com/augentic/omnia" }
 
 # omnia = { path = "../omnia/crates/omnia" }
 # omnia-core = { path = "../omnia/crates/omnia-core" }
 # omnia-plugin = { path = "../omnia/crates/omnia-plugin" }
 # omnia-guest = { path = "../omnia/crates/omnia-guest" }
+# omnia-wasi-blobstore = { path = "../omnia/crates/wasi-blobstore" }
 # omnia-wasi-config = { path = "../omnia/crates/wasi-config" }
 # omnia-wasi-docstore = { path = "../omnia/crates/wasi-docstore" }
 # omnia-wasi-http = { path = "../omnia/crates/wasi-http" }
@@ -188,6 +196,7 @@ omnia-wasi-sql = { git = "https://github.com/augentic/omnia" }
 # omnia-wasi-messaging = { path = "../omnia/crates/wasi-messaging" }
 # omnia-wasi-otel = { path = "../omnia/crates/wasi-otel" }
 # omnia-wasi-sql = { path = "../omnia/crates/wasi-sql" }
+# omnia-wasi-websocket = { path = "../omnia/crates/wasi-websocket" }
 
 # `wrpc-wasmtime` 0.1.0 is unpublished on crates.io.
 wrpc-transport = { git = "https://github.com/bytecodealliance/wrpc" }
