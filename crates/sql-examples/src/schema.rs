@@ -3,7 +3,7 @@
 //! The pre-trim omnia example created its tables through the wasm-only
 //! `Connection`/`Statement`/`readwrite` bindings. Routing the DDL through
 //! [`TableStore::exec`] instead keeps the handlers runnable against native
-//! mock providers — a deliberate, documented deviation.
+//! `omnia-test` doubles — a deliberate, documented deviation.
 
 use omnia_guest::TableStore;
 

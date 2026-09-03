@@ -4,7 +4,7 @@ use omnia_guest::api::{Client, Metadata};
 use omnia_test::guest::MapConfig;
 use tally_connector::{TallyMessage, TallyRequest};
 
-omnia_test::doubles! {
+omnia_test::provider! {
     /// The handler's capability pair, as doubles.
     pub struct TestProvider: Config + Publish;
 }

@@ -1,46 +1,38 @@
 //! Tests for expected success and failure outputs from the Pulse adapter for a
 //! set of inputs captured as snapshots from the live system.
 
-mod provider;
+mod fixture;
 
-use std::fs::{self, File};
+use std::fs;
 
 use acme_common::TIMEZONE;
-use acme_test::{TestCase, TestDef};
 use chrono::Utc;
-use omnia_guest::Error;
 use omnia_guest::api::{Client, Metadata};
 
-use crate::provider::{Replay, shift_time};
+use self::fixture::{Case, Expected};
 
 // Load each test case. For each, present the input to the adapter and compare
 // the output expected.
 #[tokio::test]
 async fn run() {
     for entry in fs::read_dir("data/replay").expect("should read directory") {
-        let file = File::open(entry.expect("should read entry").path()).expect("should open file");
-        let test_def: TestDef<Error> =
-            serde_json::from_reader(&file).expect("should deserialize session");
-        replay(test_def).await;
+        replay(fixture::load(entry.expect("should read entry").path())).await;
     }
 }
 
-async fn replay(test_def: TestDef<Error>) {
-    let test_case = TestCase::<Replay>::new(test_def).prepare(shift_time);
-    let provider = provider::MockProvider::new(test_case.clone());
-    let client = Client::new("acme", provider.clone());
+async fn replay(case: Case) {
+    let result = Client::new("acme", case.provider.clone())
+        .call(case.input.clone(), &Metadata::default())
+        .await;
+    let curr_events = case.events();
 
-    let input = test_case.input.expect("replay test input expected");
-    let result = client.call(input, &Metadata::default()).await;
-    let curr_events = provider.events();
-
-    let Some(expected_result) = &test_case.output else {
-        assert!(curr_events.is_empty());
-        return;
-    };
-
-    match expected_result {
-        Ok(expected_events) => {
+    match &case.expected {
+        None => assert!(curr_events.is_empty()),
+        Some(Expected::Success(expected_events)) if expected_events.is_empty() => {
+            assert!(curr_events.is_empty());
+        }
+        Some(Expected::Success(expected_events)) => {
+            assert_eq!(curr_events.len(), expected_events.len());
             expected_events.iter().zip(curr_events).for_each(|(published, mut actual)| {
                 // add 5 seconds to the actual message timestamp the adapter sleeps 5 seconds
                 // before output the first round
@@ -57,7 +49,7 @@ async fn replay(test_def: TestDef<Error>) {
                 assert_eq!(json_expected, json_actual);
             });
         }
-        Err(expected_error) => {
+        Some(Expected::Failure(expected_error)) => {
             // Was the error the one defined in the fixture?
             let actual_error = result.expect_err("should have error");
             assert_eq!(actual_error.code(), expected_error.code());

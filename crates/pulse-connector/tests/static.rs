@@ -1,17 +1,25 @@
 //! Static tests for the Pulse SOAP/XML connector.
 
-mod provider;
-
 use omnia_guest::api::{Client, Metadata};
+use omnia_test::guest::MapConfig;
 use pulse_connector::{PulseRequest, PulseXml};
 
-use self::provider::MockProvider;
+omnia_test::provider! {
+    /// The handler's capability pair, as doubles.
+    pub struct TestProvider: Config + Publish;
+}
 
 const OWNER: &str = "acme";
 
+// `config::env` falls back to `dev` when `ENV` is unset; seeding it keeps the
+// topic assertions honest rather than leaning on the fallback.
+fn provider() -> TestProvider {
+    TestProvider::default().config(MapConfig::default().with([("ENV", "dev")]))
+}
+
 #[tokio::test]
 async fn forwards_train_update_to_pulse_topic() {
-    let provider = MockProvider::new();
+    let provider = provider();
 
     let xml = include_bytes!("../data/receive-message.xml");
     let request = PulseRequest::from_xml(xml).expect("should deserialize");
@@ -27,7 +35,7 @@ async fn forwards_train_update_to_pulse_topic() {
     assert_eq!(reply_xml, b"<Return>OK</Return>");
 
     // the embedded train update is forwarded verbatim
-    let published = provider.published();
+    let published = provider.publish.sent();
     assert_eq!(published.len(), 1);
 
     let (topic, record) = &published[0];
@@ -37,7 +45,7 @@ async fn forwards_train_update_to_pulse_topic() {
 
 #[tokio::test]
 async fn rejects_message_without_train_update() {
-    let provider = MockProvider::new();
+    let provider = provider();
 
     let xml = br#"<?xml version="1.0" encoding="utf-8"?>
         <soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
@@ -58,12 +66,12 @@ async fn rejects_message_without_train_update() {
         error.to_string(),
         "<Fault><StatusCode>400</StatusCode><Response><Message>Bad Request</Message></Response></Fault>"
     );
-    assert!(provider.published().is_empty());
+    assert!(provider.publish.sent().is_empty());
 }
 
 #[tokio::test]
 async fn rejects_malformed_envelope() {
-    let provider = MockProvider::new();
+    let provider = provider();
 
     // parsing happens inside the handler, so even an unparseable body is
     // answered with the vendor's SOAP fault rather than a plain-text 400
@@ -73,5 +81,5 @@ async fn rejects_malformed_envelope() {
         .expect_err("should reject a malformed envelope");
 
     assert!(error.to_string().contains("<Fault>"));
-    assert!(provider.published().is_empty());
+    assert!(provider.publish.sent().is_empty());
 }

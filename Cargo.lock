@@ -19,17 +19,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "acme-test"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "bytes",
- "http",
- "serde",
- "serde_json",
-]
-
-[[package]]
 name = "addr2line"
 version = "0.26.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -388,6 +377,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "omnia-guest",
+ "omnia-test",
  "omnia-wasi-sql",
  "serde",
  "serde_json",
@@ -1023,6 +1013,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "omnia-guest",
+ "omnia-test",
  "serde",
  "serde_json",
  "tokio",
@@ -1425,9 +1416,9 @@ dependencies = [
  "chrono",
  "chrono-tz",
  "http",
- "http-body",
  "http-body-util",
  "omnia-guest",
+ "omnia-test",
  "serde",
  "serde_json",
  "thiserror 2.0.20",
@@ -1443,11 +1434,15 @@ dependencies = [
  "acme-common",
  "anyhow",
  "axum",
+ "bytes",
  "cfg-if",
+ "chrono",
  "docstore-examples",
  "gtfs-adapter",
+ "http",
  "omnia",
  "omnia-guest",
+ "omnia-test",
  "omnia-wasi-config",
  "omnia-wasi-docstore",
  "omnia-wasi-http",
@@ -1463,6 +1458,7 @@ dependencies = [
  "sql-examples",
  "tally-connector",
  "tokio",
+ "tower",
  "tracing",
  "wasip3",
 ]
@@ -2419,7 +2415,6 @@ dependencies = [
 [[package]]
 name = "omnia"
 version = "0.36.0"
-source = "git+https://github.com/augentic/omnia#04a579e620789cff00f551f07e81271367c5c7ed"
 dependencies = [
  "omnia-core",
  "omnia-host-macros",
@@ -2429,7 +2424,6 @@ dependencies = [
 [[package]]
 name = "omnia-core"
 version = "0.36.0"
-source = "git+https://github.com/augentic/omnia#04a579e620789cff00f551f07e81271367c5c7ed"
 dependencies = [
  "anyhow",
  "bytes",
@@ -2463,7 +2457,6 @@ dependencies = [
 [[package]]
 name = "omnia-guest"
 version = "0.36.0"
-source = "git+https://github.com/augentic/omnia#04a579e620789cff00f551f07e81271367c5c7ed"
 dependencies = [
  "anyhow",
  "axum",
@@ -2498,7 +2491,6 @@ dependencies = [
 [[package]]
 name = "omnia-guest-macros"
 version = "0.36.0"
-source = "git+https://github.com/augentic/omnia#04a579e620789cff00f551f07e81271367c5c7ed"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2508,7 +2500,6 @@ dependencies = [
 [[package]]
 name = "omnia-host-macros"
 version = "0.36.0"
-source = "git+https://github.com/augentic/omnia#04a579e620789cff00f551f07e81271367c5c7ed"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2518,7 +2509,6 @@ dependencies = [
 [[package]]
 name = "omnia-plugin"
 version = "0.36.0"
-source = "git+https://github.com/augentic/omnia#04a579e620789cff00f551f07e81271367c5c7ed"
 dependencies = [
  "anyhow",
  "cap-std",
@@ -2531,9 +2521,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "omnia-test"
+version = "0.36.0"
+dependencies = [
+ "anyhow",
+ "bytes",
+ "http",
+ "http-body",
+ "http-body-util",
+ "omnia-guest",
+ "omnia-wasi-docstore",
+ "omnia-wasi-sql",
+]
+
+[[package]]
 name = "omnia-wasi-blobstore"
 version = "0.36.0"
-source = "git+https://github.com/augentic/omnia#04a579e620789cff00f551f07e81271367c5c7ed"
 dependencies = [
  "anyhow",
  "bytes",
@@ -2549,7 +2552,6 @@ dependencies = [
 [[package]]
 name = "omnia-wasi-config"
 version = "0.36.0"
-source = "git+https://github.com/augentic/omnia#04a579e620789cff00f551f07e81271367c5c7ed"
 dependencies = [
  "anyhow",
  "omnia-core",
@@ -2562,7 +2564,6 @@ dependencies = [
 [[package]]
 name = "omnia-wasi-docstore"
 version = "0.36.0"
-source = "git+https://github.com/augentic/omnia#04a579e620789cff00f551f07e81271367c5c7ed"
 dependencies = [
  "anyhow",
  "chrono",
@@ -2578,7 +2579,6 @@ dependencies = [
 [[package]]
 name = "omnia-wasi-http"
 version = "0.36.0"
-source = "git+https://github.com/augentic/omnia#04a579e620789cff00f551f07e81271367c5c7ed"
 dependencies = [
  "anyhow",
  "axum",
@@ -2608,7 +2608,6 @@ dependencies = [
 [[package]]
 name = "omnia-wasi-identity"
 version = "0.36.0"
-source = "git+https://github.com/augentic/omnia#04a579e620789cff00f551f07e81271367c5c7ed"
 dependencies = [
  "anyhow",
  "fromenv",
@@ -2625,7 +2624,6 @@ dependencies = [
 [[package]]
 name = "omnia-wasi-keyvalue"
 version = "0.36.0"
-source = "git+https://github.com/augentic/omnia#04a579e620789cff00f551f07e81271367c5c7ed"
 dependencies = [
  "anyhow",
  "chrono",
@@ -2643,7 +2641,6 @@ dependencies = [
 [[package]]
 name = "omnia-wasi-messaging"
 version = "0.36.0"
-source = "git+https://github.com/augentic/omnia#04a579e620789cff00f551f07e81271367c5c7ed"
 dependencies = [
  "anyhow",
  "futures",
@@ -2659,7 +2656,6 @@ dependencies = [
 [[package]]
 name = "omnia-wasi-model"
 version = "0.36.0"
-source = "git+https://github.com/augentic/omnia#04a579e620789cff00f551f07e81271367c5c7ed"
 dependencies = [
  "anyhow",
  "cap-std",
@@ -2679,7 +2675,6 @@ dependencies = [
 [[package]]
 name = "omnia-wasi-otel"
 version = "0.36.0"
-source = "git+https://github.com/augentic/omnia#04a579e620789cff00f551f07e81271367c5c7ed"
 dependencies = [
  "anyhow",
  "futures",
@@ -2700,7 +2695,6 @@ dependencies = [
 [[package]]
 name = "omnia-wasi-sql"
 version = "0.36.0"
-source = "git+https://github.com/augentic/omnia#04a579e620789cff00f551f07e81271367c5c7ed"
 dependencies = [
  "anyhow",
  "fromenv",
@@ -2718,7 +2712,6 @@ dependencies = [
 [[package]]
 name = "omnia-wasi-websocket"
 version = "0.36.0"
-source = "git+https://github.com/augentic/omnia#04a579e620789cff00f551f07e81271367c5c7ed"
 dependencies = [
  "anyhow",
  "dashmap",
@@ -2854,9 +2847,9 @@ dependencies = [
  "anyhow",
  "bytes",
  "http",
- "http-body",
  "http-body-util",
  "omnia-guest",
+ "omnia-test",
  "serde",
  "serde_json",
  "thiserror 2.0.20",
@@ -3071,14 +3064,13 @@ name = "pulse-adapter"
 version = "0.1.0"
 dependencies = [
  "acme-common",
- "acme-test",
  "anyhow",
  "bytes",
  "chrono",
  "http",
- "http-body",
  "http-body-util",
  "omnia-guest",
+ "omnia-test",
  "quick-xml",
  "serde",
  "serde_json",
@@ -3097,6 +3089,7 @@ dependencies = [
  "axum",
  "http",
  "omnia-guest",
+ "omnia-test",
  "quick-xml",
  "serde",
  "thiserror 2.0.20",
@@ -3954,6 +3947,7 @@ dependencies = [
  "anyhow",
  "chrono",
  "omnia-guest",
+ "omnia-test",
  "serde",
  "tokio",
 ]
@@ -4103,6 +4097,7 @@ dependencies = [
  "acme-common",
  "anyhow",
  "omnia-guest",
+ "omnia-test",
  "serde",
  "serde_json",
  "tokio",

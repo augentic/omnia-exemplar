@@ -1,20 +1,16 @@
 #![allow(missing_docs)]
 #![cfg(not(miri))]
 
-mod provider;
+mod fixture;
 
-use std::fs::File;
 use std::ops::Sub;
 
 use acme_common::TIMEZONE;
-use acme_test::{TestCase, TestDef};
 use chrono::{Duration, Timelike, Utc};
-use omnia_guest::Error;
 use omnia_guest::api::{Client, Metadata};
 use pulse_adapter::{ChangeType, EventType, PulseMessage};
 
-use self::provider::MockProvider;
-use crate::provider::{Replay, shift_time};
+use self::fixture::{Case, Expected};
 
 // Should deserialize XML into a Pulse message.
 #[tokio::test]
@@ -33,17 +29,11 @@ async fn deserialize_xml() {
 // Should create an arrival event with a normal stop location.
 #[tokio::test]
 async fn arrival_event() {
-    let file = File::open("data/static/0001.json").expect("should open file");
-    let test_def: TestDef<Error> =
-        serde_json::from_reader(&file).expect("should deserialize test file");
-    let test_case = TestCase::<Replay>::new(test_def).prepare(shift_time);
-    let message = test_case.input.as_ref().expect("should have input message").clone();
-    let provider = MockProvider::new(test_case);
+    let case = fixture::load("data/static/0001.json");
 
-    let client = Client::new("acme", provider.clone());
-    client.call(message, &Metadata::default()).await.expect("should process");
+    run(&case).await.expect("should process");
 
-    let events = provider.events();
+    let events = case.events();
     assert_eq!(events.len(), 2);
 
     let event = &events[0];
@@ -58,17 +48,11 @@ async fn arrival_event() {
 // Should create a departure event with an stop location updated.
 #[tokio::test]
 async fn departure_event() {
-    let file = File::open("data/static/0002.json").expect("should open file");
-    let test_def: TestDef<Error> =
-        serde_json::from_reader(&file).expect("should deserialize test file");
-    let test_case = TestCase::<Replay>::new(test_def).prepare(shift_time);
-    let message = test_case.input.as_ref().expect("should have input message").clone();
-    let provider = MockProvider::new(test_case);
+    let case = fixture::load("data/static/0002.json");
 
-    let client = Client::new("acme", provider.clone());
-    client.call(message, &Metadata::default()).await.expect("should process");
+    run(&case).await.expect("should process");
 
-    let events = provider.events();
+    let events = case.events();
     assert_eq!(events.len(), 2);
 
     let event = &events[0];
@@ -82,52 +66,31 @@ async fn departure_event() {
 // Should return no events for an unmapped station.
 #[tokio::test]
 async fn unmapped_station() {
-    let file = File::open("data/static/0003.json").expect("should open file");
-    let test_def: TestDef<Error> =
-        serde_json::from_reader(&file).expect("should deserialize test file");
-    let test_case = TestCase::<Replay>::new(test_def).prepare(shift_time);
-    let message = test_case.input.as_ref().expect("should have input message").clone();
-    let provider = MockProvider::new(test_case);
+    let case = fixture::load("data/static/0003.json");
 
-    let client = Client::new("acme", provider.clone());
-    client.call(message, &Metadata::default()).await.expect("should process");
+    run(&case).await.expect("should process");
 
-    let events = provider.events();
-    assert!(events.is_empty());
+    assert!(case.events().is_empty());
 }
 
 // Should return no events when there are no vehicles found for the train id.
 #[tokio::test]
 async fn no_matching_vehicle() {
-    let file = File::open("data/static/0004.json").expect("should open file");
-    let test_def: TestDef<Error> =
-        serde_json::from_reader(&file).expect("should deserialize test file");
-    let test_case = TestCase::<Replay>::new(test_def).prepare(shift_time);
-    let message = test_case.input.as_ref().expect("should have input message").clone();
-    let provider = MockProvider::new(test_case);
+    let case = fixture::load("data/static/0004.json");
 
-    let client = Client::new("acme", provider.clone());
-    client.call(message, &Metadata::default()).await.expect("should process");
+    run(&case).await.expect("should process");
 
-    let events = provider.events();
-    assert!(events.is_empty());
+    assert!(case.events().is_empty());
 }
 
 // Should return no events when there are no stop is found for the station.
 #[tokio::test]
 async fn no_matching_stop() {
-    let file = File::open("data/static/0005.json").expect("should open file");
-    let test_def: TestDef<Error> =
-        serde_json::from_reader(&file).expect("should deserialize test file");
-    let test_case = TestCase::<Replay>::new(test_def).prepare(shift_time);
-    let message = test_case.input.as_ref().expect("should have input message").clone();
-    let provider = MockProvider::new(test_case);
+    let case = fixture::load("data/static/0005.json");
 
-    let client = Client::new("acme", provider.clone());
-    client.call(message, &Metadata::default()).await.expect("should process");
+    run(&case).await.expect("should process");
 
-    let events = provider.events();
-    assert!(events.is_empty());
+    assert!(case.events().is_empty());
 }
 
 // Should return no events when there is no train update.
@@ -167,27 +130,18 @@ async fn too_early() {
 // Run a fixture that is expected to fail and compare the error with the
 // fixture's expected output.
 async fn expect_error(path: &str) {
-    let file = File::open(path).expect("should open file");
-    let test_def: TestDef<Error> =
-        serde_json::from_reader(&file).expect("should deserialize test file");
-    let test_case = TestCase::<Replay>::new(test_def).prepare(shift_time);
-    let message = test_case.input.as_ref().expect("should have input message").clone();
-    let provider = MockProvider::new(test_case.clone());
+    let case = fixture::load(path);
 
-    let client = Client::new("acme", provider.clone());
-
-    let Some(expected_result) = &test_case.output else {
-        panic!("should have expected output");
+    let Some(Expected::Failure(expected_error)) = &case.expected else {
+        panic!("fixture should expect an error");
     };
-    match expected_result {
-        Ok(_) => panic!("should have error"),
-        Err(expected_error) => {
-            let actual_error =
-                client.call(message, &Metadata::default()).await.expect_err("should have error");
-            assert_eq!(actual_error.code(), expected_error.code());
-            assert_eq!(actual_error.description(), expected_error.description());
-        }
-    }
+    let actual_error = run(&case).await.expect_err("should have error");
+    assert_eq!(actual_error.code(), expected_error.code());
+    assert_eq!(actual_error.description(), expected_error.description());
+}
+
+async fn run(case: &Case) -> Result<(), omnia_guest::Error> {
+    Client::new("acme", case.provider.clone()).call(case.input.clone(), &Metadata::default()).await
 }
 
 struct XmlBuilder<'a> {

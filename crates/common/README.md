@@ -11,4 +11,4 @@ Shared logic for the (fictional) Acme transit domain:
 
 The API clients are written against the `omnia-guest` capability traits
 (`Config`, `HttpRequest`, `Identity`) so the same code runs inside the WASM
-guest and against native mock providers in tests.
+guest and against native `omnia_test::provider!` doubles in tests.

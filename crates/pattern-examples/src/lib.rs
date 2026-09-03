@@ -18,8 +18,8 @@
 //!   `application/json`, matching the success content type instead of the
 //!   default plain-text error body.
 //!
-//! The crate-level tests drive every handler through a spy mock provider
-//! that records outbound HTTP requests, and the guest routes them under
+//! The crate-level tests drive every handler through `omnia_test::provider!`
+//! doubles whose `MatchedHttp` records outbound requests, and the guest routes them under
 //! `/examples/patterns/*` so the default WASM capability implementations are
 //! instantiated in a real guest.
 //!

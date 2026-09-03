@@ -10,8 +10,10 @@
 //! This root-package layout (`src/lib.rs`) is the compiling reference for
 //! new Omnia services. Routes and topics come from the canonical tables in
 //! [`acme_common::routes`].
-
-#![cfg(target_arch = "wasm32")]
+//!
+//! Only the WASI exports are `wasm32`-gated. The routers are generic over
+//! the provider so the native route rung (`tests/routes.rs`) drives the
+//! production routing table under `omnia_test::provider!` doubles.
 
 use acme_common::{config, routes};
 use axum::Json;
@@ -25,12 +27,17 @@ use docstore_examples::{
 #[cfg(feature = "god-mode")]
 use gtfs_adapter::SetTripRequest;
 use gtfs_adapter::{MotionMessage, PassengerCountMessage, TrainAvlMessage, VehicleInfoRequest};
-use omnia_guest::HttpError;
+#[cfg(target_arch = "wasm32")]
+use omnia_guest::api::http::serve;
 use omnia_guest::api::http::{
-    MethodFilter, RawRequest, delete, get, handle_with, patch, post, put, serve,
+    MethodFilter, RawRequest, delete, get, handle_with, patch, post, put,
 };
 use omnia_guest::api::messaging::{self, Delivery, consume, consume_with};
 use omnia_guest::api::{Client, DecodeError};
+use omnia_guest::{
+    Config, DocumentStore, HttpError, HttpRequest, Identity, Publish, StateStore, TableStore,
+};
+#[cfg(target_arch = "wasm32")]
 use omnia_wasi_messaging::types::{Error, Message};
 use pattern_examples::{
     DecodeSegmentRequest, NearbyPlacesReply, NearbyPlacesRequest, UpsertPlaceRequest,
@@ -42,13 +49,17 @@ use sql_examples::{
     ListAgenciesRequest, ListAgencyFeedsRequest, ListAllFeedsRequest, UpdateAgencyRequest,
 };
 use tally_connector::TallyRequest;
+#[cfg(target_arch = "wasm32")]
 use tracing::Level;
+#[cfg(target_arch = "wasm32")]
 use wasip3::exports::http::handler::Guest;
+#[cfg(target_arch = "wasm32")]
 use wasip3::http::types as p3;
 
 /// The tenant that owns this deployment.
-const OWNER: &str = "acme";
+pub const OWNER: &str = "acme";
 
+#[cfg(target_arch = "wasm32")]
 omnia_guest::provider! {
     /// Bare provider backed by the default WASI capability implementations.
     pub struct Provider: Config + DocumentStore + HttpRequest + Identity + Publish + StateStore
@@ -56,13 +67,16 @@ omnia_guest::provider! {
 }
 
 /// WASI HTTP export.
+#[cfg(target_arch = "wasm32")]
 pub struct Http;
+#[cfg(target_arch = "wasm32")]
 wasip3::http::service::export!(Http);
 
+#[cfg(target_arch = "wasm32")]
 impl Guest for Http {
     #[omnia_wasi_otel::instrument(name = "http_guest_handle", level = Level::INFO)]
     async fn handle(request: p3::Request) -> Result<p3::Response, p3::ErrorCode> {
-        serve(router(), request).await
+        serve(router(Provider), request).await
     }
 }
 
@@ -70,10 +84,23 @@ impl Guest for Http {
 ///
 /// Omnia creates one WASI component instance per HTTP request, so the router
 /// and client are constructed inside each `handle` call; axum's route-state
-/// clones share the client's provider allocation for that request only.
-fn router() -> axum::Router {
+/// clones share the client's provider allocation for that request only. The
+/// bound is the union of every route handler's capability list.
+pub fn router<P>(provider: P) -> axum::Router
+where
+    P: Config
+        + DocumentStore
+        + HttpRequest
+        + Identity
+        + Publish
+        + StateStore
+        + TableStore
+        + Send
+        + Sync
+        + 'static,
+{
     let router = axum::Router::new()
-        .route(routes::http::APC, post::<TallyRequest, Provider>())
+        .route(routes::http::APC, post::<TallyRequest, P>())
         .route(
             routes::http::PULSE_XML,
             handle_with(
@@ -82,10 +109,10 @@ fn router() -> axum::Router {
                 |reply| encode_pulse(&reply),
             ),
         )
-        .route(routes::http::VEHICLE_INFO, get::<VehicleInfoRequest, Provider>())
+        .route(routes::http::VEHICLE_INFO, get::<VehicleInfoRequest, P>())
         // Pattern-example routes, outside the canonical transit tables.
-        .route(pattern_examples::routes::DECODE, post::<DecodeSegmentRequest, Provider>())
-        .route(pattern_examples::routes::PLACES, post::<UpsertPlaceRequest, Provider>())
+        .route(pattern_examples::routes::DECODE, post::<DecodeSegmentRequest, P>())
+        .route(pattern_examples::routes::PLACES, post::<UpsertPlaceRequest, P>())
         // The default `get` codec only reads path and query parameters. The
         // custom codec passed in here decodes the body instead, to demonstrate
         // `handle_with`.
@@ -101,46 +128,45 @@ fn router() -> axum::Router {
         // CRUD and every filter type over GTFS-like collections).
         .route(
             docstore_examples::paths::STOPS,
-            get::<ListStopsRequest, Provider>().merge(post::<CreateStopRequest, Provider>()),
+            get::<ListStopsRequest, P>().merge(post::<CreateStopRequest, P>()),
         )
         .route(
             docstore_examples::paths::STOP,
-            get::<GetStopRequest, Provider>()
-                .merge(put::<UpsertStopRequest, Provider>())
-                .merge(delete::<DeleteStopRequest, Provider>()),
+            get::<GetStopRequest, P>()
+                .merge(put::<UpsertStopRequest, P>())
+                .merge(delete::<DeleteStopRequest, P>()),
         )
         .route(
             docstore_examples::paths::ROUTES,
-            get::<ListRoutesRequest, Provider>().merge(post::<CreateRouteRequest, Provider>()),
+            get::<ListRoutesRequest, P>().merge(post::<CreateRouteRequest, P>()),
         )
-        .route(docstore_examples::paths::ROUTE, get::<GetRouteRequest, Provider>())
+        .route(docstore_examples::paths::ROUTE, get::<GetRouteRequest, P>())
         .route(
             docstore_examples::paths::STOP_TIMES,
-            get::<ListStopTimesRequest, Provider>()
-                .merge(post::<CreateStopTimeRequest, Provider>()),
+            get::<ListStopTimesRequest, P>().merge(post::<CreateStopTimeRequest, P>()),
         )
-        .route(docstore_examples::paths::STOP_TIME, get::<GetStopTimeRequest, Provider>())
+        .route(docstore_examples::paths::STOP_TIME, get::<GetStopTimeRequest, P>())
         // SQL-example routes: the rich `wasi-sql` ORM showcase (agency/feed
         // schema with JOINs and server-assigned ids).
         .route(
             sql_examples::paths::AGENCIES,
-            get::<ListAgenciesRequest, Provider>().merge(post::<CreateAgencyRequest, Provider>()),
+            get::<ListAgenciesRequest, P>().merge(post::<CreateAgencyRequest, P>()),
         )
         .route(
             sql_examples::paths::AGENCY,
-            get::<GetAgencyRequest, Provider>().merge(patch::<UpdateAgencyRequest, Provider>()),
+            get::<GetAgencyRequest, P>().merge(patch::<UpdateAgencyRequest, P>()),
         )
         .route(
             sql_examples::paths::AGENCY_FEEDS,
-            get::<ListAgencyFeedsRequest, Provider>().merge(post::<CreateFeedRequest, Provider>()),
+            get::<ListAgencyFeedsRequest, P>().merge(post::<CreateFeedRequest, P>()),
         )
-        .route(sql_examples::paths::FEEDS, get::<ListAllFeedsRequest, Provider>())
-        .route(sql_examples::paths::FEED, delete::<DeleteFeedRequest, Provider>());
+        .route(sql_examples::paths::FEEDS, get::<ListAllFeedsRequest, P>())
+        .route(sql_examples::paths::FEED, delete::<DeleteFeedRequest, P>());
 
     #[cfg(feature = "god-mode")]
-    let router = router.route(routes::http::SET_TRIP, post::<SetTripRequest, Provider>());
+    let router = router.route(routes::http::SET_TRIP, post::<SetTripRequest, P>());
 
-    router.with_state(Client::new(OWNER, Provider))
+    router.with_state(Client::new(OWNER, provider))
 }
 
 /// Pass the Pulse body through undecoded.
@@ -185,27 +211,34 @@ fn encode_nearby(reply: NearbyPlacesReply) -> Response {
 }
 
 /// WASI Messaging export.
+#[cfg(target_arch = "wasm32")]
 pub struct Messaging;
+#[cfg(target_arch = "wasm32")]
 omnia_wasi_messaging::export!(Messaging with_types_in omnia_wasi_messaging);
 
+#[cfg(target_arch = "wasm32")]
 impl omnia_wasi_messaging::incoming_handler::Guest for Messaging {
     #[omnia_wasi_otel::instrument(name = "messaging_guest_handle")]
     async fn handle(message: Message) -> Result<(), Error> {
-        let router = messaging_router().await;
+        let router = messaging_router(Provider).await;
         messaging::handle(&router, message).await
     }
 }
 
-/// Build the exact-topic messaging router.
+/// Build the exact-topic messaging router over one provider-owning [`Client`].
 ///
 /// Topics are registered with their full `{env}-` qualified names, so a
 /// topic from another environment is rejected as unhandled instead of
 /// silently consumed. Router failures — including handler errors with their
 /// structured codes — flow back as `error.other` with the full display
-/// string, since the WIT contract only carries a string.
-async fn messaging_router() -> messaging::Router<Provider> {
-    let env = config::env(&Provider).await;
-    messaging::Router::new(Client::new(OWNER, Provider))
+/// string, since the WIT contract only carries a string. Resolving the
+/// environment reads `Config`, hence the `async`.
+pub async fn messaging_router<P>(provider: P) -> messaging::Router<P>
+where
+    P: Config + HttpRequest + Identity + Publish + StateStore + Send + Sync + 'static,
+{
+    let env = config::env(&provider).await;
+    messaging::Router::new(Client::new(OWNER, provider))
         .route(config::topic_for(&env, routes::topic::PULSE), consume_with(decode_pulse_xml))
         .route(config::topic_for(&env, routes::topic::PULSE_TO_MOTION), consume::<MotionMessage>())
         .route(config::topic_for(&env, routes::topic::TRAIN_AVL), consume::<TrainAvlMessage>())

@@ -6,8 +6,8 @@ through combined query endpoints, plus sorting and limit/continuation
 pagination. This crate restores the full docstore example that omnia's
 "Example tidy" trimmed, rewritten in this repository's typed-handler style:
 `#[omnia_guest::handler]` functions over `P: DocumentStore`, mounted by the
-root guest under `/examples/*`, and tested natively against a
-filter-evaluating mock provider.
+root guest under `/examples/*`, and tested natively against the
+filter-evaluating `MemoryDocs` double from `omnia-test`.
 
 ## Quick start
 
@@ -170,8 +170,8 @@ The pre-trim example verified its behaviour with a bash script of `curl` +
 [`tests/operations.rs`](tests/operations.rs) seed the same five stops, four
 routes, and five stop times through `Client::call` and assert the exact
 result count of every filter combination, page 2 via the continuation token,
-and the CRUD round trips. [`tests/provider.rs`](tests/provider.rs) is the
-mock `DocumentStore` that makes this possible natively: it *evaluates* the
+and the CRUD round trips. `omnia_test::guest::MemoryDocs` is the
+`DocumentStore` double that makes this possible natively: it *evaluates* the
 filter tree over the stored JSON documents and honours `order_by`, `limit`,
 and continuation, rather than canning responses.
 

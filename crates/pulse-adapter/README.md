@@ -15,4 +15,6 @@ behaviour.
 - `tests/static.rs` — hand-authored scenarios exercising arrival/departure
   handling, unmapped stations, and validation failures.
 - `tests/replay.rs` — snapshot fixtures captured from a live system, replayed
-  through the adapter with mocked HTTP responses (`acme-test`).
+  through the adapter with the captured HTTP answers seeded into
+  `omnia_test::guest::MatchedHttp` (`tests/fixture.rs` is the loader; each
+  fixture names the exact request it answers, query string included).

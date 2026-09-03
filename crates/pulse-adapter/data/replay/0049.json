@@ -6,6 +6,7 @@
     "http_requests": [
         {
             "path": "/gtfs/stops",
+            "request": "fields=stop_code,stop_lon,stop_lat",
             "method": "GET",
             "response": {
                 "body": [

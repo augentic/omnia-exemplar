@@ -5,5 +5,6 @@
 # nowhere, so the deploy values are representative in shape only.
 
 PACKAGE_NAME: guest-typed
+CRATE_NAME: guest_typed
 STORAGE_ACCOUNT: acmetransitguests
 RESOURCE_GROUP: acme-transit-rt
