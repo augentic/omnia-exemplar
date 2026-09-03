@@ -23,6 +23,11 @@ omnia-test = { version = "0.36.0", features = ["guest"] }
 tokio = { version = "1.53.1", default-features = false, features = ["macros", "rt"] }
 tower = { version = "0.5.3", default-features = false, features = ["util"] }
 
+# For a component rung over `omnia_test::build::Components` in a `build.rs`;
+# `std`-only, so it never pulls the runtime into the build graph.
+# [build-dependencies]
+# omnia-test = { version = "0.36.0", default-features = false, features = ["build"] }
+
 # The root package is its own workspace; list `crates/*` here as the service
 # grows handler crates.
 [workspace]

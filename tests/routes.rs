@@ -15,8 +15,8 @@ use tower::ServiceExt as _;
 
 omnia_test::provider! {
     /// The production capability list, as doubles.
-    pub struct TestProvider: Config + DocumentStore + HttpRequest + Identity + Publish + StateStore
-        + TableStore;
+    pub struct TestProvider: BlobStore + Broadcast + Config + DocumentStore + HttpRequest + Identity
+        + Publish + StateStore + TableStore;
 }
 
 const TALLY_MESSAGE: &[u8] = include_bytes!("../crates/tally-connector/data/tally-message.json");

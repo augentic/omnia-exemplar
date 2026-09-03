@@ -3,6 +3,11 @@
 //!
 //! Timestamps in a captured message are relative to the capture; `delay`
 //! re-anchors them to now so the adapter's freshness window still applies.
+//!
+//! The request matcher that once lived here is `omnia_test::guest::MatchedHttp`
+//! now; `Fetch` is only its serialised form. `TestDef` and `Case` stay local
+//! because the capture format is this service's, not omnia's, and
+//! `augentic/test` is retired for this repository.
 
 #![allow(dead_code, reason = "each test binary uses a subset of the loader")]
 

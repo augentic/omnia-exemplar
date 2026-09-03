@@ -36,7 +36,8 @@ use omnia_guest::api::http::{
 use omnia_guest::api::messaging::{self, Delivery, consume, consume_with};
 use omnia_guest::api::{Client, DecodeError};
 use omnia_guest::{
-    Config, DocumentStore, HttpError, HttpRequest, Identity, Publish, StateStore, TableStore,
+    BlobStore, Broadcast, Config, DocumentStore, HttpError, HttpRequest, Identity, Publish,
+    StateStore, TableStore,
 };
 #[cfg(target_arch = "wasm32")]
 use omnia_wasi_messaging::types::{Error, Message};
@@ -89,7 +90,9 @@ impl Guest for Http {
 /// bound is the union of every route handler's capability list.
 pub fn router<P>(provider: P) -> axum::Router
 where
-    P: Config
+    P: BlobStore
+        + Broadcast
+        + Config
         + DocumentStore
         + HttpRequest
         + Identity
@@ -127,10 +130,10 @@ where
         )
         // Capability-example routes: one domain-free handler each for
         // `BlobStore`, `Broadcast`, `DocumentStore`, and `TableStore`.
-        .route(capability_examples::routes::ARCHIVE, post::<ArchiveRequest, Provider>())
-        .route(capability_examples::routes::ALERT, post::<AlertRequest, Provider>())
-        .route(capability_examples::routes::NOTE, post::<NoteRequest, Provider>())
-        .route(capability_examples::routes::READING, post::<ReadingRequest, Provider>())
+        .route(capability_examples::routes::ARCHIVE, post::<ArchiveRequest, P>())
+        .route(capability_examples::routes::ALERT, post::<AlertRequest, P>())
+        .route(capability_examples::routes::NOTE, post::<NoteRequest, P>())
+        .route(capability_examples::routes::READING, post::<ReadingRequest, P>())
         // Docstore-example routes: the rich `wasi:docstore` showcase (full
         // CRUD and every filter type over GTFS-like collections).
         .route(
