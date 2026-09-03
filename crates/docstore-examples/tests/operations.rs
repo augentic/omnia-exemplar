@@ -5,17 +5,19 @@
 //! of every filter combination, pagination via the continuation token, and
 //! the CRUD round trips.
 
-mod provider;
-
 use docstore_examples::{
     CreateRouteRequest, CreateStopRequest, CreateStopTimeRequest, DeleteStopRequest,
     GetRouteRequest, GetStopRequest, GetStopTimeRequest, ListRoutesRequest, ListStopTimesRequest,
     ListStopsRequest, Route, RoutesReply, Stop, StopTime, StopTimesReply, StopsReply,
     UpsertStopRequest,
 };
+use omnia_guest::DocumentStore as _;
 use omnia_guest::api::{Client, Metadata};
 
-use self::provider::MockProvider;
+omnia_test::provider! {
+    /// The handlers' one capability, as the production default's in-memory twin.
+    pub struct TestProvider: DocumentStore;
+}
 
 fn stop(
     name: &str, coords: (f64, f64), zone: Option<&str>, wheelchair: i32, location: i32,
@@ -57,7 +59,7 @@ fn stop_time(trip: &str, stop: &str, arrival: &str, departure: &str, sequence: i
 
 /// Seed the five stops, four routes, and five stop times from the pre-trim
 /// example's fixtures.
-async fn seed(client: &Client<MockProvider>) {
+async fn seed(client: &Client<TestProvider>) {
     let stops = [
         (
             "stop-001",
@@ -158,23 +160,23 @@ async fn seed(client: &Client<MockProvider>) {
     }
 }
 
-async fn list_stops(client: &Client<MockProvider>, request: ListStopsRequest) -> StopsReply {
+async fn list_stops(client: &Client<TestProvider>, request: ListStopsRequest) -> StopsReply {
     client.call(request, &Metadata::default()).await.expect("list stops should succeed")
 }
 
-async fn list_routes(client: &Client<MockProvider>, request: ListRoutesRequest) -> RoutesReply {
+async fn list_routes(client: &Client<TestProvider>, request: ListRoutesRequest) -> RoutesReply {
     client.call(request, &Metadata::default()).await.expect("list routes should succeed")
 }
 
 async fn list_stop_times(
-    client: &Client<MockProvider>, request: ListStopTimesRequest,
+    client: &Client<TestProvider>, request: ListStopTimesRequest,
 ) -> StopTimesReply {
     client.call(request, &Metadata::default()).await.expect("list stop times should succeed")
 }
 
 #[tokio::test]
 async fn stop_crud_round_trip() {
-    let provider = MockProvider::default();
+    let provider = TestProvider::default();
     let client = Client::new("acme", provider.clone());
     seed(&client).await;
 
@@ -218,14 +220,14 @@ async fn stop_crud_round_trip() {
     };
     let reply = client.call(request.clone(), &Metadata::default()).await.expect("should delete");
     assert_eq!(reply.id, "stop-005");
-    assert!(provider.document("stops", "stop-005").is_none());
+    assert!(provider.docs.get("stops", "stop-005").await.expect("get").is_none());
     let error = client.call(request, &Metadata::default()).await.expect_err("second delete fails");
     assert_eq!(error.code(), "not_found");
 }
 
 #[tokio::test]
 async fn stop_filters() {
-    let provider = MockProvider::default();
+    let provider = TestProvider::default();
     let client = Client::new("acme", provider);
     seed(&client).await;
 
@@ -308,7 +310,7 @@ async fn stop_filters() {
 
 #[tokio::test]
 async fn stop_pagination() {
-    let provider = MockProvider::default();
+    let provider = TestProvider::default();
     let client = Client::new("acme", provider);
     seed(&client).await;
 
@@ -350,7 +352,7 @@ async fn stop_pagination() {
 
 #[tokio::test]
 async fn route_filters() {
-    let provider = MockProvider::default();
+    let provider = TestProvider::default();
     let client = Client::new("acme", provider);
     seed(&client).await;
 
@@ -424,7 +426,7 @@ async fn route_filters() {
 
 #[tokio::test]
 async fn stop_time_filters() {
-    let provider = MockProvider::default();
+    let provider = TestProvider::default();
     let client = Client::new("acme", provider);
     seed(&client).await;
 

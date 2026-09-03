@@ -23,7 +23,7 @@
 //!
 //! Each handler is generic over `P: DocumentStore`, so the same code runs
 //! inside the WASM guest (wired under the [`paths`] constants) and against
-//! the filter-evaluating mock provider in the crate-level tests.
+//! the filter-evaluating `MemoryDocs` double in the crate-level tests.
 //!
 //! [`DocumentStore`]: omnia_guest::DocumentStore
 

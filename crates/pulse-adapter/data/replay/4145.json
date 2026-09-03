@@ -6,6 +6,7 @@
     "http_requests": [
         {
             "path": "/gtfs/stops",
+            "request": "fields=stop_code,stop_lon,stop_lat",
             "response": {
                 "body": [
                     {
@@ -18,6 +19,7 @@
         },
         {
             "path": "/allocations/trips",
+            "request": "externalRefId=3172",
             "response": {
                 "body": [
                     "EMP        212"

@@ -14,8 +14,8 @@ capability trait:
 | `document` | `DocumentStore` | `NoteRequest` — upsert a JSON note and read it back |
 | `table` | `TableStore` | `ReadingRequest` — insert a reading and count the sensor's rows |
 
-The crate-level tests (`tests/`) drive every handler through an in-memory
-mock provider. Route constants for mounting the handlers under `/examples/*`
+The crate-level tests (`tests/`) drive every handler through
+`omnia_test::provider!` doubles. Route constants for mounting the handlers under `/examples/*`
 live in `src/routes.rs`; the workspace-root guest does not wire them by
 default (there is no `guests/` tree — see the repository README).
 

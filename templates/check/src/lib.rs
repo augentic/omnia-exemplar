@@ -192,6 +192,9 @@ fn check_entries(
                 if let Some(err) = syntax_error(&entry.target, &rendered) {
                     failures.push(format!("{}: rendered output is invalid: {err}", entry.source));
                 }
+                if entry.target == "Cargo.toml" {
+                    check_seed_versions(root, &entry.source, &rendered, failures);
+                }
             }
         }
     }
@@ -201,6 +204,94 @@ fn check_entries(
             failures.push(format!("manifest: declared token `{token}` appears in no template"));
         }
     }
+}
+
+/// A seed `Cargo.toml` pins every dependency it shares with the root
+/// workspace at the workspace's version, so the scaffold tracks the omnia
+/// rev the exemplar itself builds against.
+fn check_seed_versions(root: &Path, source: &str, rendered: &str, failures: &mut Vec<String>) {
+    let Ok(workspace) = fs::read_to_string(root.join("Cargo.toml"))
+        .map_err(|err| err.to_string())
+        .and_then(|text| toml::from_str::<toml::Value>(&text).map_err(|err| err.to_string()))
+    else {
+        failures.push("Cargo.toml: root manifest unreadable".to_string());
+        return;
+    };
+    let Ok(seed) = toml::from_str::<toml::Value>(rendered) else {
+        return;
+    };
+    let workspace_deps = workspace.get("workspace").and_then(|w| w.get("dependencies"));
+
+    for (name, seed_dep) in dependency_tables(&seed) {
+        let Some(expected) = workspace_deps.and_then(|deps| deps.get(&name)).and_then(version)
+        else {
+            continue;
+        };
+        let actual = version(seed_dep).unwrap_or_default();
+        if actual != expected {
+            failures.push(format!(
+                "{source}: `{name}` pins {actual:?}, the workspace pins {expected:?}"
+            ));
+        }
+    }
+}
+
+/// Every `[dependencies]`-shaped table in a package manifest, including the
+/// target-gated ones, flattened to `(name, spec)`.
+fn dependency_tables(manifest: &toml::Value) -> Vec<(String, &toml::Value)> {
+    const KINDS: [&str; 3] = ["dependencies", "dev-dependencies", "build-dependencies"];
+    let mut tables = Vec::new();
+    for kind in KINDS {
+        if let Some(table) = manifest.get(kind).and_then(toml::Value::as_table) {
+            tables.push(table);
+        }
+    }
+    if let Some(targets) = manifest.get("target").and_then(toml::Value::as_table) {
+        for target in targets.values() {
+            for kind in KINDS {
+                if let Some(table) = target.get(kind).and_then(toml::Value::as_table) {
+                    tables.push(table);
+                }
+            }
+        }
+    }
+    tables
+        .into_iter()
+        .flat_map(|table| table.iter().map(|(name, spec)| (name.clone(), spec)))
+        .collect()
+}
+
+fn version(spec: &toml::Value) -> Option<String> {
+    match spec {
+        toml::Value::String(version) => Some(version.clone()),
+        toml::Value::Table(table) => table.get("version")?.as_str().map(str::to_owned),
+        _ => None,
+    }
+}
+
+/// Write every manifest entry, rendered with `values.yaml`, under `dest`:
+/// the project a consumer build starts from.
+///
+/// # Errors
+///
+/// Returns `Err` when the manifest, the values, or a source cannot be read,
+/// or when a target cannot be written.
+pub fn scaffold(root: &Path, dest: &Path) -> Result<(), String> {
+    let manifest: Manifest = parse_yaml(&root.join(MANIFEST))?;
+    let values: BTreeMap<String, String> = parse_yaml(&root.join(SUBTREE).join("values.yaml"))?;
+
+    for entry in &manifest.assemblies.core.files {
+        let source = root.join(&entry.source);
+        let body =
+            fs::read_to_string(&source).map_err(|err| format!("{}: {err}", source.display()))?;
+        let target = dest.join(&entry.target);
+        if let Some(parent) = target.parent() {
+            fs::create_dir_all(parent).map_err(|err| format!("{}: {err}", parent.display()))?;
+        }
+        fs::write(&target, render(&body, &values))
+            .map_err(|err| format!("{}: {err}", target.display()))?;
+    }
+    Ok(())
 }
 
 /// Absolute or parent-traversing paths never belong in the manifest.
@@ -229,6 +320,9 @@ fn check_orphans(
 }
 
 /// `<UPPER_SNAKE>` tokens in first-appearance order, deduplicated.
+///
+/// A lone uppercase letter (`<P>`, `<T>`) is a Rust generic in a seed
+/// source, not a token.
 fn placeholders(body: &str) -> Vec<String> {
     let mut found = Vec::new();
     let bytes = body.as_bytes();
@@ -238,7 +332,7 @@ fn placeholders(body: &str) -> Vec<String> {
         let end = rest.find('>');
         if let Some(end) = end {
             let candidate = &rest[..end];
-            let is_token = !candidate.is_empty()
+            let is_token = candidate.len() >= 2
                 && candidate.as_bytes()[0].is_ascii_uppercase()
                 && candidate
                     .bytes()

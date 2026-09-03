@@ -155,8 +155,8 @@ consumer is out of scope for the exemplar.
 Domain crates depend only on the `omnia-guest` capability traits (`Config`,
 `HttpRequest`, `Identity`, `Publish`, `StateStore`; `capability-examples`
 covers `BlobStore`, `Broadcast`, `DocumentStore`, and `TableStore`), so the
-same code runs inside the WASM guest and against native mock providers in
-tests.
+same code runs inside the WASM guest and against `omnia_test::provider!`
+doubles in tests.
 
 ## Adding a new handler
 
@@ -174,8 +174,10 @@ tests.
    the shared route tables (`post::<Input, Provider>()`, `consume::<Input>()`,
    or a `_with` variant for custom wire formats).
 6. Add fixtures under the crate's `data/` and native tests under `tests/`
-   with a mock provider (copy the shape of `crates/tally-connector/tests` or
-   `crates/gtfs-adapter/tests`).
+   with an `omnia_test::provider!` declaration over the handler's
+   capabilities (copy the shape of `crates/tally-connector/tests` or
+   `crates/gtfs-adapter/tests`), then add the route to `tests/routes.rs` or
+   the topic to `tests/messaging.rs`.
 7. Run `make ci` — fmt, clippy (native + wasm), tests, docs, vet, deny.
 
 ## Configuration
@@ -217,17 +219,18 @@ Patterns worth copying into new services:
   producers, consumers, and the guest.
 - Named config keys with a single documented resolution policy
   (`acme_common::config`).
-- Native mock-provider tests plus captured fixtures (`tests/` +
-  `data/` in each crate).
+- Native tests under `omnia_test::provider!` doubles plus captured fixtures
+  (`tests/` + `data/` in each crate), and a route rung per router at the
+  root (`tests/routes.rs`, `tests/messaging.rs`).
 - Decode-through-cache: expensive lookups go through `StateStore` in one
   handler — miss → `Config` → `HttpRequest` → write back with a TTL —
   instead of a separate cache-population process
   (`pattern_examples::decode`).
 - Credential material in `Config`, carried as ordinary request data (the
   `Client-Cert` header), so outbound HTTP stays generic.
-- Spy mocks: the test provider records outbound HTTP requests so tests
-  assert on what left the guest — shape, headers, and call count
-  (`crates/pattern-examples/tests/provider.rs`).
+- Recording doubles: `MatchedHttp` answers only the exact requests a test
+  seeds and records what left the guest — shape, headers, and call count
+  (`crates/pattern-examples/tests/decode.rs`).
 - Radius queries as bounding-box `SELECT`s through `TableStore` and the
   ORM, refined by haversine in Rust — never a geospatial extension bolted
   onto the KV state store (`pattern_examples::place`).
@@ -263,24 +266,36 @@ Acme domain quirks that are **not** general patterns:
 cargo nextest run            # or: cargo test --workspace --all-features
 ```
 
-- `crates/tally-connector/tests` — the minimal mock-provider pattern
+Every crate declares its test provider with one `omnia_test::provider!`
+line over the capabilities its handlers name, and seeds the doubles
+`omnia_test::guest` exports — `MapConfig`, `Sink`, `MatchedHttp`, `Memory`,
+`MemoryDocs`, `ScriptedTables`, `FixedIdentity`. There is no hand-written
+mock provider anywhere in the workspace.
+
+- `tests/routes.rs`, `tests/messaging.rs` — the route and messaging rungs:
+  the root guest's production routers driven natively (`oneshot` and
+  `Router::handle`) under the production capability list as doubles
+- `crates/tally-connector/tests` — the minimal handler rung
 - `crates/pulse-connector/tests` — SOAP happy path and fault sad path
-- `crates/gtfs-adapter/tests` — in-memory `Config`/`StateStore`/`Publish`/
-  `HttpRequest` mocks covering motion, dead reckoning, sign-on, filtering,
-  occupancy, and (feature-gated) god-mode
-- `crates/pulse-adapter/tests` — static fixtures plus `acme-test` replay
-  sessions captured from a live system (`data/replay`, `data/static`)
-- `crates/capability-examples/tests` — one in-memory mock provider covering
+- `crates/gtfs-adapter/tests` — `MatchedHttp` seeded with the exact
+  upstream URLs (`tests/support/`), covering motion, dead reckoning,
+  sign-on, filtering, occupancy, and (feature-gated) god-mode
+- `crates/pulse-adapter/tests` — static fixtures plus replay sessions
+  captured from a live system (`data/replay`, `data/static`), loaded by
+  `tests/fixture/` onto `MatchedHttp`
+- `crates/capability-examples/tests` — one provider covering
   `BlobStore`/`Broadcast`/`DocumentStore`/`TableStore`
-- `crates/docstore-examples/tests` — a filter-evaluating in-memory
-  `DocumentStore` mock, covering every portable filter type, sorting,
+- `crates/docstore-examples/tests` — `MemoryDocs`, the filter-evaluating
+  `DocumentStore` double, covering every portable filter type, sorting,
   continuation pagination, and the CRUD round-trip
-- `crates/sql-examples/tests` — a spy `TableStore` mock that records every
-  statement, covering all four ORM builders, the JOIN listing,
-  server-assigned ids, and 404-on-zero-rows
-- `crates/pattern-examples/tests` — a spy mock provider that records
-  outbound HTTP requests, covering the decode cache (hit and miss), the
-  ORM-backed nearby query, and the structured-error upsert rejection
+- `crates/sql-examples/tests` — `ScriptedTables` scripting each ORM query's
+  rows and recording every statement, covering all four ORM builders, the
+  JOIN listing, server-assigned ids, and 404-on-zero-rows
+- `crates/pattern-examples/tests` — `MatchedHttp` recording outbound HTTP
+  requests, covering the decode cache (hit and miss), the ORM-backed nearby
+  query, and the structured-error upsert rejection
+- `templates/check/tests` — the template contract gate and the scaffold
+  proof (a rendered guest builds for `wasm32-wasip2` and passes its test)
 
 The crate tests above cover handler semantics against mock providers; none of
 them executes the assembled artefact. `tests/smoke.rs` closes that gap:
@@ -330,9 +345,14 @@ cargo run -p template-check   # schema, tokens, path safety, seed render
 
 `exact` entries reference their repository-root file in place
 (`source == target`, token-free), so a green root vouches for the
-scaffold with no diff to maintain. To move to a new Omnia rev, update
-`Cargo.lock` (and any explicit `rev` on the `[patch.crates-io]` git
-sources).
+scaffold with no diff to maintain. The `Cargo.toml`, `src/lib.rs` and
+`tests/routes.rs` seeds give a new service the shape above — a
+provider-generic router, `rlib` alongside `cdylib`, and a route rung
+under `omnia_test::provider!` — and the suite's scaffold test renders
+the manifest and builds and tests the result against the same omnia the
+exemplar uses. To move to a new Omnia rev, update `Cargo.lock` (and any
+explicit `rev` on the `[patch.crates-io]` git sources) and the seed's
+pins, which the gate holds equal to the workspace's.
 
 ## Development
 

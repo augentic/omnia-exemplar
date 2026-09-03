@@ -1,0 +1,33 @@
+[package]
+name = "<PACKAGE_NAME>"
+description = "Omnia WASI guest"
+publish = false
+edition = "2024"
+rust-version = "1.97"
+version = "0.1.0"
+
+[lib]
+# `rlib` lets the native route rung (`tests/routes.rs`) link the router;
+# `cdylib` is the WASI component.
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+axum = { version = "0.8.9", default-features = false, features = ["json"] }
+omnia-guest = "0.36.0"
+serde = { version = "1.0.229", features = ["derive"] }
+wasip3 = { version = "0.8.0", features = ["http-compat"] }
+
+# Target-gated so the guest's wasm32 dependency graph never sees the doubles.
+[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
+omnia-test = { version = "0.36.0", features = ["guest"] }
+tokio = { version = "1.53.1", default-features = false, features = ["macros", "rt"] }
+tower = { version = "0.5.3", default-features = false, features = ["util"] }
+
+# For a component rung over `omnia_test::build::Components` in a `build.rs`;
+# `std`-only, so it never pulls the runtime into the build graph.
+# [build-dependencies]
+# omnia-test = { version = "0.36.0", default-features = false, features = ["build"] }
+
+# The root package is its own workspace; list `crates/*` here as the service
+# grows handler crates.
+[workspace]

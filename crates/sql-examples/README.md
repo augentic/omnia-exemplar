@@ -94,14 +94,13 @@ curl -s -X DELETE http://localhost:8080/examples/feeds/1
 
 ## Testing
 
-[`tests/provider.rs`](tests/provider.rs) is a spy `TableStore` mock in the
-style of `pattern-examples`: it keeps in-memory agency/feed tables,
-*recognizes* the ORM-generated SQL (parsing the quoted column lists and
-checking the bound parameters), answers the JOIN select with aliased
-columns, and records every statement. [`tests/operations.rs`](tests/operations.rs)
-drives the full CRUD flow through `Client::call` — id assignment, partial
-update, the referential check, the JOIN listing, delete-with-404 — and
-asserts on the recorded statement shapes.
+[`tests/operations.rs`](tests/operations.rs) drives each handler through
+`Client::call` over `omnia_test::guest::ScriptedTables`, a responder-only
+`TableStore` double: every scenario scripts the rows the ORM-generated
+`SELECT` should see and asserts the recorded statements — SQL text and
+bound parameters — for id assignment, partial update, the referential
+check, the JOIN listing, and delete-with-404. There is no in-memory
+database; the tests pin the contract between the handlers and the store.
 
 ```shell
 cargo nextest run -p sql-examples

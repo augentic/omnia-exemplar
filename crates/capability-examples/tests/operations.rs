@@ -1,16 +1,21 @@
-//! Integration tests driving each capability example through the mock
-//! provider, invoked exactly as the guest invokes them.
+//! Integration tests driving each capability example through `omnia_test`
+//! doubles, invoked exactly as the guest invokes them.
 
-mod provider;
-
+use capability_examples::table::sql;
 use capability_examples::{AlertRequest, ArchiveRequest, NoteRequest, ReadingRequest};
+use omnia_guest::DocumentStore as _;
 use omnia_guest::api::{Client, Metadata};
+use omnia_guest::orm::{DataType, Field, Row};
+use omnia_test::guest::{Broadcasted, ScriptedTables};
 
-use self::provider::MockProvider;
+omnia_test::provider! {
+    /// The union of the examples' capability lists, as doubles.
+    pub struct TestProvider: BlobStore + Broadcast + DocumentStore + TableStore;
+}
 
 #[tokio::test]
 async fn archive_object() {
-    let provider = MockProvider::default();
+    let provider = TestProvider::default();
     let request = ArchiveRequest {
         container: "reports".to_string(),
         name: "2026-07.json".to_string(),
@@ -23,12 +28,15 @@ async fn archive_object() {
         .expect("should succeed");
 
     assert_eq!(reply.size, 12);
-    assert_eq!(provider.object("reports", "2026-07.json"), Some(br#"{"total":42}"#.to_vec()));
+    assert_eq!(
+        provider.storage.object("reports", "2026-07.json"),
+        Some(br#"{"total":42}"#.to_vec())
+    );
 }
 
 #[tokio::test]
 async fn broadcast_alert() {
-    let provider = MockProvider::default();
+    let provider = TestProvider::default();
     let request = AlertRequest {
         channel: "ops".to_string(),
         message: "service degraded".to_string(),
@@ -40,17 +48,19 @@ async fn broadcast_alert() {
         .await
         .expect("should succeed");
 
-    let broadcasts = provider.broadcasts();
-    assert_eq!(broadcasts.len(), 1);
-    let (channel, data, sockets) = &broadcasts[0];
-    assert_eq!(channel, "ops");
-    assert_eq!(data, b"service degraded");
-    assert_eq!(sockets.as_deref(), Some(["socket-1".to_string()].as_slice()));
+    assert_eq!(
+        provider.broadcast.broadcasts(),
+        [Broadcasted {
+            name: "ops".to_string(),
+            data: b"service degraded".to_vec(),
+            sockets: Some(vec!["socket-1".to_string()]),
+        }]
+    );
 }
 
 #[tokio::test]
 async fn upsert_note() {
-    let provider = MockProvider::default();
+    let provider = TestProvider::default();
     let request = NoteRequest {
         store: "notes".to_string(),
         id: "note-1".to_string(),
@@ -62,37 +72,60 @@ async fn upsert_note() {
         .await
         .expect("should succeed");
 
-    let stored = provider.document("notes", "note-1").expect("stored");
-    assert_eq!(reply.size, stored.len());
-    let body: serde_json::Value = serde_json::from_slice(&stored).expect("valid JSON");
+    let stored = provider.docs.get("notes", "note-1").await.expect("get").expect("stored");
+    assert_eq!(reply.size, stored.data.len());
+    let body: serde_json::Value = serde_json::from_slice(&stored.data).expect("valid JSON");
     assert_eq!(body, serde_json::json!({ "text": "hello" }));
 }
 
 #[tokio::test]
 async fn record_reading() {
-    let provider = MockProvider::default();
-    let client = Client::new("acme", provider.clone());
-
-    let first = ReadingRequest {
-        connection: "telemetry".to_string(),
-        sensor: "temp-1".to_string(),
-        value: 21.5,
+    // The insert is acknowledged and the sensor already has one reading, so
+    // the count the handler reports back is two.
+    let earlier = Row {
+        index: "0".to_string(),
+        fields: vec![
+            Field {
+                name: "sensor".to_string(),
+                value: DataType::Str(Some("temp-1".to_string())),
+            },
+            Field {
+                name: "value".to_string(),
+                value: DataType::Double(Some(21.5)),
+            },
+        ],
     };
-    let reply = client.call(first, &Metadata::default()).await.expect("should succeed");
-    assert_eq!(reply.affected, 1);
-    assert_eq!(reply.rows, 1);
+    let provider = TestProvider::default().tables(
+        ScriptedTables::default()
+            .on_exec(|sql, _| sql == sql::INSERT, 1)
+            .on_query(|sql, _| sql == sql::SELECT, vec![earlier.clone(), earlier]),
+    );
 
-    let second = ReadingRequest {
+    let request = ReadingRequest {
         connection: "telemetry".to_string(),
         sensor: "temp-1".to_string(),
         value: 22.0,
     };
-    let reply = client.call(second, &Metadata::default()).await.expect("should succeed");
+    let reply = Client::new("acme", provider.clone())
+        .call(request, &Metadata::default())
+        .await
+        .expect("should succeed");
+
     assert_eq!(reply.affected, 1);
     assert_eq!(reply.rows, 2);
 
-    assert_eq!(
-        provider.readings(),
-        vec![("temp-1".to_string(), 21.5), ("temp-1".to_string(), 22.0)]
+    // Both statements went to the named connection with the sensor bound.
+    let statements = provider.tables.statements();
+    assert_eq!(statements.len(), 2);
+    assert!(statements.iter().all(|statement| statement.connection == "telemetry"));
+    assert_eq!(statements[0].sql, sql::INSERT);
+    assert!(matches!(
+        statements[0].params.as_slice(),
+        [DataType::Str(Some(sensor)), DataType::Double(Some(value))]
+            if sensor == "temp-1" && value.to_bits() == 22.0_f64.to_bits()
+    ));
+    assert_eq!(statements[1].sql, sql::SELECT);
+    assert!(
+        matches!(statements[1].params.as_slice(), [DataType::Str(Some(sensor))] if sensor == "temp-1")
     );
 }

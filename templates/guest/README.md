@@ -27,7 +27,19 @@ Tokens are `<UPPER_SNAKE>` placeholders declared in the manifest's
 `tokens` map. Only seed templates may carry them; consumers receive the
 tokens verbatim and the omnia adapter's build prompts direct the guest
 writer to fill them (`.github/workflows/publish.yaml` deploy
-parameters).
+parameters, the package and crate name). A lone uppercase letter
+(`<P>`) is a Rust generic in a `.rs` seed, not a token.
+
+The seed also carries the guest's starting shape: `Cargo.toml` with the
+`omnia-guest` dependency, the `wasm32`-excluded `omnia-test`
+dev-dependency (`features = ["guest"]`) and `crate-type = ["cdylib",
+"rlib"]`; `src/lib.rs` with one `wasm32`-gated WASI HTTP export over a
+provider-generic router; and `tests/routes.rs`, one
+`omnia_test::provider!` line and one native route test. Its shared
+dependency pins must match the root workspace's, and
+`templates/check/tests/scaffold.rs` renders the whole manifest into
+`target/template-scaffold/` and proves the result builds for
+`wasm32-wasip2` and passes that test with no hand edits.
 
 Project-specific root policy — concrete crate names, private
 registries, supply-chain exemptions, release-branch details — stays

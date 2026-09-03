@@ -17,6 +17,7 @@ schema-version: 3
 
 tokens:
   PACKAGE_NAME: Cargo package name of the deployable guest, filled by the guest writer.
+  CRATE_NAME: PACKAGE_NAME as a Rust path (hyphens as underscores), as `tests/` names the crate.
   STORAGE_ACCOUNT: Azure storage account receiving the built component.
   RESOURCE_GROUP: Azure resource group owning the storage account.
 
@@ -24,6 +25,15 @@ assemblies:
   core:
     path-mode: content-only
     files:
+      - source: templates/guest/core/Cargo.toml
+        target: Cargo.toml
+        proof: seed
+      - source: templates/guest/core/src-lib.rs
+        target: src/lib.rs
+        proof: seed
+      - source: templates/guest/core/tests-routes.rs
+        target: tests/routes.rs
+        proof: seed
       - source: Makefile
         target: Makefile
         proof: exact

@@ -6,12 +6,14 @@
     "http_requests": [
         {
             "path": "/gtfs/stops",
+            "request": "fields=stop_code,stop_lon,stop_lat",
             "response": {
                 "body": []
             }
         },
         {
             "path": "/allocations/trips",
+            "request": "externalRefId=5226",
             "response": {
                 "body": [
                     "vehicle 1"
