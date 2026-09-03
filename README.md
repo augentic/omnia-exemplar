@@ -338,7 +338,7 @@ sources).
 
 ```shell
 make ci         # fmt, clippy (native + wasm), test, docs, vet, deny — same targets as omnia
-make smoke      # end-to-end: build guest.wasm + host, run the ignored smoke test (not part of ci)
+make smoke      # end-to-end: build guest.wasm + host, run the ignored smoke test (not in `make ci`; CI's wasm job runs it)
 ```
 
 The workspace follows omnia's conventions: stable toolchain
