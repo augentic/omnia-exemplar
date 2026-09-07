@@ -5,8 +5,8 @@ use bytes::Bytes;
 use http::{Method, Response};
 use omnia_guest::api::{Client, Metadata};
 use omnia_test::guest::{MapConfig, MatchedHttp};
-use pattern_examples::Segment;
-use pattern_examples::decode::{
+use pattern::Segment;
+use pattern::decode::{
     CLIENT_CERT, DECODER_URL, DecodeSegmentRequest, decode_segment, segment_key,
 };
 

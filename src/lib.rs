@@ -20,8 +20,8 @@ use acme_common::{config, routes};
 use axum::Json;
 use axum::http::header::CONTENT_TYPE;
 use axum::response::{IntoResponse, Response};
-use capability_examples::{alert, archive, note, reading};
-use docstore_examples::{
+use capability::{alert, archive, note, reading};
+use docstore::{
     create_route, create_stop, create_stop_time, delete_stop, get_route, get_stop, get_stop_time,
     list_routes, list_stop_times, list_stops, upsert_stop,
 };
@@ -41,12 +41,12 @@ use omnia_guest::{
 };
 #[cfg(target_arch = "wasm32")]
 use omnia_wasi_messaging::types::{Error, Message};
-use pattern_examples::{
+use pattern::{
     NearbyPlacesReply, NearbyPlacesRequest, decode_segment, nearby_places, upsert_place,
 };
 use pulse_adapter::PulseMessage;
 use pulse_connector::{PulseReply, PulseXml};
-use sql_examples::{
+use sql::{
     create_agency, create_feed, delete_feed, get_agency, list_agencies, list_agency_feeds,
     list_all_feeds, update_agency,
 };
@@ -116,13 +116,13 @@ where
         )
         .route(routes::http::VEHICLE_INFO, get(vehicle_info))
         // Pattern-example routes, outside the canonical transit tables.
-        .route(pattern_examples::routes::DECODE, post(decode_segment))
-        .route(pattern_examples::routes::PLACES, post(upsert_place))
+        .route(pattern::routes::DECODE, post(decode_segment))
+        .route(pattern::routes::PLACES, post(upsert_place))
         // The default `get` codec only reads path and query parameters. The
         // custom codec passed in here decodes the body instead, to demonstrate
         // `handle_with`.
         .route(
-            pattern_examples::routes::NEARBY,
+            pattern::routes::NEARBY,
             handle_with(
                 MethodFilter::GET,
                 nearby_places,
@@ -132,31 +132,28 @@ where
         )
         // Capability-example routes: one domain-free handler each for
         // `BlobStore`, `Broadcast`, `DocumentStore`, and `TableStore`.
-        .route(capability_examples::routes::ARCHIVE, post(archive))
-        .route(capability_examples::routes::ALERT, post(alert))
-        .route(capability_examples::routes::NOTE, post(note))
-        .route(capability_examples::routes::READING, post(reading))
+        .route(capability::routes::ARCHIVE, post(archive))
+        .route(capability::routes::ALERT, post(alert))
+        .route(capability::routes::NOTE, post(note))
+        .route(capability::routes::READING, post(reading))
         // Docstore-example routes: the rich `wasi:docstore` showcase (full
         // CRUD and every filter type over GTFS-like collections).
-        .route(docstore_examples::paths::STOPS, get(list_stops).merge(post(create_stop)))
+        .route(docstore::paths::STOPS, get(list_stops).merge(post(create_stop)))
         .route(
-            docstore_examples::paths::STOP,
+            docstore::paths::STOP,
             get(get_stop).merge(put(upsert_stop)).merge(delete(delete_stop)),
         )
-        .route(docstore_examples::paths::ROUTES, get(list_routes).merge(post(create_route)))
-        .route(docstore_examples::paths::ROUTE, get(get_route))
-        .route(
-            docstore_examples::paths::STOP_TIMES,
-            get(list_stop_times).merge(post(create_stop_time)),
-        )
-        .route(docstore_examples::paths::STOP_TIME, get(get_stop_time))
+        .route(docstore::paths::ROUTES, get(list_routes).merge(post(create_route)))
+        .route(docstore::paths::ROUTE, get(get_route))
+        .route(docstore::paths::STOP_TIMES, get(list_stop_times).merge(post(create_stop_time)))
+        .route(docstore::paths::STOP_TIME, get(get_stop_time))
         // SQL-example routes: the rich `wasi-sql` ORM showcase (agency/feed
         // schema with JOINs and server-assigned ids).
-        .route(sql_examples::paths::AGENCIES, get(list_agencies).merge(post(create_agency)))
-        .route(sql_examples::paths::AGENCY, get(get_agency).merge(patch(update_agency)))
-        .route(sql_examples::paths::AGENCY_FEEDS, get(list_agency_feeds).merge(post(create_feed)))
-        .route(sql_examples::paths::FEEDS, get(list_all_feeds))
-        .route(sql_examples::paths::FEED, delete(delete_feed));
+        .route(sql::paths::AGENCIES, get(list_agencies).merge(post(create_agency)))
+        .route(sql::paths::AGENCY, get(get_agency).merge(patch(update_agency)))
+        .route(sql::paths::AGENCY_FEEDS, get(list_agency_feeds).merge(post(create_feed)))
+        .route(sql::paths::FEEDS, get(list_all_feeds))
+        .route(sql::paths::FEED, delete(delete_feed));
 
     #[cfg(feature = "god-mode")]
     let router = router.route(routes::http::SET_TRIP, post(set_trip));

@@ -3,7 +3,7 @@
 //! The rich `wasi:docstore` showcase: three GTFS-like collections — stops,
 //! routes, and stop times — exercising full CRUD and every portable filter
 //! type through combined query endpoints, plus sorting and
-//! limit/continuation pagination. Where `capability_examples::document`
+//! limit/continuation pagination. Where `capability::document`
 //! proves the [`DocumentStore`] capability with one upsert, this crate
 //! shows what a document-backed service actually looks like.
 //!

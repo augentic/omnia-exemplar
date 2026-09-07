@@ -9,7 +9,7 @@
 use omnia_guest::api::{Client, Metadata};
 use omnia_guest::orm::{DataType, Field, Row};
 use omnia_test::guest::{ScriptedTables, Statement};
-use pattern_examples::{NearbyPlacesRequest, UpsertPlaceRequest, nearby_places, upsert_place};
+use pattern::{NearbyPlacesRequest, UpsertPlaceRequest, nearby_places, upsert_place};
 
 omnia_test::provider! {
     /// The handlers' one capability, as a scripted double.
@@ -79,7 +79,7 @@ async fn upsert(client: &Client<TestProvider>, id: &str, name: &str, lat: f64, l
 
 async fn nearby(
     client: &Client<TestProvider>, lat: f64, lon: f64, radius_m: f64,
-) -> pattern_examples::NearbyPlacesReply {
+) -> pattern::NearbyPlacesReply {
     let request = NearbyPlacesRequest { lat, lon, radius_m };
     client.call(nearby_places, request, &Metadata::default()).await.expect("should succeed")
 }
@@ -103,7 +103,7 @@ async fn radius_filters_and_orders_by_distance() {
     // The box the database was asked for brackets the centre on both axes.
     let statements = provider.tables.statements();
     assert_eq!(statements.len(), 1);
-    assert_eq!(statements[0].connection, pattern_examples::place::CONNECTION);
+    assert_eq!(statements[0].connection, pattern::place::CONNECTION);
     let [lat_min, lat_max, lon_min, lon_max] = bounds(&statements[0]);
     assert!(lat_min < -36.8485 && -36.8485 < lat_max);
     assert!(lon_min < 174.7633 && 174.7633 < lon_max);

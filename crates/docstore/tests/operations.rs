@@ -5,7 +5,7 @@
 //! of every filter combination, pagination via the continuation token, and
 //! the CRUD round trips.
 
-use docstore_examples::{
+use docstore::{
     CreateRouteRequest, CreateStopRequest, CreateStopTimeRequest, DeleteStopRequest,
     GetRouteRequest, GetStopRequest, GetStopTimeRequest, ListRoutesRequest, ListStopTimesRequest,
     ListStopsRequest, Route, RoutesReply, Stop, StopTime, StopTimesReply, StopsReply,

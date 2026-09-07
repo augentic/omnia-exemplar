@@ -1,6 +1,6 @@
 [package]
-name = "docstore-examples"
-description = "Rich wasi:docstore showcase: GTFS-like collections exercising every portable filter type, sorting, and continuation pagination"
+name = "pattern"
+description = "Composition patterns over the Omnia guest capabilities: cache-aside decoding, config-carried credentials, relational geo queries, and structured JSON error bodies"
 readme = "README.md"
 publish = false
 authors.workspace = true
@@ -20,9 +20,13 @@ crate-type = ["lib"]
 
 [dependencies]
 anyhow.workspace = true
+bytes.workspace = true
+http.workspace = true
+http-body-util.workspace = true
 omnia-guest.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+thiserror.workspace = true
 
 [dev-dependencies]
 tokio.workspace = true

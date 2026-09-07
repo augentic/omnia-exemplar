@@ -1,7 +1,7 @@
 //! # SQL examples
 //!
 //! The rich `wasi-sql` showcase: an agency/feed schema exercising the full
-//! guest ORM surface. Where `pattern_examples::place` uses the ORM for one
+//! guest ORM surface. Where `pattern::place` uses the ORM for one
 //! upsert-plus-select pattern, this crate restores the complete relational
 //! example that omnia's "Example tidy" trimmed:
 //!

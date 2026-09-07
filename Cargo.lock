@@ -324,7 +324,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "capability-examples"
+name = "capability"
 version = "0.1.0"
 dependencies = [
  "anyhow",
@@ -851,7 +851,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "docstore-examples"
+name = "docstore"
 version = "0.1.0"
 dependencies = [
  "anyhow",
@@ -1216,10 +1216,10 @@ dependencies = [
  "anyhow",
  "axum",
  "bytes",
- "capability-examples",
+ "capability",
  "cfg-if",
  "chrono",
- "docstore-examples",
+ "docstore",
  "gtfs-adapter",
  "http",
  "omnia",
@@ -1235,11 +1235,11 @@ dependencies = [
  "omnia-wasi-otel",
  "omnia-wasi-sql",
  "omnia-wasi-websocket",
- "pattern-examples",
+ "pattern",
  "pulse-adapter",
  "pulse-connector",
  "serde_json",
- "sql-examples",
+ "sql",
  "tally-connector",
  "tokio",
  "tower",
@@ -2500,7 +2500,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2ee67f1008b1ba2321834326597b8e186293b049a023cdef258527550b9935b4"
 
 [[package]]
-name = "pattern-examples"
+name = "pattern"
 version = "0.1.0"
 dependencies = [
  "anyhow",
@@ -3534,7 +3534,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "sql-examples"
+name = "sql"
 version = "0.1.0"
 dependencies = [
  "anyhow",

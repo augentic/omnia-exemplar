@@ -1,5 +1,5 @@
 [package]
-name = "capability-examples"
+name = "capability"
 description = "Compiling examples for the Omnia guest capabilities the transit crates do not exercise"
 readme = "README.md"
 publish = false

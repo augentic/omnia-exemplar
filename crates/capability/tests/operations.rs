@@ -1,8 +1,8 @@
 //! Integration tests driving each capability example through `omnia_test`
 //! doubles, invoked exactly as the guest invokes them.
 
-use capability_examples::table::sql;
-use capability_examples::{
+use capability::table::sql;
+use capability::{
     AlertRequest, ArchiveRequest, NoteRequest, ReadingRequest, alert, archive, note, reading,
 };
 use omnia_guest::DocumentStore as _;

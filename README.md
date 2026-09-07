@@ -118,16 +118,16 @@ The guest:
 | `POST /inbound/xml` | `pulse_connector::pulse` — SOAP/XML position ingress |
 | `GET /info/{vehicle_id}` | `gtfs_adapter::vehicle_info` |
 | `POST /god-mode/set-trip/{vehicle_id}/{trip_id}` | `gtfs_adapter::set_trip` (requires the `god-mode` feature) |
-| `GET/POST /examples/stops`, `GET/PUT/DELETE /examples/stops/{id}` | `docstore_examples::{list_stops, create_stop, get_stop, upsert_stop, delete_stop}` — docstore CRUD plus filtered queries |
-| `GET/POST /examples/routes`, `GET /examples/routes/{id}` | `docstore_examples::{list_routes, create_route, get_route}` — OR / `in_list` / negation filters |
-| `GET/POST /examples/stop-times`, `GET /examples/stop-times/{id}` | `docstore_examples::{list_stop_times, create_stop_time, get_stop_time}` — string and numeric range filters |
-| `GET/POST /examples/agencies`, `GET/PATCH /examples/agencies/{id}` | `sql_examples::{list_agencies, create_agency, get_agency, update_agency}` — ORM CRUD with server-assigned ids |
-| `GET/POST /examples/agencies/{agency_id}/feeds` | `sql_examples::{list_agency_feeds, create_feed}` — per-agency feeds with referential checks |
-| `GET /examples/feeds`, `DELETE /examples/feeds/{id}` | `sql_examples::{list_all_feeds, delete_feed}` — JOIN listing and delete with 404-on-zero-rows |
-| `POST /examples/archive` | `capability_examples::archive` — `BlobStore` object write |
-| `POST /examples/alert` | `capability_examples::alert` — `Broadcast` over websocket |
-| `POST /examples/note` | `capability_examples::note` — `DocumentStore` upsert |
-| `POST /examples/reading` | `capability_examples::reading` — `TableStore` insert |
+| `GET/POST /examples/stops`, `GET/PUT/DELETE /examples/stops/{id}` | `docstore::{list_stops, create_stop, get_stop, upsert_stop, delete_stop}` — docstore CRUD plus filtered queries |
+| `GET/POST /examples/routes`, `GET /examples/routes/{id}` | `docstore::{list_routes, create_route, get_route}` — OR / `in_list` / negation filters |
+| `GET/POST /examples/stop-times`, `GET /examples/stop-times/{id}` | `docstore::{list_stop_times, create_stop_time, get_stop_time}` — string and numeric range filters |
+| `GET/POST /examples/agencies`, `GET/PATCH /examples/agencies/{id}` | `sql::{list_agencies, create_agency, get_agency, update_agency}` — ORM CRUD with server-assigned ids |
+| `GET/POST /examples/agencies/{agency_id}/feeds` | `sql::{list_agency_feeds, create_feed}` — per-agency feeds with referential checks |
+| `GET /examples/feeds`, `DELETE /examples/feeds/{id}` | `sql::{list_all_feeds, delete_feed}` — JOIN listing and delete with 404-on-zero-rows |
+| `POST /examples/archive` | `capability::archive` — `BlobStore` object write |
+| `POST /examples/alert` | `capability::alert` — `Broadcast` over websocket |
+| `POST /examples/note` | `capability::note` — `DocumentStore` upsert |
+| `POST /examples/reading` | `capability::reading` — `TableStore` insert |
 
 | Messaging topic | Handler |
 | --- | --- |
@@ -231,7 +231,7 @@ Patterns worth copying into new services:
 - Decode-through-cache: expensive lookups go through `StateStore` in one
   handler — miss → `Config` → `HttpRequest` → write back with a TTL —
   instead of a separate cache-population process
-  (`pattern_examples::decode`).
+  (`pattern::decode`).
 - Credential material in `Config`, carried as ordinary request data (the
   `Client-Cert` header), so outbound HTTP stays generic.
 - Recording doubles: `MatchedHttp` answers only the exact requests a test
@@ -239,12 +239,12 @@ Patterns worth copying into new services:
   (`crates/pattern-examples/tests/decode.rs`).
 - Radius queries as bounding-box `SELECT`s through `TableStore` and the
   ORM, refined by haversine in Rust — never a geospatial extension bolted
-  onto the KV state store (`pattern_examples::place`).
+  onto the KV state store (`pattern::place`).
 - Structured JSON error bodies: the handler owns its error type and its
   `From<…> for HttpError` conversion serializes it as `application/json`
   via `HttpError::with_body`, so errors match the route's success content
   type instead of the default plain-text `code: …, description: …` body
-  (`pattern_examples::place::PlaceError`).
+  (`pattern::place::PlaceError`).
 
 Acme domain quirks that are **not** general patterns:
 

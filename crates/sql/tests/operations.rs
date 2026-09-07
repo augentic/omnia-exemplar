@@ -11,7 +11,7 @@
 use omnia_guest::api::{Client, Metadata};
 use omnia_guest::orm::{DataType, Field, Row};
 use omnia_test::guest::{ScriptedTables, Statement};
-use sql_examples::{
+use sql::{
     CreateAgencyRequest, CreateFeedRequest, DeleteFeedRequest, GetAgencyRequest,
     ListAgenciesRequest, ListAgencyFeedsRequest, ListAllFeedsRequest, UpdateAgencyRequest,
     create_agency, create_feed, delete_feed, get_agency, list_agencies, list_agency_feeds,
@@ -105,7 +105,7 @@ fn after_schema(client: &Client<TestProvider>) -> Vec<Statement> {
     let statements = statements(client);
     assert!(statements[0].sql.starts_with("CREATE TABLE IF NOT EXISTS agency"));
     assert!(statements[1].sql.starts_with("CREATE TABLE IF NOT EXISTS feed"));
-    assert!(statements.iter().all(|statement| statement.connection == sql_examples::CONNECTION));
+    assert!(statements.iter().all(|statement| statement.connection == sql::CONNECTION));
     statements[2..].to_vec()
 }
 
