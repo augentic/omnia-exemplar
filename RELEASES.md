@@ -21,10 +21,9 @@ Unreleased
   (new `CRATE_NAME` token); the template gate holds the seed's dependency pins
   equal to the workspace's, and a scaffold test builds the rendered project for
   `wasm32-wasip2` and runs its route test.
-- Pinned omnia to `26020ae` (`omnia-cli` split out of the facade, `omnia-plugin`
-  behind the non-default `plugin` feature). The `capability-examples` mock
-  `BlobStore` now implements only the primitive set; `has`, `delete_objects`,
-  `clear`, `copy_object`, and `move_object` are derived by `BlobStoreExt`.
+- Pinned omnia to `26020ae`. The `omnia` facade now re-exports everything a
+  host needs, so `[patch.crates-io]` names only the crates this workspace
+  depends on directly.
 
 ### R4 findings
 
