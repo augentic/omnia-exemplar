@@ -6,7 +6,9 @@ use http::{Method, Response};
 use omnia_guest::api::{Client, Metadata};
 use omnia_test::guest::{MapConfig, MatchedHttp};
 use pattern_examples::Segment;
-use pattern_examples::decode::{CLIENT_CERT, DECODER_URL, DecodeSegmentRequest, segment_key};
+use pattern_examples::decode::{
+    CLIENT_CERT, DECODER_URL, DecodeSegmentRequest, decode_segment, segment_key,
+};
 
 omnia_test::provider! {
     /// The handler's capability list, as doubles.
@@ -33,7 +35,8 @@ async fn miss_fetches_with_cert_and_caches() {
     let request = DecodeSegmentRequest {
         code: "seg-1".to_string(),
     };
-    let reply = client.call(request, &Metadata::default()).await.expect("should succeed");
+    let reply =
+        client.call(decode_segment, request, &Metadata::default()).await.expect("should succeed");
 
     assert!(!reply.cached);
     assert_eq!(reply.segment.code, "seg-1");
@@ -59,7 +62,8 @@ async fn miss_fetches_with_cert_and_caches() {
     let request = DecodeSegmentRequest {
         code: "seg-1".to_string(),
     };
-    let reply = client.call(request, &Metadata::default()).await.expect("should succeed");
+    let reply =
+        client.call(decode_segment, request, &Metadata::default()).await.expect("should succeed");
     assert!(reply.cached);
     assert_eq!(provider.http.requests().len(), 1);
 }
@@ -77,7 +81,7 @@ async fn hit_skips_config_and_http() {
         code: "seg-2".to_string(),
     };
     let reply = Client::new("acme", provider.clone())
-        .call(request, &Metadata::default())
+        .call(decode_segment, request, &Metadata::default())
         .await
         .expect("should succeed");
 

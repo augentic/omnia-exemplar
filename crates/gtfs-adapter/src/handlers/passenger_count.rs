@@ -10,15 +10,19 @@ use crate::state_keys;
 
 const OCCUPANCY_STATUS_TTL: u64 = 3 * 60 * 60; // 3 hours
 
-#[omnia_guest::handler]
+/// Stores the occupancy status for a vehicle on a trip, or clears it when
+/// the message carries no status.
+///
+/// # Errors
+///
+/// Returns an error when the status cannot be serialized or the state store
+/// request fails.
 #[tracing::instrument(skip_all)]
-async fn passenger_count_message<P>(
-    input: PassengerCountMessage, context: Context<'_, P>,
-) -> Result<()>
+pub async fn passenger_count<P>(input: PassengerCountMessage, context: Context<P>) -> Result<()>
 where
     P: StateStore,
 {
-    let provider = context.provider;
+    let provider = context.provider();
 
     // create state key
     let vehicle_id = &input.vehicle.id;

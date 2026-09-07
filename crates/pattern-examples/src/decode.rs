@@ -56,14 +56,21 @@ pub struct DecodeSegmentReply {
     pub segment: Segment,
 }
 
-#[omnia_guest::handler]
-async fn decode_segment_request<P>(
-    input: DecodeSegmentRequest, context: Context<'_, P>,
+/// Decodes a segment code, serving from the cache when possible and
+/// otherwise calling the decoder and writing the result back with a TTL.
+///
+/// # Errors
+///
+/// Returns an error when the cache or config cannot be read, the decoder
+/// request fails or answers with a non-success status, or a payload cannot
+/// be (de)serialized.
+pub async fn decode_segment<P>(
+    input: DecodeSegmentRequest, context: Context<P>,
 ) -> Result<DecodeSegmentReply>
 where
     P: Config + HttpRequest + StateStore,
 {
-    let provider = context.provider;
+    let provider = context.provider();
     let key = segment_key(&input.code);
 
     // Cache hit: no config read, no outbound request.

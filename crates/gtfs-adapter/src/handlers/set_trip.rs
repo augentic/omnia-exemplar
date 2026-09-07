@@ -26,13 +26,18 @@ pub struct SetTripReply {
     pub process: u32,
 }
 
-#[omnia_guest::handler]
+/// Forces a vehicle onto a specific trip while god mode is enabled.
+///
+/// # Errors
+///
+/// Returns a bad request error when god mode is not enabled, or an error
+/// when the override cannot be stored.
 #[tracing::instrument(skip_all)]
-async fn set_trip_request<P>(input: SetTripRequest, context: Context<'_, P>) -> Result<SetTripReply>
+pub async fn set_trip<P>(input: SetTripRequest, context: Context<P>) -> Result<SetTripReply>
 where
     P: Config + StateStore,
 {
-    let provider = context.provider;
+    let provider = context.provider();
 
     if !god_mode::is_enabled(provider).await? {
         return Err(bad_request!("God mode not enabled"));

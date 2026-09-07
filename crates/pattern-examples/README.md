@@ -6,9 +6,9 @@ time, each handler here composes several:
 
 | Module | Capabilities | Handler |
 | --- | --- | --- |
-| `decode` | `Config` + `HttpRequest` + `StateStore` | `DecodeSegmentRequest` — decode-through-cache with a config-carried client certificate |
-| `place` | `TableStore` | `UpsertPlaceRequest` — ORM `INSERT … ON CONFLICT` upsert, rejecting bad coordinates with a structured JSON error body (`PlaceError`) |
-| `place` | `TableStore` | `NearbyPlacesRequest` — bounding-box `SELECT` refined by haversine |
+| `decode` | `Config` + `HttpRequest` + `StateStore` | `decode_segment` — decode-through-cache with a config-carried client certificate |
+| `place` | `TableStore` | `upsert_place` — ORM `INSERT … ON CONFLICT` upsert, rejecting bad coordinates with a structured JSON error body (`PlaceError`) |
+| `place` | `TableStore` | `nearby_places` — bounding-box `SELECT` refined by haversine |
 
 The guest serves these under `/examples/patterns/*` (see `src/routes.rs`).
 The routes are pedagogical: they exist to instantiate the composed default
@@ -56,9 +56,9 @@ handler's error type converts to `HttpError`, and that conversion alone
 decides the wire shape. The default `omnia_guest::Error` renders as a
 plain-text `code: …, description: …` body — even on JSON routes.
 
-`UpsertPlaceRequest` demonstrates the structured alternative. The handler
-returns its own error type (`Result<UpsertPlaceReply, PlaceError>` — the
-`#[omnia_guest::handler]` macro accepts an explicit error), and a
+`upsert_place` demonstrates the structured alternative. The handler fn
+returns its own error type (`Result<UpsertPlaceReply, PlaceError>` — any
+error type with a `HttpError` conversion works), and a
 `From<PlaceError> for HttpError` impl serializes it with
 `HttpError::with_body`, so a rejected upsert answers in the same content
 type as a successful one:

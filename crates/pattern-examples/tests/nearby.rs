@@ -9,7 +9,7 @@
 use omnia_guest::api::{Client, Metadata};
 use omnia_guest::orm::{DataType, Field, Row};
 use omnia_test::guest::{ScriptedTables, Statement};
-use pattern_examples::{NearbyPlacesRequest, UpsertPlaceRequest};
+use pattern_examples::{NearbyPlacesRequest, UpsertPlaceRequest, nearby_places, upsert_place};
 
 omnia_test::provider! {
     /// The handlers' one capability, as a scripted double.
@@ -72,7 +72,8 @@ async fn upsert(client: &Client<TestProvider>, id: &str, name: &str, lat: f64, l
         lat,
         lon,
     };
-    let reply = client.call(request, &Metadata::default()).await.expect("should succeed");
+    let reply =
+        client.call(upsert_place, request, &Metadata::default()).await.expect("should succeed");
     assert_eq!(reply.affected, 1);
 }
 
@@ -80,7 +81,7 @@ async fn nearby(
     client: &Client<TestProvider>, lat: f64, lon: f64, radius_m: f64,
 ) -> pattern_examples::NearbyPlacesReply {
     let request = NearbyPlacesRequest { lat, lon, radius_m };
-    client.call(request, &Metadata::default()).await.expect("should succeed")
+    client.call(nearby_places, request, &Metadata::default()).await.expect("should succeed")
 }
 
 #[tokio::test]
@@ -140,7 +141,8 @@ async fn upsert_rejects_out_of_range_coordinates() {
         lat: 123.4,
         lon: 0.0,
     };
-    let error = client.call(request, &Metadata::default()).await.expect_err("should reject");
+    let error =
+        client.call(upsert_place, request, &Metadata::default()).await.expect_err("should reject");
 
     // The error serializes to the exact JSON body the HTTP route puts on
     // the wire via the `From<PlaceError> for HttpError` conversion.

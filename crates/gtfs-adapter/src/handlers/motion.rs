@@ -18,13 +18,12 @@ use crate::{location, serial_data};
 ///
 /// Returns an error when the payload cannot be processed or a provider
 /// request fails.
-#[omnia_guest::handler]
 #[tracing::instrument(skip_all)]
-pub async fn motion_message<P>(input: MotionMessage, context: Context<'_, P>) -> Result<()>
+pub async fn motion<P>(input: MotionMessage, context: Context<P>) -> Result<()>
 where
     P: Config + HttpRequest + Identity + Publish + StateStore,
 {
-    let provider = context.provider;
+    let provider = context.provider();
     let message = input;
 
     // serial data event

@@ -32,8 +32,8 @@ pub mod decode;
 pub mod place;
 pub mod routes;
 
-pub use decode::{DecodeSegmentReply, DecodeSegmentRequest, Segment};
+pub use decode::{DecodeSegmentReply, DecodeSegmentRequest, Segment, decode_segment};
 pub use place::{
     NearbyPlace, NearbyPlacesReply, NearbyPlacesRequest, Place, PlaceError, UpsertPlaceReply,
-    UpsertPlaceRequest,
+    UpsertPlaceRequest, nearby_places, upsert_place,
 };

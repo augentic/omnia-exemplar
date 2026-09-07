@@ -12,13 +12,13 @@ mod trip;
 
 pub use handlers::motion::{
     DecodedSerialData, EventData, EventType, LocationData, MessageData, MotionMessage, RemoteData,
-    SerialData,
+    SerialData, motion,
 };
-pub use handlers::passenger_count::{PassengerCountMessage, Trip, Vehicle};
+pub use handlers::passenger_count::{PassengerCountMessage, Trip, Vehicle, passenger_count};
 #[cfg(feature = "god-mode")]
-pub use handlers::set_trip::{SetTripReply, SetTripRequest};
-pub use handlers::train_avl::TrainAvlMessage;
-pub use handlers::vehicle_info::{VehicleInfoReply, VehicleInfoRequest};
+pub use handlers::set_trip::{SetTripReply, SetTripRequest, set_trip};
+pub use handlers::train_avl::{TrainAvlMessage, train_avl};
+pub use handlers::vehicle_info::{VehicleInfoReply, VehicleInfoRequest, vehicle_info};
 use omnia_guest::Error;
 use thiserror::Error;
 

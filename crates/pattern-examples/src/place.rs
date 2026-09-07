@@ -145,9 +145,15 @@ fn coordinate(field: &'static str, value: f64, min: f64, max: f64) -> Result<(),
     }
 }
 
-#[omnia_guest::handler]
-async fn upsert_place_request<P>(
-    input: UpsertPlaceRequest, context: Context<'_, P>,
+/// Inserts a place, or updates it in full when the id already exists.
+///
+/// # Errors
+///
+/// Returns [`PlaceError::InvalidCoordinate`] when a coordinate is out of
+/// range, or [`PlaceError::Storage`] when the statement cannot be built or
+/// executed.
+pub async fn upsert_place<P>(
+    input: UpsertPlaceRequest, context: Context<P>,
 ) -> Result<UpsertPlaceReply, PlaceError>
 where
     P: TableStore,
@@ -169,7 +175,8 @@ where
         .context("building place upsert")?;
 
     let affected =
-        TableStore::exec(context.provider, CONNECTION.to_string(), query.sql, query.params).await?;
+        TableStore::exec(context.provider(), CONNECTION.to_string(), query.sql, query.params)
+            .await?;
 
     Ok(UpsertPlaceReply { affected })
 }
@@ -201,9 +208,14 @@ pub struct NearbyPlacesReply {
     pub places: Vec<NearbyPlace>,
 }
 
-#[omnia_guest::handler]
-async fn nearby_places_request<P>(
-    input: NearbyPlacesRequest, context: Context<'_, P>,
+/// Finds places within a radius of a point, nearest first.
+///
+/// # Errors
+///
+/// Returns an error when the query cannot be built or executed, or a row
+/// cannot be mapped to a [`Place`].
+pub async fn nearby_places<P>(
+    input: NearbyPlacesRequest, context: Context<P>,
 ) -> Result<NearbyPlacesReply, Error>
 where
     P: TableStore,
@@ -225,8 +237,9 @@ where
         .build()
         .context("building nearby query")?;
 
-    let rows = TableStore::query(context.provider, CONNECTION.to_string(), query.sql, query.params)
-        .await?;
+    let rows =
+        TableStore::query(context.provider(), CONNECTION.to_string(), query.sql, query.params)
+            .await?;
 
     // Refine the box to the true radius in Rust — no GEORADIUS required.
     let mut places = Vec::new();
