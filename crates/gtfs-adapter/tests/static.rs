@@ -7,7 +7,10 @@
 mod support;
 
 use chrono::{DateTime, Utc};
-use gtfs_adapter::{MotionMessage, PassengerCountMessage, TrainAvlMessage, VehicleInfoRequest};
+use gtfs_adapter::{
+    MotionMessage, PassengerCountMessage, TrainAvlMessage, VehicleInfoRequest, motion,
+    passenger_count, train_avl, vehicle_info,
+};
 use omnia_guest::api::{Client, Metadata};
 use omnia_test::guest::MatchedHttp;
 use serde_json::{Value, json};
@@ -59,7 +62,7 @@ async fn motion_location_publishes_vehicle_position() {
     let message: MotionMessage = serde_json::from_value(value).expect("should deserialize");
 
     Client::new(OWNER, provider.clone())
-        .call(message, &Metadata::default())
+        .call(motion, message, &Metadata::default())
         .await
         .expect("should succeed");
 
@@ -108,7 +111,7 @@ async fn motion_without_gps_publishes_dead_reckoning() {
     let message: MotionMessage = serde_json::from_value(value).expect("should deserialize");
 
     Client::new(OWNER, provider.clone())
-        .call(message, &Metadata::default())
+        .call(motion, message, &Metadata::default())
         .await
         .expect("should succeed");
 
@@ -136,7 +139,7 @@ async fn motion_unknown_event_type_is_ignored() {
     .expect("should deserialize");
 
     Client::new(OWNER, provider.clone())
-        .call(message, &Metadata::default())
+        .call(motion, message, &Metadata::default())
         .await
         .expect("should succeed");
 
@@ -157,7 +160,7 @@ async fn train_avl_skips_non_motion_tag() {
     let message: TrainAvlMessage = serde_json::from_value(value).expect("should deserialize");
 
     Client::new(OWNER, provider.clone())
-        .call(message, &Metadata::default())
+        .call(train_avl, message, &Metadata::default())
         .await
         .expect("should succeed");
 
@@ -182,7 +185,7 @@ async fn train_avl_processes_motion_tag() {
     let message: TrainAvlMessage = serde_json::from_value(value).expect("should deserialize");
 
     Client::new(OWNER, provider.clone())
-        .call(message, &Metadata::default())
+        .call(train_avl, message, &Metadata::default())
         .await
         .expect("should succeed");
 
@@ -199,7 +202,7 @@ async fn passenger_count_stores_occupancy_status() {
     let message: PassengerCountMessage = serde_json::from_value(value).expect("should deserialize");
 
     Client::new(OWNER, provider.clone())
-        .call(message, &Metadata::default())
+        .call(passenger_count, message, &Metadata::default())
         .await
         .expect("should succeed");
 
@@ -219,7 +222,7 @@ async fn passenger_count_clears_occupancy_status() {
     let message: PassengerCountMessage = serde_json::from_value(value).expect("should deserialize");
 
     Client::new(OWNER, provider.clone())
-        .call(message, &Metadata::default())
+        .call(passenger_count, message, &Metadata::default())
         .await
         .expect("should succeed");
 
@@ -259,7 +262,7 @@ async fn serial_data_sign_on_updates_trip_state() {
     .expect("should deserialize");
 
     Client::new(OWNER, provider.clone())
-        .call(message, &Metadata::default())
+        .call(motion, message, &Metadata::default())
         .await
         .expect("should succeed");
 
@@ -287,7 +290,7 @@ async fn serial_data_rejects_future_dated_message() {
     .expect("should deserialize");
 
     let error = Client::new(OWNER, provider.clone())
-        .call(message, &Metadata::default())
+        .call(motion, message, &Metadata::default())
         .await
         .expect_err("should reject future-dated message");
     assert!(error.to_string().contains("future-dated"));
@@ -310,7 +313,7 @@ async fn vehicle_info_assembles_state_and_fleet_data() {
         vehicle_id: "EMP484".to_string(),
     };
     let reply = Client::new(OWNER, provider.clone())
-        .call(request, &Metadata::default())
+        .call(vehicle_info, request, &Metadata::default())
         .await
         .expect("should succeed");
 

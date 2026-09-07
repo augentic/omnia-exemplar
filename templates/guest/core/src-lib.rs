@@ -41,16 +41,20 @@ where
     P: Config + Send + Sync + 'static,
 {
     axum::Router::new()
-        .route("/greet", post::<GreetRequest, P>())
+        .route("/greet", post(greet))
         .with_state(Client::new(OWNER, provider))
 }
 
-#[omnia_guest::handler]
-async fn greet<P>(input: GreetRequest, context: Context<'_, P>) -> omnia_guest::Result<GreetReply>
+/// Greet the caller with the configured `GREETING`.
+///
+/// # Errors
+///
+/// Returns an error when the `GREETING` config key cannot be read.
+pub async fn greet<P>(input: GreetRequest, context: Context<P>) -> omnia_guest::Result<GreetReply>
 where
     P: Config,
 {
-    let greeting = Config::get(context.provider, "GREETING").await?;
+    let greeting = Config::get(context.provider(), "GREETING").await?;
     Ok(GreetReply {
         message: format!("{greeting}, {}!", input.name),
     })

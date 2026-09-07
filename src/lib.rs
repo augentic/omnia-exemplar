@@ -4,8 +4,9 @@
 //! the explicit typed routers from `omnia_guest::api`: HTTP routes are
 //! `axum::routing::MethodRouter`s over a provider-owning `Client`, and
 //! messaging topics dispatch through an exact-topic `messaging::Router`.
-//! Routes that speak JSON use the default `get` / `post` / `consume`
-//! codecs; the Pulse SOAP/XML routes supply their own.
+//! Each route is bound to a handler fn (`post(tally)`, `consume(motion)`);
+//! routes that speak JSON use the default `get` / `post` / `consume`
+//! codecs, and the Pulse SOAP/XML routes supply their own.
 //!
 //! This root-package layout (`src/lib.rs`) is the compiling reference for
 //! new Omnia services. Routes and topics come from the canonical tables in
@@ -19,15 +20,14 @@ use acme_common::{config, routes};
 use axum::Json;
 use axum::http::header::CONTENT_TYPE;
 use axum::response::{IntoResponse, Response};
-use capability_examples::{AlertRequest, ArchiveRequest, NoteRequest, ReadingRequest};
-use docstore_examples::{
-    CreateRouteRequest, CreateStopRequest, CreateStopTimeRequest, DeleteStopRequest,
-    GetRouteRequest, GetStopRequest, GetStopTimeRequest, ListRoutesRequest, ListStopTimesRequest,
-    ListStopsRequest, UpsertStopRequest,
+use capability::{alert, archive, note, reading};
+use docstore::{
+    create_route, create_stop, create_stop_time, delete_stop, get_route, get_stop, get_stop_time,
+    list_routes, list_stop_times, list_stops, upsert_stop,
 };
 #[cfg(feature = "god-mode")]
-use gtfs_adapter::SetTripRequest;
-use gtfs_adapter::{MotionMessage, PassengerCountMessage, TrainAvlMessage, VehicleInfoRequest};
+use gtfs_adapter::set_trip;
+use gtfs_adapter::{motion, passenger_count, train_avl, vehicle_info};
 #[cfg(target_arch = "wasm32")]
 use omnia_guest::api::http::serve;
 use omnia_guest::api::http::{
@@ -41,16 +41,16 @@ use omnia_guest::{
 };
 #[cfg(target_arch = "wasm32")]
 use omnia_wasi_messaging::types::{Error, Message};
-use pattern_examples::{
-    DecodeSegmentRequest, NearbyPlacesReply, NearbyPlacesRequest, UpsertPlaceRequest,
+use pattern::{
+    NearbyPlacesReply, NearbyPlacesRequest, decode_segment, nearby_places, upsert_place,
 };
 use pulse_adapter::PulseMessage;
 use pulse_connector::{PulseReply, PulseXml};
-use sql_examples::{
-    CreateAgencyRequest, CreateFeedRequest, DeleteFeedRequest, GetAgencyRequest,
-    ListAgenciesRequest, ListAgencyFeedsRequest, ListAllFeedsRequest, UpdateAgencyRequest,
+use sql::{
+    create_agency, create_feed, delete_feed, get_agency, list_agencies, list_agency_feeds,
+    list_all_feeds, update_agency,
 };
-use tally_connector::TallyRequest;
+use tally_connector::tally;
 #[cfg(target_arch = "wasm32")]
 use tracing::Level;
 #[cfg(target_arch = "wasm32")]
@@ -104,77 +104,59 @@ where
         + 'static,
 {
     let router = axum::Router::new()
-        .route(routes::http::APC, post::<TallyRequest, P>())
+        .route(routes::http::APC, post(tally))
         .route(
             routes::http::PULSE_XML,
             handle_with(
                 MethodFilter::POST,
+                pulse_connector::pulse,
                 |raw: RawRequest<'_>| decode_pulse(raw.body),
                 |reply| encode_pulse(&reply),
             ),
         )
-        .route(routes::http::VEHICLE_INFO, get::<VehicleInfoRequest, P>())
+        .route(routes::http::VEHICLE_INFO, get(vehicle_info))
         // Pattern-example routes, outside the canonical transit tables.
-        .route(pattern_examples::routes::DECODE, post::<DecodeSegmentRequest, P>())
-        .route(pattern_examples::routes::PLACES, post::<UpsertPlaceRequest, P>())
+        .route(pattern::routes::DECODE, post(decode_segment))
+        .route(pattern::routes::PLACES, post(upsert_place))
         // The default `get` codec only reads path and query parameters. The
         // custom codec passed in here decodes the body instead, to demonstrate
         // `handle_with`.
         .route(
-            pattern_examples::routes::NEARBY,
+            pattern::routes::NEARBY,
             handle_with(
                 MethodFilter::GET,
+                nearby_places,
                 |raw: RawRequest<'_>| decode_nearby(raw.body),
                 encode_nearby,
             ),
         )
         // Capability-example routes: one domain-free handler each for
         // `BlobStore`, `Broadcast`, `DocumentStore`, and `TableStore`.
-        .route(capability_examples::routes::ARCHIVE, post::<ArchiveRequest, P>())
-        .route(capability_examples::routes::ALERT, post::<AlertRequest, P>())
-        .route(capability_examples::routes::NOTE, post::<NoteRequest, P>())
-        .route(capability_examples::routes::READING, post::<ReadingRequest, P>())
+        .route(capability::routes::ARCHIVE, post(archive))
+        .route(capability::routes::ALERT, post(alert))
+        .route(capability::routes::NOTE, post(note))
+        .route(capability::routes::READING, post(reading))
         // Docstore-example routes: the rich `wasi:docstore` showcase (full
         // CRUD and every filter type over GTFS-like collections).
+        .route(docstore::paths::STOPS, get(list_stops).merge(post(create_stop)))
         .route(
-            docstore_examples::paths::STOPS,
-            get::<ListStopsRequest, P>().merge(post::<CreateStopRequest, P>()),
+            docstore::paths::STOP,
+            get(get_stop).merge(put(upsert_stop)).merge(delete(delete_stop)),
         )
-        .route(
-            docstore_examples::paths::STOP,
-            get::<GetStopRequest, P>()
-                .merge(put::<UpsertStopRequest, P>())
-                .merge(delete::<DeleteStopRequest, P>()),
-        )
-        .route(
-            docstore_examples::paths::ROUTES,
-            get::<ListRoutesRequest, P>().merge(post::<CreateRouteRequest, P>()),
-        )
-        .route(docstore_examples::paths::ROUTE, get::<GetRouteRequest, P>())
-        .route(
-            docstore_examples::paths::STOP_TIMES,
-            get::<ListStopTimesRequest, P>().merge(post::<CreateStopTimeRequest, P>()),
-        )
-        .route(docstore_examples::paths::STOP_TIME, get::<GetStopTimeRequest, P>())
+        .route(docstore::paths::ROUTES, get(list_routes).merge(post(create_route)))
+        .route(docstore::paths::ROUTE, get(get_route))
+        .route(docstore::paths::STOP_TIMES, get(list_stop_times).merge(post(create_stop_time)))
+        .route(docstore::paths::STOP_TIME, get(get_stop_time))
         // SQL-example routes: the rich `wasi-sql` ORM showcase (agency/feed
         // schema with JOINs and server-assigned ids).
-        .route(
-            sql_examples::paths::AGENCIES,
-            get::<ListAgenciesRequest, P>().merge(post::<CreateAgencyRequest, P>()),
-        )
-        .route(
-            sql_examples::paths::AGENCY,
-            get::<GetAgencyRequest, P>().merge(patch::<UpdateAgencyRequest, P>()),
-        )
-        .route(
-            sql_examples::paths::AGENCY_FEEDS,
-            get::<ListAgencyFeedsRequest, P>().merge(post::<CreateFeedRequest, P>()),
-        )
-        .route(sql_examples::paths::FEEDS, get::<ListAllFeedsRequest, P>())
-        .route(sql_examples::paths::FEED, delete::<DeleteFeedRequest, P>());
+        .route(sql::paths::AGENCIES, get(list_agencies).merge(post(create_agency)))
+        .route(sql::paths::AGENCY, get(get_agency).merge(patch(update_agency)))
+        .route(sql::paths::AGENCY_FEEDS, get(list_agency_feeds).merge(post(create_feed)))
+        .route(sql::paths::FEEDS, get(list_all_feeds))
+        .route(sql::paths::FEED, delete(delete_feed));
 
     #[cfg(feature = "god-mode")]
-    let router = router.route(routes::http::SET_TRIP, post::<SetTripRequest, P>());
+    let router = router.route(routes::http::SET_TRIP, post(set_trip));
 
     router.with_state(Client::new(OWNER, provider))
 }
@@ -203,7 +185,7 @@ fn encode_pulse(reply: &PulseReply) -> Response {
 /// Demonstration only: this does exactly what the built-in `post` codec
 /// does. It exists because this route is a GET, whose default codec reads
 /// the query string, not the body. Routes with ordinary JSON bodies should
-/// use `post::<Input, Provider>()` — no custom decoder needed.
+/// use `post(handler)` — no custom decoder needed.
 fn decode_nearby(body: &[u8]) -> Result<NearbyPlacesRequest, DecodeError> {
     serde_json::from_slice(body)
         .map_err(|error| DecodeError::new(format!("malformed JSON body: {error}")))
@@ -249,13 +231,13 @@ where
 {
     let env = config::env(&provider).await;
     messaging::Router::new(Client::new(OWNER, provider))
-        .route(config::topic_for(&env, routes::topic::PULSE), consume_with(decode_pulse_xml))
-        .route(config::topic_for(&env, routes::topic::PULSE_TO_MOTION), consume::<MotionMessage>())
-        .route(config::topic_for(&env, routes::topic::TRAIN_AVL), consume::<TrainAvlMessage>())
         .route(
-            config::topic_for(&env, routes::topic::PASSENGER_COUNT),
-            consume::<PassengerCountMessage>(),
+            config::topic_for(&env, routes::topic::PULSE),
+            consume_with(pulse_adapter::pulse, decode_pulse_xml),
         )
+        .route(config::topic_for(&env, routes::topic::PULSE_TO_MOTION), consume(motion))
+        .route(config::topic_for(&env, routes::topic::TRAIN_AVL), consume(train_avl))
+        .route(config::topic_for(&env, routes::topic::PASSENGER_COUNT), consume(passenger_count))
 }
 
 /// Decode an inbound Pulse train update from its raw XML payload.

@@ -13,13 +13,19 @@ use crate::handlers::motion::{self, MotionMessage};
 #[serde(transparent)]
 pub struct TrainAvlMessage(pub MotionMessage);
 
-#[omnia_guest::handler]
+/// Processes a train AVL message, forwarding it to the Motion handler only
+/// when the vehicle's fleet record is tagged `motion`.
+///
+/// # Errors
+///
+/// Returns an error when the fleet lookup fails or the forwarded Motion
+/// message cannot be processed.
 #[tracing::instrument(skip_all)]
-async fn train_avl_message<P>(input: TrainAvlMessage, context: Context<'_, P>) -> Result<()>
+pub async fn train_avl<P>(input: TrainAvlMessage, context: Context<P>) -> Result<()>
 where
     P: Config + HttpRequest + Identity + Publish + StateStore,
 {
-    let provider = context.provider;
+    let provider = context.provider();
     let request = input.0;
 
     // verify vehicle tag is 'motion'
@@ -38,5 +44,5 @@ where
         return Ok(());
     }
 
-    motion::motion_message(request, context).await
+    motion::motion(request, context).await
 }

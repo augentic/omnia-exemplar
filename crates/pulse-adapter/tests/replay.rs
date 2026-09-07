@@ -8,6 +8,7 @@ use std::fs;
 use acme_common::TIMEZONE;
 use chrono::Utc;
 use omnia_guest::api::{Client, Metadata};
+use pulse_adapter::pulse;
 
 use self::fixture::{Case, Expected};
 
@@ -22,7 +23,7 @@ async fn run() {
 
 async fn replay(case: Case) {
     let result = Client::new("acme", case.provider.clone())
-        .call(case.input.clone(), &Metadata::default())
+        .call(pulse, case.input.clone(), &Metadata::default())
         .await;
     let curr_events = case.events();
 

@@ -29,12 +29,19 @@ const SERVER_FAULT: Fault = Fault {
     },
 };
 
-#[omnia_guest::handler]
-async fn pulse_request<P>(input: PulseXml, context: Context<'_, P>) -> Result<PulseReply, Fault>
+/// Validates an incoming Pulse SOAP envelope and forwards the embedded train
+/// update to the pulse-adapter topic.
+///
+/// # Errors
+///
+/// Returns a SOAP [`Fault`]: `400 Bad Request` when the envelope cannot be
+/// parsed or carries no train update, `500 Internal Server Error` when
+/// publishing fails.
+pub async fn pulse<P>(input: PulseXml, context: Context<P>) -> Result<PulseReply, Fault>
 where
     P: Config + Publish,
 {
-    let provider = context.provider;
+    let provider = context.provider();
 
     // Parse and verify the message. Rejections are SOAP <Fault> envelopes
     // because the Pulse vendor protocol requires an XML fault body. This is

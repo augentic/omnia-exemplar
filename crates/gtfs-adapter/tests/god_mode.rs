@@ -4,7 +4,7 @@
 mod support;
 
 use acme_common::config;
-use gtfs_adapter::SetTripRequest;
+use gtfs_adapter::{SetTripRequest, set_trip};
 use omnia_guest::api::{Client, Metadata};
 use omnia_test::guest::MapConfig;
 use serde_json::Value;
@@ -23,7 +23,7 @@ async fn set_trip_rejected_when_disabled() {
         trip_id: "TRIP-9".to_string(),
     };
     let error = Client::new(OWNER, provider.clone())
-        .call(request, &Metadata::default())
+        .call(set_trip, request, &Metadata::default())
         .await
         .expect_err("should reject when god mode is disabled");
 
@@ -42,7 +42,7 @@ async fn set_trip_stores_override_when_enabled() {
         trip_id: "TRIP-9".to_string(),
     };
     let reply = Client::new(OWNER, provider.clone())
-        .call(request, &Metadata::default())
+        .call(set_trip, request, &Metadata::default())
         .await
         .expect("should succeed");
 

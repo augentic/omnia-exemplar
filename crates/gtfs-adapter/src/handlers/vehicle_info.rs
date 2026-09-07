@@ -37,15 +37,20 @@ pub struct VehicleInfoReply {
     pub fleet_info: Option<Vehicle>,
 }
 
-#[omnia_guest::handler]
+/// Assembles a vehicle's current trip, sign-on time, and fleet record.
+///
+/// # Errors
+///
+/// Returns an error when stored state cannot be read or parsed, or the fleet
+/// lookup fails.
 #[tracing::instrument(skip_all)]
-async fn vehicle_info_request<P>(
-    input: VehicleInfoRequest, context: Context<'_, P>,
+pub async fn vehicle_info<P>(
+    input: VehicleInfoRequest, context: Context<P>,
 ) -> Result<VehicleInfoReply>
 where
     P: Config + HttpRequest + Identity + StateStore,
 {
-    let provider = context.provider;
+    let provider = context.provider();
     let vehicle_id = input.vehicle_id;
 
     let trip_key = state_keys::trip(&vehicle_id);
