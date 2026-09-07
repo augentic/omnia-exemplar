@@ -46,7 +46,11 @@ where
 }
 
 /// Greet the caller with the configured `GREETING`.
-async fn greet<P>(input: GreetRequest, context: Context<P>) -> omnia_guest::Result<GreetReply>
+///
+/// # Errors
+///
+/// Returns an error when the `GREETING` config key cannot be read.
+pub async fn greet<P>(input: GreetRequest, context: Context<P>) -> omnia_guest::Result<GreetReply>
 where
     P: Config,
 {
