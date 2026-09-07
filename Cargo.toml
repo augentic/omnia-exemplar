@@ -176,8 +176,6 @@ tally-connector = { path = "crates/tally-connector" }
 
 [patch.crates-io]
 omnia = { git = "https://github.com/augentic/omnia" }
-omnia-core = { git = "https://github.com/augentic/omnia" }
-omnia-plugin = { git = "https://github.com/augentic/omnia" }
 omnia-guest = { git = "https://github.com/augentic/omnia" }
 omnia-wasi-blobstore = { git = "https://github.com/augentic/omnia" }
 omnia-wasi-config = { git = "https://github.com/augentic/omnia" }
@@ -192,8 +190,6 @@ omnia-wasi-websocket = { git = "https://github.com/augentic/omnia" }
 omnia-test = { git = "https://github.com/augentic/omnia" }
 
 # omnia = { path = "../omnia/crates/omnia" }
-# omnia-core = { path = "../omnia/crates/omnia-core" }
-# omnia-plugin = { path = "../omnia/crates/omnia-plugin" }
 # omnia-guest = { path = "../omnia/crates/omnia-guest" }
 # omnia-wasi-blobstore = { path = "../omnia/crates/wasi-blobstore" }
 # omnia-wasi-config = { path = "../omnia/crates/wasi-config" }

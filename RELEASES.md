@@ -21,6 +21,9 @@ Unreleased
   (new `CRATE_NAME` token); the template gate holds the seed's dependency pins
   equal to the workspace's, and a scaffold test builds the rendered project for
   `wasm32-wasip2` and runs its route test.
+- Pinned omnia to `26020ae`. The `omnia` facade now re-exports everything a
+  host needs, so `[patch.crates-io]` names only the crates this workspace
+  depends on directly.
 
 ### R4 findings
 
