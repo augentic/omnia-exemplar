@@ -5,9 +5,9 @@ routes, and stop times — exercising full CRUD and every portable filter type
 through combined query endpoints, plus sorting and limit/continuation
 pagination. This crate restores the full docstore example that omnia's
 "Example tidy" trimmed, rewritten in this repository's typed-handler style:
-`#[omnia_guest::handler]` functions over `P: DocumentStore`, mounted by the
-root guest under `/examples/*`, and tested natively against the
-filter-evaluating `MemoryDocs` double from `omnia-test`.
+`pub async fn` handlers over `P: DocumentStore`, mounted by the root guest
+under `/examples/*`, and tested natively against the filter-evaluating
+`MemoryDocs` double from `omnia-test`.
 
 ## Quick start
 
@@ -21,14 +21,14 @@ cargo run --example runtime -- run target/wasm32-wasip2/release/guest.wasm
 
 ## Endpoints
 
-| Route | Methods | Handler input |
+| Route | Methods | Handler |
 | --- | --- | --- |
-| `/examples/stops` | GET, POST | `ListStopsRequest`, `CreateStopRequest` |
-| `/examples/stops/{id}` | GET, PUT, DELETE | `GetStopRequest`, `UpsertStopRequest`, `DeleteStopRequest` |
-| `/examples/routes` | GET, POST | `ListRoutesRequest`, `CreateRouteRequest` |
-| `/examples/routes/{id}` | GET | `GetRouteRequest` |
-| `/examples/stop-times` | GET, POST | `ListStopTimesRequest`, `CreateStopTimeRequest` |
-| `/examples/stop-times/{id}` | GET | `GetStopTimeRequest` |
+| `/examples/stops` | GET, POST | `list_stops(ListStopsRequest)`, `create_stop(CreateStopRequest)` |
+| `/examples/stops/{id}` | GET, PUT, DELETE | `get_stop(GetStopRequest)`, `upsert_stop(UpsertStopRequest)`, `delete_stop(DeleteStopRequest)` |
+| `/examples/routes` | GET, POST | `list_routes(ListRoutesRequest)`, `create_route(CreateRouteRequest)` |
+| `/examples/routes/{id}` | GET | `get_route(GetRouteRequest)` |
+| `/examples/stop-times` | GET, POST | `list_stop_times(ListStopTimesRequest)`, `create_stop_time(CreateStopTimeRequest)` |
+| `/examples/stop-times/{id}` | GET | `get_stop_time(GetStopTimeRequest)` |
 
 Replies flatten the document alongside its id:
 `{"id": "stop-001", "stop_name": "...", ...}`.

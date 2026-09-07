@@ -44,9 +44,14 @@ pub struct CreateStopTimeRequest {
     pub stop_time: StopTime,
 }
 
-#[omnia_guest::handler]
-async fn create_stop_time_request<P>(
-    input: CreateStopTimeRequest, context: Context<'_, P>,
+/// Creates a stop time with a caller-chosen id.
+///
+/// # Errors
+///
+/// Returns an error when the stop time cannot be serialized or the id
+/// already exists in the collection.
+pub async fn create_stop_time<P>(
+    input: CreateStopTimeRequest, context: Context<P>,
 ) -> Result<DocumentRecord<StopTime>>
 where
     P: DocumentStore,
@@ -55,7 +60,7 @@ where
         id: input.id.clone(),
         data: serde_json::to_vec(&input.stop_time).context("serializing stop time")?,
     };
-    DocumentStore::insert(context.provider, COLLECTION, &document).await?;
+    DocumentStore::insert(context.provider(), COLLECTION, &document).await?;
 
     Ok(DocumentRecord {
         id: input.id,
@@ -70,14 +75,19 @@ pub struct GetStopTimeRequest {
     pub id: String,
 }
 
-#[omnia_guest::handler]
-async fn get_stop_time_request<P>(
-    input: GetStopTimeRequest, context: Context<'_, P>,
+/// Fetches one stop time by id.
+///
+/// # Errors
+///
+/// Returns `not_found` when no stop time has the id, or an error when the
+/// stored document cannot be deserialized.
+pub async fn get_stop_time<P>(
+    input: GetStopTimeRequest, context: Context<P>,
 ) -> Result<DocumentRecord<StopTime>>
 where
     P: DocumentStore,
 {
-    let document = DocumentStore::get(context.provider, COLLECTION, &input.id)
+    let document = DocumentStore::get(context.provider(), COLLECTION, &input.id)
         .await?
         .ok_or_else(|| not_found!("stop time {} not found", input.id))?;
     let stop_time = serde_json::from_slice(&document.data).context("deserializing stop time")?;
@@ -121,9 +131,15 @@ pub struct StopTimesReply {
     pub continuation: Option<String>,
 }
 
-#[omnia_guest::handler]
-async fn list_stop_times_request<P>(
-    input: ListStopTimesRequest, context: Context<'_, P>,
+/// Queries stop times with any combination of the supported filters, sorted
+/// by stop sequence with limit/continuation pagination.
+///
+/// # Errors
+///
+/// Returns an error when the query fails or a document cannot be
+/// deserialized.
+pub async fn list_stop_times<P>(
+    input: ListStopTimesRequest, context: Context<P>,
 ) -> Result<StopTimesReply>
 where
     P: DocumentStore,
@@ -152,7 +168,7 @@ where
     let filter = if filters.is_empty() { None } else { Some(Filter::and(filters)) };
 
     let result = DocumentStore::query(
-        context.provider,
+        context.provider(),
         COLLECTION,
         QueryOptions {
             filter,

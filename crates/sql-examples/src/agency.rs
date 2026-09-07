@@ -75,14 +75,20 @@ pub struct AgenciesReply {
     pub agencies: Vec<Agency>,
 }
 
-#[omnia_guest::handler]
-async fn list_agencies_request<P>(
-    input: ListAgenciesRequest, context: Context<'_, P>,
+/// Lists agencies, newest first, with an optional row cap.
+///
+/// # Errors
+///
+/// Returns an error when the schema cannot be ensured, the select cannot be
+/// built or executed, or a row cannot be mapped to an [`Agency`].
+pub async fn list_agencies<P>(
+    input: ListAgenciesRequest, context: Context<P>,
 ) -> Result<AgenciesReply>
 where
     P: TableStore,
 {
-    schema::ensure(context.provider).await?;
+    let provider = context.provider();
+    schema::ensure(provider).await?;
 
     let mut select = SelectBuilder::<Agency>::new().order_by_desc(None, "created_at");
     if let Some(limit) = input.limit {
@@ -90,8 +96,7 @@ where
     }
     let query = select.build().context("building agency list")?;
 
-    let rows = TableStore::query(context.provider, CONNECTION.to_string(), query.sql, query.params)
-        .await?;
+    let rows = TableStore::query(provider, CONNECTION.to_string(), query.sql, query.params).await?;
     let agencies = rows
         .iter()
         .map(Agency::from_row)
@@ -119,17 +124,23 @@ pub struct AgencyReply {
     pub agency: Agency,
 }
 
-#[omnia_guest::handler]
-async fn create_agency_request<P>(
-    input: CreateAgencyRequest, context: Context<'_, P>,
+/// Creates an agency with a server-assigned id (max + 1).
+///
+/// # Errors
+///
+/// Returns an error when the schema cannot be ensured, the id probe or the
+/// insert cannot be built or executed, or a probed row cannot be mapped.
+pub async fn create_agency<P>(
+    input: CreateAgencyRequest, context: Context<P>,
 ) -> Result<AgencyReply>
 where
     P: TableStore,
 {
-    schema::ensure(context.provider).await?;
+    let provider = context.provider();
+    schema::ensure(provider).await?;
 
     let agency = Agency {
-        agency_id: next_agency_id(context.provider).await?,
+        agency_id: next_agency_id(provider).await?,
         name: input.name,
         url: input.url,
         timezone: input.timezone,
@@ -137,7 +148,7 @@ where
     };
 
     let query = InsertBuilder::from_entity(&agency).build().context("building agency insert")?;
-    TableStore::exec(context.provider, CONNECTION.to_string(), query.sql, query.params).await?;
+    TableStore::exec(provider, CONNECTION.to_string(), query.sql, query.params).await?;
 
     Ok(AgencyReply { agency })
 }
@@ -149,16 +160,20 @@ pub struct GetAgencyRequest {
     pub id: i64,
 }
 
-#[omnia_guest::handler]
-async fn get_agency_request<P>(
-    input: GetAgencyRequest, context: Context<'_, P>,
-) -> Result<AgencyReply>
+/// Fetches one agency by id.
+///
+/// # Errors
+///
+/// Returns `not_found` when no agency has the id, or an error when the
+/// schema cannot be ensured or the fetch fails.
+pub async fn get_agency<P>(input: GetAgencyRequest, context: Context<P>) -> Result<AgencyReply>
 where
     P: TableStore,
 {
-    schema::ensure(context.provider).await?;
+    let provider = context.provider();
+    schema::ensure(provider).await?;
 
-    let agency = fetch_agency(context.provider, input.id)
+    let agency = fetch_agency(provider, input.id)
         .await?
         .ok_or_else(|| not_found!("agency {} not found", input.id))?;
 
@@ -179,16 +194,24 @@ pub struct UpdateAgencyRequest {
     pub timezone: Option<String>,
 }
 
-#[omnia_guest::handler]
-async fn update_agency_request<P>(
-    input: UpdateAgencyRequest, context: Context<'_, P>,
+/// Partially updates an agency, writing only the provided fields, and
+/// replies with the row as stored after the update.
+///
+/// # Errors
+///
+/// Returns `not_found` when no agency has the id, `bad_request` when the
+/// patch sets no fields, or an error when the schema cannot be ensured or a
+/// statement fails.
+pub async fn update_agency<P>(
+    input: UpdateAgencyRequest, context: Context<P>,
 ) -> Result<AgencyReply>
 where
     P: TableStore,
 {
-    schema::ensure(context.provider).await?;
+    let provider = context.provider();
+    schema::ensure(provider).await?;
 
-    if fetch_agency(context.provider, input.id).await?.is_none() {
+    if fetch_agency(provider, input.id).await?.is_none() {
         return Err(not_found!("agency {} not found", input.id));
     }
 
@@ -210,10 +233,10 @@ where
         .r#where(Filter::eq("agency_id", input.id))
         .build()
         .map_err(|error| bad_request!("{}", error))?;
-    TableStore::exec(context.provider, CONNECTION.to_string(), query.sql, query.params).await?;
+    TableStore::exec(provider, CONNECTION.to_string(), query.sql, query.params).await?;
 
     // Fetch after update so the reply reflects exactly what was stored.
-    let agency = fetch_agency(context.provider, input.id)
+    let agency = fetch_agency(provider, input.id)
         .await?
         .ok_or_else(|| not_found!("agency {} not found after update", input.id))?;
 

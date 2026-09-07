@@ -38,14 +38,16 @@ use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 
 pub use crate::route::{
-    CreateRouteRequest, GetRouteRequest, ListRoutesRequest, Route, RoutesReply,
+    CreateRouteRequest, GetRouteRequest, ListRoutesRequest, Route, RoutesReply, create_route,
+    get_route, list_routes,
 };
 pub use crate::stop::{
     CreateStopRequest, DeleteStopReply, DeleteStopRequest, GetStopRequest, ListStopsRequest, Stop,
-    StopsReply, UpsertStopRequest,
+    StopsReply, UpsertStopRequest, create_stop, delete_stop, get_stop, list_stops, upsert_stop,
 };
 pub use crate::stop_time::{
     CreateStopTimeRequest, GetStopTimeRequest, ListStopTimesRequest, StopTime, StopTimesReply,
+    create_stop_time, get_stop_time, list_stop_times,
 };
 
 /// A stored document paired with its id, flattened onto the wire.

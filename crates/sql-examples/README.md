@@ -5,9 +5,9 @@ full guest ORM surface — `SelectBuilder`, `InsertBuilder::from_entity`,
 `UpdateBuilder` with conditional sets, `DeleteBuilder`, and `entity!` with
 multi-column JOIN aliasing. This crate restores the full SQL example that
 omnia's "Example tidy" trimmed, rewritten in this repository's typed-handler
-style: `#[omnia_guest::handler]` functions over `P: TableStore`, mounted by
-the root guest under `/examples/*`, and tested natively against a spy mock
-that recognizes the ORM-generated SQL.
+style: `pub async fn` handlers over `P: TableStore`, mounted by the root
+guest under `/examples/*`, and tested natively against a spy mock that
+recognizes the ORM-generated SQL.
 
 One deliberate deviation from the pre-trim original: schema DDL goes through
 `TableStore::exec` instead of the wasm-only `Connection`/`Statement`/
@@ -26,13 +26,13 @@ cargo run --example runtime -- run target/wasm32-wasip2/release/guest.wasm
 
 ## Endpoints
 
-| Route | Methods | Handler input |
+| Route | Methods | Handler |
 | --- | --- | --- |
-| `/examples/agencies` | GET, POST | `ListAgenciesRequest`, `CreateAgencyRequest` |
-| `/examples/agencies/{id}` | GET, PATCH | `GetAgencyRequest`, `UpdateAgencyRequest` |
-| `/examples/agencies/{agency_id}/feeds` | GET, POST | `ListAgencyFeedsRequest`, `CreateFeedRequest` |
-| `/examples/feeds` | GET | `ListAllFeedsRequest` |
-| `/examples/feeds/{id}` | DELETE | `DeleteFeedRequest` |
+| `/examples/agencies` | GET, POST | `list_agencies(ListAgenciesRequest)`, `create_agency(CreateAgencyRequest)` |
+| `/examples/agencies/{id}` | GET, PATCH | `get_agency(GetAgencyRequest)`, `update_agency(UpdateAgencyRequest)` |
+| `/examples/agencies/{agency_id}/feeds` | GET, POST | `list_agency_feeds(ListAgencyFeedsRequest)`, `create_feed(CreateFeedRequest)` |
+| `/examples/feeds` | GET | `list_all_feeds(ListAllFeedsRequest)` |
+| `/examples/feeds/{id}` | DELETE | `delete_feed(DeleteFeedRequest)` |
 
 ### Agencies
 

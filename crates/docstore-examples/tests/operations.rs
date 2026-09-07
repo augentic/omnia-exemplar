@@ -9,7 +9,8 @@ use docstore_examples::{
     CreateRouteRequest, CreateStopRequest, CreateStopTimeRequest, DeleteStopRequest,
     GetRouteRequest, GetStopRequest, GetStopTimeRequest, ListRoutesRequest, ListStopTimesRequest,
     ListStopsRequest, Route, RoutesReply, Stop, StopTime, StopTimesReply, StopsReply,
-    UpsertStopRequest,
+    UpsertStopRequest, create_route, create_stop, create_stop_time, delete_stop, get_route,
+    get_stop, get_stop_time, list_routes, list_stop_times, list_stops, upsert_stop,
 };
 use omnia_guest::DocumentStore as _;
 use omnia_guest::api::{Client, Metadata};
@@ -60,6 +61,7 @@ fn stop_time(trip: &str, stop: &str, arrival: &str, departure: &str, sequence: i
 /// Seed the five stops, four routes, and five stop times from the pre-trim
 /// example's fixtures.
 async fn seed(client: &Client<TestProvider>) {
+    let metadata = Metadata::default();
     let stops = [
         (
             "stop-001",
@@ -127,7 +129,7 @@ async fn seed(client: &Client<TestProvider>) {
             id: id.to_string(),
             stop,
         };
-        client.call(request, &Metadata::default()).await.expect("stop should seed");
+        client.call(create_stop, request, &metadata).await.expect("stop should seed");
     }
 
     let routes = [
@@ -141,7 +143,7 @@ async fn seed(client: &Client<TestProvider>) {
             id: id.to_string(),
             route,
         };
-        client.call(request, &Metadata::default()).await.expect("route should seed");
+        client.call(create_route, request, &metadata).await.expect("route should seed");
     }
 
     let stop_times = [
@@ -156,22 +158,28 @@ async fn seed(client: &Client<TestProvider>) {
             id: id.to_string(),
             stop_time,
         };
-        client.call(request, &Metadata::default()).await.expect("stop time should seed");
+        client.call(create_stop_time, request, &metadata).await.expect("stop time should seed");
     }
 }
 
-async fn list_stops(client: &Client<TestProvider>, request: ListStopsRequest) -> StopsReply {
-    client.call(request, &Metadata::default()).await.expect("list stops should succeed")
+async fn query_stops(client: &Client<TestProvider>, request: ListStopsRequest) -> StopsReply {
+    client.call(list_stops, request, &Metadata::default()).await.expect("list stops should succeed")
 }
 
-async fn list_routes(client: &Client<TestProvider>, request: ListRoutesRequest) -> RoutesReply {
-    client.call(request, &Metadata::default()).await.expect("list routes should succeed")
+async fn query_routes(client: &Client<TestProvider>, request: ListRoutesRequest) -> RoutesReply {
+    client
+        .call(list_routes, request, &Metadata::default())
+        .await
+        .expect("list routes should succeed")
 }
 
-async fn list_stop_times(
+async fn query_stop_times(
     client: &Client<TestProvider>, request: ListStopTimesRequest,
 ) -> StopTimesReply {
-    client.call(request, &Metadata::default()).await.expect("list stop times should succeed")
+    client
+        .call(list_stop_times, request, &Metadata::default())
+        .await
+        .expect("list stop times should succeed")
 }
 
 #[tokio::test]
@@ -184,7 +192,7 @@ async fn stop_crud_round_trip() {
     let request = GetStopRequest {
         id: "stop-001".to_string(),
     };
-    let reply = client.call(request, &Metadata::default()).await.expect("should exist");
+    let reply = client.call(get_stop, request, &Metadata::default()).await.expect("should exist");
     assert_eq!(reply.document.stop_name, "Britomart Transport Centre");
 
     // Insert rejects a duplicate id.
@@ -192,7 +200,10 @@ async fn stop_crud_round_trip() {
         id: "stop-001".to_string(),
         stop: stop("Duplicate", (0.0, 0.0), None, 0, 0, None, "2026-03-19T00:00:00Z"),
     };
-    client.call(request, &Metadata::default()).await.expect_err("duplicate id should fail");
+    client
+        .call(create_stop, request, &Metadata::default())
+        .await
+        .expect_err("duplicate id should fail");
 
     // Upsert replaces the whole document.
     let request = UpsertStopRequest {
@@ -207,21 +218,27 @@ async fn stop_crud_round_trip() {
             "2026-03-19T12:00:00Z",
         ),
     };
-    client.call(request, &Metadata::default()).await.expect("upsert should succeed");
+    client.call(upsert_stop, request, &Metadata::default()).await.expect("upsert should succeed");
     let request = GetStopRequest {
         id: "stop-001".to_string(),
     };
-    let reply = client.call(request, &Metadata::default()).await.expect("should exist");
+    let reply = client.call(get_stop, request, &Metadata::default()).await.expect("should exist");
     assert_eq!(reply.document.last_updated.as_deref(), Some("2026-03-19T12:00:00Z"));
 
     // Delete removes the document; a second delete is a 404.
     let request = DeleteStopRequest {
         id: "stop-005".to_string(),
     };
-    let reply = client.call(request.clone(), &Metadata::default()).await.expect("should delete");
+    let reply = client
+        .call(delete_stop, request.clone(), &Metadata::default())
+        .await
+        .expect("should delete");
     assert_eq!(reply.id, "stop-005");
     assert!(provider.docs.get("stops", "stop-005").await.expect("get").is_none());
-    let error = client.call(request, &Metadata::default()).await.expect_err("second delete fails");
+    let error = client
+        .call(delete_stop, request, &Metadata::default())
+        .await
+        .expect_err("second delete fails");
     assert_eq!(error.code(), "not_found");
 }
 
@@ -232,7 +249,7 @@ async fn stop_filters() {
     seed(&client).await;
 
     // All stops, sorted by name.
-    let reply = list_stops(&client, ListStopsRequest::default()).await;
+    let reply = query_stops(&client, ListStopsRequest::default()).await;
     assert_eq!(reply.stops.len(), 5);
     assert_eq!(reply.stops[0].document.stop_name, "Albany Station");
 
@@ -241,35 +258,35 @@ async fn stop_filters() {
         q: Some("Station".to_string()),
         ..Default::default()
     };
-    assert_eq!(list_stops(&client, request).await.stops.len(), 2);
+    assert_eq!(query_stops(&client, request).await.stops.len(), 2);
 
     // Zone: eq on zone_id.
     let request = ListStopsRequest {
         zone: Some("zone-1".to_string()),
         ..Default::default()
     };
-    assert_eq!(list_stops(&client, request).await.stops.len(), 2);
+    assert_eq!(query_stops(&client, request).await.stops.len(), 2);
 
     // Zone exclusion: ne on zone_id (a null zone is "not equal").
     let request = ListStopsRequest {
         exclude_zone: Some("zone-1".to_string()),
         ..Default::default()
     };
-    assert_eq!(list_stops(&client, request).await.stops.len(), 3);
+    assert_eq!(query_stops(&client, request).await.stops.len(), 3);
 
     // Accessible: eq(wheelchair_boarding, 1) + is_not_null(zone_id).
     let request = ListStopsRequest {
         accessible: Some(true),
         ..Default::default()
     };
-    assert_eq!(list_stops(&client, request).await.stops.len(), 3);
+    assert_eq!(query_stops(&client, request).await.stops.len(), 3);
 
     // Top level: is_null(parent_station).
     let request = ListStopsRequest {
         top_level: Some(true),
         ..Default::default()
     };
-    assert_eq!(list_stops(&client, request).await.stops.len(), 4);
+    assert_eq!(query_stops(&client, request).await.stops.len(), 4);
 
     // Bounding box: and(gte, lte, gte, lte).
     let request = ListStopsRequest {
@@ -279,7 +296,7 @@ async fn stop_filters() {
         max_lon: Some(174.80),
         ..Default::default()
     };
-    let reply = list_stops(&client, request).await;
+    let reply = query_stops(&client, request).await;
     let ids: Vec<&str> = reply.stops.iter().map(|record| record.id.as_str()).collect();
     assert_eq!(ids, ["stop-001", "stop-005", "stop-003"]);
 
@@ -288,7 +305,7 @@ async fn stop_filters() {
         updated_on: Some("2026-03-19".to_string()),
         ..Default::default()
     };
-    assert_eq!(list_stops(&client, request).await.stops.len(), 3);
+    assert_eq!(query_stops(&client, request).await.stops.len(), 3);
 
     // Combined: accessible + zone.
     let request = ListStopsRequest {
@@ -296,15 +313,17 @@ async fn stop_filters() {
         zone: Some("zone-1".to_string()),
         ..Default::default()
     };
-    assert_eq!(list_stops(&client, request).await.stops.len(), 2);
+    assert_eq!(query_stops(&client, request).await.stops.len(), 2);
 
     // An invalid date is rejected as a bad request, not a server error.
     let request = ListStopsRequest {
         updated_on: Some("not-a-date".to_string()),
         ..Default::default()
     };
-    let error =
-        client.call(request, &Metadata::default()).await.expect_err("invalid date should fail");
+    let error = client
+        .call(list_stops, request, &Metadata::default())
+        .await
+        .expect_err("invalid date should fail");
     assert_eq!(error.code(), "bad_request");
 }
 
@@ -319,7 +338,7 @@ async fn stop_pagination() {
         limit: Some(2),
         ..Default::default()
     };
-    let page1 = list_stops(&client, request).await;
+    let page1 = query_stops(&client, request).await;
     let names: Vec<&str> =
         page1.stops.iter().map(|record| record.document.stop_name.as_str()).collect();
     assert_eq!(names, ["Albany Station", "Britomart Transport Centre"]);
@@ -331,7 +350,7 @@ async fn stop_pagination() {
         continuation: Some(token),
         ..Default::default()
     };
-    let page2 = list_stops(&client, request).await;
+    let page2 = query_stops(&client, request).await;
     let names: Vec<&str> =
         page2.stops.iter().map(|record| record.document.stop_name.as_str()).collect();
     assert_eq!(names, ["Devonport Ferry Terminal", "Newmarket Station"]);
@@ -343,7 +362,7 @@ async fn stop_pagination() {
         continuation: Some(token),
         ..Default::default()
     };
-    let page3 = list_stops(&client, request).await;
+    let page3 = query_stops(&client, request).await;
     let names: Vec<&str> =
         page3.stops.iter().map(|record| record.document.stop_name.as_str()).collect();
     assert_eq!(names, ["Ponsonby Rd at Franklin Rd"]);
@@ -360,16 +379,17 @@ async fn route_filters() {
     let request = GetRouteRequest {
         id: "route-nex".to_string(),
     };
-    let reply = client.call(request, &Metadata::default()).await.expect("should exist");
+    let reply = client.call(get_route, request, &Metadata::default()).await.expect("should exist");
     assert_eq!(reply.document.route_short_name, "NEX");
     let request = GetRouteRequest {
         id: "route-missing".to_string(),
     };
-    let error = client.call(request, &Metadata::default()).await.expect_err("missing route");
+    let error =
+        client.call(get_route, request, &Metadata::default()).await.expect_err("missing route");
     assert_eq!(error.code(), "not_found");
 
     // All routes, sorted by short name.
-    let reply = list_routes(&client, ListRoutesRequest::default()).await;
+    let reply = query_routes(&client, ListRoutesRequest::default()).await;
     let names: Vec<&str> =
         reply.routes.iter().map(|record| record.document.route_short_name.as_str()).collect();
     assert_eq!(names, ["DEV", "EAST", "ILK", "NEX"]);
@@ -379,7 +399,7 @@ async fn route_filters() {
         q: Some("Northern".to_string()),
         ..Default::default()
     };
-    let reply = list_routes(&client, request).await;
+    let reply = query_routes(&client, request).await;
     assert_eq!(reply.routes.len(), 1);
     assert_eq!(reply.routes[0].id, "route-nex");
 
@@ -388,21 +408,21 @@ async fn route_filters() {
         types: Some("2,3".to_string()),
         ..Default::default()
     };
-    assert_eq!(list_routes(&client, request).await.routes.len(), 3);
+    assert_eq!(query_routes(&client, request).await.routes.len(), 3);
 
     // Agency: eq(agency_id).
     let request = ListRoutesRequest {
         agency: Some("AT".to_string()),
         ..Default::default()
     };
-    assert_eq!(list_routes(&client, request).await.routes.len(), 3);
+    assert_eq!(query_routes(&client, request).await.routes.len(), 3);
 
     // Exclude ferries: negate(eq(route_type, 4)).
     let request = ListRoutesRequest {
         exclude_type: Some(4),
         ..Default::default()
     };
-    assert_eq!(list_routes(&client, request).await.routes.len(), 3);
+    assert_eq!(query_routes(&client, request).await.routes.len(), 3);
 
     // Exclude AT buses: negate(and(...)) — De Morgan negation.
     let request = ListRoutesRequest {
@@ -410,7 +430,7 @@ async fn route_filters() {
         not_type: Some(3),
         ..Default::default()
     };
-    let reply = list_routes(&client, request).await;
+    let reply = query_routes(&client, request).await;
     let ids: Vec<&str> = reply.routes.iter().map(|record| record.id.as_str()).collect();
     assert_eq!(ids, ["route-dev", "route-east"]);
 
@@ -421,7 +441,7 @@ async fn route_filters() {
         exclude_type: Some(4),
         ..Default::default()
     };
-    assert_eq!(list_routes(&client, request).await.routes.len(), 3);
+    assert_eq!(query_routes(&client, request).await.routes.len(), 3);
 }
 
 #[tokio::test]
@@ -434,7 +454,8 @@ async fn stop_time_filters() {
     let request = GetStopTimeRequest {
         id: "nex-0800-1".to_string(),
     };
-    let reply = client.call(request, &Metadata::default()).await.expect("should exist");
+    let reply =
+        client.call(get_stop_time, request, &Metadata::default()).await.expect("should exist");
     assert_eq!(reply.document.trip_id, "trip-nex-0800");
 
     // Trip: eq(trip_id), sorted by sequence.
@@ -442,7 +463,7 @@ async fn stop_time_filters() {
         trip: Some("trip-nex-0800".to_string()),
         ..Default::default()
     };
-    let reply = list_stop_times(&client, request).await;
+    let reply = query_stop_times(&client, request).await;
     let sequences: Vec<i32> =
         reply.stop_times.iter().map(|record| record.document.stop_sequence).collect();
     assert_eq!(sequences, [1, 2, 3]);
@@ -452,7 +473,7 @@ async fn stop_time_filters() {
         stop: Some("stop-001".to_string()),
         ..Default::default()
     };
-    assert_eq!(list_stop_times(&client, request).await.stop_times.len(), 2);
+    assert_eq!(query_stop_times(&client, request).await.stop_times.len(), 2);
 
     // Arrival window: gte + lte on arrival_time.
     let request = ListStopTimesRequest {
@@ -460,7 +481,7 @@ async fn stop_time_filters() {
         before: Some("08:30:00".to_string()),
         ..Default::default()
     };
-    assert_eq!(list_stop_times(&client, request).await.stop_times.len(), 3);
+    assert_eq!(query_stop_times(&client, request).await.stop_times.len(), 3);
 
     // Trip plus sequence range: eq + gte + lte.
     let request = ListStopTimesRequest {
@@ -469,5 +490,5 @@ async fn stop_time_filters() {
         max_seq: Some(2),
         ..Default::default()
     };
-    assert_eq!(list_stop_times(&client, request).await.stop_times.len(), 2);
+    assert_eq!(query_stop_times(&client, request).await.stop_times.len(), 2);
 }

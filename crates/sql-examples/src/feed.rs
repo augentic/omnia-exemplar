@@ -92,14 +92,20 @@ pub struct FeedsReply {
     pub feeds: Vec<Feed>,
 }
 
-#[omnia_guest::handler]
-async fn list_agency_feeds_request<P>(
-    input: ListAgencyFeedsRequest, context: Context<'_, P>,
+/// Lists the feeds of one agency, newest first.
+///
+/// # Errors
+///
+/// Returns an error when the schema cannot be ensured, the select cannot be
+/// built or executed, or a row cannot be mapped to a [`Feed`].
+pub async fn list_agency_feeds<P>(
+    input: ListAgencyFeedsRequest, context: Context<P>,
 ) -> Result<FeedsReply>
 where
     P: TableStore,
 {
-    schema::ensure(context.provider).await?;
+    let provider = context.provider();
+    schema::ensure(provider).await?;
 
     let query = SelectBuilder::<Feed>::new()
         .r#where(Filter::eq("agency_id", input.agency_id))
@@ -107,8 +113,7 @@ where
         .build()
         .context("building agency feed list")?;
 
-    let rows = TableStore::query(context.provider, CONNECTION.to_string(), query.sql, query.params)
-        .await?;
+    let rows = TableStore::query(provider, CONNECTION.to_string(), query.sql, query.params).await?;
     let feeds = rows
         .iter()
         .map(Feed::from_row)
@@ -135,30 +140,35 @@ pub struct FeedReply {
     pub feed: Feed,
 }
 
-#[omnia_guest::handler]
-async fn create_feed_request<P>(
-    input: CreateFeedRequest, context: Context<'_, P>,
-) -> Result<FeedReply>
+/// Creates a feed for an existing agency, with a server-assigned id (max + 1).
+///
+/// # Errors
+///
+/// Returns `not_found` when the owning agency does not exist, or an error
+/// when the schema cannot be ensured, the id probe or the insert cannot be
+/// built or executed, or a probed row cannot be mapped.
+pub async fn create_feed<P>(input: CreateFeedRequest, context: Context<P>) -> Result<FeedReply>
 where
     P: TableStore,
 {
-    schema::ensure(context.provider).await?;
+    let provider = context.provider();
+    schema::ensure(provider).await?;
 
     // Referential check: a feed for a missing agency is a 404, not an
     // orphaned row.
-    if fetch_agency(context.provider, input.agency_id).await?.is_none() {
+    if fetch_agency(provider, input.agency_id).await?.is_none() {
         return Err(not_found!("agency {} not found", input.agency_id));
     }
 
     let feed = Feed {
-        feed_id: next_feed_id(context.provider).await?,
+        feed_id: next_feed_id(provider).await?,
         agency_id: input.agency_id,
         description: input.description,
         created_at: Utc::now().format("%Y-%m-%d %H:%M:%S").to_string(),
     };
 
     let query = InsertBuilder::from_entity(&feed).build().context("building feed insert")?;
-    TableStore::exec(context.provider, CONNECTION.to_string(), query.sql, query.params).await?;
+    TableStore::exec(provider, CONNECTION.to_string(), query.sql, query.params).await?;
 
     Ok(FeedReply { feed })
 }
@@ -177,14 +187,21 @@ pub struct FeedsWithAgencyReply {
     pub feeds: Vec<FeedWithAgency>,
 }
 
-#[omnia_guest::handler]
-async fn list_all_feeds_request<P>(
-    input: ListAllFeedsRequest, context: Context<'_, P>,
+/// Lists all feeds joined with their agency details, newest feed first.
+///
+/// # Errors
+///
+/// Returns an error when the schema cannot be ensured, the joined select
+/// cannot be built or executed, or a row cannot be mapped to a
+/// [`FeedWithAgency`].
+pub async fn list_all_feeds<P>(
+    input: ListAllFeedsRequest, context: Context<P>,
 ) -> Result<FeedsWithAgencyReply>
 where
     P: TableStore,
 {
-    schema::ensure(context.provider).await?;
+    let provider = context.provider();
+    schema::ensure(provider).await?;
 
     let query = SelectBuilder::<FeedWithAgency>::new()
         .order_by_desc(Some("feed"), "created_at")
@@ -192,8 +209,7 @@ where
         .build()
         .context("building joined feed list")?;
 
-    let rows = TableStore::query(context.provider, CONNECTION.to_string(), query.sql, query.params)
-        .await?;
+    let rows = TableStore::query(provider, CONNECTION.to_string(), query.sql, query.params).await?;
     let feeds = rows
         .iter()
         .map(FeedWithAgency::from_row)
@@ -217,14 +233,20 @@ pub struct DeleteFeedReply {
     pub feed_id: i64,
 }
 
-#[omnia_guest::handler]
-async fn delete_feed_request<P>(
-    input: DeleteFeedRequest, context: Context<'_, P>,
+/// Deletes one feed by id.
+///
+/// # Errors
+///
+/// Returns `not_found` when the delete affects zero rows, or an error when
+/// the schema cannot be ensured or the delete cannot be built or executed.
+pub async fn delete_feed<P>(
+    input: DeleteFeedRequest, context: Context<P>,
 ) -> Result<DeleteFeedReply>
 where
     P: TableStore,
 {
-    schema::ensure(context.provider).await?;
+    let provider = context.provider();
+    schema::ensure(provider).await?;
 
     let query = DeleteBuilder::<Feed>::new()
         .r#where(Filter::eq("feed_id", input.id))
@@ -232,7 +254,7 @@ where
         .context("building feed delete")?;
 
     let affected =
-        TableStore::exec(context.provider, CONNECTION.to_string(), query.sql, query.params).await?;
+        TableStore::exec(provider, CONNECTION.to_string(), query.sql, query.params).await?;
     if affected == 0 {
         return Err(not_found!("feed {} not found", input.id));
     }

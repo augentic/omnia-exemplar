@@ -14,6 +14,8 @@ use omnia_test::guest::{ScriptedTables, Statement};
 use sql_examples::{
     CreateAgencyRequest, CreateFeedRequest, DeleteFeedRequest, GetAgencyRequest,
     ListAgenciesRequest, ListAgencyFeedsRequest, ListAllFeedsRequest, UpdateAgencyRequest,
+    create_agency, create_feed, delete_feed, get_agency, list_agencies, list_agency_feeds,
+    list_all_feeds, update_agency,
 };
 
 omnia_test::provider! {
@@ -107,7 +109,7 @@ fn after_schema(client: &Client<TestProvider>) -> Vec<Statement> {
     statements[2..].to_vec()
 }
 
-fn create_agency(name: &str) -> CreateAgencyRequest {
+fn agency_request(name: &str) -> CreateAgencyRequest {
     CreateAgencyRequest {
         name: name.to_string(),
         url: Some(format!("https://{name}.example.nz").to_lowercase()),
@@ -133,8 +135,10 @@ async fn create_agency_assigns_next_id() {
             .on_exec(|sql, _| sql.starts_with("INSERT INTO \"agency\""), 1),
     );
 
-    let reply =
-        client.call(create_agency("Ritchies"), &Metadata::default()).await.expect("created");
+    let reply = client
+        .call(create_agency, agency_request("Ritchies"), &Metadata::default())
+        .await
+        .expect("created");
     assert_eq!(reply.agency.agency_id, 42);
     assert_eq!(reply.agency.name, "Ritchies");
 
@@ -161,8 +165,10 @@ async fn create_agency_starts_from_one() {
             .on_exec(|sql, _| sql.starts_with("INSERT INTO \"agency\""), 1),
     );
 
-    let reply =
-        client.call(create_agency("Ritchies"), &Metadata::default()).await.expect("created");
+    let reply = client
+        .call(create_agency, agency_request("Ritchies"), &Metadata::default())
+        .await
+        .expect("created");
 
     assert_eq!(reply.agency.agency_id, 1);
 }
@@ -175,7 +181,7 @@ async fn list_agencies_newest_first() {
     ));
 
     let reply = client
-        .call(ListAgenciesRequest::default(), &Metadata::default())
+        .call(list_agencies, ListAgenciesRequest::default(), &Metadata::default())
         .await
         .expect("list should succeed");
     let ids: Vec<i64> = reply.agencies.iter().map(|agency| agency.agency_id).collect();
@@ -191,7 +197,7 @@ async fn list_agencies_newest_first() {
 
     // A limit is bound as a parameter, not rendered into the SQL.
     let request = ListAgenciesRequest { limit: Some(1) };
-    client.call(request, &Metadata::default()).await.expect("list should succeed");
+    client.call(list_agencies, request, &Metadata::default()).await.expect("list should succeed");
     let limited = statements(&client).pop().expect("a select ran");
     assert!(limited.sql.contains("LIMIT"));
     assert!(is_uint(&limited.params, 0, 1), "{:?}", limited.params);
@@ -209,12 +215,18 @@ async fn get_agency_by_id() {
     );
 
     let request = GetAgencyRequest { id: 1 };
-    let reply = client.call(request, &Metadata::default()).await.expect("agency 1 should exist");
+    let reply = client
+        .call(get_agency, request, &Metadata::default())
+        .await
+        .expect("agency 1 should exist");
     assert_eq!(reply.agency.name, "Ritchies");
     assert_eq!(reply.agency.url.as_deref(), Some("https://ritchies.example.nz"));
 
     let request = GetAgencyRequest { id: 99 };
-    let error = client.call(request, &Metadata::default()).await.expect_err("agency 99 is absent");
+    let error = client
+        .call(get_agency, request, &Metadata::default())
+        .await
+        .expect_err("agency 99 is absent");
     assert_eq!(error.code(), "not_found");
 }
 
@@ -237,7 +249,10 @@ async fn update_agency_sets_only_provided_columns() {
         url: None,
         timezone: None,
     };
-    let reply = client.call(request, &Metadata::default()).await.expect("update should succeed");
+    let reply = client
+        .call(update_agency, request, &Metadata::default())
+        .await
+        .expect("update should succeed");
     assert_eq!(reply.agency.name, "Ritchies Transport");
     assert_eq!(reply.agency.timezone.as_deref(), Some("Pacific/Auckland"));
 
@@ -272,7 +287,8 @@ async fn update_agency_rejects_empty_patch_and_missing_row() {
         url: None,
         timezone: None,
     };
-    let error = client.call(request, &Metadata::default()).await.expect_err("empty patch");
+    let error =
+        client.call(update_agency, request, &Metadata::default()).await.expect_err("empty patch");
     assert_eq!(error.code(), "bad_request");
     assert!(!statements(&client).iter().any(|statement| statement.sql.starts_with("UPDATE")));
 
@@ -283,7 +299,10 @@ async fn update_agency_rejects_empty_patch_and_missing_row() {
         url: None,
         timezone: None,
     };
-    let error = client.call(request, &Metadata::default()).await.expect_err("agency 99 is absent");
+    let error = client
+        .call(update_agency, request, &Metadata::default())
+        .await
+        .expect_err("agency 99 is absent");
     assert_eq!(error.code(), "not_found");
 }
 
@@ -299,7 +318,10 @@ async fn create_feed_rejects_missing_agency_before_writing() {
         agency_id: 99,
         description: "Orphan feed".to_string(),
     };
-    let error = client.call(request, &Metadata::default()).await.expect_err("agency 99 is absent");
+    let error = client
+        .call(create_feed, request, &Metadata::default())
+        .await
+        .expect_err("agency 99 is absent");
 
     assert_eq!(error.code(), "not_found");
     assert!(!statements(&client).iter().any(|statement| statement.sql.starts_with("INSERT")));
@@ -321,7 +343,10 @@ async fn create_feed_assigns_next_id() {
         agency_id: 1,
         description: "Ferry timetables".to_string(),
     };
-    let reply = client.call(request, &Metadata::default()).await.expect("feed should be created");
+    let reply = client
+        .call(create_feed, request, &Metadata::default())
+        .await
+        .expect("feed should be created");
     assert_eq!(reply.feed.feed_id, 2);
     assert_eq!(reply.feed.agency_id, 1);
 
@@ -340,7 +365,10 @@ async fn list_agency_feeds_filters_by_agency() {
     ));
 
     let request = ListAgencyFeedsRequest { agency_id: 1 };
-    let reply = client.call(request, &Metadata::default()).await.expect("list should succeed");
+    let reply = client
+        .call(list_agency_feeds, request, &Metadata::default())
+        .await
+        .expect("list should succeed");
 
     let ids: Vec<i64> = reply.feeds.iter().map(|feed| feed.feed_id).collect();
     assert_eq!(ids, [2, 1]);
@@ -362,7 +390,7 @@ async fn list_all_feeds_joins_agency_columns() {
     ));
 
     let reply = client
-        .call(ListAllFeedsRequest::default(), &Metadata::default())
+        .call(list_all_feeds, ListAllFeedsRequest::default(), &Metadata::default())
         .await
         .expect("joined list should succeed");
 
@@ -406,11 +434,15 @@ async fn delete_feed_is_not_found_on_zero_rows() {
     );
 
     let request = DeleteFeedRequest { id: 1 };
-    let reply = client.call(request, &Metadata::default()).await.expect("should delete");
+    let reply =
+        client.call(delete_feed, request, &Metadata::default()).await.expect("should delete");
     assert_eq!(reply.feed_id, 1);
 
     let request = DeleteFeedRequest { id: 2 };
-    let error = client.call(request, &Metadata::default()).await.expect_err("nothing to delete");
+    let error = client
+        .call(delete_feed, request, &Metadata::default())
+        .await
+        .expect_err("nothing to delete");
     assert_eq!(error.code(), "not_found");
 
     let delete = statements(&client).pop().expect("a delete ran");

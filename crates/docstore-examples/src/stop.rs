@@ -48,9 +48,14 @@ pub struct CreateStopRequest {
     pub stop: Stop,
 }
 
-#[omnia_guest::handler]
-async fn create_stop_request<P>(
-    input: CreateStopRequest, context: Context<'_, P>,
+/// Creates a stop with a caller-chosen id.
+///
+/// # Errors
+///
+/// Returns an error when the stop cannot be serialized or the id already
+/// exists in the collection.
+pub async fn create_stop<P>(
+    input: CreateStopRequest, context: Context<P>,
 ) -> Result<DocumentRecord<Stop>>
 where
     P: DocumentStore,
@@ -59,7 +64,7 @@ where
         id: input.id.clone(),
         data: serde_json::to_vec(&input.stop).context("serializing stop")?,
     };
-    DocumentStore::insert(context.provider, COLLECTION, &document).await?;
+    DocumentStore::insert(context.provider(), COLLECTION, &document).await?;
 
     Ok(DocumentRecord {
         id: input.id,
@@ -74,14 +79,17 @@ pub struct GetStopRequest {
     pub id: String,
 }
 
-#[omnia_guest::handler]
-async fn get_stop_request<P>(
-    input: GetStopRequest, context: Context<'_, P>,
-) -> Result<DocumentRecord<Stop>>
+/// Fetches one stop by id.
+///
+/// # Errors
+///
+/// Returns `not_found` when no stop has the id, or an error when the stored
+/// document cannot be deserialized.
+pub async fn get_stop<P>(input: GetStopRequest, context: Context<P>) -> Result<DocumentRecord<Stop>>
 where
     P: DocumentStore,
 {
-    let document = DocumentStore::get(context.provider, COLLECTION, &input.id)
+    let document = DocumentStore::get(context.provider(), COLLECTION, &input.id)
         .await?
         .ok_or_else(|| not_found!("stop {} not found", input.id))?;
     let stop = serde_json::from_slice(&document.data).context("deserializing stop")?;
@@ -102,9 +110,14 @@ pub struct UpsertStopRequest {
     pub stop: Stop,
 }
 
-#[omnia_guest::handler]
-async fn upsert_stop_request<P>(
-    input: UpsertStopRequest, context: Context<'_, P>,
+/// Upserts one stop by id, creating or replacing the whole document.
+///
+/// # Errors
+///
+/// Returns an error when the stop cannot be serialized or the store rejects
+/// the write.
+pub async fn upsert_stop<P>(
+    input: UpsertStopRequest, context: Context<P>,
 ) -> Result<DocumentRecord<Stop>>
 where
     P: DocumentStore,
@@ -113,7 +126,7 @@ where
         id: input.id.clone(),
         data: serde_json::to_vec(&input.stop).context("serializing stop")?,
     };
-    DocumentStore::put(context.provider, COLLECTION, &document).await?;
+    DocumentStore::put(context.provider(), COLLECTION, &document).await?;
 
     Ok(DocumentRecord {
         id: input.id,
@@ -135,14 +148,19 @@ pub struct DeleteStopReply {
     pub id: String,
 }
 
-#[omnia_guest::handler]
-async fn delete_stop_request<P>(
-    input: DeleteStopRequest, context: Context<'_, P>,
+/// Deletes one stop by id.
+///
+/// # Errors
+///
+/// Returns `not_found` when no stop has the id, or an error when the store
+/// rejects the delete.
+pub async fn delete_stop<P>(
+    input: DeleteStopRequest, context: Context<P>,
 ) -> Result<DeleteStopReply>
 where
     P: DocumentStore,
 {
-    let removed = DocumentStore::delete(context.provider, COLLECTION, &input.id).await?;
+    let removed = DocumentStore::delete(context.provider(), COLLECTION, &input.id).await?;
     if !removed {
         return Err(not_found!("stop {} not found", input.id));
     }
@@ -191,10 +209,14 @@ pub struct StopsReply {
     pub continuation: Option<String>,
 }
 
-#[omnia_guest::handler]
-async fn list_stops_request<P>(
-    input: ListStopsRequest, context: Context<'_, P>,
-) -> Result<StopsReply>
+/// Queries stops with any combination of the supported filters, sorted by
+/// name with limit/continuation pagination.
+///
+/// # Errors
+///
+/// Returns `bad_request` when `updated_on` is not a valid calendar date, or
+/// an error when the query fails or a document cannot be deserialized.
+pub async fn list_stops<P>(input: ListStopsRequest, context: Context<P>) -> Result<StopsReply>
 where
     P: DocumentStore,
 {
@@ -237,7 +259,7 @@ where
     let filter = if filters.is_empty() { None } else { Some(Filter::and(filters)) };
 
     let result = DocumentStore::query(
-        context.provider,
+        context.provider(),
         COLLECTION,
         QueryOptions {
             filter,

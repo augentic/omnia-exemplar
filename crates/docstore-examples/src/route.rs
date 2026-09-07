@@ -41,9 +41,14 @@ pub struct CreateRouteRequest {
     pub route: Route,
 }
 
-#[omnia_guest::handler]
-async fn create_route_request<P>(
-    input: CreateRouteRequest, context: Context<'_, P>,
+/// Creates a route with a caller-chosen id.
+///
+/// # Errors
+///
+/// Returns an error when the route cannot be serialized or the id already
+/// exists in the collection.
+pub async fn create_route<P>(
+    input: CreateRouteRequest, context: Context<P>,
 ) -> Result<DocumentRecord<Route>>
 where
     P: DocumentStore,
@@ -52,7 +57,7 @@ where
         id: input.id.clone(),
         data: serde_json::to_vec(&input.route).context("serializing route")?,
     };
-    DocumentStore::insert(context.provider, COLLECTION, &document).await?;
+    DocumentStore::insert(context.provider(), COLLECTION, &document).await?;
 
     Ok(DocumentRecord {
         id: input.id,
@@ -67,14 +72,19 @@ pub struct GetRouteRequest {
     pub id: String,
 }
 
-#[omnia_guest::handler]
-async fn get_route_request<P>(
-    input: GetRouteRequest, context: Context<'_, P>,
+/// Fetches one route by id.
+///
+/// # Errors
+///
+/// Returns `not_found` when no route has the id, or an error when the stored
+/// document cannot be deserialized.
+pub async fn get_route<P>(
+    input: GetRouteRequest, context: Context<P>,
 ) -> Result<DocumentRecord<Route>>
 where
     P: DocumentStore,
 {
-    let document = DocumentStore::get(context.provider, COLLECTION, &input.id)
+    let document = DocumentStore::get(context.provider(), COLLECTION, &input.id)
         .await?
         .ok_or_else(|| not_found!("route {} not found", input.id))?;
     let route = serde_json::from_slice(&document.data).context("deserializing route")?;
@@ -118,10 +128,14 @@ pub struct RoutesReply {
     pub continuation: Option<String>,
 }
 
-#[omnia_guest::handler]
-async fn list_routes_request<P>(
-    input: ListRoutesRequest, context: Context<'_, P>,
-) -> Result<RoutesReply>
+/// Queries routes with any combination of the supported filters, sorted by
+/// short name with limit/continuation pagination.
+///
+/// # Errors
+///
+/// Returns an error when the query fails or a document cannot be
+/// deserialized.
+pub async fn list_routes<P>(input: ListRoutesRequest, context: Context<P>) -> Result<RoutesReply>
 where
     P: DocumentStore,
 {
@@ -159,7 +173,7 @@ where
     let filter = if filters.is_empty() { None } else { Some(Filter::and(filters)) };
 
     let result = DocumentStore::query(
-        context.provider,
+        context.provider(),
         COLLECTION,
         QueryOptions {
             filter,

@@ -33,11 +33,12 @@ pub mod schema;
 
 pub use crate::agency::{
     AgenciesReply, Agency, AgencyReply, CreateAgencyRequest, GetAgencyRequest, ListAgenciesRequest,
-    UpdateAgencyRequest,
+    UpdateAgencyRequest, create_agency, get_agency, list_agencies, update_agency,
 };
 pub use crate::feed::{
     CreateFeedRequest, DeleteFeedReply, DeleteFeedRequest, Feed, FeedReply, FeedWithAgency,
-    FeedsReply, FeedsWithAgencyReply, ListAgencyFeedsRequest, ListAllFeedsRequest,
+    FeedsReply, FeedsWithAgencyReply, ListAgencyFeedsRequest, ListAllFeedsRequest, create_feed,
+    delete_feed, list_agency_feeds, list_all_feeds,
 };
 
 /// Named connection configured by the host.
