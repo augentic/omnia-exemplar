@@ -5,11 +5,13 @@ services. It models a fictional transit operator ("Acme") that consolidates
 realtime vehicle data processing into a WASM guest: SOAP/XML position feeds,
 passenger counting, and GTFS realtime adaptation.
 
-Domain logic lives under `crates/*` as `#[omnia_guest::handler]` functions
-(each derives its `Handler<P>` impl). The **guest is the workspace root
-package** (`src/lib.rs`) — explicit typed HTTP routes and an exact-topic
-messaging router over a provider-owning `Client`. Match this layout when
-creating a new Omnia service: root `src/`, not a `guests/<name>/` tree.
+Domain logic lives under `crates/*` as plain
+`pub async fn name<P>(input, Context<P>)` handlers (each is a `Handler<P>`
+by omnia's blanket impl). The **guest is the workspace root package**
+(`src/lib.rs`) — explicit HTTP routes bound to those fns (`post(tally)`) and
+an exact-topic messaging router over a provider-owning `Client`. Match this
+layout when creating a new Omnia service: root `src/`, not a
+`guests/<name>/` tree.
 
 ## Relation to omnia
 
@@ -17,7 +19,7 @@ This repository is the application-scale complement to the
 [omnia](https://github.com/augentic/omnia) runtime's per-capability
 [`examples/`](https://github.com/augentic/omnia/tree/main/examples): one real
 service instead of twenty snippets. The guest is built on the `omnia-guest`
-SDK (`Handler<P>` domain logic behind capability traits) and exercises
+SDK (async handler fns behind capability traits) and exercises
 `wasi:http`, `wasi:messaging`, `wasi:keyvalue`, `wasi:config`,
 `wasi:identity`, and — through the `crates/capability-examples` routes the
 root guest mounts under `/examples/*` — blobstore, websocket broadcast,
@@ -112,27 +114,27 @@ The guest:
 
 | HTTP route | Handler |
 | --- | --- |
-| `POST /api/apc` | `tally_connector::TallyRequest` — passenger-count ingress |
-| `POST /inbound/xml` | `pulse_connector::PulseXml` — SOAP/XML position ingress |
-| `GET /info/{vehicle_id}` | `gtfs_adapter::VehicleInfoRequest` |
-| `POST /god-mode/set-trip/{vehicle_id}/{trip_id}` | `gtfs_adapter::SetTripRequest` (requires the `god-mode` feature) |
-| `GET/POST /examples/stops`, `GET/PUT/DELETE /examples/stops/{id}` | `docstore_examples::stop` — docstore CRUD plus filtered queries |
-| `GET/POST /examples/routes`, `GET /examples/routes/{id}` | `docstore_examples::route` — OR / `in_list` / negation filters |
-| `GET/POST /examples/stop-times`, `GET /examples/stop-times/{id}` | `docstore_examples::stop_time` — string and numeric range filters |
-| `GET/POST /examples/agencies`, `GET/PATCH /examples/agencies/{id}` | `sql_examples::agency` — ORM CRUD with server-assigned ids |
-| `GET/POST /examples/agencies/{agency_id}/feeds` | `sql_examples::feed` — per-agency feeds with referential checks |
-| `GET /examples/feeds`, `DELETE /examples/feeds/{id}` | `sql_examples::feed` — JOIN listing and delete with 404-on-zero-rows |
-| `POST /examples/archive` | `capability_examples::ArchiveRequest` — `BlobStore` object write |
-| `POST /examples/alert` | `capability_examples::AlertRequest` — `Broadcast` over websocket |
-| `POST /examples/note` | `capability_examples::NoteRequest` — `DocumentStore` upsert |
-| `POST /examples/reading` | `capability_examples::ReadingRequest` — `TableStore` insert |
+| `POST /api/apc` | `tally_connector::tally` — passenger-count ingress |
+| `POST /inbound/xml` | `pulse_connector::pulse` — SOAP/XML position ingress |
+| `GET /info/{vehicle_id}` | `gtfs_adapter::vehicle_info` |
+| `POST /god-mode/set-trip/{vehicle_id}/{trip_id}` | `gtfs_adapter::set_trip` (requires the `god-mode` feature) |
+| `GET/POST /examples/stops`, `GET/PUT/DELETE /examples/stops/{id}` | `docstore_examples::{list_stops, create_stop, get_stop, upsert_stop, delete_stop}` — docstore CRUD plus filtered queries |
+| `GET/POST /examples/routes`, `GET /examples/routes/{id}` | `docstore_examples::{list_routes, create_route, get_route}` — OR / `in_list` / negation filters |
+| `GET/POST /examples/stop-times`, `GET /examples/stop-times/{id}` | `docstore_examples::{list_stop_times, create_stop_time, get_stop_time}` — string and numeric range filters |
+| `GET/POST /examples/agencies`, `GET/PATCH /examples/agencies/{id}` | `sql_examples::{list_agencies, create_agency, get_agency, update_agency}` — ORM CRUD with server-assigned ids |
+| `GET/POST /examples/agencies/{agency_id}/feeds` | `sql_examples::{list_agency_feeds, create_feed}` — per-agency feeds with referential checks |
+| `GET /examples/feeds`, `DELETE /examples/feeds/{id}` | `sql_examples::{list_all_feeds, delete_feed}` — JOIN listing and delete with 404-on-zero-rows |
+| `POST /examples/archive` | `capability_examples::archive` — `BlobStore` object write |
+| `POST /examples/alert` | `capability_examples::alert` — `Broadcast` over websocket |
+| `POST /examples/note` | `capability_examples::note` — `DocumentStore` upsert |
+| `POST /examples/reading` | `capability_examples::reading` — `TableStore` insert |
 
 | Messaging topic | Handler |
 | --- | --- |
-| `{env}-realtime-pulse.v1` | `pulse_adapter::PulseMessage` (XML) |
-| `{env}-realtime-pulse-to-motion.v1` | `gtfs_adapter::MotionMessage` |
-| `{env}-realtime-train-avl.v1` | `gtfs_adapter::TrainAvlMessage` |
-| `{env}-realtime-passenger-count.v1` | `gtfs_adapter::PassengerCountMessage` |
+| `{env}-realtime-pulse.v1` | `pulse_adapter::pulse` (XML) |
+| `{env}-realtime-pulse-to-motion.v1` | `gtfs_adapter::motion` |
+| `{env}-realtime-train-avl.v1` | `gtfs_adapter::train_avl` |
+| `{env}-realtime-passenger-count.v1` | `gtfs_adapter::passenger_count` |
 
 `POST /api/apc` publishes to `{env}-realtime-tally-apc.v2`; its downstream
 consumer is out of scope for the exemplar.
@@ -164,15 +166,18 @@ doubles in tests.
    adapter.
 2. Create the crate under `crates/`, register it in the workspace
    `Cargo.toml` under `# Internally referenced crates`.
-3. Implement the input type and an `#[omnia_guest::handler]` fn
-   (`async fn name<P>(input: Input, context: Context<'_, P>) -> Result<Reply>`)
+3. Implement the input type and a public handler fn
+   (`pub async fn name<P>(input: Input, context: Context<P>) -> Result<Reply>`)
    with the narrowest capability bounds it needs
-   (e.g. `P: Config + Publish`).
+   (e.g. `P: Config + Publish`), a `///` summary, and an `# Errors` section;
+   re-export it from the crate root. Read capabilities through
+   `context.provider()`.
 4. Add any new topic suffix or HTTP path to `acme_common::routes`, and any
    new configuration key to `acme_common::config` plus `.env.example`.
 5. Wire the handler into the HTTP or messaging router in `src/lib.rs` from
-   the shared route tables (`post::<Input, Provider>()`, `consume::<Input>()`,
-   or a `_with` variant for custom wire formats).
+   the shared route tables (`post(handler)`, `consume(handler)`, or a
+   `_with` variant taking the handler plus custom codecs for non-JSON wire
+   formats).
 6. Add fixtures under the crate's `data/` and native tests under `tests/`
    with an `omnia_test::provider!` declaration over the handler's
    capabilities (copy the shape of `crates/tally-connector/tests` or
@@ -213,8 +218,9 @@ state.
 
 Patterns worth copying into new services:
 
-- `Handler<P>` domain logic behind capability traits, with the guest as a
-  thin routing layer at the **workspace root** (`src/lib.rs`).
+- Handler fns (`async fn(Input, Context<P>)`) behind capability traits,
+  with the guest as a thin routing layer at the **workspace root**
+  (`src/lib.rs`) that binds each route to its fn (`post(tally)`).
 - One canonical route/topic table (`acme_common::routes`) consumed by
   producers, consumers, and the guest.
 - Named config keys with a single documented resolution policy

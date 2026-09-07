@@ -21,7 +21,15 @@ Unreleased
   (new `CRATE_NAME` token); the template gate holds the seed's dependency pins
   equal to the workspace's, and a scaffold test builds the rendered project for
   `wasm32-wasip2` and runs its route test.
-- Pinned omnia to `26020ae`. The `omnia` facade now re-exports everything a
+- Handlers are plain fns bound at the route. `#[omnia_guest::handler]` is
+  gone: every handler is now a `pub async fn name<P>(input, Context<P>)`
+  named for its operation (`tally`, `pulse`, `motion`, `create_stop`, …),
+  documented and re-exported from its crate root, and reads capabilities
+  through `context.provider()`. The root routers bind them directly —
+  `post(tally)`, `consume(motion)`, `handle_with(filter, handler, decode,
+  encode)` — and tests call `client.call(handler, input, &metadata)`. Wire
+  shapes, paths, and topics are unchanged.
+- Pinned omnia to `348e180`. The `omnia` facade now re-exports everything a
   host needs, so `[patch.crates-io]` names only the crates this workspace
   depends on directly.
 
