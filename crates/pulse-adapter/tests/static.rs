@@ -8,7 +8,7 @@ use std::ops::Sub;
 use acme_common::TIMEZONE;
 use chrono::{Duration, Timelike, Utc};
 use omnia_guest::api::{Client, Metadata};
-use pulse_adapter::{ChangeType, EventType, PulseMessage};
+use pulse_adapter::{ChangeType, EventType, PulseMessage, pulse};
 
 use self::fixture::{Case, Expected};
 
@@ -141,7 +141,9 @@ async fn expect_error(path: &str) {
 }
 
 async fn run(case: &Case) -> Result<(), omnia_guest::Error> {
-    Client::new("acme", case.provider.clone()).call(case.input.clone(), &Metadata::default()).await
+    Client::new("acme", case.provider.clone())
+        .call(pulse, case.input.clone(), &Metadata::default())
+        .await
 }
 
 struct XmlBuilder<'a> {

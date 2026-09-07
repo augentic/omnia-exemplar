@@ -24,12 +24,17 @@ pub struct AlertRequest {
 #[serde(transparent)]
 pub struct AlertReply(pub &'static str);
 
-#[omnia_guest::handler]
-async fn alert_request<P>(input: AlertRequest, context: Context<'_, P>) -> Result<AlertReply>
+/// Broadcasts the alert to the channel, optionally restricted to the given
+/// socket ids.
+///
+/// # Errors
+///
+/// Returns an error when the broadcast fails.
+pub async fn alert<P>(input: AlertRequest, context: Context<P>) -> Result<AlertReply>
 where
     P: Broadcast,
 {
-    Broadcast::send(context.provider, &input.channel, input.message.as_bytes(), input.sockets)
+    Broadcast::send(context.provider(), &input.channel, input.message.as_bytes(), input.sockets)
         .await?;
     Ok(AlertReply("OK"))
 }

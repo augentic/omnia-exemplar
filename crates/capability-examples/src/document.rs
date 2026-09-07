@@ -24,12 +24,18 @@ pub struct NoteReply {
     pub size: usize,
 }
 
-#[omnia_guest::handler]
-async fn note_request<P>(input: NoteRequest, context: Context<'_, P>) -> Result<NoteReply>
+/// Upserts the note as a JSON document and reads it back to report the
+/// stored size.
+///
+/// # Errors
+///
+/// Returns an error when the body cannot be serialized, a document-store
+/// operation fails, or the note is missing after the upsert.
+pub async fn note<P>(input: NoteRequest, context: Context<P>) -> Result<NoteReply>
 where
     P: DocumentStore,
 {
-    let provider = context.provider;
+    let provider = context.provider();
 
     let document = Document {
         id: input.id.clone(),

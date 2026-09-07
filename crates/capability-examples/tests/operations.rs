@@ -2,7 +2,9 @@
 //! doubles, invoked exactly as the guest invokes them.
 
 use capability_examples::table::sql;
-use capability_examples::{AlertRequest, ArchiveRequest, NoteRequest, ReadingRequest};
+use capability_examples::{
+    AlertRequest, ArchiveRequest, NoteRequest, ReadingRequest, alert, archive, note, reading,
+};
 use omnia_guest::DocumentStore as _;
 use omnia_guest::api::{Client, Metadata};
 use omnia_guest::orm::{DataType, Field, Row};
@@ -23,7 +25,7 @@ async fn archive_object() {
     };
 
     let reply = Client::new("acme", provider.clone())
-        .call(request, &Metadata::default())
+        .call(archive, request, &Metadata::default())
         .await
         .expect("should succeed");
 
@@ -44,7 +46,7 @@ async fn broadcast_alert() {
     };
 
     Client::new("acme", provider.clone())
-        .call(request, &Metadata::default())
+        .call(alert, request, &Metadata::default())
         .await
         .expect("should succeed");
 
@@ -68,7 +70,7 @@ async fn upsert_note() {
     };
 
     let reply = Client::new("acme", provider.clone())
-        .call(request, &Metadata::default())
+        .call(note, request, &Metadata::default())
         .await
         .expect("should succeed");
 
@@ -107,7 +109,7 @@ async fn record_reading() {
         value: 22.0,
     };
     let reply = Client::new("acme", provider.clone())
-        .call(request, &Metadata::default())
+        .call(reading, request, &Metadata::default())
         .await
         .expect("should succeed");
 

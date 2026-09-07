@@ -22,12 +22,17 @@ pub struct ArchiveReply {
     pub size: u64,
 }
 
-#[omnia_guest::handler]
-async fn archive_request<P>(input: ArchiveRequest, context: Context<'_, P>) -> Result<ArchiveReply>
+/// Archives the payload as an object, creating the container if needed, and
+/// reports the stored size.
+///
+/// # Errors
+///
+/// Returns an error when any blobstore operation fails.
+pub async fn archive<P>(input: ArchiveRequest, context: Context<P>) -> Result<ArchiveReply>
 where
     P: BlobStore,
 {
-    let provider = context.provider;
+    let provider = context.provider();
 
     if !BlobStore::container_exists(provider, &input.container).await? {
         BlobStore::create_container(provider, &input.container).await?;

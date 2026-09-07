@@ -20,7 +20,7 @@ pub mod document;
 pub mod routes;
 pub mod table;
 
-pub use blob::{ArchiveReply, ArchiveRequest};
-pub use broadcast::{AlertReply, AlertRequest};
-pub use document::{NoteReply, NoteRequest};
-pub use table::{ReadingReply, ReadingRequest};
+pub use blob::{ArchiveReply, ArchiveRequest, archive};
+pub use broadcast::{AlertReply, AlertRequest, alert};
+pub use document::{NoteReply, NoteRequest, note};
+pub use table::{ReadingReply, ReadingRequest, reading};

@@ -2,7 +2,7 @@
 
 use omnia_guest::api::{Client, Metadata};
 use omnia_test::guest::MapConfig;
-use pulse_connector::{PulseRequest, PulseXml};
+use pulse_connector::{PulseRequest, PulseXml, pulse};
 
 omnia_test::provider! {
     /// The handler's capability pair, as doubles.
@@ -26,7 +26,7 @@ async fn forwards_train_update_to_pulse_topic() {
     let expected_payload = request.body.receive_message.axml_message;
 
     let reply = Client::new(OWNER, provider.clone())
-        .call(PulseXml(xml.to_vec()), &Metadata::default())
+        .call(pulse, PulseXml(xml.to_vec()), &Metadata::default())
         .await
         .expect("should succeed");
 
@@ -57,7 +57,7 @@ async fn rejects_message_without_train_update() {
         </soap:Envelope>"#;
 
     let error = Client::new(OWNER, provider.clone())
-        .call(PulseXml(xml.to_vec()), &Metadata::default())
+        .call(pulse, PulseXml(xml.to_vec()), &Metadata::default())
         .await
         .expect_err("should reject a message without a train update");
 
@@ -76,7 +76,7 @@ async fn rejects_malformed_envelope() {
     // parsing happens inside the handler, so even an unparseable body is
     // answered with the vendor's SOAP fault rather than a plain-text 400
     let error = Client::new(OWNER, provider.clone())
-        .call(PulseXml(b"not xml at all".to_vec()), &Metadata::default())
+        .call(pulse, PulseXml(b"not xml at all".to_vec()), &Metadata::default())
         .await
         .expect_err("should reject a malformed envelope");
 

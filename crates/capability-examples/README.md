@@ -9,10 +9,10 @@ capability trait:
 
 | Module | Capability | Handler |
 | --- | --- | --- |
-| `blob` | `BlobStore` | `ArchiveRequest` — store a payload and report its size |
-| `broadcast` | `Broadcast` | `AlertRequest` — push an alert to WebSocket clients |
-| `document` | `DocumentStore` | `NoteRequest` — upsert a JSON note and read it back |
-| `table` | `TableStore` | `ReadingRequest` — insert a reading and count the sensor's rows |
+| `blob` | `BlobStore` | `archive(ArchiveRequest)` — store a payload and report its size |
+| `broadcast` | `Broadcast` | `alert(AlertRequest)` — push an alert to WebSocket clients |
+| `document` | `DocumentStore` | `note(NoteRequest)` — upsert a JSON note and read it back |
+| `table` | `TableStore` | `reading(ReadingRequest)` — insert a reading and count the sensor's rows |
 
 The crate-level tests (`tests/`) drive every handler through
 `omnia_test::provider!` doubles. Route constants for mounting the handlers under `/examples/*`

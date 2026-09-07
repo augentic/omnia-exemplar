@@ -2,7 +2,7 @@
 
 use omnia_guest::api::{Client, Metadata};
 use omnia_test::guest::MapConfig;
-use tally_connector::{TallyMessage, TallyRequest};
+use tally_connector::{TallyMessage, TallyRequest, tally};
 
 omnia_test::provider! {
     /// The handler's capability pair, as doubles.
@@ -18,7 +18,7 @@ fn provider() -> TestProvider {
 async fn forward(provider: &TestProvider, payload: &[u8]) {
     let request: TallyRequest = serde_json::from_slice(payload).expect("should deserialize");
     Client::new("acme", provider.clone())
-        .call(request, &Metadata::default())
+        .call(tally, request, &Metadata::default())
         .await
         .expect("should succeed");
 }

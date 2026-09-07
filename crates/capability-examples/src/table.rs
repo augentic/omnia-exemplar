@@ -34,12 +34,16 @@ pub struct ReadingReply {
     pub rows: usize,
 }
 
-#[omnia_guest::handler]
-async fn reading_request<P>(input: ReadingRequest, context: Context<'_, P>) -> Result<ReadingReply>
+/// Inserts the reading and counts the rows now stored for the sensor.
+///
+/// # Errors
+///
+/// Returns an error when the insert or the follow-up query fails.
+pub async fn reading<P>(input: ReadingRequest, context: Context<P>) -> Result<ReadingReply>
 where
     P: TableStore,
 {
-    let provider = context.provider;
+    let provider = context.provider();
 
     let affected = TableStore::exec(
         provider,

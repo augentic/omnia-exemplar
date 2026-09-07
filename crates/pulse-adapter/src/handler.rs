@@ -46,20 +46,26 @@ impl PulseMessage {
     }
 }
 
-#[omnia_guest::handler]
+/// Validates a Pulse train update and publishes the resulting Motion events
+/// to the pulse-to-motion topic.
+///
+/// # Errors
+///
+/// Returns an error when the update fails validation, a provider request
+/// fails, or an event cannot be serialized or published.
 #[tracing::instrument(skip_all)]
-async fn pulse_message<P>(input: PulseMessage, context: Context<'_, P>) -> Result<()>
+pub async fn pulse<P>(input: PulseMessage, context: Context<P>) -> Result<()>
 where
     P: Config + HttpRequest + Identity + Publish,
 {
-    let provider = context.provider;
+    let provider = context.provider();
 
     // validate message
     let update = input.train_update;
     update.validate()?;
 
     // convert to Motion events
-    let events = update.into_events(context.owner, provider).await?;
+    let events = update.into_events(context.owner(), provider).await?;
 
     // publish events to Motion topic (repeated — see `PUBLISH_REPEATS`)
     let topic = config::topic(provider, routes::topic::PULSE_TO_MOTION).await;

@@ -8,12 +8,16 @@ use serde::{Deserialize, Serialize};
 
 use crate::TallyMessage;
 
-#[omnia_guest::handler]
-async fn tally_request<P>(input: TallyRequest, context: Context<'_, P>) -> Result<TallyReply>
+/// Forwards a Tally APC message to the tally APC topic, keyed by device site.
+///
+/// # Errors
+///
+/// Returns an error if the message cannot be serialized or publishing fails.
+pub async fn tally<P>(input: TallyRequest, context: Context<P>) -> Result<TallyReply>
 where
     P: Config + Publish,
 {
-    let provider = context.provider;
+    let provider = context.provider();
     let message = &input.message;
 
     // forward to the tally APC topic
