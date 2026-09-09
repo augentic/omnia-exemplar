@@ -357,7 +357,7 @@ async fn create_feed_assigns_next_id() {
 }
 
 #[tokio::test]
-async fn list_agency_feeds() {
+async fn feeds_by_agency() {
     const FEED_FILTER: &str = "(\"feed\".\"agency_id\") = ($1)";
     let client = client(tables().on_query(
         |sql, params| sql.contains(FEED_FILTER) && int_param(params, 0) == Some(1),
@@ -380,7 +380,7 @@ async fn list_agency_feeds() {
 }
 
 #[tokio::test]
-async fn list_all_feeds() {
+async fn all_feeds() {
     let client = client(tables().on_query(
         |sql, _| sql.contains("LEFT JOIN \"agency\""),
         vec![
