@@ -85,7 +85,7 @@ async fn nearby(
 }
 
 #[tokio::test]
-async fn radius_filters_and_orders_by_distance() {
+async fn radius() {
     let provider = provider(vec![
         place_row("airport", "Airport", -37.0082, 174.7850), // ~18 km away
         place_row("ferry", "Ferry Terminal", -36.8429, 174.7668), // ~700 m away
@@ -110,7 +110,7 @@ async fn radius_filters_and_orders_by_distance() {
 }
 
 #[tokio::test]
-async fn bounding_box_corner_is_refined_by_haversine() {
+async fn bounding_box() {
     let provider = provider(vec![
         // ~557 m due north: inside the radius.
         place_row("near", "Near", 0.005, 0.0),
@@ -131,7 +131,7 @@ async fn bounding_box_corner_is_refined_by_haversine() {
 }
 
 #[tokio::test]
-async fn upsert_rejects_out_of_range_coordinates() {
+async fn upsert_out_of_range() {
     let provider = provider(vec![]);
     let client = Client::new("acme", provider.clone());
 
@@ -161,7 +161,7 @@ async fn upsert_rejects_out_of_range_coordinates() {
 }
 
 #[tokio::test]
-async fn conflicting_upsert_updates_in_place() {
+async fn conflicting_upsert() {
     let provider = provider(vec![]);
     let client = Client::new("acme", provider.clone());
 

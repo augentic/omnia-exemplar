@@ -183,7 +183,7 @@ async fn query_stop_times(
 }
 
 #[tokio::test]
-async fn stop_crud_round_trip() {
+async fn stop_crud() {
     let provider = TestProvider::default();
     let client = Client::new("acme", provider.clone());
     seed(&client).await;

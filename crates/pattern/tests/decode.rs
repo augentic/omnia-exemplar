@@ -28,7 +28,7 @@ fn provider() -> TestProvider {
 }
 
 #[tokio::test]
-async fn miss_fetches_with_cert_and_caches() {
+async fn miss() {
     let provider = provider();
     let client = Client::new("acme", provider.clone());
 
@@ -69,7 +69,7 @@ async fn miss_fetches_with_cert_and_caches() {
 }
 
 #[tokio::test]
-async fn hit_skips_config_and_http() {
+async fn hit() {
     // No config seeded and no route scripted: reading either would fail.
     let provider = TestProvider::default();
     let segment = serde_json::json!({ "code": "seg-2", "points": [[0.0, 0.0]] });

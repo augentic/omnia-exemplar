@@ -114,7 +114,7 @@ fn pulse_arrival_xml(train: &str) -> String {
 }
 
 #[tokio::test]
-async fn pulse_xml_publishes_motion_events() {
+async fn pulse_xml() {
     let stops = r#"[{"stop_code":"133","stop_lat":-36.12345,"stop_lon":174.12345}]"#;
     let provider = provider(
         MatchedHttp::default()
@@ -149,7 +149,7 @@ async fn pulse_xml_publishes_motion_events() {
 }
 
 #[tokio::test]
-async fn pulse_to_motion_publishes_vehicle_position() {
+async fn pulse_to_motion() {
     let value = fixture_value(
         include_bytes!("../crates/gtfs-adapter/data/realtime-pulse-to-motion.v1.json"),
         0,
@@ -176,7 +176,7 @@ async fn pulse_to_motion_publishes_vehicle_position() {
 }
 
 #[tokio::test]
-async fn train_avl_publishes_vehicle_position() {
+async fn train_avl() {
     let mut fleet: Value = serde_json::from_slice(FLEET_QUERY).expect("should parse fixture");
     fleet[0]["tag"] = "motion".into();
     let value =
@@ -201,7 +201,7 @@ async fn train_avl_publishes_vehicle_position() {
 }
 
 #[tokio::test]
-async fn passenger_count_stores_occupancy_status() {
+async fn passenger_count() {
     let value = fixture_value(
         include_bytes!("../crates/gtfs-adapter/data/realtime-passenger-count.v1.json"),
         0,
@@ -220,7 +220,7 @@ async fn passenger_count_stores_occupancy_status() {
 }
 
 #[tokio::test]
-async fn other_environment_topic_is_unhandled() {
+async fn other_environment() {
     let provider = provider(MatchedHttp::default());
     let router = guest::messaging_router(provider.clone()).await;
 
@@ -232,7 +232,7 @@ async fn other_environment_topic_is_unhandled() {
 }
 
 #[tokio::test]
-async fn undecodable_payload_is_rejected() {
+async fn undecodable_payload() {
     let provider = provider(MatchedHttp::default());
     let router = guest::messaging_router(provider.clone()).await;
 

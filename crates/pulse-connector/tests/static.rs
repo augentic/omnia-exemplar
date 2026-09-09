@@ -18,7 +18,7 @@ fn provider() -> TestProvider {
 }
 
 #[tokio::test]
-async fn forwards_train_update_to_pulse_topic() {
+async fn train_update() {
     let provider = provider();
 
     let xml = include_bytes!("../data/receive-message.xml");
@@ -44,7 +44,7 @@ async fn forwards_train_update_to_pulse_topic() {
 }
 
 #[tokio::test]
-async fn rejects_message_without_train_update() {
+async fn without_train_update() {
     let provider = provider();
 
     let xml = br#"<?xml version="1.0" encoding="utf-8"?>

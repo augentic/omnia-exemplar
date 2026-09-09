@@ -14,7 +14,7 @@ use self::support::provider;
 const OWNER: &str = "acme";
 
 #[tokio::test]
-async fn set_trip_rejected_when_disabled() {
+async fn set_trip_disabled() {
     // `GOD_MODE_ENABLED` is not configured, so the handler must refuse
     let provider = provider();
 
@@ -32,7 +32,7 @@ async fn set_trip_rejected_when_disabled() {
 }
 
 #[tokio::test]
-async fn set_trip_stores_override_when_enabled() {
+async fn set_trip_enabled() {
     let provider = provider().config(
         MapConfig::default().with([(config::ENV, "dev"), (config::GOD_MODE_ENABLED, "true")]),
     );

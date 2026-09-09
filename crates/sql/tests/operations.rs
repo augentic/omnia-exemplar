@@ -231,7 +231,7 @@ async fn get_agency_by_id() {
 }
 
 #[tokio::test]
-async fn update_agency_sets_only_provided_columns() {
+async fn update_agency_partial() {
     // The existence check and the fetch-after-update are the same select;
     // the scripted row is what the store holds after the update.
     let client = client(
@@ -273,7 +273,7 @@ async fn update_agency_sets_only_provided_columns() {
 }
 
 #[tokio::test]
-async fn update_agency_rejects_empty_patch_and_missing_row() {
+async fn update_agency_empty() {
     let client = client(
         tables()
             .on_query(is_agency_fetch_by_filter(1), vec![agency_row(1, "Ritchies")])
@@ -311,7 +311,7 @@ fn is_agency_fetch_by_filter(id: i64) -> impl Fn(&str, &[DataType]) -> bool + us
 }
 
 #[tokio::test]
-async fn create_feed_rejects_missing_agency_before_writing() {
+async fn create_feed_missing_agency() {
     let client = client(tables().on_query(|sql, _| sql.contains(AGENCY_FILTER), vec![]));
 
     let request = CreateFeedRequest {
@@ -357,7 +357,7 @@ async fn create_feed_assigns_next_id() {
 }
 
 #[tokio::test]
-async fn list_agency_feeds_filters_by_agency() {
+async fn feeds_by_agency() {
     const FEED_FILTER: &str = "(\"feed\".\"agency_id\") = ($1)";
     let client = client(tables().on_query(
         |sql, params| sql.contains(FEED_FILTER) && int_param(params, 0) == Some(1),
@@ -380,7 +380,7 @@ async fn list_agency_feeds_filters_by_agency() {
 }
 
 #[tokio::test]
-async fn list_all_feeds_joins_agency_columns() {
+async fn all_feeds() {
     let client = client(tables().on_query(
         |sql, _| sql.contains("LEFT JOIN \"agency\""),
         vec![
@@ -420,7 +420,7 @@ async fn list_all_feeds_joins_agency_columns() {
 }
 
 #[tokio::test]
-async fn delete_feed_is_not_found_on_zero_rows() {
+async fn delete_feed_missing() {
     const FEED_ID_FILTER: &str = "(\"feed\".\"feed_id\") = ($1)";
     let client = client(
         tables()
