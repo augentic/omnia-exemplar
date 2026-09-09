@@ -50,7 +50,7 @@ fn trip_instance(trip_id: &str) -> Value {
 }
 
 #[tokio::test]
-async fn motion_location_publishes_vehicle_position() {
+async fn motion_location() {
     let value = fixture_value(include_bytes!("../data/realtime-pulse-to-motion.v1.json"), 0);
     let provider = provider().http(
         MatchedHttp::default().on(http::Method::GET, fleet_query("EMP484"), ok(FLEET_QUERY)).on(
@@ -80,7 +80,7 @@ async fn motion_location_publishes_vehicle_position() {
 }
 
 #[tokio::test]
-async fn motion_without_gps_publishes_dead_reckoning() {
+async fn motion_without_gps() {
     let value = json!({
         "eventType": "location",
         "remoteData": { "externalId": "EMP484" },
@@ -128,7 +128,7 @@ async fn motion_without_gps_publishes_dead_reckoning() {
 }
 
 #[tokio::test]
-async fn motion_unknown_event_type_is_ignored() {
+async fn motion_unknown_event() {
     let provider = provider();
 
     let message: MotionMessage = serde_json::from_value(json!({
@@ -148,7 +148,7 @@ async fn motion_unknown_event_type_is_ignored() {
 }
 
 #[tokio::test]
-async fn train_avl_skips_non_motion_tag() {
+async fn train_avl_non_motion() {
     // the fixture fleet record is tagged "NOVA", so the filter drops it
     let provider = provider().http(MatchedHttp::default().on(
         http::Method::GET,
@@ -168,7 +168,7 @@ async fn train_avl_skips_non_motion_tag() {
 }
 
 #[tokio::test]
-async fn train_avl_processes_motion_tag() {
+async fn train_avl_motion() {
     let mut fleet: Value = serde_json::from_slice(FLEET_QUERY).expect("should parse fixture");
     fleet[0]["tag"] = "motion".into();
 
@@ -195,7 +195,7 @@ async fn train_avl_processes_motion_tag() {
 }
 
 #[tokio::test]
-async fn passenger_count_stores_occupancy_status() {
+async fn passenger_count_stores() {
     let provider = provider();
 
     let value = fixture_value(include_bytes!("../data/realtime-passenger-count.v1.json"), 0);
@@ -212,7 +212,7 @@ async fn passenger_count_stores_occupancy_status() {
 }
 
 #[tokio::test]
-async fn passenger_count_clears_occupancy_status() {
+async fn passenger_count_clears() {
     let provider = provider();
     let key = "motionGtfs:occupancyStatus:32161:1347-05004-41400-2-89c4020e:20251120:11:30:00";
     provider.storage.insert_state(key, b"\"FEW_SEATS_AVAILABLE\"");
@@ -230,7 +230,7 @@ async fn passenger_count_clears_occupancy_status() {
 }
 
 #[tokio::test]
-async fn serial_data_sign_on_updates_trip_state() {
+async fn serial_data_sign_on() {
     let now = chrono::Utc::now();
     let today = now.format("%Y%m%d").to_string();
 
@@ -275,7 +275,7 @@ async fn serial_data_sign_on_updates_trip_state() {
 }
 
 #[tokio::test]
-async fn serial_data_rejects_future_dated_message() {
+async fn serial_data_future() {
     let provider = provider();
     let future = chrono::Utc::now() + chrono::Duration::seconds(3_600);
 
@@ -297,7 +297,7 @@ async fn serial_data_rejects_future_dated_message() {
 }
 
 #[tokio::test]
-async fn vehicle_info_assembles_state_and_fleet_data() {
+async fn vehicle_info_state() {
     let provider = provider().http(MatchedHttp::default().on(
         http::Method::GET,
         fleet_query("EMP484"),

@@ -229,7 +229,7 @@ impl fmt::Display for Outcome {
 
 #[test]
 #[ignore = "needs a built guest and host; run via cargo make smoke"]
-fn assembled_guest_serves_every_route() -> Result<()> {
+fn assembled_guest() -> Result<()> {
     let artifacts = Artifacts::locate()?;
     if port_open() {
         bail!("port {HTTP_ADDR} is already in use; stop that server first");

@@ -26,7 +26,7 @@ fn provider() -> TestProvider {
 }
 
 #[tokio::test]
-async fn apc_publishes_to_tally_topic() {
+async fn apc_tally() {
     let provider = provider();
     let request = Request::post(routes::http::APC)
         .header(CONTENT_TYPE, "application/json")
@@ -50,7 +50,7 @@ async fn apc_publishes_to_tally_topic() {
 }
 
 #[tokio::test]
-async fn unknown_route_is_not_found() {
+async fn unknown_route() {
     let request = Request::get("/nowhere").body(Body::empty()).expect("request");
 
     let response = guest::router(provider()).oneshot(request).await.expect("response");
