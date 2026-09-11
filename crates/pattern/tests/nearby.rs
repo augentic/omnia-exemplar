@@ -8,13 +8,8 @@
 
 use omnia_guest::api::{Client, Metadata};
 use omnia_guest::orm::{DataType, Field, Row};
-use omnia_test::guest::{ScriptedTables, Statement};
+use omnia_test::guest::{Provider, ScriptedTables, Statement};
 use pattern::{NearbyPlacesRequest, UpsertPlaceRequest, nearby_places, upsert_place};
-
-omnia_test::provider! {
-    /// The handlers' one capability, as a scripted double.
-    pub struct TestProvider: TableStore;
-}
 
 /// A `places` row as the nearby query maps it.
 fn place_row(id: &str, name: &str, lat: f64, lon: f64) -> Row {
@@ -34,8 +29,8 @@ fn place_row(id: &str, name: &str, lat: f64, lon: f64) -> Row {
 }
 
 /// Upserts succeed; the bounding-box query returns `candidates`.
-fn provider(candidates: Vec<Row>) -> TestProvider {
-    TestProvider::default().tables(
+fn provider(candidates: Vec<Row>) -> Provider {
+    Provider::default().tables(
         ScriptedTables::default()
             .on_exec(|sql, params| sql.starts_with("INSERT") && params.len() == 4, 1)
             .on_query(|sql, params| sql.starts_with("SELECT") && params.len() == 4, candidates),
@@ -65,7 +60,7 @@ fn upserted_id(statement: &Statement) -> Option<&str> {
     }
 }
 
-async fn upsert(client: &Client<TestProvider>, id: &str, name: &str, lat: f64, lon: f64) {
+async fn upsert(client: &Client<Provider>, id: &str, name: &str, lat: f64, lon: f64) {
     let request = UpsertPlaceRequest {
         id: id.to_string(),
         name: name.to_string(),
@@ -78,7 +73,7 @@ async fn upsert(client: &Client<TestProvider>, id: &str, name: &str, lat: f64, l
 }
 
 async fn nearby(
-    client: &Client<TestProvider>, lat: f64, lon: f64, radius_m: f64,
+    client: &Client<Provider>, lat: f64, lon: f64, radius_m: f64,
 ) -> pattern::NearbyPlacesReply {
     let request = NearbyPlacesRequest { lat, lon, radius_m };
     client.call(nearby_places, request, &Metadata::default()).await.expect("should succeed")

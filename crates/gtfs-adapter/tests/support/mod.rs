@@ -8,20 +8,15 @@ use acme_common::fleet::Identifier;
 use bytes::Bytes;
 use chrono::{DateTime, Utc};
 use http::Response;
-use omnia_test::guest::{FixedIdentity, MapConfig};
-
-omnia_test::provider! {
-    /// The union of the handlers' capability lists, as doubles.
-    pub struct TestProvider: Config + HttpRequest + Identity + Publish + StateStore;
-}
+use omnia_test::guest::{FixedIdentity, MapConfig, Provider};
 
 pub const FLEET_URL: &str = "http://fleet.test";
 pub const BLOCK_MGT_URL: &str = "http://block-mgt.test";
 pub const TRIP_MANAGEMENT_URL: &str = "http://trip-mgt.test";
 
 /// A provider seeded with the configuration keys the handlers read.
-pub fn provider() -> TestProvider {
-    TestProvider::default()
+pub fn provider() -> Provider {
+    Provider::default()
         .config(MapConfig::default().with([
             (config::ENV, "dev"),
             (config::BLOCK_MGT_URL, BLOCK_MGT_URL),

@@ -101,10 +101,10 @@ The guest:
 - Exports messaging with `omnia_wasi_messaging::export!`, dispatching through
   an exact-topic `omnia_guest::api::messaging::Router` of **exact**
   env-qualified topics
-- Uses a unit `Provider` declared with `omnia_guest::provider!`, giving it
-  the WASI-backed default capability impls (`BlobStore`, `Broadcast`,
-  `Config`, `DocumentStore`, `HttpRequest`, `Identity`, `Publish`,
-  `StateStore`, `TableStore`)
+- Uses a unit `Provider` with one empty `impl` per capability trait, taking
+  the WASI-backed default methods each trait ships (`BlobStore`,
+  `Broadcast`, `Config`, `DocumentStore`, `HttpRequest`, `Identity`,
+  `Publish`, `StateStore`, `TableStore`)
 - Routes both transports through one provider-owning `Client` per request
 - Ships a native host example at `examples/runtime.rs` via `omnia::runtime!`,
   with a default host for every imported capability (config, docstore,
@@ -157,7 +157,7 @@ consumer is out of scope for the exemplar.
 Domain crates depend only on the `omnia-guest` capability traits (`Config`,
 `HttpRequest`, `Identity`, `Publish`, `StateStore`; `capability-examples`
 covers `BlobStore`, `Broadcast`, `DocumentStore`, and `TableStore`), so the
-same code runs inside the WASM guest and against `omnia_test::provider!`
+same code runs inside the WASM guest and against `omnia_test::guest::Provider`
 doubles in tests.
 
 ## Adding a new handler
@@ -179,10 +179,10 @@ doubles in tests.
    `_with` variant taking the handler plus custom codecs for non-JSON wire
    formats).
 6. Add fixtures under the crate's `data/` and native tests under `tests/`
-   with an `omnia_test::provider!` declaration over the handler's
-   capabilities (copy the shape of `crates/tally-connector/tests` or
-   `crates/gtfs-adapter/tests`), then add the route to `tests/routes.rs` or
-   the topic to `tests/messaging.rs`.
+   that seed an `omnia_test::guest::Provider` with the doubles the
+   handler's capabilities read (copy the shape of
+   `crates/tally-connector/tests` or `crates/gtfs-adapter/tests`), then add
+   the route to `tests/routes.rs` or the topic to `tests/messaging.rs`.
 7. Run `make ci` — fmt, clippy (native + wasm), tests, docs, vet, deny.
 
 ## Configuration
@@ -225,7 +225,7 @@ Patterns worth copying into new services:
   producers, consumers, and the guest.
 - Named config keys with a single documented resolution policy
   (`acme_common::config`).
-- Native tests under `omnia_test::provider!` doubles plus captured fixtures
+- Native tests under `omnia_test::guest::Provider` doubles plus captured fixtures
   (`tests/` + `data/` in each crate), and a route rung per router at the
   root (`tests/routes.rs`, `tests/messaging.rs`).
 - Decode-through-cache: expensive lookups go through `StateStore` in one
@@ -272,11 +272,13 @@ Acme domain quirks that are **not** general patterns:
 cargo nextest run            # or: cargo test --workspace --all-features
 ```
 
-Every crate declares its test provider with one `omnia_test::provider!`
-line over the capabilities its handlers name, and seeds the doubles
-`omnia_test::guest` exports — `MapConfig`, `Sink`, `MatchedHttp`, `Memory`,
-`MemoryDocs`, `ScriptedTables`, `FixedIdentity`. There is no hand-written
-mock provider anywhere in the workspace.
+Every crate tests against `omnia_test::guest::Provider`, which implements
+every capability trait over one default double each — `MapConfig`, `Sink`,
+`MatchedHttp`, `Memory`, `MemoryDocs`, `ScriptedTables`, `FixedIdentity`.
+The handler's bounds pick out which doubles a test seeds through the
+same-named builders (`.config(..)`, `.http(..)`, `.tables(..)`), and
+assertions read the `pub` fields (`provider.publish.sent()`). There is no
+hand-written mock provider anywhere in the workspace.
 
 - `tests/routes.rs`, `tests/messaging.rs` — the route and messaging rungs:
   the root guest's production routers driven natively (`oneshot` and
@@ -354,7 +356,7 @@ cargo run -p template-check   # schema, tokens, path safety, seed render
 scaffold with no diff to maintain. The `Cargo.toml`, `src/lib.rs` and
 `tests/routes.rs` seeds give a new service the shape above — a
 provider-generic router, `rlib` alongside `cdylib`, and a route rung
-under `omnia_test::provider!` — and the suite's scaffold test renders
+under `omnia_test::guest::Provider` — and the suite's scaffold test renders
 the manifest and builds and tests the result against the same omnia the
 exemplar uses. To move to a new Omnia rev, update `Cargo.lock` (and any
 explicit `rev` on the `[patch.crates-io]` git sources) and the seed's

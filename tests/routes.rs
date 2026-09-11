@@ -1,28 +1,22 @@
 //! Route rung: the production HTTP routing table driven natively.
 //!
-//! The provider declaration below is `src/lib.rs`'s, differing by the crate
-//! path alone; `oneshot` exercises the same `axum::Router` the WASI export
-//! serves, so a route, codec, or handler regression surfaces here without a
-//! component build.
+//! `omnia_test::guest::Provider` implements every capability, and the
+//! `router` bounds pick out which of its doubles a test seeds; `oneshot`
+//! exercises the same `axum::Router` the WASI export serves, so a route,
+//! codec, or handler regression surfaces here without a component build.
 
 use acme_common::routes;
 use axum::body::{Body, to_bytes};
 use axum::http::header::CONTENT_TYPE;
 use axum::http::{Request, StatusCode};
-use omnia_test::guest::MapConfig;
+use omnia_test::guest::{MapConfig, Provider};
 use tally_connector::TallyMessage;
 use tower::ServiceExt as _;
 
-omnia_test::provider! {
-    /// The production capability list, as doubles.
-    pub struct TestProvider: BlobStore + Broadcast + Config + DocumentStore + HttpRequest + Identity
-        + Publish + StateStore + TableStore;
-}
-
 const TALLY_MESSAGE: &[u8] = include_bytes!("../crates/tally-connector/data/tally-message.json");
 
-fn provider() -> TestProvider {
-    TestProvider::default().config(MapConfig::default().with([("ENV", "dev")]))
+fn provider() -> Provider {
+    Provider::default().config(MapConfig::default().with([("ENV", "dev")]))
 }
 
 #[tokio::test]

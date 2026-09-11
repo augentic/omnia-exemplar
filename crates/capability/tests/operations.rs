@@ -8,16 +8,11 @@ use capability::{
 use omnia_guest::DocumentStore as _;
 use omnia_guest::api::{Client, Metadata};
 use omnia_guest::orm::{DataType, Field, Row};
-use omnia_test::guest::{Broadcasted, ScriptedTables};
-
-omnia_test::provider! {
-    /// The union of the examples' capability lists, as doubles.
-    pub struct TestProvider: BlobStore + Broadcast + DocumentStore + TableStore;
-}
+use omnia_test::guest::{Broadcasted, Provider, ScriptedTables};
 
 #[tokio::test]
 async fn archive_object() {
-    let provider = TestProvider::default();
+    let provider = Provider::default();
     let request = ArchiveRequest {
         container: "reports".to_string(),
         name: "2026-07.json".to_string(),
@@ -38,7 +33,7 @@ async fn archive_object() {
 
 #[tokio::test]
 async fn broadcast_alert() {
-    let provider = TestProvider::default();
+    let provider = Provider::default();
     let request = AlertRequest {
         channel: "ops".to_string(),
         message: "service degraded".to_string(),
@@ -62,7 +57,7 @@ async fn broadcast_alert() {
 
 #[tokio::test]
 async fn upsert_note() {
-    let provider = TestProvider::default();
+    let provider = Provider::default();
     let request = NoteRequest {
         store: "notes".to_string(),
         id: "note-1".to_string(),
@@ -97,7 +92,7 @@ async fn record_reading() {
             },
         ],
     };
-    let provider = TestProvider::default().tables(
+    let provider = Provider::default().tables(
         ScriptedTables::default()
             .on_exec(|sql, _| sql == sql::INSERT, 1)
             .on_query(|sql, _| sql == sql::SELECT, vec![earlier.clone(), earlier]),

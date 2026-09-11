@@ -9,7 +9,7 @@ Unreleased
 ### Changed
 
 - Tests moved to `omnia-test`: every hand-written `tests/provider.rs` mock is
-  now one `omnia_test::provider!` declaration seeded with the `omnia_test::guest`
+  now an `omnia_test::guest::Provider` seeded with the `omnia_test::guest`
   doubles, and `acme-test` (`crates/test`) is gone — its `Fetch` matcher is
   `MatchedHttp`, and the pulse-adapter fixture loader lives in
   `crates/pulse-adapter/tests/fixture/`.
@@ -29,9 +29,12 @@ Unreleased
   `post(tally)`, `consume(motion)`, `handle_with(filter, handler, decode,
   encode)` — and tests call `client.call(handler, input, &metadata)`. Wire
   shapes, paths, and topics are unchanged.
-- Pinned omnia to `348e180`. The `omnia` facade now re-exports everything a
+- Pinned omnia to `07dcc66`. The `omnia` facade now re-exports everything a
   host needs, so `[patch.crates-io]` names only the crates this workspace
-  depends on directly.
+  depends on directly. Omnia's macro trim removed `omnia_guest::provider!`
+  and `omnia_test::provider!`: the production `Provider` is a unit struct
+  with one empty `impl` per capability trait, and tests use
+  `omnia_test::guest::Provider` directly.
 
 ### R4 findings
 

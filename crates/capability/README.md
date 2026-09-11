@@ -15,7 +15,7 @@ capability trait:
 | `table` | `TableStore` | `reading(ReadingRequest)` — insert a reading and count the sensor's rows |
 
 The crate-level tests (`tests/`) drive every handler through
-`omnia_test::provider!` doubles. Route constants for mounting the handlers under `/examples/*`
+`omnia_test::guest::Provider` doubles. Route constants for mounting the handlers under `/examples/*`
 live in `src/routes.rs`; the workspace-root guest does not wire them by
 default (there is no `guests/` tree — see the repository README).
 

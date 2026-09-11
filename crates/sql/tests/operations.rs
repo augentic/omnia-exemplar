@@ -10,18 +10,13 @@
 
 use omnia_guest::api::{Client, Metadata};
 use omnia_guest::orm::{DataType, Field, Row};
-use omnia_test::guest::{ScriptedTables, Statement};
+use omnia_test::guest::{Provider, ScriptedTables, Statement};
 use sql::{
     CreateAgencyRequest, CreateFeedRequest, DeleteFeedRequest, GetAgencyRequest,
     ListAgenciesRequest, ListAgencyFeedsRequest, ListAllFeedsRequest, UpdateAgencyRequest,
     create_agency, create_feed, delete_feed, get_agency, list_agencies, list_agency_feeds,
     list_all_feeds, update_agency,
 };
-
-omnia_test::provider! {
-    /// The handlers' one capability, as a scripted double.
-    pub struct TestProvider: TableStore;
-}
 
 const OWNER: &str = "acme";
 
@@ -92,16 +87,16 @@ fn tables() -> ScriptedTables {
     ScriptedTables::default().on_exec(|sql, _| sql.starts_with("CREATE TABLE IF NOT EXISTS"), 0)
 }
 
-fn client(tables: ScriptedTables) -> Client<TestProvider> {
-    Client::new(OWNER, TestProvider::default().tables(tables))
+fn client(tables: ScriptedTables) -> Client<Provider> {
+    Client::new(OWNER, Provider::default().tables(tables))
 }
 
-fn statements(client: &Client<TestProvider>) -> Vec<Statement> {
+fn statements(client: &Client<Provider>) -> Vec<Statement> {
     client.provider().tables.statements()
 }
 
 /// The statements after the two schema `CREATE TABLE`s.
-fn after_schema(client: &Client<TestProvider>) -> Vec<Statement> {
+fn after_schema(client: &Client<Provider>) -> Vec<Statement> {
     let statements = statements(client);
     assert!(statements[0].sql.starts_with("CREATE TABLE IF NOT EXISTS agency"));
     assert!(statements[1].sql.starts_with("CREATE TABLE IF NOT EXISTS feed"));

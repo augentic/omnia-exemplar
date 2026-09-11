@@ -1,20 +1,15 @@
 //! Static tests for the Pulse SOAP/XML connector.
 
 use omnia_guest::api::{Client, Metadata};
-use omnia_test::guest::MapConfig;
+use omnia_test::guest::{MapConfig, Provider};
 use pulse_connector::{PulseRequest, PulseXml, pulse};
-
-omnia_test::provider! {
-    /// The handler's capability pair, as doubles.
-    pub struct TestProvider: Config + Publish;
-}
 
 const OWNER: &str = "acme";
 
 // `config::env` falls back to `dev` when `ENV` is unset; seeding it keeps the
 // topic assertions honest rather than leaning on the fallback.
-fn provider() -> TestProvider {
-    TestProvider::default().config(MapConfig::default().with([("ENV", "dev")]))
+fn provider() -> Provider {
+    Provider::default().config(MapConfig::default().with([("ENV", "dev")]))
 }
 
 #[tokio::test]
