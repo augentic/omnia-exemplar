@@ -41,7 +41,7 @@ const CLOSED_UPSTREAM: &str = "http://127.0.0.1:9";
 
 /// The `wasi:config` the guest reads: real keys, dummy values. Upstreams
 /// point at a closed port so handlers that call out fail fast. Host-side
-/// settings the smoke host needed from its environment (identity
+/// settings the example host reads from its environment (identity
 /// credentials, the websocket bind address) have no counterpart here:
 /// `Backends::defaults()` connects nothing.
 const GUEST_CONFIG: &[(&str, &str)] = &[

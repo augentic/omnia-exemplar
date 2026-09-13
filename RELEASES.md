@@ -29,12 +29,28 @@ Unreleased
   `post(tally)`, `consume(motion)`, `handle_with(filter, handler, decode,
   encode)` — and tests call `client.call(handler, input, &metadata)`. Wire
   shapes, paths, and topics are unchanged.
-- Pinned omnia to `07dcc66`. The `omnia` facade now re-exports everything a
-  host needs, so `[patch.crates-io]` names only the crates this workspace
-  depends on directly. Omnia's macro trim removed `omnia_guest::provider!`
-  and `omnia_test::provider!`: the production `Provider` is a unit struct
-  with one empty `impl` per capability trait, and tests use
+- Pinned omnia to `83f0273` (omnia #280, which lets `omnia_test::build`
+  compile several sources — shipped packages and test programs — into one
+  `gen.rs`). The `omnia` facade now re-exports everything a host needs, so
+  `[patch.crates-io]` names only the crates this workspace depends on
+  directly. Omnia's macro trim removed `omnia_guest::provider!` and
+  `omnia_test::provider!`: the production `Provider` is a unit struct with
+  one empty `impl` per capability trait, and tests use
   `omnia_test::guest::Provider` directly.
+- The smoke tier is gone (`tests/smoke.rs`, the `smoke` task, and CI's
+  `cargo make smoke` step); its coverage moved under `cargo make test`. The
+  root route rung absorbed the dispatch checks (`routes::dispatch` over every
+  registered `(method, path)`, plus the pulse codec, nearby body, and
+  feature-gated `set_trip` cases). A component rung runs the shipped
+  component through the example host's `Hooks`: the root `build.rs`
+  (`omnia_test::build::Components`) compiles the guest fixture for
+  `wasm32-wasip2` into `OUT_DIR`, and `tests/component.rs` boots it through
+  `omnia_test::host::Deployment` over in-memory `Backends`, driving the
+  `wasi:http` and `wasi:messaging` exports in-process (`HttpHandler`,
+  `MessagingHandler`). `tests/examples.rs` gates `cargo build --examples`,
+  since the server host never exits. Nothing is `#[ignore]`d. CI's wasm job
+  is lint-only (`cargo make lint-wasm`) and the shared job gains
+  `targets: wasm32-wasip2` for the nested fixture build.
 
 ### R4 findings
 

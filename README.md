@@ -269,21 +269,37 @@ Acme domain quirks that are **not** general patterns:
 ## Testing
 
 ```shell
-cargo nextest run            # or: cargo test --workspace --all-features
+cargo make test              # cargo nextest run --locked --all --all-features
 ```
 
-Every crate tests against `omnia_test::guest::Provider`, which implements
-every capability trait over one default double each — `MapConfig`, `Sink`,
-`MatchedHttp`, `Memory`, `MemoryDocs`, `ScriptedTables`, `FixedIdentity`.
-The handler's bounds pick out which doubles a test seeds through the
-same-named builders (`.config(..)`, `.http(..)`, `.tables(..)`), and
-assertions read the `pub` fields (`provider.publish.sent()`). There is no
+The suite is laid out as omnia's three rungs (see omnia's
+[Testing Omnia-Based Code](https://github.com/augentic/omnia/blob/main/docs/guides/testing-omnia-code.md)
+guide) plus a build gate for the example host. Everything runs under
+`cargo make test`: nothing is `#[ignore]`d, and nothing needs installing
+beyond `rust-toolchain.toml`, which carries the `wasm32-wasip2` target the
+component rung compiles for. Unit tests belong beside the logic they cover
+(`#[cfg(test)]` in `src/`); today every check is a handler-level test or
+above, so the rungs below are the whole suite.
+
+### Handler rung
+
+Every crate tests its handlers natively against `omnia_test::guest::Provider`,
+which implements every capability trait over one default double each —
+`MapConfig`, `Sink`, `MatchedHttp`, `Memory`, `MemoryDocs`, `ScriptedTables`,
+`FixedIdentity`. The handler's bounds pick out which doubles a test seeds
+through the same-named builders (`.config(..)`, `.http(..)`, `.tables(..)`),
+and assertions read the `pub` fields (`provider.publish.sent()`). There is no
 hand-written mock provider anywhere in the workspace.
 
-- `tests/routes.rs`, `tests/messaging.rs` — the route and messaging rungs:
-  the root guest's production routers driven natively (`oneshot` and
-  `Router::handle`) under the production capability list as doubles
-- `crates/tally-connector/tests` — the minimal handler rung
+- `tests/routes.rs`, `tests/messaging.rs` — the root guest's production
+  routers driven natively (`oneshot` and `Router::handle`) under the
+  production capability list as doubles. `routes::dispatch` sends one
+  request to every `(method, path)` `router()` registers and asserts neither
+  `404` nor `405` — a miss means a route is miswired, any other status means
+  the handler ran — beside the wire-format checks (`pulse_fault`,
+  `pulse_receive`, `nearby_body`, the feature-gated `set_trip`) and
+  `apc_tally`
+- `crates/tally-connector/tests` — the minimal handler test
 - `crates/pulse-connector/tests` — SOAP happy path and fault sad path
 - `crates/gtfs-adapter/tests` — `MatchedHttp` seeded with the exact
   upstream URLs (`tests/support/`), covering motion, dead reckoning,
@@ -291,37 +307,52 @@ hand-written mock provider anywhere in the workspace.
 - `crates/pulse-adapter/tests` — static fixtures plus replay sessions
   captured from a live system (`data/replay`, `data/static`), loaded by
   `tests/fixture/` onto `MatchedHttp`
-- `crates/capability-examples/tests` — one provider covering
+- `crates/capability/tests` — one provider covering
   `BlobStore`/`Broadcast`/`DocumentStore`/`TableStore`
-- `crates/docstore-examples/tests` — `MemoryDocs`, the filter-evaluating
+- `crates/docstore/tests` — `MemoryDocs`, the filter-evaluating
   `DocumentStore` double, covering every portable filter type, sorting,
   continuation pagination, and the CRUD round-trip
-- `crates/sql-examples/tests` — `ScriptedTables` scripting each ORM query's
-  rows and recording every statement, covering all four ORM builders, the
-  JOIN listing, server-assigned ids, and 404-on-zero-rows
-- `crates/pattern-examples/tests` — `MatchedHttp` recording outbound HTTP
-  requests, covering the decode cache (hit and miss), the ORM-backed nearby
-  query, and the structured-error upsert rejection
+- `crates/sql/tests` — `ScriptedTables` scripting each ORM query's rows and
+  recording every statement, covering all four ORM builders, the JOIN
+  listing, server-assigned ids, and 404-on-zero-rows
+- `crates/pattern/tests` — `MatchedHttp` recording outbound HTTP requests,
+  covering the decode cache (hit and miss), the ORM-backed nearby query, and
+  the structured-error upsert rejection
 - `templates/check/tests` — the template contract gate and the scaffold
   proof (a rendered guest builds for `wasm32-wasip2` and passes its test)
 
-The crate tests above cover handler semantics against mock providers; none of
-them executes the assembled artefact. `tests/smoke.rs` closes that gap:
+### Component rung
 
-```shell
-cargo make smoke             # builds guest.wasm and the example host, then runs it
-```
+The handler rung never executes the assembled artefact; `tests/component.rs`
+does. The root `build.rs` (`omnia_test::build::Components`) compiles this
+package for `wasm32-wasip2` into `OUT_DIR` on every native build — dev
+profile, default features, `god-mode` off — and generates the
+`COMPONENT_GUEST` path constant the test `include!`s. The test pulls in
+`examples/runtime.rs` as a module, so the `Hooks` its `omnia::runtime!`
+generates — the exact host rows the example binary links — assemble the
+runtime through `omnia_test::host::Deployment` over `Backends`, the
+in-memory host defaults. A host the guest imports but the example does not
+declare fails here at link time, before any scenario runs.
 
-It spawns `examples/runtime.rs` with the release `guest.wasm`, drives one
-request through every route, and requires the host log to show a messaging
-delivery. Starting the host is itself the link proof (`omnia::runtime!`
-pre-instantiates the component, so Provider/host drift fails before the port
-opens). The checks assert **dispatch, not semantics** — a `404`/`405` means
-a route is miswired; any other status means the handler ran — and full
-success only where the in-tree default backends suffice. The test is
-`#[ignore]`d, so `cargo make test` compiles it but skips it; the `smoke` task
-runs only ignored tests. It uses `std` alone, so the dependency tree and
-`cargo vet` are unaffected.
+Each scenario drives one trigger export in-process and asserts the side
+effect on the backends, leaving payload semantics to the handler rung:
+
+- `component::http_export` — `HttpHandler` posts the tally fixture to
+  `/api/apc` and requires exactly one message on the broker, on
+  `dev-realtime-tally-apc.v2`
+- `component::messaging_export` — `MessagingHandler` delivers a
+  passenger-count record and reads the occupancy status back from the
+  `wasi:keyvalue` bucket through `Backends::state`
+
+No port opens and no `.env` is read: `Backends::defaults()` reads no
+environment variable and connects nothing, so the rung is deterministic.
+
+### Examples gate
+
+`tests/examples.rs::build` runs `cargo build --locked --examples` from the
+package root. The host in `examples/runtime.rs` is a server that never
+exits, so it is compiled, not run; the component rung is where its wiring is
+exercised.
 
 ## Guest template contract
 
@@ -365,8 +396,16 @@ pins, which the gate holds equal to the workspace's.
 ## Development
 
 ```shell
-make ci         # fmt, clippy (native + wasm), test, docs, vet, deny — same targets as omnia
-make smoke      # end-to-end: build guest.wasm + host, run the ignored smoke test (not in `make ci`; CI's wasm job runs it)
+make ci         # fmt, clippy (native + wasm), test, docs, vet, outdated, deny — the full gate, same targets as omnia
+```
+
+`make ci` is the whole gate: every rung above, including the component rung
+and the examples gate, runs inside `make test`. To run the host for real —
+a manual check, not a test — build the release guest and start the example
+runtime against it:
+
+```shell
+cargo make wasm && cargo run --example runtime -- run target/wasm32-wasip2/release/guest.wasm
 ```
 
 The workspace follows omnia's conventions: stable toolchain
