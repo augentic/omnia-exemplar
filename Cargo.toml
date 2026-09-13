@@ -46,7 +46,6 @@ wasip3.workspace = true
 cfg-if.workspace = true
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
-anyhow.workspace = true
 bytes.workspace = true
 chrono.workspace = true
 http.workspace = true
