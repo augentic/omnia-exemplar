@@ -139,7 +139,7 @@ version = "4.0.3"
 criteria = "safe-to-deploy"
 
 [[exemptions.cc]]
-version = "1.0.89"
+version = "1.4.6"
 criteria = "safe-to-deploy"
 
 [[exemptions.chacha20]]
@@ -199,7 +199,7 @@ version = "0.3.1"
 criteria = "safe-to-deploy"
 
 [[exemptions.crc32fast]]
-version = "1.5.1"
+version = "1.5.2"
 criteria = "safe-to-deploy"
 
 [[exemptions.crossbeam-channel]]
@@ -355,7 +355,7 @@ version = "0.33.0"
 criteria = "safe-to-deploy"
 
 [[exemptions.granit-parser]]
-version = "1.2.0"
+version = "1.2.1"
 criteria = "safe-to-deploy"
 
 [[exemptions.h2]]
@@ -527,7 +527,7 @@ version = "0.4.34"
 criteria = "safe-to-deploy"
 
 [[exemptions.lru-slab]]
-version = "0.1.2"
+version = "0.1.3"
 criteria = "safe-to-deploy"
 
 [[exemptions.mach2]]
@@ -899,7 +899,7 @@ version = "0.4.12"
 criteria = "safe-to-deploy"
 
 [[exemptions.smallvec]]
-version = "1.16.0"
+version = "1.16.1"
 criteria = "safe-to-deploy"
 
 [[exemptions.socket2]]
