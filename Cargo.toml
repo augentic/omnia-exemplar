@@ -49,6 +49,7 @@ cfg-if.workspace = true
 bytes.workspace = true
 chrono.workspace = true
 http.workspace = true
+http-body-util.workspace = true
 omnia.workspace = true
 omnia-wasi-blobstore.workspace = true
 omnia-wasi-config.workspace = true
@@ -56,10 +57,15 @@ omnia-wasi-docstore.workspace = true
 omnia-wasi-identity.workspace = true
 omnia-wasi-keyvalue.workspace = true
 omnia-wasi-sql.workspace = true
-omnia-test.workspace = true
+omnia-test = { workspace = true, features = ["guest", "host"] }
 omnia-wasi-websocket.workspace = true
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 tower.workspace = true
+
+# The fixture rung: `build.rs` compiles this package to a `wasm32-wasip2`
+# component for `tests/component.rs`. `build` is `std`-only by contract.
+[build-dependencies]
+omnia-test = { workspace = true, features = ["build"] }
 
 [[example]]
 name = "runtime"
@@ -160,7 +166,10 @@ omnia-wasi-keyvalue = "0.36.0"
 omnia-wasi-messaging = "0.36.0"
 omnia-wasi-otel = "0.36.0"
 omnia-wasi-sql = "0.36.0"
-omnia-test = { version = "0.36.0", features = ["guest"] }
+# No default features: each consumer names its rung. A workspace-level
+# `guest` feature would unify into the root `[build-dependencies]` line and
+# drag `omnia-guest` into the build-script graph.
+omnia-test = "0.36.0"
 omnia-wasi-websocket = "0.36.0"
 
 acme-common = { path = "crates/common" }
