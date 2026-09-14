@@ -4,23 +4,18 @@
 use bytes::Bytes;
 use http::{Method, Response};
 use omnia_guest::api::{Client, Metadata};
-use omnia_test::guest::{MapConfig, MatchedHttp};
+use omnia_test::guest::{MapConfig, MatchedHttp, Provider};
 use pattern::Segment;
 use pattern::decode::{
     CLIENT_CERT, DECODER_URL, DecodeSegmentRequest, decode_segment, segment_key,
 };
 
-omnia_test::provider! {
-    /// The handler's capability list, as doubles.
-    pub struct TestProvider: Config + HttpRequest + StateStore;
-}
-
 const DECODER: &str = "https://decoder.test/decode";
 
 /// A provider whose decoder answers with the fixture segment.
-fn provider() -> TestProvider {
+fn provider() -> Provider {
     let segment = Bytes::from_static(include_bytes!("../data/segment.json"));
-    TestProvider::default()
+    Provider::default()
         .config(
             MapConfig::default().with([(DECODER_URL, DECODER), (CLIENT_CERT, "test-client-cert")]),
         )
@@ -71,7 +66,7 @@ async fn miss() {
 #[tokio::test]
 async fn hit() {
     // No config seeded and no route scripted: reading either would fail.
-    let provider = TestProvider::default();
+    let provider = Provider::default();
     let segment = serde_json::json!({ "code": "seg-2", "points": [[0.0, 0.0]] });
     provider
         .storage

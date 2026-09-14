@@ -18,15 +18,10 @@ use acme_common::{TIMEZONE, config};
 use bytes::Bytes;
 use chrono::{Timelike, Utc};
 use http::{Method, Response};
-use omnia_test::guest::{FixedIdentity, MapConfig, MatchedHttp};
+use omnia_test::guest::{FixedIdentity, MapConfig, MatchedHttp, Provider};
 use pulse_adapter::{MotionEvent, PulseMessage};
 use serde::Deserialize;
 use serde_json::Value;
-
-omnia_test::provider! {
-    /// The adapter's capability list, as doubles.
-    pub struct TestProvider: Config + HttpRequest + Identity + Publish;
-}
 
 /// Every outbound URL in a fixture is relative to this base; both APIs the
 /// adapter calls are seeded to it.
@@ -97,7 +92,7 @@ pub struct Case {
     /// The message to hand the handler.
     pub input: PulseMessage,
     /// Doubles seeded with the fixture's HTTP answers.
-    pub provider: TestProvider,
+    pub provider: Provider,
     /// The captured outcome, if the fixture records one.
     pub expected: Option<Expected>,
 }
@@ -156,7 +151,7 @@ pub fn prepare(def: TestDef) -> Case {
         http.on(method, format!("{BASE_URL}{}{query}", fetch.path), response)
     });
 
-    let provider = TestProvider::default()
+    let provider = Provider::default()
         .config(MapConfig::default().with([
             (config::ENV, "dev"),
             (config::STATIC_API_URL, BASE_URL),

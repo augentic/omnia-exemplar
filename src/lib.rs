@@ -14,7 +14,7 @@
 //!
 //! Only the WASI exports are `wasm32`-gated. The routers are generic over
 //! the provider so the native route rung (`tests/routes.rs`) drives the
-//! production routing table under `omnia_test::provider!` doubles.
+//! production routing table under `omnia_test::guest::Provider` doubles.
 
 use acme_common::{config, routes};
 use axum::Json;
@@ -61,12 +61,31 @@ use wasip3::http::types as p3;
 /// The tenant that owns this deployment.
 pub const OWNER: &str = "acme";
 
+/// Bare provider backed by the default WASI capability implementations.
+///
+/// Each capability trait ships its WASI-backed methods as defaults, so an
+/// empty `impl` per capability is the whole production wiring.
 #[cfg(target_arch = "wasm32")]
-omnia_guest::provider! {
-    /// Bare provider backed by the default WASI capability implementations.
-    pub struct Provider: BlobStore + Broadcast + Config + DocumentStore + HttpRequest + Identity
-        + Publish + StateStore + TableStore;
-}
+pub struct Provider;
+
+#[cfg(target_arch = "wasm32")]
+impl BlobStore for Provider {}
+#[cfg(target_arch = "wasm32")]
+impl Broadcast for Provider {}
+#[cfg(target_arch = "wasm32")]
+impl Config for Provider {}
+#[cfg(target_arch = "wasm32")]
+impl DocumentStore for Provider {}
+#[cfg(target_arch = "wasm32")]
+impl HttpRequest for Provider {}
+#[cfg(target_arch = "wasm32")]
+impl Identity for Provider {}
+#[cfg(target_arch = "wasm32")]
+impl Publish for Provider {}
+#[cfg(target_arch = "wasm32")]
+impl StateStore for Provider {}
+#[cfg(target_arch = "wasm32")]
+impl TableStore for Provider {}
 
 /// WASI HTTP export.
 #[cfg(target_arch = "wasm32")]

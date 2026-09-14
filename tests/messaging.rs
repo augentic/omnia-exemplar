@@ -1,8 +1,9 @@
 //! Messaging rung: the production topic table driven natively.
 //!
 //! `messaging_router` is a guest-side value, so one delivery per subscribed
-//! topic goes straight to `Router::handle` under `omnia_test` doubles, and
-//! the downstream publish or store write is asserted on the provider.
+//! topic goes straight to `Router::handle` under `omnia_test::guest::Provider`
+//! doubles, and the downstream publish or store write is asserted on the
+//! provider.
 
 use acme_common::fleet::Identifier;
 use acme_common::{TIMEZONE, config, routes};
@@ -10,22 +11,16 @@ use bytes::Bytes;
 use chrono::{DateTime, Timelike, Utc};
 use http::{Method, Response};
 use omnia_guest::api::messaging::{Delivery, DeliveryError};
-use omnia_test::guest::{FixedIdentity, MapConfig, MatchedHttp};
+use omnia_test::guest::{FixedIdentity, MapConfig, MatchedHttp, Provider};
 use serde_json::Value;
-
-omnia_test::provider! {
-    /// The production capability list, as doubles.
-    pub struct TestProvider: Config + DocumentStore + HttpRequest + Identity + Publish + StateStore
-        + TableStore;
-}
 
 const STATIC_API_URL: &str = "http://static.test";
 const BLOCK_MGT_URL: &str = "http://block-mgt.test";
 const FLEET_URL: &str = "http://fleet.test";
 const FLEET_QUERY: &[u8] = include_bytes!("../crates/gtfs-adapter/data/fleet-query.json");
 
-fn provider(http: MatchedHttp) -> TestProvider {
-    TestProvider::default()
+fn provider(http: MatchedHttp) -> Provider {
+    Provider::default()
         .config(MapConfig::default().with([
             (config::ENV, "dev"),
             (config::STATIC_API_URL, STATIC_API_URL),

@@ -22,9 +22,9 @@ key catalog.
 ## Tests
 
 - `tests/static.rs` — captured Kafka fixtures (`data/`) replayed through the
-  operations against `omnia_test::provider!` doubles (`tests/support/`
-  declares the provider and the exact upstream URLs each test seeds on
-  `MatchedHttp`), covering vehicle positions, dead reckoning, sign-on, tag
+  operations against `omnia_test::guest::Provider` doubles (`tests/support/`
+  seeds the provider and declares the exact upstream URLs each test seeds
+  on `MatchedHttp`), covering vehicle positions, dead reckoning, sign-on, tag
   filtering, occupancy status, and vehicle info.
 - `tests/god_mode.rs` — the feature-gated override, disabled and enabled
   (run with `--features god-mode`).

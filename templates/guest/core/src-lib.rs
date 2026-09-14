@@ -2,7 +2,7 @@
 //!
 //! An Omnia WASI HTTP guest. Only the WASI export is `wasm32`-gated: the
 //! router is generic over its provider, so `tests/routes.rs` drives the
-//! routing table natively under `omnia_test::provider!` doubles.
+//! routing table natively under `omnia_test::guest::Provider` doubles.
 
 use omnia_guest::Config;
 use omnia_guest::api::http::post;
@@ -12,11 +12,15 @@ use serde::{Deserialize, Serialize};
 /// The tenant that owns this deployment.
 pub const OWNER: &str = "<PACKAGE_NAME>";
 
+/// Bare provider backed by the default WASI capability implementations.
+///
+/// Each capability trait ships its WASI-backed methods as defaults, so an
+/// empty `impl` per capability is the whole production wiring.
 #[cfg(target_arch = "wasm32")]
-omnia_guest::provider! {
-    /// Bare provider backed by the default WASI capability implementations.
-    pub struct Provider: Config;
-}
+pub struct Provider;
+
+#[cfg(target_arch = "wasm32")]
+impl Config for Provider {}
 
 /// WASI HTTP export.
 #[cfg(target_arch = "wasm32")]

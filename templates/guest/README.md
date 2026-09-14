@@ -34,8 +34,8 @@ The seed also carries the guest's starting shape: `Cargo.toml` with the
 `omnia-guest` dependency, the `wasm32`-excluded `omnia-test`
 dev-dependency (`features = ["guest"]`) and `crate-type = ["cdylib",
 "rlib"]`; `src/lib.rs` with one `wasm32`-gated WASI HTTP export over a
-provider-generic router; and `tests/routes.rs`, one
-`omnia_test::provider!` line and one native route test. Its shared
+provider-generic router; and `tests/routes.rs`, one native route test
+over a seeded `omnia_test::guest::Provider`. Its shared
 dependency pins must match the root workspace's, and
 `templates/check/tests/scaffold.rs` renders the whole manifest into
 `target/template-scaffold/` and proves the result builds for

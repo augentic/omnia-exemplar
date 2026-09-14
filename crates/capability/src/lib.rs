@@ -4,8 +4,8 @@
 //! not otherwise exercise: [`BlobStore`], [`Broadcast`], [`DocumentStore`],
 //! and [`TableStore`]. Each module carries one small, deliberately
 //! domain-free [`Handler`] over its capability trait; the crate-level
-//! tests drive every handler through `omnia_test::provider!` doubles. Route
-//! constants for mounting the handlers under `/examples/*` live in
+//! tests drive every handler through `omnia_test::guest::Provider` doubles.
+//! Route constants for mounting the handlers under `/examples/*` live in
 //! [`routes`]; the workspace-root guest wires all four.
 //!
 //! [`Handler`]: omnia_guest::api::Handler

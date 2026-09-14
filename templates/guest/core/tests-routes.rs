@@ -1,24 +1,18 @@
 //! Route rung: the routing table driven natively, no component build.
 //!
-//! The provider declaration below is `src/lib.rs`'s, differing by the crate
-//! path alone; `oneshot` exercises the same `axum::Router` the WASI export
-//! serves.
+//! `omnia_test::guest::Provider` implements every capability, and the
+//! `router` bounds pick out which of its doubles a test seeds; `oneshot`
+//! exercises the same `axum::Router` the WASI export serves.
 
 use axum::body::{Body, to_bytes};
 use axum::http::header::CONTENT_TYPE;
 use axum::http::{Request, StatusCode};
-use omnia_test::guest::MapConfig;
+use omnia_test::guest::{MapConfig, Provider};
 use tower::ServiceExt as _;
-
-omnia_test::provider! {
-    /// The guest's capability list, as doubles.
-    pub struct TestProvider: Config;
-}
 
 #[tokio::test]
 async fn greet_uses_configured_greeting() {
-    let provider =
-        TestProvider::default().config(MapConfig::default().with([("GREETING", "Kia ora")]));
+    let provider = Provider::default().config(MapConfig::default().with([("GREETING", "Kia ora")]));
     let request = Request::post("/greet")
         .header(CONTENT_TYPE, "application/json")
         .body(Body::from(r#"{"name":"Omnia"}"#))

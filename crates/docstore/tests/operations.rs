@@ -14,11 +14,7 @@ use docstore::{
 };
 use omnia_guest::DocumentStore as _;
 use omnia_guest::api::{Client, Metadata};
-
-omnia_test::provider! {
-    /// The handlers' one capability, as the production default's in-memory twin.
-    pub struct TestProvider: DocumentStore;
-}
+use omnia_test::guest::Provider;
 
 fn stop(
     name: &str, coords: (f64, f64), zone: Option<&str>, wheelchair: i32, location: i32,
@@ -60,7 +56,7 @@ fn stop_time(trip: &str, stop: &str, arrival: &str, departure: &str, sequence: i
 
 /// Seed the five stops, four routes, and five stop times from the pre-trim
 /// example's fixtures.
-async fn seed(client: &Client<TestProvider>) {
+async fn seed(client: &Client<Provider>) {
     let metadata = Metadata::default();
     let stops = [
         (
@@ -162,11 +158,11 @@ async fn seed(client: &Client<TestProvider>) {
     }
 }
 
-async fn query_stops(client: &Client<TestProvider>, request: ListStopsRequest) -> StopsReply {
+async fn query_stops(client: &Client<Provider>, request: ListStopsRequest) -> StopsReply {
     client.call(list_stops, request, &Metadata::default()).await.expect("list stops should succeed")
 }
 
-async fn query_routes(client: &Client<TestProvider>, request: ListRoutesRequest) -> RoutesReply {
+async fn query_routes(client: &Client<Provider>, request: ListRoutesRequest) -> RoutesReply {
     client
         .call(list_routes, request, &Metadata::default())
         .await
@@ -174,7 +170,7 @@ async fn query_routes(client: &Client<TestProvider>, request: ListRoutesRequest)
 }
 
 async fn query_stop_times(
-    client: &Client<TestProvider>, request: ListStopTimesRequest,
+    client: &Client<Provider>, request: ListStopTimesRequest,
 ) -> StopTimesReply {
     client
         .call(list_stop_times, request, &Metadata::default())
@@ -184,7 +180,7 @@ async fn query_stop_times(
 
 #[tokio::test]
 async fn stop_crud() {
-    let provider = TestProvider::default();
+    let provider = Provider::default();
     let client = Client::new("acme", provider.clone());
     seed(&client).await;
 
@@ -244,7 +240,7 @@ async fn stop_crud() {
 
 #[tokio::test]
 async fn stop_filters() {
-    let provider = TestProvider::default();
+    let provider = Provider::default();
     let client = Client::new("acme", provider);
     seed(&client).await;
 
@@ -329,7 +325,7 @@ async fn stop_filters() {
 
 #[tokio::test]
 async fn stop_pagination() {
-    let provider = TestProvider::default();
+    let provider = Provider::default();
     let client = Client::new("acme", provider);
     seed(&client).await;
 
@@ -371,7 +367,7 @@ async fn stop_pagination() {
 
 #[tokio::test]
 async fn route_filters() {
-    let provider = TestProvider::default();
+    let provider = Provider::default();
     let client = Client::new("acme", provider);
     seed(&client).await;
 
@@ -446,7 +442,7 @@ async fn route_filters() {
 
 #[tokio::test]
 async fn stop_time_filters() {
-    let provider = TestProvider::default();
+    let provider = Provider::default();
     let client = Client::new("acme", provider);
     seed(&client).await;
 
