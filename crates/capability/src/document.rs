@@ -1,9 +1,9 @@
 //! Document-store example: upsert a JSON note and read it back.
 
 use anyhow::Context as _;
-use omnia_guest::api::Context;
-use omnia_guest::document_store::Document;
-use omnia_guest::{DocumentStore, Result};
+use omnia_sdk::api::Context;
+use omnia_sdk::document_store::Document;
+use omnia_sdk::{DocumentStore, Result};
 use serde::{Deserialize, Serialize};
 
 /// Upsert a JSON note document.

@@ -6,7 +6,7 @@ use acme_common::fleet::{self, Vehicle};
 use anyhow::Context as _;
 use chrono::{Duration, NaiveDate, TimeZone};
 use chrono_tz::Tz;
-use omnia_guest::{Config, HttpRequest, Identity, Result, StateStore};
+use omnia_sdk::{Config, HttpRequest, Identity, Result, StateStore};
 use serde::de::DeserializeOwned;
 use uuid::Uuid;
 

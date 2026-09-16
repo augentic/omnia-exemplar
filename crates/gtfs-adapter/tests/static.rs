@@ -11,7 +11,7 @@ use gtfs_adapter::{
     MotionMessage, PassengerCountMessage, TrainAvlMessage, VehicleInfoRequest, motion,
     passenger_count, train_avl, vehicle_info,
 };
-use omnia_guest::api::{Client, Metadata};
+use omnia_sdk::api::{Client, Metadata};
 use omnia_test::guest::MatchedHttp;
 use serde_json::{Value, json};
 
@@ -194,37 +194,29 @@ async fn train_avl_motion() {
     assert_eq!(published[0].0, "dev-realtime-gtfs-vp.v1");
 }
 
+/// A passenger count with an occupancy status, then the same count without
+/// one: the status is stored under the trip key, then cleared from it.
 #[tokio::test]
-async fn passenger_count_stores() {
+async fn passenger_count_occupancy() {
     let provider = provider();
+    let client = Client::new(OWNER, provider.clone());
+    let key = "motionGtfs:occupancyStatus:32161:1347-05004-41400-2-89c4020e:20251120:11:30:00";
 
     let value = fixture_value(include_bytes!("../data/realtime-passenger-count.v1.json"), 0);
-    let message: PassengerCountMessage = serde_json::from_value(value).expect("should deserialize");
+    let message: PassengerCountMessage =
+        serde_json::from_value(value.clone()).expect("should deserialize");
 
-    Client::new(OWNER, provider.clone())
-        .call(passenger_count, message, &Metadata::default())
-        .await
-        .expect("should succeed");
+    client.call(passenger_count, message, &Metadata::default()).await.expect("should succeed");
 
-    let key = "motionGtfs:occupancyStatus:32161:1347-05004-41400-2-89c4020e:20251120:11:30:00";
     let stored = provider.storage.state(key).expect("occupancy status should be stored");
     assert_eq!(stored, b"\"FEW_SEATS_AVAILABLE\"");
-}
 
-#[tokio::test]
-async fn passenger_count_clears() {
-    let provider = provider();
-    let key = "motionGtfs:occupancyStatus:32161:1347-05004-41400-2-89c4020e:20251120:11:30:00";
-    provider.storage.insert_state(key, b"\"FEW_SEATS_AVAILABLE\"");
-
-    let mut value = fixture_value(include_bytes!("../data/realtime-passenger-count.v1.json"), 0);
+    // the same count without an occupancy status clears what was stored
+    let mut value = value;
     value.as_object_mut().expect("object").remove("occupancyStatus");
     let message: PassengerCountMessage = serde_json::from_value(value).expect("should deserialize");
 
-    Client::new(OWNER, provider.clone())
-        .call(passenger_count, message, &Metadata::default())
-        .await
-        .expect("should succeed");
+    client.call(passenger_count, message, &Metadata::default()).await.expect("should succeed");
 
     assert!(provider.storage.state(key).is_none(), "occupancy status should be cleared");
 }

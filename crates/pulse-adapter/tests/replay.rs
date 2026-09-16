@@ -7,7 +7,7 @@ use std::fs;
 
 use acme_common::TIMEZONE;
 use chrono::Utc;
-use omnia_guest::api::{Client, Metadata};
+use omnia_sdk::api::{Client, Metadata};
 use pulse_adapter::pulse;
 
 use self::fixture::{Case, Expected};

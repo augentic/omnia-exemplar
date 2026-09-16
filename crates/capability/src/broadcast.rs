@@ -4,8 +4,8 @@
 //! broadcast channel — so serving this handler requires no WebSocket
 //! export.
 
-use omnia_guest::api::Context;
-use omnia_guest::{Broadcast, Result};
+use omnia_sdk::api::Context;
+use omnia_sdk::{Broadcast, Result};
 use serde::{Deserialize, Serialize};
 
 /// Broadcast an alert to a channel.

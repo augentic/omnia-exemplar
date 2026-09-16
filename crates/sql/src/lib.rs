@@ -16,15 +16,15 @@
 //! - Existence checks answering 404, and referential checks rejecting a
 //!   feed for a missing agency
 //!
-//! Schema DDL goes through [`TableStore::exec`](omnia_guest::TableStore)
+//! Schema DDL goes through [`TableStore::exec`](omnia_sdk::TableStore)
 //! rather than the wasm-only `Connection`/`Statement` bindings the pre-trim
 //! example used, so the handlers run unchanged against native mock
 //! providers — see [`schema`].
 //!
-//! [`SelectBuilder`]: omnia_guest::orm::SelectBuilder
-//! [`InsertBuilder::from_entity`]: omnia_guest::orm::InsertBuilder::from_entity
-//! [`UpdateBuilder`]: omnia_guest::orm::UpdateBuilder
-//! [`DeleteBuilder`]: omnia_guest::orm::DeleteBuilder
+//! [`SelectBuilder`]: omnia_sdk::orm::SelectBuilder
+//! [`InsertBuilder::from_entity`]: omnia_sdk::orm::InsertBuilder::from_entity
+//! [`UpdateBuilder`]: omnia_sdk::orm::UpdateBuilder
+//! [`DeleteBuilder`]: omnia_sdk::orm::DeleteBuilder
 
 pub mod agency;
 pub mod feed;

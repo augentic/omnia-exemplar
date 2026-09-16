@@ -5,9 +5,9 @@ use capability::table::sql;
 use capability::{
     AlertRequest, ArchiveRequest, NoteRequest, ReadingRequest, alert, archive, note, reading,
 };
-use omnia_guest::DocumentStore as _;
-use omnia_guest::api::{Client, Metadata};
-use omnia_guest::orm::{DataType, Field, Row};
+use omnia_sdk::DocumentStore as _;
+use omnia_sdk::api::{Client, Metadata};
+use omnia_sdk::orm::{DataType, Field, Row};
 use omnia_test::guest::{Broadcasted, Provider, ScriptedTables};
 
 #[tokio::test]

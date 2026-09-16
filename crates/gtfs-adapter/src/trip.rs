@@ -8,7 +8,7 @@ use chrono_tz::Tz;
 use http::header::{CACHE_CONTROL, CONTENT_TYPE};
 use http::{Method, StatusCode};
 use http_body_util::Full;
-use omnia_guest::{Config, HttpRequest};
+use omnia_sdk::{Config, HttpRequest};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tracing::warn;
@@ -388,8 +388,10 @@ impl TripDescriptor {
 mod tests {
     use super::*;
 
+    /// A GTFS start time past 24:00, as trips running after midnight are
+    /// scheduled.
     #[test]
-    fn parses_extended_hours() {
+    fn extended_hours_start_time() {
         let tz = TIMEZONE;
         let trip = TripInstance {
             trip_id: "trip".to_string(),

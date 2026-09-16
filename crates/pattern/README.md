@@ -53,7 +53,7 @@ backend (e.g. PostGIS behind its own handler), not a richer `StateStore`.
 
 Handler failures never pass through a route's success encoder: the
 handler's error type converts to `HttpError`, and that conversion alone
-decides the wire shape. The default `omnia_guest::Error` renders as a
+decides the wire shape. The default `omnia_sdk::Error` renders as a
 plain-text `code: …, description: …` body — even on JSON routes.
 
 `upsert_place` demonstrates the structured alternative. The handler fn

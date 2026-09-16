@@ -4,7 +4,7 @@
 //! a single catalog of what a deployment must provide. The guest
 //! `.env.example` files carry sample values for each key.
 
-use omnia_guest::Config;
+use omnia_sdk::Config;
 
 /// Deployment environment (e.g. `dev`, `prod`). Prefixes every messaging
 /// topic — see [`topic`].

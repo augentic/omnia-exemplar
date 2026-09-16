@@ -7,7 +7,7 @@ use std::ops::Sub;
 
 use acme_common::TIMEZONE;
 use chrono::{Duration, Timelike, Utc};
-use omnia_guest::api::{Client, Metadata};
+use omnia_sdk::api::{Client, Metadata};
 use pulse_adapter::{ChangeType, EventType, PulseMessage, pulse};
 
 use self::fixture::{Case, Expected};
@@ -26,9 +26,10 @@ async fn deserialize_xml() {
     assert_eq!(train_update.changes[0].station, 0);
 }
 
-// Should create an arrival event with a normal stop location.
+// A train arriving at a mapped station: the event carries the stop's own
+// location.
 #[tokio::test]
-async fn arrival_event() {
+async fn station_arrival() {
     let case = fixture::load("data/static/0001.json");
 
     run(&case).await.expect("should process");
@@ -45,9 +46,10 @@ async fn arrival_event() {
     assert_eq!(event.remote_data.external_id, "vehicle1");
 }
 
-// Should create a departure event with an stop location updated.
+// A train departing a mapped station: the event carries the updated stop
+// location.
 #[tokio::test]
-async fn departure_event() {
+async fn station_departure() {
     let case = fixture::load("data/static/0002.json");
 
     run(&case).await.expect("should process");
@@ -140,7 +142,7 @@ async fn expect_error(path: &str) {
     assert_eq!(actual_error.description(), expected_error.description());
 }
 
-async fn run(case: &Case) -> Result<(), omnia_guest::Error> {
+async fn run(case: &Case) -> Result<(), omnia_sdk::Error> {
     Client::new("acme", case.provider.clone())
         .call(pulse, case.input.clone(), &Metadata::default())
         .await

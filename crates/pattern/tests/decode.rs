@@ -3,7 +3,7 @@
 
 use bytes::Bytes;
 use http::{Method, Response};
-use omnia_guest::api::{Client, Metadata};
+use omnia_sdk::api::{Client, Metadata};
 use omnia_test::guest::{MapConfig, MatchedHttp, Provider};
 use pattern::Segment;
 use pattern::decode::{

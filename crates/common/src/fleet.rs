@@ -8,7 +8,7 @@ use bytes::Bytes;
 use http::Method;
 use http::header::{CACHE_CONTROL, IF_NONE_MATCH};
 use http_body_util::Empty;
-use omnia_guest::{Config, HttpRequest, Identity};
+use omnia_sdk::{Config, HttpRequest, Identity};
 use serde::{Deserialize, Serialize};
 
 use crate::config;

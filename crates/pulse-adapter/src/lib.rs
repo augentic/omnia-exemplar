@@ -7,7 +7,7 @@ mod motion;
 mod pulse;
 mod stops;
 
-use omnia_guest::Error;
+use omnia_sdk::Error;
 use thiserror::Error;
 
 pub use self::handler::*;

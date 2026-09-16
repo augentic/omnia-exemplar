@@ -11,7 +11,7 @@ use omnia_test::guest::{MapConfig, Provider};
 use tower::ServiceExt as _;
 
 #[tokio::test]
-async fn greet_uses_configured_greeting() {
+async fn greet_with_configured_greeting() {
     let provider = Provider::default().config(MapConfig::default().with([("GREETING", "Kia ora")]));
     let request = Request::post("/greet")
         .header(CONTENT_TYPE, "application/json")

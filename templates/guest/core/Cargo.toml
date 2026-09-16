@@ -13,7 +13,7 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 axum = { version = "0.8.9", default-features = false, features = ["json"] }
-omnia-guest = "0.36.0"
+omnia-sdk = "0.36.0"
 serde = { version = "1.0.229", features = ["derive"] }
 wasip3 = { version = "0.8.0", features = ["http-compat"] }
 

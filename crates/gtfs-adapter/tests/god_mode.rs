@@ -5,7 +5,7 @@ mod support;
 
 use acme_common::config;
 use gtfs_adapter::{SetTripRequest, set_trip};
-use omnia_guest::api::{Client, Metadata};
+use omnia_sdk::api::{Client, Metadata};
 use omnia_test::guest::MapConfig;
 use serde_json::Value;
 

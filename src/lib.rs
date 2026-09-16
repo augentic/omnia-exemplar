@@ -1,7 +1,7 @@
 //! # Root-package guest
 //!
 //! Wires the shared transit handlers to WASI HTTP and WASI Messaging with
-//! the explicit typed routers from `omnia_guest::api`: HTTP routes are
+//! the explicit typed routers from `omnia_sdk::api`: HTTP routes are
 //! `axum::routing::MethodRouter`s over a provider-owning `Client`, and
 //! messaging topics dispatch through an exact-topic `messaging::Router`.
 //! Each route is bound to a handler fn (`post(tally)`, `consume(motion)`);
@@ -29,13 +29,11 @@ use docstore::{
 use gtfs_adapter::set_trip;
 use gtfs_adapter::{motion, passenger_count, train_avl, vehicle_info};
 #[cfg(target_arch = "wasm32")]
-use omnia_guest::api::http::serve;
-use omnia_guest::api::http::{
-    MethodFilter, RawRequest, delete, get, handle_with, patch, post, put,
-};
-use omnia_guest::api::messaging::{self, Delivery, consume, consume_with};
-use omnia_guest::api::{Client, DecodeError};
-use omnia_guest::{
+use omnia_sdk::api::http::serve;
+use omnia_sdk::api::http::{MethodFilter, RawRequest, delete, get, handle_with, patch, post, put};
+use omnia_sdk::api::messaging::{self, Delivery, consume, consume_with};
+use omnia_sdk::api::{Client, DecodeError};
+use omnia_sdk::{
     BlobStore, Broadcast, Config, DocumentStore, HttpError, HttpRequest, Identity, Publish,
     StateStore, TableStore,
 };

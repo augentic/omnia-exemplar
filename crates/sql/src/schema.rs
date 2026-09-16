@@ -5,7 +5,7 @@
 //! [`TableStore::exec`] instead keeps the handlers runnable against native
 //! `omnia-test` doubles — a deliberate, documented deviation.
 
-use omnia_guest::TableStore;
+use omnia_sdk::TableStore;
 
 use crate::CONNECTION;
 

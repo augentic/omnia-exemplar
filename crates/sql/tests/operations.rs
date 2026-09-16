@@ -8,8 +8,8 @@
 //! test scripts the rows a handler's queries see and asserts the statements
 //! the handler issued — the ORM-rendered SQL and its bound parameters.
 
-use omnia_guest::api::{Client, Metadata};
-use omnia_guest::orm::{DataType, Field, Row};
+use omnia_sdk::api::{Client, Metadata};
+use omnia_sdk::orm::{DataType, Field, Row};
 use omnia_test::guest::{Provider, ScriptedTables, Statement};
 use sql::{
     CreateAgencyRequest, CreateFeedRequest, DeleteFeedRequest, GetAgencyRequest,
@@ -119,9 +119,26 @@ fn is_max_id_probe(table: &str, sql: &str, params: &[DataType]) -> bool {
 
 const AGENCY_FILTER: &str = "(\"agency\".\"agency_id\") = ($1)";
 
+/// Creating an agency into an empty table, then into one that already holds
+/// rows. The probe SQL is the same in both, so each table state is its own
+/// scripted store.
 #[tokio::test]
-async fn create_agency_assigns_next_id() {
-    let client = client(
+async fn create_agency_empty_and_populated_table() {
+    // Empty table: the first agency takes id 1.
+    let empty = client(
+        tables()
+            .on_query(|sql, params| is_max_id_probe("agency", sql, params), vec![])
+            .on_exec(|sql, _| sql.starts_with("INSERT INTO \"agency\""), 1),
+    );
+
+    let reply = empty
+        .call(create_agency, agency_request("Ritchies"), &Metadata::default())
+        .await
+        .expect("created");
+    assert_eq!(reply.agency.agency_id, 1);
+
+    // Populated table: the new agency takes the id after the newest.
+    let populated = client(
         tables()
             .on_query(
                 |sql, params| is_max_id_probe("agency", sql, params),
@@ -130,7 +147,7 @@ async fn create_agency_assigns_next_id() {
             .on_exec(|sql, _| sql.starts_with("INSERT INTO \"agency\""), 1),
     );
 
-    let reply = client
+    let reply = populated
         .call(create_agency, agency_request("Ritchies"), &Metadata::default())
         .await
         .expect("created");
@@ -139,7 +156,7 @@ async fn create_agency_assigns_next_id() {
 
     // The insert names every entity column, binds them as parameters, and
     // carries the assigned id first.
-    let issued = after_schema(&client);
+    let issued = after_schema(&populated);
     let [probe, insert] = issued.as_slice() else {
         panic!("expected a probe then an insert");
     };
@@ -152,24 +169,9 @@ async fn create_agency_assigns_next_id() {
     assert!(matches!(&insert.params[1], DataType::Str(Some(name)) if name == "Ritchies"));
 }
 
+/// Listing agencies with the default request, then with a `limit`.
 #[tokio::test]
-async fn create_agency_starts_from_one() {
-    let client = client(
-        tables()
-            .on_query(|sql, params| is_max_id_probe("agency", sql, params), vec![])
-            .on_exec(|sql, _| sql.starts_with("INSERT INTO \"agency\""), 1),
-    );
-
-    let reply = client
-        .call(create_agency, agency_request("Ritchies"), &Metadata::default())
-        .await
-        .expect("created");
-
-    assert_eq!(reply.agency.agency_id, 1);
-}
-
-#[tokio::test]
-async fn list_agencies_newest_first() {
+async fn list_agencies_default_and_limited() {
     let client = client(tables().on_query(
         |sql, _| sql.contains("ORDER BY \"agency\".\"created_at\" DESC"),
         vec![agency_row(2, "Metro"), agency_row(1, "Ritchies")],
@@ -322,8 +324,9 @@ async fn create_feed_missing_agency() {
     assert!(!statements(&client).iter().any(|statement| statement.sql.starts_with("INSERT")));
 }
 
+/// Creating a feed for an agency that exists and already has one feed.
 #[tokio::test]
-async fn create_feed_assigns_next_id() {
+async fn create_feed_for_existing_agency() {
     let client = client(
         tables()
             .on_query(is_agency_fetch_by_filter(1), vec![agency_row(1, "Ritchies")])

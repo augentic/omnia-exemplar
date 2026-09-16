@@ -12,8 +12,8 @@ use docstore::{
     UpsertStopRequest, create_route, create_stop, create_stop_time, delete_stop, get_route,
     get_stop, get_stop_time, list_routes, list_stop_times, list_stops, upsert_stop,
 };
-use omnia_guest::DocumentStore as _;
-use omnia_guest::api::{Client, Metadata};
+use omnia_sdk::DocumentStore as _;
+use omnia_sdk::api::{Client, Metadata};
 use omnia_test::guest::Provider;
 
 fn stop(

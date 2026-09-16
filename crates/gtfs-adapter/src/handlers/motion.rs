@@ -2,10 +2,8 @@
 
 use acme_common::{config, routes};
 use chrono::{DateTime, Utc};
-use omnia_guest::api::Context;
-use omnia_guest::{
-    Config, HttpRequest, Identity, Message, Publish, Result, StateStore, bad_request,
-};
+use omnia_sdk::api::Context;
+use omnia_sdk::{Config, HttpRequest, Identity, Message, Publish, Result, StateStore, bad_request};
 use serde::{Deserialize, Serialize};
 
 use crate::location::Location;

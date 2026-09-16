@@ -1,6 +1,6 @@
 //! Static tests for the Tally APC connector.
 
-use omnia_guest::api::{Client, Metadata};
+use omnia_sdk::api::{Client, Metadata};
 use omnia_test::guest::{MapConfig, Provider};
 use tally_connector::{TallyMessage, TallyRequest, tally};
 
@@ -19,7 +19,7 @@ async fn forward(provider: &Provider, payload: &[u8]) {
 }
 
 #[tokio::test]
-async fn device_site_header() {
+async fn device_with_site() {
     let provider = provider();
     let payload = include_bytes!("../data/tally-message.json");
 

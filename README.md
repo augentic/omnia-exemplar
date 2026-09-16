@@ -18,7 +18,7 @@ layout when creating a new Omnia service: root `src/`, not a
 This repository is the application-scale complement to the
 [omnia](https://github.com/augentic/omnia) runtime's per-capability
 [`examples/`](https://github.com/augentic/omnia/tree/main/examples): one real
-service instead of twenty snippets. The guest is built on the `omnia-guest`
+service instead of twenty snippets. The guest is built on the `omnia-sdk`
 SDK (async handler fns behind capability traits) and exercises
 `wasi:http`, `wasi:messaging`, `wasi:keyvalue`, `wasi:config`,
 `wasi:identity`, and — through the `crates/capability-examples` routes the
@@ -95,11 +95,11 @@ The root `Cargo.toml` is both the workspace and the deployable guest package
 
 The guest:
 
-- Registers typed HTTP routes (`omnia_guest::api::http::{get, post}`, with
+- Registers typed HTTP routes (`omnia_sdk::api::http::{get, post}`, with
   `handle_with` for non-JSON wire formats) on an `axum::Router` and
-  serves them through `omnia_guest::api::http::serve`
+  serves them through `omnia_sdk::api::http::serve`
 - Exports messaging with `omnia_wasi_messaging::export!`, dispatching through
-  an exact-topic `omnia_guest::api::messaging::Router` of **exact**
+  an exact-topic `omnia_sdk::api::messaging::Router` of **exact**
   env-qualified topics
 - Uses a unit `Provider` with one empty `impl` per capability trait, taking
   the WASI-backed default methods each trait ships (`BlobStore`,
@@ -154,7 +154,7 @@ consumer is out of scope for the exemplar.
 | `crates/pattern-examples` | Composition patterns: decode-through-cache, config-carried client certificates, relational geo queries through the ORM, and structured JSON error bodies |
 | root package (`guest`) | Typed-router HTTP + exact-topic messaging WASM guest binary |
 
-Domain crates depend only on the `omnia-guest` capability traits (`Config`,
+Domain crates depend only on the `omnia-sdk` capability traits (`Config`,
 `HttpRequest`, `Identity`, `Publish`, `StateStore`; `capability-examples`
 covers `BlobStore`, `Broadcast`, `DocumentStore`, and `TableStore`), so the
 same code runs inside the WASM guest and against `omnia_test::guest::Provider`
@@ -296,7 +296,7 @@ hand-written mock provider anywhere in the workspace.
   production capability list as doubles. `routes::dispatch` sends one
   request to every `(method, path)` `router()` registers and asserts neither
   `404` nor `405` — a miss means a route is miswired, any other status means
-  the handler ran — beside the wire-format checks (`pulse_fault`,
+  the handler ran — beside the wire-format checks (`pulse_malformed_xml`,
   `pulse_receive`, `nearby_body`, the feature-gated `set_trip`) and
   `apc_tally`
 - `crates/tally-connector/tests` — the minimal handler test

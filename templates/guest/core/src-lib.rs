@@ -4,9 +4,9 @@
 //! router is generic over its provider, so `tests/routes.rs` drives the
 //! routing table natively under `omnia_test::guest::Provider` doubles.
 
-use omnia_guest::Config;
-use omnia_guest::api::http::post;
-use omnia_guest::api::{Client, Context};
+use omnia_sdk::Config;
+use omnia_sdk::api::http::post;
+use omnia_sdk::api::{Client, Context};
 use serde::{Deserialize, Serialize};
 
 /// The tenant that owns this deployment.
@@ -33,7 +33,7 @@ impl wasip3::exports::http::handler::Guest for Http {
     async fn handle(
         request: wasip3::http::types::Request,
     ) -> Result<wasip3::http::types::Response, wasip3::http::types::ErrorCode> {
-        omnia_guest::api::http::serve(router(Provider), request).await
+        omnia_sdk::api::http::serve(router(Provider), request).await
     }
 }
 
@@ -54,7 +54,7 @@ where
 /// # Errors
 ///
 /// Returns an error when the `GREETING` config key cannot be read.
-pub async fn greet<P>(input: GreetRequest, context: Context<P>) -> omnia_guest::Result<GreetReply>
+pub async fn greet<P>(input: GreetRequest, context: Context<P>) -> omnia_sdk::Result<GreetReply>
 where
     P: Config,
 {

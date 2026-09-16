@@ -29,7 +29,7 @@ axum.workspace = true
 capability.workspace = true
 docstore.workspace = true
 gtfs-adapter.workspace = true
-omnia-guest.workspace = true
+omnia-sdk.workspace = true
 omnia-wasi-http.workspace = true
 omnia-wasi-messaging.workspace = true
 omnia-wasi-otel.workspace = true
@@ -156,7 +156,7 @@ uuid = { version = "1.24.0", features = ["v4"] }
 wasip3 = { version = "0.8.0", features = ["http-compat"] }
 
 omnia = "0.36.0"
-omnia-guest = "0.36.0"
+omnia-sdk = "0.36.0"
 omnia-wasi-blobstore = "0.36.0"
 omnia-wasi-config = "0.36.0"
 omnia-wasi-docstore = "0.36.0"
@@ -168,7 +168,7 @@ omnia-wasi-otel = "0.36.0"
 omnia-wasi-sql = "0.36.0"
 # No default features: each consumer names its rung. A workspace-level
 # `guest` feature would unify into the root `[build-dependencies]` line and
-# drag `omnia-guest` into the build-script graph.
+# drag `omnia-sdk` into the build-script graph.
 omnia-test = "0.36.0"
 omnia-wasi-websocket = "0.36.0"
 
@@ -184,7 +184,7 @@ tally-connector = { path = "crates/tally-connector" }
 
 [patch.crates-io]
 omnia = { git = "https://github.com/augentic/omnia" }
-omnia-guest = { git = "https://github.com/augentic/omnia" }
+omnia-sdk = { git = "https://github.com/augentic/omnia" }
 omnia-wasi-blobstore = { git = "https://github.com/augentic/omnia" }
 omnia-wasi-config = { git = "https://github.com/augentic/omnia" }
 omnia-wasi-docstore = { git = "https://github.com/augentic/omnia" }
@@ -198,7 +198,7 @@ omnia-wasi-websocket = { git = "https://github.com/augentic/omnia" }
 omnia-test = { git = "https://github.com/augentic/omnia" }
 
 # omnia = { path = "../omnia/crates/omnia" }
-# omnia-guest = { path = "../omnia/crates/omnia-guest" }
+# omnia-sdk = { path = "../omnia/crates/omnia-sdk" }
 # omnia-wasi-blobstore = { path = "../omnia/crates/wasi-blobstore" }
 # omnia-wasi-config = { path = "../omnia/crates/wasi-config" }
 # omnia-wasi-docstore = { path = "../omnia/crates/wasi-docstore" }
@@ -210,10 +210,6 @@ omnia-test = { git = "https://github.com/augentic/omnia" }
 # omnia-wasi-sql = { path = "../omnia/crates/wasi-sql" }
 # omnia-wasi-websocket = { path = "../omnia/crates/wasi-websocket" }
 # omnia-test = { path = "../omnia/crates/omnia-test" }
-
-# `wrpc-wasmtime` 0.1.0 is unpublished on crates.io.
-wrpc-transport = { git = "https://github.com/bytecodealliance/wrpc" }
-wrpc-wasmtime = { git = "https://github.com/bytecodealliance/wrpc" }
 
 [profile.release]
 lto = true

@@ -1,6 +1,6 @@
 //! Static tests for the Pulse SOAP/XML connector.
 
-use omnia_guest::api::{Client, Metadata};
+use omnia_sdk::api::{Client, Metadata};
 use omnia_test::guest::{MapConfig, Provider};
 use pulse_connector::{PulseRequest, PulseXml, pulse};
 
@@ -65,7 +65,7 @@ async fn without_train_update() {
 }
 
 #[tokio::test]
-async fn rejects_malformed_envelope() {
+async fn malformed_envelope() {
     let provider = provider();
 
     // parsing happens inside the handler, so even an unparseable body is

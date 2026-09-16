@@ -25,7 +25,7 @@
 //! inside the WASM guest (wired under the [`paths`] constants) and against
 //! the filter-evaluating `MemoryDocs` double in the crate-level tests.
 //!
-//! [`DocumentStore`]: omnia_guest::DocumentStore
+//! [`DocumentStore`]: omnia_sdk::DocumentStore
 
 pub mod paths;
 pub mod route;
@@ -33,7 +33,7 @@ pub mod stop;
 pub mod stop_time;
 
 use anyhow::Context as _;
-use omnia_guest::document_store::Document;
+use omnia_sdk::document_store::Document;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 
