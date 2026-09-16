@@ -296,7 +296,7 @@ hand-written mock provider anywhere in the workspace.
   production capability list as doubles. `routes::dispatch` sends one
   request to every `(method, path)` `router()` registers and asserts neither
   `404` nor `405` — a miss means a route is miswired, any other status means
-  the handler ran — beside the wire-format checks (`pulse_fault`,
+  the handler ran — beside the wire-format checks (`pulse_malformed_xml`,
   `pulse_receive`, `nearby_body`, the feature-gated `set_trip`) and
   `apc_tally`
 - `crates/tally-connector/tests` — the minimal handler test

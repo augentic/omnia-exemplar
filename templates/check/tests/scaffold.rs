@@ -12,8 +12,9 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::{env, fs};
 
+/// A project freshly rendered from the manifest, with no hand edits.
 #[test]
-fn scaffold_builds_and_tests() {
+fn rendered_scaffold() {
     let root = template_check::repo_root();
     let target_dir =
         env::var_os("CARGO_TARGET_DIR").map_or_else(|| root.join("target"), PathBuf::from);

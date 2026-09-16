@@ -212,10 +212,10 @@ mod tests {
         );
     }
 
-    /// The fault reaches the wire as a `text/xml` body whose HTTP status
-    /// matches the envelope's own status code.
+    /// A fault rendered as an HTTP response: a `text/xml` body whose HTTP
+    /// status matches the envelope's own status code.
     #[tokio::test]
-    async fn fault_responds_as_xml() {
+    async fn fault_into_response() {
         let response = HttpError::from(BAD_REQUEST_FAULT).into_response();
 
         assert_eq!(response.status(), StatusCode::BAD_REQUEST);

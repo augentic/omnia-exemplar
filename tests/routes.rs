@@ -136,10 +136,10 @@ async fn apc_tally() {
     assert_eq!(record.headers.get("key").map(String::as_str), Some(site));
 }
 
-/// The codec contract of the Pulse route: malformed XML is answered with
-/// the vendor's fault, not the framework's plain-text 400.
+/// Malformed XML on the Pulse route: the codec contract is that it is
+/// answered with the vendor's fault, not the framework's plain-text 400.
 #[tokio::test]
-async fn pulse_fault() {
+async fn pulse_malformed_xml() {
     let request = Request::post(routes::http::PULSE_XML)
         .header(CONTENT_TYPE, "text/xml")
         .body(Body::from(&b"<garbage/>"[..]))

@@ -65,7 +65,7 @@ async fn without_train_update() {
 }
 
 #[tokio::test]
-async fn rejects_malformed_envelope() {
+async fn malformed_envelope() {
     let provider = provider();
 
     // parsing happens inside the handler, so even an unparseable body is

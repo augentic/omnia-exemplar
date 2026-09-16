@@ -19,7 +19,7 @@ async fn forward(provider: &Provider, payload: &[u8]) {
 }
 
 #[tokio::test]
-async fn device_site_header() {
+async fn device_with_site() {
     let provider = provider();
     let payload = include_bytes!("../data/tally-message.json");
 

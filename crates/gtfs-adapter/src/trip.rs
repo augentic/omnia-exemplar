@@ -388,8 +388,10 @@ impl TripDescriptor {
 mod tests {
     use super::*;
 
+    /// A GTFS start time past 24:00, as trips running after midnight are
+    /// scheduled.
     #[test]
-    fn parses_extended_hours() {
+    fn extended_hours_start_time() {
         let tz = TIMEZONE;
         let trip = TripInstance {
             trip_id: "trip".to_string(),
