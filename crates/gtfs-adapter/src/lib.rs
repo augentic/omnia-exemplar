@@ -19,7 +19,7 @@ pub use handlers::passenger_count::{PassengerCountMessage, Trip, Vehicle, passen
 pub use handlers::set_trip::{SetTripReply, SetTripRequest, set_trip};
 pub use handlers::train_avl::{TrainAvlMessage, train_avl};
 pub use handlers::vehicle_info::{VehicleInfoReply, VehicleInfoRequest, vehicle_info};
-use omnia_guest::Error;
+use omnia_sdk::Error;
 use thiserror::Error;
 
 /// Errors raised while validating an inbound Motion message.

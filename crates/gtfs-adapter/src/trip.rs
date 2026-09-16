@@ -8,7 +8,7 @@ use chrono_tz::Tz;
 use http::header::{CACHE_CONTROL, CONTENT_TYPE};
 use http::{Method, StatusCode};
 use http_body_util::Full;
-use omnia_guest::{Config, HttpRequest};
+use omnia_sdk::{Config, HttpRequest};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tracing::warn;

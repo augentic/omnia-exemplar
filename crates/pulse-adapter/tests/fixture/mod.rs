@@ -84,7 +84,7 @@ pub enum Expected {
     /// The Motion events published.
     Success(Vec<MotionEvent>),
     /// The handler error returned.
-    Failure(omnia_guest::Error),
+    Failure(omnia_sdk::Error),
 }
 
 /// A fixture ready to drive: the re-anchored input and a seeded provider.

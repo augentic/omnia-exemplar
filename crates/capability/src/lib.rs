@@ -8,11 +8,11 @@
 //! Route constants for mounting the handlers under `/examples/*` live in
 //! [`routes`]; the workspace-root guest wires all four.
 //!
-//! [`Handler`]: omnia_guest::api::Handler
-//! [`BlobStore`]: omnia_guest::BlobStore
-//! [`Broadcast`]: omnia_guest::Broadcast
-//! [`DocumentStore`]: omnia_guest::DocumentStore
-//! [`TableStore`]: omnia_guest::TableStore
+//! [`Handler`]: omnia_sdk::api::Handler
+//! [`BlobStore`]: omnia_sdk::BlobStore
+//! [`Broadcast`]: omnia_sdk::Broadcast
+//! [`DocumentStore`]: omnia_sdk::DocumentStore
+//! [`TableStore`]: omnia_sdk::TableStore
 
 pub mod blob;
 pub mod broadcast;

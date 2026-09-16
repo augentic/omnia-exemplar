@@ -23,10 +23,10 @@
 //! them under `/examples/patterns/*` so the default WASM capability
 //! implementations are instantiated in a real guest.
 //!
-//! [`Config`]: omnia_guest::Config
-//! [`HttpRequest`]: omnia_guest::HttpRequest
-//! [`StateStore`]: omnia_guest::StateStore
-//! [`TableStore`]: omnia_guest::TableStore
+//! [`Config`]: omnia_sdk::Config
+//! [`HttpRequest`]: omnia_sdk::HttpRequest
+//! [`StateStore`]: omnia_sdk::StateStore
+//! [`TableStore`]: omnia_sdk::TableStore
 
 pub mod decode;
 pub mod place;

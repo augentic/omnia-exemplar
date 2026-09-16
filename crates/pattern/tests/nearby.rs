@@ -6,8 +6,8 @@
 //! parameters asserted, and the upserts are asserted as the statements the
 //! handler issued.
 
-use omnia_guest::api::{Client, Metadata};
-use omnia_guest::orm::{DataType, Field, Row};
+use omnia_sdk::api::{Client, Metadata};
+use omnia_sdk::orm::{DataType, Field, Row};
 use omnia_test::guest::{Provider, ScriptedTables, Statement};
 use pattern::{NearbyPlacesRequest, UpsertPlaceRequest, nearby_places, upsert_place};
 

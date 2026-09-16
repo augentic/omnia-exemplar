@@ -1,7 +1,7 @@
 //! Table-store example: record a sensor reading and count the sensor's rows.
 
-use omnia_guest::api::Context;
-use omnia_guest::{Result, TableStore};
+use omnia_sdk::api::Context;
+use omnia_sdk::{Result, TableStore};
 use omnia_wasi_sql::DataType;
 use serde::{Deserialize, Serialize};
 

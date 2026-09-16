@@ -37,6 +37,15 @@ Unreleased
   `omnia_test::provider!`: the production `Provider` is a unit struct with
   one empty `impl` per capability trait, and tests use
   `omnia_test::guest::Provider` directly.
+- Pinned omnia to `fd17357` (omnia #282–#284). The guest SDK crate is now
+  `omnia-sdk`: every `omnia-guest` dependency line and `omnia_guest::…` path
+  in the workspace, the tests, and the `templates/guest` seed reads
+  `omnia-sdk` / `omnia_sdk::…`; features and `omnia-test`'s `guest` rung are
+  unchanged. Omnia dropped wRPC in favour of in-memory link dispatch, so the
+  `wrpc-transport` / `wrpc-wasmtime` `[patch.crates-io]` git override, the
+  `deny.toml` `allow-git` entry for `bytecodealliance/wrpc` (root and seed),
+  and the `cargo vet` policies for `wrpc-introspect` / `wrpc-transport` are
+  gone with it.
 - The smoke tier is gone (`tests/smoke.rs`, the `smoke` task, and CI's
   `cargo make smoke` step); its coverage moved under `cargo make test`. The
   root route rung absorbed the dispatch checks (`routes::dispatch` over every

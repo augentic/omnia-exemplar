@@ -1,8 +1,8 @@
 //! Train AVL message filtering.
 
 use acme_common::fleet;
-use omnia_guest::api::Context;
-use omnia_guest::{Config, HttpRequest, Identity, Publish, Result, StateStore};
+use omnia_sdk::api::Context;
+use omnia_sdk::{Config, HttpRequest, Identity, Publish, Result, StateStore};
 use serde::Deserialize;
 
 use crate::handlers::motion::{self, MotionMessage};

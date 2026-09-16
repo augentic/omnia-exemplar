@@ -7,7 +7,7 @@
 //! builder; [`NearbyPlacesRequest`] is the `GEORADIUS` replacement.
 //!
 //! The upsert also demonstrates a structured wire error: [`PlaceError`]
-//! replaces `omnia_guest::Error` as the handler's error type, and its
+//! replaces `omnia_sdk::Error` as the handler's error type, and its
 //! [`HttpError`] conversion serializes it as an `application/json` body —
 //! so error responses carry domain fields in the same content type as
 //! success responses, instead of the default plain-text
@@ -15,9 +15,9 @@
 
 use anyhow::Context as _;
 use http::{HeaderValue, StatusCode};
-use omnia_guest::api::Context;
-use omnia_guest::orm::{Entity as _, Filter, InsertBuilder, SelectBuilder};
-use omnia_guest::{Error, HttpError, TableStore, entity};
+use omnia_sdk::api::Context;
+use omnia_sdk::orm::{Entity as _, Filter, InsertBuilder, SelectBuilder};
+use omnia_sdk::{Error, HttpError, TableStore, entity};
 use serde::{Deserialize, Serialize};
 
 /// Named connection configured by the host.
@@ -65,7 +65,7 @@ pub struct UpsertPlaceReply {
 /// Why a place request was rejected, serialized verbatim as the wire body.
 ///
 /// The exemplar for structured error responses: instead of flattening
-/// failures into `omnia_guest::Error`'s plain-text `code: …, description: …`
+/// failures into `omnia_sdk::Error`'s plain-text `code: …, description: …`
 /// body, the handler keeps its own error type with domain fields, and the
 /// [`HttpError`] conversion below puts the JSON on the wire. The serde `tag`
 /// doubles as the error code, keeping the code/description convention.

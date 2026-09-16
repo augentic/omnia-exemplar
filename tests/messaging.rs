@@ -10,7 +10,7 @@ use acme_common::{TIMEZONE, config, routes};
 use bytes::Bytes;
 use chrono::{DateTime, Timelike, Utc};
 use http::{Method, Response};
-use omnia_guest::api::messaging::{Delivery, DeliveryError};
+use omnia_sdk::api::messaging::{Delivery, DeliveryError};
 use omnia_test::guest::{FixedIdentity, MapConfig, MatchedHttp, Provider};
 use serde_json::Value;
 

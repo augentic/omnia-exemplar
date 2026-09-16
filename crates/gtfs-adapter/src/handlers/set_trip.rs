@@ -1,8 +1,8 @@
 //! God-mode trip override.
 
 use anyhow::Context as _;
-use omnia_guest::api::Context;
-use omnia_guest::{Config, Result, StateStore, bad_request};
+use omnia_sdk::api::Context;
+use omnia_sdk::{Config, Result, StateStore, bad_request};
 use serde::{Deserialize, Serialize};
 
 use crate::god_mode;

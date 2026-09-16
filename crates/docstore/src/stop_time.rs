@@ -5,9 +5,9 @@
 //! sorted by sequence.
 
 use anyhow::Context as _;
-use omnia_guest::api::Context;
-use omnia_guest::document_store::{Document, Filter, QueryOptions, SortField};
-use omnia_guest::{DocumentStore, Result, not_found};
+use omnia_sdk::api::Context;
+use omnia_sdk::document_store::{Document, Filter, QueryOptions, SortField};
+use omnia_sdk::{DocumentStore, Result, not_found};
 use serde::{Deserialize, Serialize};
 
 use crate::{DocumentRecord, records};

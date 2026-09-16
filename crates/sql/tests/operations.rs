@@ -8,8 +8,8 @@
 //! test scripts the rows a handler's queries see and asserts the statements
 //! the handler issued — the ORM-rendered SQL and its bound parameters.
 
-use omnia_guest::api::{Client, Metadata};
-use omnia_guest::orm::{DataType, Field, Row};
+use omnia_sdk::api::{Client, Metadata};
+use omnia_sdk::orm::{DataType, Field, Row};
 use omnia_test::guest::{Provider, ScriptedTables, Statement};
 use sql::{
     CreateAgencyRequest, CreateFeedRequest, DeleteFeedRequest, GetAgencyRequest,

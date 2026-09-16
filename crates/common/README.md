@@ -9,6 +9,6 @@ Shared logic for the (fictional) Acme transit domain:
 - `block_mgt` / `fleet` — clients for the Block Management and Fleet APIs,
   retrieving vehicle allocations and vehicle metadata respectively.
 
-The API clients are written against the `omnia-guest` capability traits
+The API clients are written against the `omnia-sdk` capability traits
 (`Config`, `HttpRequest`, `Identity`) so the same code runs inside the WASM
 guest and against native `omnia_test::guest::Provider` doubles in tests.

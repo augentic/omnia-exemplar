@@ -1,8 +1,8 @@
 //! Vehicle information lookup.
 
 use acme_common::fleet::{self, Vehicle};
-use omnia_guest::api::Context;
-use omnia_guest::{Config, HttpRequest, Identity, Result, StateStore};
+use omnia_sdk::api::Context;
+use omnia_sdk::{Config, HttpRequest, Identity, Result, StateStore};
 use serde::{Deserialize, Serialize};
 
 use crate::state_keys;

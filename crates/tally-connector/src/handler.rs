@@ -2,8 +2,8 @@
 
 use acme_common::{config, routes};
 use anyhow::Context as _;
-use omnia_guest::api::Context;
-use omnia_guest::{Config, Message, Publish, Result};
+use omnia_sdk::api::Context;
+use omnia_sdk::{Config, Message, Publish, Result};
 use serde::{Deserialize, Serialize};
 
 use crate::TallyMessage;

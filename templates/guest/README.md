@@ -31,7 +31,7 @@ parameters, the package and crate name). A lone uppercase letter
 (`<P>`) is a Rust generic in a `.rs` seed, not a token.
 
 The seed also carries the guest's starting shape: `Cargo.toml` with the
-`omnia-guest` dependency, the `wasm32`-excluded `omnia-test`
+`omnia-sdk` dependency, the `wasm32`-excluded `omnia-test`
 dev-dependency (`features = ["guest"]`) and `crate-type = ["cdylib",
 "rlib"]`; `src/lib.rs` with one `wasm32`-gated WASI HTTP export over a
 provider-generic router; and `tests/routes.rs`, one native route test

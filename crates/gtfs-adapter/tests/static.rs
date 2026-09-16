@@ -11,7 +11,7 @@ use gtfs_adapter::{
     MotionMessage, PassengerCountMessage, TrainAvlMessage, VehicleInfoRequest, motion,
     passenger_count, train_avl, vehicle_info,
 };
-use omnia_guest::api::{Client, Metadata};
+use omnia_sdk::api::{Client, Metadata};
 use omnia_test::guest::MatchedHttp;
 use serde_json::{Value, json};
 

@@ -8,8 +8,8 @@ use std::fmt::{self, Display};
 use acme_common::{config, routes};
 use anyhow::Context as _;
 use http::{HeaderValue, StatusCode};
-use omnia_guest::api::Context;
-use omnia_guest::{Config, HttpError, Message, Publish};
+use omnia_sdk::api::Context;
+use omnia_sdk::{Config, HttpError, Message, Publish};
 use serde::{Deserialize, Serialize};
 
 /// The SOAP fault envelope answering requests that cannot be parsed or

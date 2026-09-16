@@ -3,7 +3,7 @@
 use anyhow::{Context, Result, anyhow};
 use bytes::Bytes;
 use http_body_util::Empty;
-use omnia_guest::{Config, HttpRequest};
+use omnia_sdk::{Config, HttpRequest};
 use serde::{Deserialize, Serialize};
 
 /// Stop information from GTFS

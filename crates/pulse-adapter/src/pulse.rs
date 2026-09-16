@@ -4,7 +4,7 @@ use std::fmt::{Display, Formatter};
 
 use acme_common::TIMEZONE;
 use chrono::{NaiveDate, Utc};
-use omnia_guest::Result;
+use omnia_sdk::Result;
 use serde::Deserialize;
 use serde_repr::Deserialize_repr;
 

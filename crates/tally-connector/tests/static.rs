@@ -1,6 +1,6 @@
 //! Static tests for the Tally APC connector.
 
-use omnia_guest::api::{Client, Metadata};
+use omnia_sdk::api::{Client, Metadata};
 use omnia_test::guest::{MapConfig, Provider};
 use tally_connector::{TallyMessage, TallyRequest, tally};
 

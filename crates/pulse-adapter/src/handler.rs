@@ -5,8 +5,8 @@
 use acme_common::{block_mgt, config, routes};
 use anyhow::Context as _;
 use chrono::Utc;
-use omnia_guest::api::Context;
-use omnia_guest::{Config, HttpRequest, Identity, Message, Publish, Result};
+use omnia_sdk::api::Context;
+use omnia_sdk::{Config, HttpRequest, Identity, Message, Publish, Result};
 use serde::Deserialize;
 
 use crate::motion::{EventType, MessageData, MotionEvent, RemoteData};

@@ -13,7 +13,7 @@
 use std::collections::HashMap;
 
 use anyhow::{Context, Result};
-use omnia_guest::{Config, StateStore};
+use omnia_sdk::{Config, StateStore};
 use serde::{Deserialize, Serialize};
 
 use crate::{EventType, MotionMessage};

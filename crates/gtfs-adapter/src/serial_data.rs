@@ -2,7 +2,7 @@
 
 use anyhow::Context as _;
 use chrono::Utc;
-use omnia_guest::{Config, HttpRequest, Result, StateStore, bad_request};
+use omnia_sdk::{Config, HttpRequest, Result, StateStore, bad_request};
 
 use crate::trip::{self, TripInstance};
 use crate::{DecodedSerialData, MotionError, MotionMessage, state_keys};

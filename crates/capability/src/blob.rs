@@ -1,7 +1,7 @@
 //! Blobstore example: archive a payload and report its stored size.
 
-use omnia_guest::api::Context;
-use omnia_guest::{BlobStore, Result};
+use omnia_sdk::api::Context;
+use omnia_sdk::{BlobStore, Result};
 use serde::{Deserialize, Serialize};
 
 /// Archive a payload into a blobstore container.

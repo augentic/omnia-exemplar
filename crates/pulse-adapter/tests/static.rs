@@ -7,7 +7,7 @@ use std::ops::Sub;
 
 use acme_common::TIMEZONE;
 use chrono::{Duration, Timelike, Utc};
-use omnia_guest::api::{Client, Metadata};
+use omnia_sdk::api::{Client, Metadata};
 use pulse_adapter::{ChangeType, EventType, PulseMessage, pulse};
 
 use self::fixture::{Case, Expected};
@@ -140,7 +140,7 @@ async fn expect_error(path: &str) {
     assert_eq!(actual_error.description(), expected_error.description());
 }
 
-async fn run(case: &Case) -> Result<(), omnia_guest::Error> {
+async fn run(case: &Case) -> Result<(), omnia_sdk::Error> {
     Client::new("acme", case.provider.clone())
         .call(pulse, case.input.clone(), &Metadata::default())
         .await

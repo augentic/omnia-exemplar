@@ -12,8 +12,8 @@ use anyhow::Context as _;
 use bytes::Bytes;
 use http::Method;
 use http_body_util::Full;
-use omnia_guest::api::Context;
-use omnia_guest::{Config, HttpRequest, Result, StateStore, bad_gateway};
+use omnia_sdk::api::Context;
+use omnia_sdk::{Config, HttpRequest, Result, StateStore, bad_gateway};
 use serde::{Deserialize, Serialize};
 
 /// Config key naming the decoder endpoint URL.
