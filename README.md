@@ -325,9 +325,11 @@ hand-written mock provider anywhere in the workspace.
 
 The handler rung never executes the assembled artefact; `tests/component.rs`
 does. The root `build.rs` (`omnia_test::build::Components`) compiles this
-package for `wasm32-wasip2` into `OUT_DIR` on every native build — dev
-profile, default features, `god-mode` off — and generates the
-`COMPONENT_GUEST` path constant the test `include!`s. The test pulls in
+package for `wasm32-wasip2` on every native build — dev profile, default
+features, `god-mode` off — into `target/wasm32-fixtures`, a sibling of the
+profile directory shared by every outer profile, feature set and build-script
+hash (so no per-hash copies accumulate), and generates the `COMPONENT_GUEST`
+path constant the test `include!`s. The test pulls in
 `examples/runtime.rs` as a module, so the `Hooks` its `omnia::runtime!`
 generates — the exact host rows the example binary links — assemble the
 runtime through `omnia_test::host::Deployment` over `Backends`, the
