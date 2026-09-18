@@ -5,7 +5,7 @@ use anyhow::{Context, Result};
 use bytes::Bytes;
 use chrono::{Duration, NaiveDate, TimeZone, Timelike};
 use chrono_tz::Tz;
-use http::header::{CACHE_CONTROL, CONTENT_TYPE};
+use http::header::CONTENT_TYPE;
 use http::{Method, StatusCode};
 use http_body_util::Full;
 use omnia_sdk::{Config, HttpRequest};
@@ -110,7 +110,6 @@ where
     let request = http::Request::builder()
         .method(Method::POST)
         .uri(&endpoint)
-        .header(CACHE_CONTROL, "max-age=20, stale-if-error=10")
         .header(CONTENT_TYPE, "application/json")
         .body(Full::new(Bytes::from(body_bytes)))
         .context("building Trip Management request")?;
