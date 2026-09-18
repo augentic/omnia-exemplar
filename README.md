@@ -37,7 +37,10 @@ change only (see the omnia
 [Production Backends guide](https://github.com/augentic/omnia/blob/main/docs/guides/production-backends.md)).
 The omnia crates are resolved from the GitHub monorepo via
 `[patch.crates-io]` in `Cargo.toml`; `Cargo.lock` records the exact
-revision.
+revision. Outbound HTTP caching is not part of the runtime: the guest opts
+in per call site through `omnia-http-cache`, a `HttpRequest` decorator from
+[omnia-extensions](https://github.com/augentic/omnia-extensions) that stores
+responses in the provider's `StateStore` (see `crates/common`).
 
 ## Quick start
 
@@ -158,7 +161,9 @@ Domain crates depend only on the `omnia-sdk` capability traits (`Config`,
 `HttpRequest`, `Identity`, `Publish`, `StateStore`; `capability-examples`
 covers `BlobStore`, `Broadcast`, `DocumentStore`, and `TableStore`), so the
 same code runs inside the WASM guest and against `omnia_test::guest::Provider`
-doubles in tests.
+doubles in tests. The one extension crate, `omnia-http-cache`, is itself
+written against those traits (`HttpCache<H: HttpRequest, S: StateStore>`), so
+`acme-common`'s cached clients keep the same property.
 
 ## Adding a new handler
 
@@ -232,6 +237,12 @@ Patterns worth copying into new services:
   handler — miss → `Config` → `HttpRequest` → write back with a TTL —
   instead of a separate cache-population process
   (`pattern::decode`).
+- Cached upstream fetches as an explicit decorator, not an ambient runtime
+  feature: `HttpCache::new(provider, provider).fetch(request)` at the call
+  sites that want it (`fleet::vehicle`, `block_mgt::cached_allocation`),
+  keyed by a quoted, namespaced `If-None-Match` etag with `max-age` as the
+  TTL; every other request uses the bare `HttpRequest` and sends no cache
+  headers.
 - Credential material in `Config`, carried as ordinary request data (the
   `Client-Cert` header), so outbound HTTP stays generic.
 - Recording doubles: `MatchedHttp` answers only the exact requests a test
@@ -325,9 +336,11 @@ hand-written mock provider anywhere in the workspace.
 
 The handler rung never executes the assembled artefact; `tests/component.rs`
 does. The root `build.rs` (`omnia_test::build::Components`) compiles this
-package for `wasm32-wasip2` into `OUT_DIR` on every native build — dev
-profile, default features, `god-mode` off — and generates the
-`COMPONENT_GUEST` path constant the test `include!`s. The test pulls in
+package for `wasm32-wasip2` on every native build — dev profile, default
+features, `god-mode` off — into `target/wasm32-fixtures`, a sibling of the
+profile directory shared by every outer profile, feature set and build-script
+hash (so no per-hash copies accumulate), and generates the `COMPONENT_GUEST`
+path constant the test `include!`s. The test pulls in
 `examples/runtime.rs` as a module, so the `Hooks` its `omnia::runtime!`
 generates — the exact host rows the example binary links — assemble the
 runtime through `omnia_test::host::Deployment` over `Backends`, the
@@ -415,4 +428,8 @@ thin wrappers over the reusable workflows in `augentic/.github`.
 
 The omnia crates are currently resolved from the GitHub monorepo via the
 `[patch.crates-io]` section in `Cargo.toml`, pending publication to a public
-registry.
+registry. `omnia-http-cache` is a direct git dependency on
+[augentic/omnia-extensions](https://github.com/augentic/omnia-extensions)
+(its own `omnia-sdk` requirement unifies onto the same omnia revision through
+that patch); a commented `[patch."https://github.com/augentic/omnia-extensions"]`
+block in `Cargo.toml` is the local-checkout override.

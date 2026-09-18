@@ -60,6 +60,23 @@ Unreleased
   since the server host never exits. Nothing is `#[ignore]`d. CI's wasm job
   is lint-only (`cargo make lint-wasm`) and the shared job gains
   `targets: wasm32-wasip2` for the nested fixture build.
+- Pinned omnia to `de893ea` (omnia #285–#289). `omnia_test::build::Components`
+  now compiles the component-rung fixture into `target/wasm32-fixtures`, a
+  sibling of the profile directory shared by every outer profile, feature set
+  and build-script hash, instead of `OUT_DIR/fixtures` — so no per-hash copies
+  accumulate and the guest carries no DWARF. Omnia also removed the ambient
+  guest-side HTTP cache from `omnia-wasi-http`: `Cache-Control` and
+  `If-None-Match` on an outbound request are now plain headers. The exemplar
+  restores caching where it was relied on with `omnia-http-cache`
+  ([omnia-extensions](https://github.com/augentic/omnia-extensions), a new
+  git dependency of `acme-common` with a matching `deny.toml` `allow-git`
+  entry): `fleet::vehicle` and `block_mgt::cached_allocation` wrap the
+  provider in `HttpCache::new(provider, provider)`, gain a `StateStore` bound,
+  and send quoted, namespaced etags (`"fleet:<query>"`,
+  `"allocation:<vehicle_id>"`) since the decorator refuses bare tokens and
+  uses the etag verbatim as the state-store key. `gtfs_adapter::trip` no
+  longer sends `Cache-Control` on its Trip Management `POST` — it carried no
+  etag, so it was never cacheable under either implementation.
 
 ### R4 findings
 

@@ -8,12 +8,16 @@ use bytes::Bytes;
 use http::Method;
 use http::header::{CACHE_CONTROL, IF_NONE_MATCH};
 use http_body_util::Empty;
-use omnia_sdk::{Config, HttpRequest, Identity};
+use omnia_http_cache::HttpCache;
+use omnia_sdk::{Config, HttpRequest, Identity, StateStore};
 use serde::{Deserialize, Serialize};
 
 use crate::config;
 
 /// Retrieves a vehicle (train) by label.
+///
+/// Responses are cached for five minutes through the provider's
+/// [`StateStore`] under the quoted, namespaced etag `"fleet:<query>"`.
 ///
 /// # Errors
 ///
@@ -21,24 +25,28 @@ use crate::config;
 /// response cannot be deserialized.
 pub async fn vehicle<P>(vehicle_id: &str, provider: &P) -> Result<Option<Vehicle>>
 where
-    P: Config + HttpRequest + Identity,
+    P: Config + HttpRequest + Identity + StateStore,
 {
     let identifier = Identifier::from_str(vehicle_id)?;
     let query = identifier.to_query();
     let fleet_url =
         Config::get(provider, config::FLEET_URL).await.context("getting `FLEET_URL`")?;
 
+    // `HttpCache` requires a quoted strong etag; the prefix keeps the cache
+    // key out of the guest's own state-store namespace.
     let request = http::Request::builder()
         .method(Method::GET)
         .uri(format!("{fleet_url}/vehicles?{query}"))
         .header(CACHE_CONTROL, "max-age=300") // 5 minutes
-        .header(IF_NONE_MATCH, query)
+        .header(IF_NONE_MATCH, format!("\"fleet:{query}\""))
         .header("Content-Type", "application/json")
         .body(Empty::<Bytes>::new())
         .context("building train_by_label request")?;
 
-    let response =
-        HttpRequest::fetch(provider, request).await.context("Fleet API request failed")?;
+    let response = HttpCache::new(provider, provider)
+        .fetch(request)
+        .await
+        .context("Fleet API request failed")?;
 
     let body = response.into_body();
     let records: Vec<Vehicle> =
