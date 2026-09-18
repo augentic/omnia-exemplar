@@ -16,7 +16,7 @@ use std::path::Path;
 
 use acme_common::{TIMEZONE, config};
 use bytes::Bytes;
-use chrono::{Timelike, Utc};
+use chrono::{Duration, Timelike, Utc};
 use http::{Method, Response};
 use omnia_test::guest::{FixedIdentity, MapConfig, MatchedHttp, Provider};
 use pulse_adapter::{MotionEvent, PulseMessage};
@@ -169,17 +169,21 @@ pub fn prepare(def: TestDef) -> Case {
 }
 
 /// Re-anchor the first change's actual time to `delay` seconds before now.
+///
+/// The date and seconds-from-midnight are both derived from the shifted
+/// instant, so a `delay` that reaches back across midnight lands on the
+/// previous date with a positive time-of-day rather than a negative one the
+/// adapter would reject as `no_update`.
 fn shift_time(mut message: PulseMessage, delay: i32) -> PulseMessage {
     let Some(change) = message.train_update.changes.get_mut(0) else {
         return message;
     };
 
-    let now = Utc::now().with_timezone(&TIMEZONE);
-    message.train_update.created_date = now.date_naive();
+    let event = Utc::now().with_timezone(&TIMEZONE) - Duration::seconds(i64::from(delay));
+    message.train_update.created_date = event.date_naive();
 
     #[allow(clippy::cast_possible_wrap, reason = "seconds since midnight fit an i32")]
-    let from_midnight = now.num_seconds_from_midnight() as i32;
-    let adjusted_secs = from_midnight - delay;
+    let adjusted_secs = event.num_seconds_from_midnight() as i32;
 
     if change.has_departed {
         change.actual_departure_time = adjusted_secs;
