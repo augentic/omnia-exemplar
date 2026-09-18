@@ -5,7 +5,8 @@ use bytes::Bytes;
 use http::Method;
 use http::header::{AUTHORIZATION, CACHE_CONTROL, IF_NONE_MATCH};
 use http_body_util::Empty;
-use omnia_sdk::{Config, HttpRequest, Identity};
+use omnia_http_cache::HttpCache;
+use omnia_sdk::{Config, HttpRequest, Identity, StateStore};
 use serde::{Deserialize, Serialize};
 
 use crate::config;
@@ -47,6 +48,10 @@ where
 
 /// Retrieves the cached block allocation for a specific vehicle.
 ///
+/// Responses are cached for twenty seconds through the provider's
+/// [`StateStore`] under the quoted, namespaced etag
+/// `"allocation:<vehicle_id>"`.
+///
 /// # Errors
 ///
 /// Returns an error when the block management API request fails or the
@@ -55,7 +60,7 @@ pub async fn cached_allocation<P>(
     vehicle_id: &str, timestamp: i64, provider: &P,
 ) -> Result<Option<BlockInstance>>
 where
-    P: Config + HttpRequest + Identity,
+    P: Config + HttpRequest + Identity + StateStore,
 {
     let url = Config::get(provider, config::BLOCK_MGT_URL).await?;
     let identity = Config::get(provider, config::API_IDENTITY).await?;
@@ -65,15 +70,18 @@ where
         "{url}/allocations/vehicles/{vehicle_id}?currentTrip=true&siblings=true&nowUnixTimeSeconds={timestamp}"
     );
 
+    // `HttpCache` requires a quoted strong etag; the prefix keeps the cache
+    // key out of the guest's own state-store namespace.
     let request = http::Request::builder()
         .uri(&endpoint)
         .method(Method::GET)
         .header(CACHE_CONTROL, "max-age=20") // 20 seconds
-        .header(IF_NONE_MATCH, vehicle_id)
+        .header(IF_NONE_MATCH, format!("\"allocation:{vehicle_id}\""))
         .header(AUTHORIZATION, format!("Bearer {token}"))
         .body(Empty::<Bytes>::new())
         .context("building block management request")?;
-    let response = HttpRequest::fetch(provider, request).await.context("fetching allocations")?;
+    let response =
+        HttpCache::new(provider, provider).fetch(request).await.context("fetching allocations")?;
 
     if !response.status().is_success() {
         return Ok(None);

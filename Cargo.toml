@@ -172,6 +172,11 @@ omnia-wasi-sql = "0.36.0"
 omnia-test = "0.36.0"
 omnia-wasi-websocket = "0.36.0"
 
+# Not on crates.io, so a direct git dependency rather than a `[patch]` entry.
+# Its `omnia-sdk = "0.36.0"` unifies onto the omnia git rev via
+# `[patch.crates-io]` below.
+omnia-http-cache = { git = "https://github.com/augentic/omnia-extensions" }
+
 acme-common = { path = "crates/common" }
 capability = { path = "crates/capability" }
 docstore = { path = "crates/docstore" }
@@ -210,6 +215,9 @@ omnia-test = { git = "https://github.com/augentic/omnia" }
 # omnia-wasi-sql = { path = "../omnia/crates/wasi-sql" }
 # omnia-wasi-websocket = { path = "../omnia/crates/wasi-websocket" }
 # omnia-test = { path = "../omnia/crates/omnia-test" }
+
+# [patch."https://github.com/augentic/omnia-extensions"]
+# omnia-http-cache = { path = "../omnia-extensions/crates/http-cache" }
 
 [profile.release]
 lto = true
