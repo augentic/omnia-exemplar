@@ -1,7 +1,8 @@
 # SQL examples
 
 The rich `wasi-sql` showcase: a two-table agency/feed schema exercising the
-full guest ORM surface — `SelectBuilder`, `InsertBuilder::from_entity`,
+full `omnia-orm` surface ([omnia-extensions](https://github.com/augentic/omnia-extensions))
+— `SelectBuilder`, `InsertBuilder::from_entity`,
 `UpdateBuilder` with conditional sets, `DeleteBuilder`, and `entity!` with
 multi-column JOIN aliasing. This crate restores the full SQL example that
 omnia's "Example tidy" trimmed, rewritten in this repository's typed-handler
@@ -75,7 +76,7 @@ curl -s -X DELETE http://localhost:8080/examples/feeds/1
 
 ## Features demonstrated
 
-- **ORM entity definition** — the `entity!` macro, including column
+- **ORM entity definition** — `omnia_orm::entity!`, including column
   aliasing for joined tables
 - **JOINs** — `FeedWithAgency` selects `agency.name`, `agency.url`, and
   `agency.timezone` through `Join::left` + `Filter::col_eq`

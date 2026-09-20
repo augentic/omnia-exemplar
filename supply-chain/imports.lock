@@ -164,11 +164,6 @@ when = "2026-07-20"
 trusted-publisher = "github:bytecodealliance/wasm-tools"
 
 [[publisher.wasm-encoder]]
-version = "0.258.0"
-when = "2026-08-24"
-trusted-publisher = "github:bytecodealliance/wasm-tools"
-
-[[publisher.wasm-encoder]]
 version = "0.259.0"
 when = "2026-09-10"
 trusted-publisher = "github:bytecodealliance/wasm-tools"
@@ -184,8 +179,8 @@ when = "2026-07-20"
 trusted-publisher = "github:bytecodealliance/wasm-tools"
 
 [[publisher.wasm-metadata]]
-version = "0.258.0"
-when = "2026-08-24"
+version = "0.259.0"
+when = "2026-09-10"
 trusted-publisher = "github:bytecodealliance/wasm-tools"
 
 [[publisher.wasmparser]]
@@ -196,11 +191,6 @@ trusted-publisher = "github:bytecodealliance/wasm-tools"
 [[publisher.wasmparser]]
 version = "0.254.0"
 when = "2026-07-20"
-trusted-publisher = "github:bytecodealliance/wasm-tools"
-
-[[publisher.wasmparser]]
-version = "0.258.0"
-when = "2026-08-24"
 trusted-publisher = "github:bytecodealliance/wasm-tools"
 
 [[publisher.wasmparser]]
@@ -324,23 +314,23 @@ when = "2026-04-17"
 trusted-publisher = "github:bytecodealliance/wit-bindgen"
 
 [[publisher.wit-bindgen]]
-version = "0.61.1"
-when = "2026-08-25"
+version = "0.62.0"
+when = "2026-09-10"
 trusted-publisher = "github:bytecodealliance/wit-bindgen"
 
 [[publisher.wit-bindgen-core]]
-version = "0.61.1"
-when = "2026-08-25"
+version = "0.62.0"
+when = "2026-09-10"
 trusted-publisher = "github:bytecodealliance/wit-bindgen"
 
 [[publisher.wit-bindgen-rust]]
-version = "0.61.1"
-when = "2026-08-25"
+version = "0.62.0"
+when = "2026-09-10"
 trusted-publisher = "github:bytecodealliance/wit-bindgen"
 
 [[publisher.wit-bindgen-rust-macro]]
-version = "0.61.1"
-when = "2026-08-25"
+version = "0.62.0"
+when = "2026-09-10"
 trusted-publisher = "github:bytecodealliance/wit-bindgen"
 
 [[publisher.wit-component]]
@@ -354,8 +344,8 @@ when = "2026-07-20"
 trusted-publisher = "github:bytecodealliance/wasm-tools"
 
 [[publisher.wit-component]]
-version = "0.258.0"
-when = "2026-08-24"
+version = "0.259.0"
+when = "2026-09-10"
 trusted-publisher = "github:bytecodealliance/wasm-tools"
 
 [[publisher.wit-parser]]
@@ -369,8 +359,8 @@ when = "2026-07-20"
 trusted-publisher = "github:bytecodealliance/wasm-tools"
 
 [[publisher.wit-parser]]
-version = "0.258.0"
-when = "2026-08-24"
+version = "0.259.0"
+when = "2026-09-10"
 trusted-publisher = "github:bytecodealliance/wasm-tools"
 
 [[audits.bytecode-alliance.wildcard-audits.arbitrary]]
@@ -805,12 +795,6 @@ notes = "Contains `unsafe` code but it's well-documented and scoped to what it's
 who = "Benjamin Bouvier <public@benj.me>"
 criteria = "safe-to-deploy"
 delta = "0.9.0 -> 0.10.2"
-
-[[audits.bytecode-alliance.audits.cfg-if]]
-who = "Alex Crichton <alex@alexcrichton.com>"
-criteria = "safe-to-deploy"
-version = "1.0.0"
-notes = "I am the author of this crate."
 
 [[audits.bytecode-alliance.audits.cobs]]
 who = "Alex Crichton <alex@alexcrichton.com>"
@@ -1321,21 +1305,6 @@ aggregated-from = "https://chromium.googlesource.com/chromium/src/+/main/third_p
 who = "David Cook <dcook@divviup.org>"
 criteria = "safe-to-deploy"
 version = "0.9.0"
-
-[[audits.isrg.audits.cfg-if]]
-who = "David Cook <dcook@divviup.org>"
-criteria = "safe-to-deploy"
-delta = "1.0.0 -> 1.0.1"
-
-[[audits.isrg.audits.cfg-if]]
-who = "J.C. Jones <jc@divviup.org>"
-criteria = "safe-to-deploy"
-delta = "1.0.1 -> 1.0.3"
-
-[[audits.isrg.audits.cfg-if]]
-who = "David Cook <dcook@divviup.org>"
-criteria = "safe-to-deploy"
-delta = "1.0.3 -> 1.0.4"
 
 [[audits.isrg.audits.rand_chacha]]
 who = "David Cook <dcook@divviup.org>"

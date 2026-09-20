@@ -21,6 +21,7 @@ crate-type = ["lib"]
 [dependencies]
 anyhow.workspace = true
 chrono.workspace = true
+omnia-orm.workspace = true
 omnia-sdk.workspace = true
 serde.workspace = true
 

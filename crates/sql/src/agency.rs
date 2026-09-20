@@ -7,9 +7,9 @@
 
 use anyhow::Context as _;
 use chrono::Utc;
+use omnia_orm::{Entity as _, Filter, InsertBuilder, SelectBuilder, UpdateBuilder, entity};
 use omnia_sdk::api::Context;
-use omnia_sdk::orm::{Entity as _, Filter, InsertBuilder, SelectBuilder, UpdateBuilder};
-use omnia_sdk::{Result, TableStore, bad_request, entity, not_found};
+use omnia_sdk::{Result, TableStore, bad_request, not_found};
 use serde::{Deserialize, Serialize};
 
 use crate::{CONNECTION, schema};

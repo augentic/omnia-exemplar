@@ -37,10 +37,13 @@ change only (see the omnia
 [Production Backends guide](https://github.com/augentic/omnia/blob/main/docs/guides/production-backends.md)).
 The omnia crates are resolved from the GitHub monorepo via
 `[patch.crates-io]` in `Cargo.toml`; `Cargo.lock` records the exact
-revision. Outbound HTTP caching is not part of the runtime: the guest opts
-in per call site through `omnia-http-cache`, a `HttpRequest` decorator from
-[omnia-extensions](https://github.com/augentic/omnia-extensions) that stores
-responses in the provider's `StateStore` (see `crates/common`).
+revision. Two guest-side layers come from
+[omnia-extensions](https://github.com/augentic/omnia-extensions) rather than
+the runtime: outbound HTTP caching is opt-in per call site through
+`omnia-http-cache`, a `HttpRequest` decorator that stores responses in the
+provider's `StateStore` (see `crates/common`), and the `entity!` macro and
+typed query builders over `TableStore` are `omnia-orm` (see `crates/sql` and
+`crates/pattern`).
 
 ## Quick start
 
@@ -161,9 +164,12 @@ Domain crates depend only on the `omnia-sdk` capability traits (`Config`,
 `HttpRequest`, `Identity`, `Publish`, `StateStore`; `capability-examples`
 covers `BlobStore`, `Broadcast`, `DocumentStore`, and `TableStore`), so the
 same code runs inside the WASM guest and against `omnia_test::guest::Provider`
-doubles in tests. The one extension crate, `omnia-http-cache`, is itself
-written against those traits (`HttpCache<H: HttpRequest, S: StateStore>`), so
-`acme-common`'s cached clients keep the same property.
+doubles in tests. The two extension crates keep that property:
+`omnia-http-cache` is written against those traits
+(`HttpCache<H: HttpRequest, S: StateStore>`), so `acme-common`'s cached
+clients stay provider-generic, and `omnia-orm` only renders
+`{ sql, params }` pairs for the caller to hand to `TableStore`, so `sql` and
+`pattern` run the same code natively and in the guest.
 
 ## Adding a new handler
 
@@ -428,8 +434,9 @@ thin wrappers over the reusable workflows in `augentic/.github`.
 
 The omnia crates are currently resolved from the GitHub monorepo via the
 `[patch.crates-io]` section in `Cargo.toml`, pending publication to a public
-registry. `omnia-http-cache` is a direct git dependency on
-[augentic/omnia-extensions](https://github.com/augentic/omnia-extensions)
-(its own `omnia-sdk` requirement unifies onto the same omnia revision through
+registry. `omnia-http-cache` and `omnia-orm` are direct git dependencies on
+[augentic/omnia-extensions](https://github.com/augentic/omnia-extensions),
+pinned to one revision by `Cargo.lock` (their own `omnia-sdk` /
+`omnia-wasi-sql` requirements unify onto the same omnia revision through
 that patch); a commented `[patch."https://github.com/augentic/omnia-extensions"]`
 block in `Cargo.toml` is the local-checkout override.

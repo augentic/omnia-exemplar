@@ -7,9 +7,9 @@
 
 use anyhow::Context as _;
 use chrono::Utc;
+use omnia_orm::{DeleteBuilder, Entity as _, Filter, InsertBuilder, Join, SelectBuilder, entity};
 use omnia_sdk::api::Context;
-use omnia_sdk::orm::{DeleteBuilder, Entity as _, Filter, InsertBuilder, Join, SelectBuilder};
-use omnia_sdk::{Result, TableStore, entity, not_found};
+use omnia_sdk::{Result, TableStore, not_found};
 use serde::{Deserialize, Serialize};
 
 use crate::agency::fetch_agency;

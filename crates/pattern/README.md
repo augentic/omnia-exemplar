@@ -7,7 +7,7 @@ time, each handler here composes several:
 | Module | Capabilities | Handler |
 | --- | --- | --- |
 | `decode` | `Config` + `HttpRequest` + `StateStore` | `decode_segment` — decode-through-cache with a config-carried client certificate |
-| `place` | `TableStore` | `upsert_place` — ORM `INSERT … ON CONFLICT` upsert, rejecting bad coordinates with a structured JSON error body (`PlaceError`) |
+| `place` | `TableStore` + `omnia-orm` | `upsert_place` — ORM `INSERT … ON CONFLICT` upsert, rejecting bad coordinates with a structured JSON error body (`PlaceError`) |
 | `place` | `TableStore` | `nearby_places` — bounding-box `SELECT` refined by haversine |
 
 The guest serves these under `/examples/patterns/*` (see `src/routes.rs`).
@@ -44,7 +44,7 @@ it is good at:
    indexable comparisons built with `SelectBuilder` + `Filter`.
 2. Refine the survivors with a haversine check in Rust.
 
-`UpsertPlaceRequest` writes the rows with the ORM's `entity!` macro and
+`UpsertPlaceRequest` writes the rows with `omnia_orm::entity!` and
 `InsertBuilder::on_conflict("id").do_update_all()`; `NearbyPlacesRequest`
 runs the query. Workloads that outgrow this pattern want a real geospatial
 backend (e.g. PostGIS behind its own handler), not a richer `StateStore`.

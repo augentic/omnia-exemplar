@@ -7,8 +7,8 @@ use capability::{
 };
 use omnia_sdk::DocumentStore as _;
 use omnia_sdk::api::{Client, Metadata};
-use omnia_sdk::orm::{DataType, Field, Row};
 use omnia_test::guest::{Broadcasted, Provider, ScriptedTables};
+use omnia_wasi_sql::{DataType, Field, Row};
 
 #[tokio::test]
 async fn archive_object() {

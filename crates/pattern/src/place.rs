@@ -15,9 +15,9 @@
 
 use anyhow::Context as _;
 use http::{HeaderValue, StatusCode};
+use omnia_orm::{Entity as _, Filter, InsertBuilder, SelectBuilder, entity};
 use omnia_sdk::api::Context;
-use omnia_sdk::orm::{Entity as _, Filter, InsertBuilder, SelectBuilder};
-use omnia_sdk::{Error, HttpError, TableStore, entity};
+use omnia_sdk::{Error, HttpError, TableStore};
 use serde::{Deserialize, Serialize};
 
 /// Named connection configured by the host.

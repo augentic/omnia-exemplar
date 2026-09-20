@@ -1,7 +1,7 @@
 //! # SQL examples
 //!
 //! The rich `wasi-sql` showcase: an agency/feed schema exercising the full
-//! guest ORM surface. Where `pattern::place` uses the ORM for one
+//! `omnia-orm` surface. Where `pattern::place` uses the ORM for one
 //! upsert-plus-select pattern, this crate restores the complete relational
 //! example that omnia's "Example tidy" trimmed:
 //!
@@ -21,10 +21,10 @@
 //! example used, so the handlers run unchanged against native mock
 //! providers — see [`schema`].
 //!
-//! [`SelectBuilder`]: omnia_sdk::orm::SelectBuilder
-//! [`InsertBuilder::from_entity`]: omnia_sdk::orm::InsertBuilder::from_entity
-//! [`UpdateBuilder`]: omnia_sdk::orm::UpdateBuilder
-//! [`DeleteBuilder`]: omnia_sdk::orm::DeleteBuilder
+//! [`SelectBuilder`]: omnia_orm::SelectBuilder
+//! [`InsertBuilder::from_entity`]: omnia_orm::InsertBuilder::from_entity
+//! [`UpdateBuilder`]: omnia_orm::UpdateBuilder
+//! [`DeleteBuilder`]: omnia_orm::DeleteBuilder
 
 pub mod agency;
 pub mod feed;
