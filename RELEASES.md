@@ -77,6 +77,21 @@ Unreleased
   uses the etag verbatim as the state-store key. `gtfs_adapter::trip` no
   longer sends `Cache-Control` on its Trip Management `POST` — it carried no
   etag, so it was never cacheable under either implementation.
+- Pinned omnia to `31fb3f0` (omnia #290–#297) and omnia-extensions to
+  `184a1e1`. Omnia removed the guest ORM from `omnia-sdk` — the
+  `omnia_sdk::orm` module and the `entity!` macro — and the layer now lives in
+  `omnia-orm` ([omnia-extensions](https://github.com/augentic/omnia-extensions)),
+  a second git dependency from the same source and revision as
+  `omnia-http-cache`. The API is unchanged: `crates/sql` and `crates/pattern`
+  depend on `omnia-orm` and read `omnia_orm::{entity, Entity, Filter, Join,
+  SelectBuilder, InsertBuilder, UpdateBuilder, DeleteBuilder}` where they read
+  `omnia_sdk::orm::…` / `omnia_sdk::entity`; tests take `DataType`, `Field`,
+  and `Row` from `omnia_orm` (or `omnia_wasi_sql` in `capability`, which never
+  used the ORM), since `omnia-sdk` no longer re-exports them. Omnia also split
+  the `omnia-sdk` `orm` feature into `sql` and `docstore` — both default, so
+  no dependency line here changes — and bumped `wasip3` to 0.9.0; the
+  workspace and the `templates/guest` seed follow (with `cfg-if` 1.0.5 and
+  `http-body-util` 0.1.5), so the guest still links one `wasip3`.
 
 ### R4 findings
 

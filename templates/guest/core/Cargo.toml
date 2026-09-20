@@ -15,7 +15,7 @@ crate-type = ["cdylib", "rlib"]
 axum = { version = "0.8.9", default-features = false, features = ["json"] }
 omnia-sdk = "0.36.0"
 serde = { version = "1.0.229", features = ["derive"] }
-wasip3 = { version = "0.8.0", features = ["http-compat"] }
+wasip3 = { version = "0.9.0", features = ["http-compat"] }
 
 # Target-gated so the guest's wasm32 dependency graph never sees the doubles.
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
