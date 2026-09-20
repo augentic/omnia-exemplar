@@ -42,8 +42,8 @@ revision. Two guest-side layers come from
 the runtime: outbound HTTP caching is opt-in per call site through
 `omnia-http-cache`, a `HttpRequest` decorator that stores responses in the
 provider's `StateStore` (see `crates/common`), and the `entity!` macro and
-typed query builders over `TableStore` are `omnia-orm` (see `crates/sql` and
-`crates/pattern`).
+typed query builders over `TableStore` come from `omnia-orm` (see `crates/sql`
+and `crates/pattern`).
 
 ## Quick start
 
