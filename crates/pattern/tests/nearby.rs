@@ -6,10 +6,15 @@
 //! parameters asserted, and the upserts are asserted as the statements the
 //! handler issued.
 
+use axum::response::IntoResponse as _;
+use http::StatusCode;
+use http::header::CONTENT_TYPE;
+use http_body_util::BodyExt as _;
 use omnia_orm::{DataType, Field, Row};
+use omnia_sdk::HttpError;
 use omnia_sdk::api::{Client, Metadata};
 use omnia_test::guest::{Provider, ScriptedTables, Statement};
-use pattern::{NearbyPlacesRequest, UpsertPlaceRequest, nearby_places, upsert_place};
+use pattern::{NearbyPlacesRequest, PlaceError, UpsertPlaceRequest, nearby_places, upsert_place};
 
 /// A `places` row as the nearby query maps it.
 fn place_row(id: &str, name: &str, lat: f64, lon: f64) -> Row {
@@ -138,21 +143,50 @@ async fn upsert_out_of_range() {
     };
     let error =
         client.call(upsert_place, request, &Metadata::default()).await.expect_err("should reject");
+    assert!(provider.tables.statements().is_empty(), "rejected row must not reach the store");
 
-    // The error serializes to the exact JSON body the HTTP route puts on
-    // the wire via the `From<PlaceError> for HttpError` conversion.
-    let body = serde_json::to_value(&error).expect("should serialize");
+    // The response the HTTP route puts on the wire via the
+    // `From<PlaceError> for HttpError` conversion: omnia's `ErrorBody`
+    // envelope (`error`, `message`) plus the variant's domain fields.
+    let message = error.to_string();
+    let (status, body) = wire(error).await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
     assert_eq!(
         body,
         serde_json::json!({
-            "code": "invalid_coordinate",
+            "error": "invalid_coordinate",
+            "message": message,
             "field": "lat",
             "value": 123.4,
             "min": -90.0,
             "max": 90.0,
         })
     );
-    assert!(provider.tables.statements().is_empty(), "rejected row must not reach the store");
+}
+
+/// A storage failure is exactly the framework envelope: its `Display` text
+/// travels as `message`, never as a leaked `description` field.
+#[tokio::test]
+async fn storage_error_body() {
+    let error = PlaceError::from(anyhow::anyhow!("connection refused").context("executing upsert"));
+    let message = error.to_string();
+    assert_eq!(message, "executing upsert: connection refused");
+
+    let (status, body) = wire(error).await;
+    assert_eq!(status, StatusCode::INTERNAL_SERVER_ERROR);
+    assert_eq!(body, serde_json::json!({ "error": "storage", "message": message }));
+}
+
+/// Render the error as the HTTP route would and decode its JSON body.
+async fn wire(error: PlaceError) -> (StatusCode, serde_json::Value) {
+    let response = HttpError::from(error).into_response();
+    assert_eq!(
+        response.headers().get(CONTENT_TYPE).and_then(|value| value.to_str().ok()),
+        Some("application/json")
+    );
+    let status = response.status();
+    let bytes = response.into_body().collect().await.expect("body collects").to_bytes();
+    (status, serde_json::from_slice(&bytes).expect("body is JSON"))
 }
 
 #[tokio::test]

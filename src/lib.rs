@@ -183,7 +183,7 @@ where
 /// The handler parses the SOAP envelope itself so a malformed body is
 /// answered with the vendor's XML `<Fault>` (via the handler error's
 /// `HttpError` conversion). A decoder that failed here would instead reach
-/// the client as the framework's plain-text 400.
+/// the client as the framework's JSON `invalid_request` 400.
 #[allow(clippy::unnecessary_wraps, reason = "the route codec requires a fallible decoder")]
 fn decode_pulse(body: &[u8]) -> Result<PulseXml, DecodeError> {
     Ok(PulseXml(body.to_vec()))
