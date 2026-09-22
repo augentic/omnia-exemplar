@@ -74,7 +74,7 @@ where
 ///
 /// The HTTP route passes the body through undecoded: parsing happens inside
 /// the handler so that a malformed envelope is answered with the vendor's
-/// SOAP [`Fault`] rather than the framework's plain-text decode error.
+/// SOAP [`Fault`] rather than the framework's JSON `invalid_request` 400.
 #[derive(Debug, Clone)]
 pub struct PulseXml(pub Vec<u8>);
 

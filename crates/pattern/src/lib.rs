@@ -15,8 +15,8 @@
 //!   onto a KV store" anti-pattern.
 //! - [`PlaceError`] — a structured JSON error body: the upsert handler owns
 //!   its error type, and the `HttpError` conversion serializes it as
-//!   `application/json`, matching the success content type instead of the
-//!   default plain-text error body.
+//!   `application/json` extending the framework's fixed `error` / `message`
+//!   `ErrorBody` envelope with the variant's domain fields.
 //!
 //! The crate-level tests drive every handler through `omnia_test::guest::Provider`
 //! doubles whose `MatchedHttp` records outbound requests, and the guest routes

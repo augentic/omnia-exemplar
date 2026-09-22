@@ -208,7 +208,7 @@ fn check_entries(
 
 /// A seed `Cargo.toml` pins every dependency it shares with the root
 /// workspace at the workspace's version, so the scaffold tracks the omnia
-/// rev the exemplar itself builds against.
+/// version the exemplar itself builds against.
 fn check_seed_versions(root: &Path, source: &str, rendered: &str, failures: &mut Vec<String>) {
     let Ok(workspace) = fs::read_to_string(root.join("Cargo.toml"))
         .map_err(|err| err.to_string())

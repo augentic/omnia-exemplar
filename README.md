@@ -35,15 +35,15 @@ backends; swapping in production backends from
 [omnia-backends](https://github.com/augentic/omnia-backends) is a host-side
 change only (see the omnia
 [Production Backends guide](https://github.com/augentic/omnia/blob/main/docs/guides/production-backends.md)).
-The omnia crates are resolved from the GitHub monorepo via
-`[patch.crates-io]` in `Cargo.toml`; `Cargo.lock` records the exact
-revision. Two guest-side layers come from
-[omnia-extensions](https://github.com/augentic/omnia-extensions) rather than
-the runtime: outbound HTTP caching is opt-in per call site through
-`omnia-http-cache`, a `HttpRequest` decorator that stores responses in the
-provider's `StateStore` (see `crates/common`), and the `entity!` macro and
-typed query builders over `TableStore` come from `omnia-orm` (see `crates/sql`
-and `crates/pattern`).
+The omnia crates are crates.io dependencies (currently 0.36.0) declared once
+under `[workspace.dependencies]` in `Cargo.toml`; every `omnia-*` line moves
+together. Two guest-side layers come from
+[omnia-extensions](https://github.com/augentic/omnia-extensions), also from
+crates.io (0.34.0), rather than the runtime: outbound HTTP caching is opt-in
+per call site through `omnia-http-cache`, a `HttpRequest` decorator that
+stores responses in the provider's `StateStore` (see `crates/common`), and
+the `entity!` macro and typed query builders over `TableStore` come from
+`omnia-orm` (see `crates/sql` and `crates/pattern`).
 
 ## Quick start
 
@@ -259,9 +259,10 @@ Patterns worth copying into new services:
   onto the KV state store (`pattern::place`).
 - Structured JSON error bodies: the handler owns its error type and its
   `From<…> for HttpError` conversion serializes it as `application/json`
-  via `HttpError::with_body`, so errors match the route's success content
-  type instead of the default plain-text `code: …, description: …` body
-  (`pattern::place::PlaceError`).
+  via `HttpError::with_body`, extending the framework's fixed two-field
+  `ErrorBody` envelope (`error`, `message`) with the variant's domain
+  fields — `{"error": "invalid_coordinate", "message": …, "field": …,
+  "value": …, "min": …, "max": …}` (`pattern::place::PlaceError`).
 
 Acme domain quirks that are **not** general patterns:
 
@@ -407,10 +408,12 @@ scaffold with no diff to maintain. The `Cargo.toml`, `src/lib.rs` and
 `tests/routes.rs` seeds give a new service the shape above — a
 provider-generic router, `rlib` alongside `cdylib`, and a route rung
 under `omnia_test::guest::Provider` — and the suite's scaffold test renders
-the manifest and builds and tests the result against the same omnia the
-exemplar uses. To move to a new Omnia rev, update `Cargo.lock` (and any
-explicit `rev` on the `[patch.crates-io]` git sources) and the seed's
-pins, which the gate holds equal to the workspace's.
+the manifest and builds and tests the result against the same published
+omnia the exemplar uses. To move to a new omnia release, bump every
+`omnia-*` line in `[workspace.dependencies]` together (and the
+omnia-extensions crates to their matching release), re-resolve
+`Cargo.lock`, and bump the seed's pins, which the gate holds equal to the
+workspace's.
 
 ## Development
 
@@ -432,11 +435,8 @@ The workspace follows omnia's conventions: stable toolchain
 workspace lints, `cargo vet` supply-chain audits (`supply-chain/`), and CI as
 thin wrappers over the reusable workflows in `augentic/.github`.
 
-The omnia crates are currently resolved from the GitHub monorepo via the
-`[patch.crates-io]` section in `Cargo.toml`, pending publication to a public
-registry. `omnia-http-cache` and `omnia-orm` are direct git dependencies on
-[augentic/omnia-extensions](https://github.com/augentic/omnia-extensions),
-pinned to one revision by `Cargo.lock` (their own `omnia-sdk` /
-`omnia-wasi-sql` requirements unify onto the same omnia revision through
-that patch); a commented `[patch."https://github.com/augentic/omnia-extensions"]`
-block in `Cargo.toml` is the local-checkout override.
+Dependency on omnia is strictly one-way: the omnia crates and the
+[omnia-extensions](https://github.com/augentic/omnia-extensions) crates
+(`omnia-http-cache`, `omnia-orm`) are published crates.io dependencies
+declared once under `[workspace.dependencies]`, bumped together, with no
+`[patch.crates-io]` overrides.

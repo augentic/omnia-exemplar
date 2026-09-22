@@ -14,8 +14,8 @@ envelope itself, and its `HttpError` conversion puts the serialized XML on
 the wire via `HttpError::with_body` (`text/xml`, HTTP status from the
 fault). The HTTP route passes the body through undecoded so that parse
 failures are also answered with the fault envelope — a decoder failing in
-the route codec would reach the client as the framework's plain-text 400
-instead.
+the route codec would reach the client as the framework's JSON
+`invalid_request` 400 instead.
 
 ## Tests
 

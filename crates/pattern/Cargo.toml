@@ -30,6 +30,7 @@ serde_json.workspace = true
 thiserror.workspace = true
 
 [dev-dependencies]
+axum.workspace = true
 tokio.workspace = true
 
 # Target-gated so the guest's wasm32 dependency graph never sees the doubles.

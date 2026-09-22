@@ -7,7 +7,7 @@ time, each handler here composes several:
 | Module | Capabilities | Handler |
 | --- | --- | --- |
 | `decode` | `Config` + `HttpRequest` + `StateStore` | `decode_segment` — decode-through-cache with a config-carried client certificate |
-| `place` | `TableStore` + `omnia-orm` | `upsert_place` — ORM `INSERT … ON CONFLICT` upsert, rejecting bad coordinates with a structured JSON error body (`PlaceError`) |
+| `place` | `TableStore` + `omnia-orm` | `upsert_place` — ORM `INSERT … ON CONFLICT` upsert, rejecting bad coordinates with a structured JSON error body extending the framework's `ErrorBody` envelope (`PlaceError`) |
 | `place` | `TableStore` | `nearby_places` — bounding-box `SELECT` refined by haversine |
 
 The guest serves these under `/examples/patterns/*` (see `src/routes.rs`).
@@ -49,22 +49,28 @@ it is good at:
 runs the query. Workloads that outgrow this pattern want a real geospatial
 backend (e.g. PostGIS behind its own handler), not a richer `StateStore`.
 
-## Custom JSON error bodies
+## Extending the framework's JSON error envelope
 
 Handler failures never pass through a route's success encoder: the
 handler's error type converts to `HttpError`, and that conversion alone
-decides the wire shape. The default `omnia_sdk::Error` renders as a
-plain-text `code: …, description: …` body — even on JSON routes.
+decides the wire shape. The default `omnia_sdk::Error` renders as
+`omnia_sdk::api::ErrorBody` — an `application/json` body with exactly two
+fields, `error` (the code discriminant) and `message` (the description) —
+with no room for domain data.
 
 `upsert_place` demonstrates the structured alternative. The handler fn
 returns its own error type (`Result<UpsertPlaceReply, PlaceError>` — any
 error type with a `HttpError` conversion works), and a
 `From<PlaceError> for HttpError` impl serializes it with
-`HttpError::with_body`, so a rejected upsert answers in the same content
-type as a successful one:
+`HttpError::with_body` as a *superset* of `ErrorBody`: the serde `tag` is
+the `error` discriminant, `Display` supplies `message`, and the variant's
+own fields ride alongside, so a client that only knows the framework
+envelope still parses a rejected upsert, and one that knows the route reads
+the extra fields:
 
 ```json
-{ "code": "invalid_coordinate", "field": "lat", "value": 123.4, "min": -90.0, "max": 90.0 }
+{ "error": "invalid_coordinate", "message": "lat 123.4 is outside [-90, 90]", "field": "lat", "value": 123.4, "min": -90.0, "max": 90.0 }
+{ "error": "storage", "message": "<error chain>" }
 ```
 
 Two things to note:
@@ -73,8 +79,9 @@ Two things to note:
   from the error type's `HttpError` conversion, not from a `handle_with`
   custom codec.
 - Decode failures (malformed request JSON) are converted upstream of the
-  handler and stay plain-text 400s; the structured body covers failures
-  raised by the handler itself.
+  handler and answer with the framework's own `ErrorBody` — a 400 with
+  `"error": "invalid_request"`; the structured body covers failures raised
+  by the handler itself.
 
 ## Spy mock tests
 

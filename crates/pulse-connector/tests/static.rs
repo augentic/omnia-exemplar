@@ -69,7 +69,8 @@ async fn malformed_envelope() {
     let provider = provider();
 
     // parsing happens inside the handler, so even an unparseable body is
-    // answered with the vendor's SOAP fault rather than a plain-text 400
+    // answered with the vendor's SOAP fault rather than the framework's JSON
+    // `invalid_request` 400
     let error = Client::new(OWNER, provider.clone())
         .call(pulse, PulseXml(b"not xml at all".to_vec()), &Metadata::default())
         .await

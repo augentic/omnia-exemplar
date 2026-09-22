@@ -92,6 +92,22 @@ Unreleased
   no dependency line here changes — and bumped `wasip3` to 0.9.0; the
   workspace and the `templates/guest` seed follow (with `cfg-if` 1.0.5 and
   `http-body-util` 0.1.5), so the guest still links one `wasip3`.
+- Omnia and its capability crates now come from crates.io at 0.36.0
+  (bringing omnia #298–#304: wasmtime 49, client-certificate leaf
+  validation, and trace level / baggage carried across the chain), and
+  `omnia-http-cache` / `omnia-orm` from crates.io at 0.34.0. The
+  `[patch.crates-io]` git overrides, the commented local-path blocks, both
+  `deny.toml` `allow-git` entries (root and seed), the `cargo vet`
+  `audit-as-crates-io = false` policies, and the scaffold test's patch
+  carry-over are gone: the scaffold builds against the same published set
+  with the root lockfile seeding its own.
+- `PlaceError`'s wire body (`/examples/patterns/places`) is now omnia's
+  `ErrorBody` plus domain fields —
+  `{"error":"invalid_coordinate","message":…,"field":…,"value":…,"min":…,"max":…}`
+  and `{"error":"storage","message":…}` — where it was `{"code":…}` /
+  `{"code":"storage","description":…}`. The `error` tag is the envelope's
+  discriminant and `Display` supplies `message`, so a client that only
+  knows the framework envelope still parses the body.
 
 ### R4 findings
 
@@ -118,9 +134,9 @@ Recorded for the Phase 4 review, not decided here:
   190-line test module in pulse-adapter (`tests/fixture/`). Nothing in it
   was general enough for `omnia-test`.
 - **The scaffold test is a real build.** It renders the whole manifest into
-  `target/template-scaffold/`, carries the root `[patch.crates-io]` over
-  with absolute paths, seeds the lockfile, and runs `cargo build --target
-  wasm32-wasip2` and `cargo test` sharing the exemplar's target directory.
+  `target/template-scaffold/`, seeds the lockfile, and runs `cargo build
+  --target wasm32-wasip2` and `cargo test` sharing the exemplar's target
+  directory.
   ~20–30 s warm; the first cold run compiles the guest dependency tree for
   wasm32.
 

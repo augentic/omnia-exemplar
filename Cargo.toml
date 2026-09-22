@@ -155,6 +155,12 @@ urlencoding = "2.1.3"
 uuid = { version = "1.24.0", features = ["v4"] }
 wasip3 = { version = "0.9.0", features = ["http-compat"] }
 
+# Every `omnia-*` line below moves together: bump them to the same release
+# in one change, and keep the shared pins above (`wasip3`, `http`, `axum`,
+# `tokio`, …) at the versions omnia itself pins so the guest links one copy
+# of each. Never re-add a `[patch.crates-io]` git or path override here —
+# the crates are published, and the scaffold test builds against the same
+# published set.
 omnia = "0.36.0"
 omnia-sdk = "0.36.0"
 omnia-wasi-blobstore = "0.36.0"
@@ -172,12 +178,10 @@ omnia-wasi-sql = "0.36.0"
 omnia-test = "0.36.0"
 omnia-wasi-websocket = "0.36.0"
 
-# Not on crates.io, so direct git dependencies rather than `[patch]` entries.
-# Their `omnia-sdk = "0.36.0"` / `omnia-wasi-sql = "0.36.0"` requirements
-# unify onto the omnia git rev via `[patch.crates-io]` below; `Cargo.lock`
-# pins both extension crates to one omnia-extensions revision.
-omnia-http-cache = { git = "https://github.com/augentic/omnia-extensions" }
-omnia-orm = { git = "https://github.com/augentic/omnia-extensions" }
+# omnia-extensions releases track omnia's: bump both together with the
+# `omnia-*` lines above.
+omnia-http-cache = "0.34.0"
+omnia-orm = "0.34.0"
 
 acme-common = { path = "crates/common" }
 capability = { path = "crates/capability" }
@@ -188,39 +192,6 @@ pulse-adapter = { path = "crates/pulse-adapter" }
 pulse-connector = { path = "crates/pulse-connector" }
 sql = { path = "crates/sql" }
 tally-connector = { path = "crates/tally-connector" }
-
-[patch.crates-io]
-omnia = { git = "https://github.com/augentic/omnia" }
-omnia-sdk = { git = "https://github.com/augentic/omnia" }
-omnia-wasi-blobstore = { git = "https://github.com/augentic/omnia" }
-omnia-wasi-config = { git = "https://github.com/augentic/omnia" }
-omnia-wasi-docstore = { git = "https://github.com/augentic/omnia" }
-omnia-wasi-http = { git = "https://github.com/augentic/omnia" }
-omnia-wasi-identity = { git = "https://github.com/augentic/omnia" }
-omnia-wasi-keyvalue = { git = "https://github.com/augentic/omnia" }
-omnia-wasi-messaging = { git = "https://github.com/augentic/omnia" }
-omnia-wasi-otel = { git = "https://github.com/augentic/omnia" }
-omnia-wasi-sql = { git = "https://github.com/augentic/omnia" }
-omnia-wasi-websocket = { git = "https://github.com/augentic/omnia" }
-omnia-test = { git = "https://github.com/augentic/omnia" }
-
-# omnia = { path = "../omnia/crates/omnia" }
-# omnia-sdk = { path = "../omnia/crates/omnia-sdk" }
-# omnia-wasi-blobstore = { path = "../omnia/crates/wasi-blobstore" }
-# omnia-wasi-config = { path = "../omnia/crates/wasi-config" }
-# omnia-wasi-docstore = { path = "../omnia/crates/wasi-docstore" }
-# omnia-wasi-http = { path = "../omnia/crates/wasi-http" }
-# omnia-wasi-identity = { path = "../omnia/crates/wasi-identity" }
-# omnia-wasi-keyvalue = { path = "../omnia/crates/wasi-keyvalue" }
-# omnia-wasi-messaging = { path = "../omnia/crates/wasi-messaging" }
-# omnia-wasi-otel = { path = "../omnia/crates/wasi-otel" }
-# omnia-wasi-sql = { path = "../omnia/crates/wasi-sql" }
-# omnia-wasi-websocket = { path = "../omnia/crates/wasi-websocket" }
-# omnia-test = { path = "../omnia/crates/omnia-test" }
-
-# [patch."https://github.com/augentic/omnia-extensions"]
-# omnia-http-cache = { path = "../omnia-extensions/crates/http-cache" }
-# omnia-orm = { path = "../omnia-extensions/crates/orm" }
 
 [profile.release]
 lto = true

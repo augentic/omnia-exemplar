@@ -8,10 +8,10 @@
 //!
 //! The upsert also demonstrates a structured wire error: [`PlaceError`]
 //! replaces `omnia_sdk::Error` as the handler's error type, and its
-//! [`HttpError`] conversion serializes it as an `application/json` body —
-//! so error responses carry domain fields in the same content type as
-//! success responses, instead of the default plain-text
-//! `code: …, description: …` body.
+//! [`HttpError`] conversion serializes it as an `application/json` body
+//! that is a superset of the framework's `omnia_sdk::api::ErrorBody`
+//! envelope — the fixed `error` / `message` pair every omnia transport
+//! emits, plus the variant's own domain fields.
 
 use anyhow::Context as _;
 use http::{HeaderValue, StatusCode};
@@ -62,15 +62,18 @@ pub struct UpsertPlaceReply {
     pub affected: u32,
 }
 
-/// Why a place request was rejected, serialized verbatim as the wire body.
+/// Why a place request was rejected, the source of the JSON wire body.
 ///
 /// The exemplar for structured error responses: instead of flattening
-/// failures into `omnia_sdk::Error`'s plain-text `code: …, description: …`
-/// body, the handler keeps its own error type with domain fields, and the
-/// [`HttpError`] conversion below puts the JSON on the wire. The serde `tag`
-/// doubles as the error code, keeping the code/description convention.
+/// failures into `omnia_sdk::Error`, whose body is the fixed two-field
+/// `omnia_sdk::api::ErrorBody` (`error`, `message`), the handler keeps its
+/// own error type with domain fields, and the [`HttpError`] conversion below
+/// puts the JSON on the wire. The serde `tag` is `ErrorBody`'s `error`
+/// discriminant, `Display` supplies its `message`, and every other field is
+/// domain data — so a client that only knows the framework envelope still
+/// parses the body, and one that knows the route reads the extra fields.
 #[derive(Debug, Serialize, thiserror::Error)]
-#[serde(tag = "code", rename_all = "snake_case")]
+#[serde(tag = "error", rename_all = "snake_case")]
 pub enum PlaceError {
     /// A coordinate is outside its valid range (or not a number).
     #[error("{field} {value} is outside [{min}, {max}]")]
@@ -88,7 +91,9 @@ pub enum PlaceError {
     /// The statement could not be built or executed.
     #[error("{description}")]
     Storage {
-        /// What failed, including the error chain.
+        /// What failed, including the error chain. Skipped by serde: it is
+        /// the `Display` text, which reaches the wire as `message`.
+        #[serde(skip)]
         description: String,
     },
 }
@@ -103,6 +108,14 @@ impl PlaceError {
     }
 }
 
+/// The wire body: omnia's `ErrorBody` fields, then the variant's own.
+#[derive(Serialize)]
+struct Body<'a> {
+    message: String,
+    #[serde(flatten)]
+    error: &'a PlaceError, // `error` tag + domain fields
+}
+
 /// Encode the error as an `application/json` response body.
 ///
 /// This conversion is what the HTTP route uses on the error path: handler
@@ -111,7 +124,11 @@ impl PlaceError {
 /// content type to the response unchanged.
 impl From<PlaceError> for HttpError {
     fn from(error: PlaceError) -> Self {
-        serde_json::to_vec(&error).map_or_else(
+        let body = Body {
+            message: error.to_string(),
+            error: &error,
+        };
+        serde_json::to_vec(&body).map_or_else(
             // Unreachable in practice (a non-finite coordinate is the only
             // unserializable field); degrade to the plain-text form.
             |_| Self::new(error.status(), error.to_string()),
