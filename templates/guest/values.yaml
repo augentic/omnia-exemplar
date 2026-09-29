@@ -1,4 +1,4 @@
-# Representative render values for `cargo make template-check`.
+# Representative render values for the `template-check` gate.
 #
 # Seed templates are rendered with these values and syntax-checked so a
 # filled-in file is proven parseable; the exemplar itself deploys

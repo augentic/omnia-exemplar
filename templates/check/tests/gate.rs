@@ -1,6 +1,6 @@
 //! The template contract gate, run as part of the standard test suite so
-//! `cargo make ci` proves the templates without any exemplar-only task in
-//! the (itself templated) root `Makefile.toml`.
+//! `mise run ci` proves the templates without any exemplar-only task in
+//! the (itself templated) root `mise.toml`.
 
 #[test]
 fn contract() {

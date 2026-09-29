@@ -6,9 +6,9 @@
 //! no second copy), renders `seed` templates with `values.yaml`, and
 //! syntax-checks the rendered output.
 //!
-//! The gate runs inside the standard test suite (`cargo make test` /
-//! `cargo make ci`) via `tests/gate.rs`, and stand-alone through
-//! `cargo run --package template-check` — the root `Makefile.toml` is itself
+//! The gate runs inside the standard test suite (`mise run test` /
+//! `mise run ci`) via `tests/gate.rs`, and stand-alone through
+//! `cargo run --package template-check` — the root `mise.toml` is itself
 //! an `exact` template, so no exemplar-only task may be added to it.
 
 use std::collections::{BTreeMap, BTreeSet};
