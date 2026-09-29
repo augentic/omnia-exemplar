@@ -4,7 +4,7 @@ includes = ["git::https://github.com/augentic/.github.git//mise/rust.toml?ref=v0
 # No `[env]` knobs: every workspace member is dual-target — the root guest
 # lib, the `crates/*` handler libs, the std-only `template-check` gate, and
 # the `cfg_if`-gated `examples/runtime.rs` host (an empty `main` on wasm32) —
-# so the shared `lint-wasm` covers the whole workspace, and `outdated`
+# so the shared `lint` covers the whole workspace, and `outdated`
 # ignores nothing. Integration tests are host-only and never in that scope.
 #
 # This file is an `exact` entry of the guest template contract
