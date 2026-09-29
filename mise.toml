@@ -1,0 +1,22 @@
+[task_config]
+includes = ["git::https://github.com/augentic/.github.git//mise/rust.toml?ref=v0.2.0"]
+
+# No `[env]` knobs: every workspace member is dual-target — the root guest
+# lib, the `crates/*` handler libs, the std-only `template-check` gate, and
+# the `cfg_if`-gated `examples/runtime.rs` host (an empty `main` on wasm32) —
+# so the shared `lint-wasm` covers the whole workspace, and `outdated`
+# ignores nothing. Integration tests are host-only and never in that scope.
+#
+# This file is an `exact` entry of the guest template contract
+# (`templates/guest/manifest.yaml`): keep it token-free and generic to any
+# Omnia guest workspace; exemplar-only tasks do not belong here.
+
+# -------------------------------------
+# Guest (project-specific; the generic Rust tasks live in the include)
+# -------------------------------------
+
+# Release build of the guest component (and every other workspace lib/bin);
+# the shared `lint` already clippies the same scope for wasm32-wasip2 in CI.
+[tasks.wasm]
+description = "Release-build the workspace for wasm32-wasip2"
+run = "cargo build --locked --workspace --all-features --target wasm32-wasip2 --release"

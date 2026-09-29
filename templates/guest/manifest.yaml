@@ -1,7 +1,8 @@
 # Guest template contract: the single source-to-target map for the Omnia
 # base-repo scaffold. Read at consumer-build time by the Emery omnia
 # target adapter from the build agent's checkout of this repository;
-# validated here by `cargo make template-check`.
+# validated here by the `template-check` gate (inside `mise run test`, or
+# stand-alone via `cargo run -p template-check`).
 #
 # Every `source` is repository-relative. Proof modes:
 #   exact — `source` IS the repository-root file at `target` (source ==
@@ -37,8 +38,8 @@ assemblies:
       - source: Makefile
         target: Makefile
         proof: exact
-      - source: Makefile.toml
-        target: Makefile.toml
+      - source: mise.toml
+        target: mise.toml
         proof: exact
       - source: templates/guest/core/deny.toml
         target: deny.toml
@@ -70,6 +71,9 @@ assemblies:
       - source: templates/guest/core/supply-chain-audits.toml
         target: supply-chain/audits.toml
         proof: seed
+      - source: .github/dependabot.yml
+        target: .github/dependabot.yml
+        proof: exact
       - source: .github/workflows/audit.yaml
         target: .github/workflows/audit.yaml
         proof: exact

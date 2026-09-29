@@ -101,6 +101,16 @@ Unreleased
   `audit-as-crates-io = false` policies, and the scaffold test's patch
   carry-over are gone: the scaffold builds against the same published set
   with the root lockfile seeding its own.
+- Task runner moved from cargo-make to [mise](https://mise.jdx.dev): `mise.toml`
+  includes the shared Rust tasks from `augentic/.github` v0.2.0 and keeps only
+  the `wasm` release build locally; `Makefile.toml` is gone and the `Makefile`
+  forwards `make <task>` to `mise run <task>`. Workflows are pinned to
+  `augentic/.github@v0.2.0`, and the shared `lint` job now runs the
+  `wasm32-wasip2` clippy pass over libs, bins and examples, so the separate
+  `wasm` CI job (`cargo make lint-wasm`) is gone. `.github/dependabot.yml`
+  keeps the pins current. The guest template follows: `mise.toml` replaces
+  `Makefile.toml` as an `exact` entry, `dependabot.yml` joins the manifest,
+  and the `publish.yaml` seed pins `@v0.2.0` with `targets: wasm32-wasip2`.
 - `PlaceError`'s wire body (`/examples/patterns/places`) is now omnia's
   `ErrorBody` plus domain fields —
   `{"error":"invalid_coordinate","message":…,"field":…,"value":…,"min":…,"max":…}`

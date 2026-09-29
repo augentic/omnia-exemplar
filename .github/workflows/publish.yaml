@@ -25,12 +25,14 @@ jobs:
     if: ${{ startsWith(github.ref_name, 'release-') }}
     permissions:
       contents: read
-    uses: augentic/.github/.github/workflows/ci.yaml@main
+    uses: augentic/.github/.github/workflows/ci.yaml@v0.2.0
     secrets: inherit
+    with:
+      targets: wasm32-wasip2
 
   publish:
     name: Publish
     needs: ci
     permissions:
       contents: write
-    uses: augentic/.github/.github/workflows/publish.yaml@main
+    uses: augentic/.github/.github/workflows/publish.yaml@v0.2.0

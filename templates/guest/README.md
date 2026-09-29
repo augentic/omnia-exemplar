@@ -14,8 +14,9 @@ mode:
 - **exact** — the source *is* the repository-root file at its `target`
   path (`source == target`), token-free, with no second copy anywhere.
   This repository's green CI — including the workflows that actually
-  execute at the root — is the template's proof. `cargo make
-  template-check` enforces the shape.
+  execute at the root — is the template's proof. The `template-check`
+  gate (inside `mise run test`, or `cargo run -p template-check`)
+  enforces the shape.
 - **seed** — a project-start baseline the consuming project immediately
   evolves: cargo-vet state, clippy duplicate-crate lists, deploy
   parameters. Seed bodies live under [`core/`](core/), are rendered
