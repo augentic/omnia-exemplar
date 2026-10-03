@@ -3,6 +3,8 @@
 
 use std::process::ExitCode;
 
+#[expect(clippy::print_stdout, reason = "human-readable status for local template-check runs")]
+#[expect(clippy::print_stderr, reason = "human-readable failures for local template-check runs")]
 fn main() -> ExitCode {
     let root = template_check::repo_root();
     match template_check::run(&root) {

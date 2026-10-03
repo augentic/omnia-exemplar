@@ -1,5 +1,3 @@
-#![allow(missing_docs)]
-
 //! Native port of the pre-trim docstore example's bash test script: seed the
 //! GTFS fixtures through the create handlers, then assert the result counts
 //! of every filter combination, pagination via the continuation token, and

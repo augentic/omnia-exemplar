@@ -46,7 +46,11 @@ pub struct TallyMessage {
     pub wpt: Option<Waypoint>,
 }
 
-#[allow(clippy::cast_sign_loss, clippy::cast_possible_truncation)]
+#[expect(
+    clippy::cast_sign_loss,
+    clippy::cast_possible_truncation,
+    reason = "Tally encodes speed as a JSON number, often as f64"
+)]
 fn deserialize_speed<'de, D>(deserializer: D) -> Result<Option<u32>, D::Error>
 where
     D: Deserializer<'de>,
