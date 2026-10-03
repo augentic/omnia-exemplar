@@ -1,4 +1,3 @@
-
 #![allow(missing_docs, reason = "integration tests, not a published API")]
 #![cfg(not(miri))]
 

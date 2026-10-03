@@ -7,7 +7,7 @@ use std::process::ExitCode;
 #[expect(clippy::print_stderr, reason = "CLI failures for local iteration")]
 fn main() -> ExitCode {
     let root = template_check::repo_root();
-    
+
     match template_check::run(&root) {
         Ok(failures) if failures.is_empty() => {
             println!("template-check: ok");
