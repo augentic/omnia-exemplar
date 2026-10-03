@@ -102,20 +102,19 @@ Unreleased
   carry-over are gone: the scaffold builds against the same published set
   with the root lockfile seeding its own.
 - Task runner moved from cargo-make to [mise](https://mise.jdx.dev): `mise.toml`
-  includes the shared Rust tasks from `augentic/toolkit` v0.3.0 and keeps only
+  includes the shared Rust tasks from `augentic/toolkit` v0.4.0 and keeps only
   the `wasm` release build locally; `Makefile.toml` is gone and the `Makefile`
   forwards `make <task>` to `mise run <task>`. Workflows are pinned to
-  `augentic/toolkit@v0.3.0`, and the shared `lint` job now runs the
+  `augentic/toolkit@v0.4.0`, and the shared `lint` job now runs the
   `wasm32-wasip2` clippy pass over libs, bins and examples, so the separate
   `wasm` CI job (`cargo make lint-wasm`) is gone. `renovate.json` bumps the
   toolkit pin as one pull request and `.github/dependabot.yml` keeps the other
-  actions current. The shared files — the workflow stubs, the lint and deny
-  tables, the guest deny-list, `AGENTS.md`, `CONTRIBUTING.md`,
-  `CODE_OF_CONDUCT.md`, `GOVERNANCE.md`, and the licences — are written by
-  `make conventions-sync` from `conventions.toml` and held by
-  `make conventions-check` in CI. The guest template follows: `mise.toml`
+  actions current. The shared files — the workflow pins, the lint and deny
+  tables, `AGENTS.md`, `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`,
+  `GOVERNANCE.md`, and the licences — are written by `make conventions-sync`
+  and held by `make conventions-check` in CI. The guest template follows: `mise.toml`
   replaces `Makefile.toml` as an `exact` entry, `dependabot.yml` joins the
-  manifest, and the `publish.yaml` seed pins `@v0.3.0` with
+  manifest, and the `publish.yaml` seed pins `@v0.4.0` with
   `targets: wasm32-wasip2`.
 - `PlaceError`'s wire body (`/examples/patterns/places`) is now omnia's
   `ErrorBody` plus domain fields —
