@@ -431,9 +431,7 @@ every rung above, including the component rung, the examples gate and the
 template contract gate, runs inside `mise run test`. `mise tasks` lists
 everything else; the generic Rust tasks are included from
 [`augentic/toolkit`](https://github.com/augentic/toolkit/blob/main/mise/rust.toml)
-by `mise.toml`, which adds only the `wasm` release build of the guest. The
-files the toolkit manages are written by `make conventions-sync` and held by
-`make conventions-check`.
+by `mise.toml`, which adds only the `wasm` release build of the guest.
 `mise.toml` is itself an `exact` entry of the guest template contract, so it
 stays token-free and free of exemplar-only tasks.
 

@@ -109,10 +109,10 @@ Unreleased
   `wasm32-wasip2` clippy pass over libs, bins and examples, so the separate
   `wasm` CI job (`cargo make lint-wasm`) is gone. `renovate.json` bumps the
   toolkit pin as one pull request and `.github/dependabot.yml` keeps the other
-  actions current. The shared files — the workflow pins, the lint and deny
+  actions current.   The shared files — the workflow pins, the lint and deny
   tables, `AGENTS.md`, `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`,
-  `GOVERNANCE.md`, and the licences — are written by `make conventions-sync`
-  and held by `make conventions-check` in CI. The guest template follows: `mise.toml`
+  `GOVERNANCE.md`, and the licences — live in the repo alongside toolkit-pinned CI.
+  The guest template follows: `mise.toml`
   replaces `Makefile.toml` as an `exact` entry, `dependabot.yml` joins the
   manifest, and the `publish.yaml` seed pins `@v0.4.0` with
   `targets: wasm32-wasip2`.
