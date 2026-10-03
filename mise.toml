@@ -1,5 +1,5 @@
 [task_config]
-includes = ["git::https://github.com/augentic/toolkit.git//mise/rust.toml?ref=v0.3.0"]
+includes = ["git::https://github.com/augentic/toolkit.git//mise/rust.toml?ref=v0.4.0"]
 
 # No `[env]` knobs: every workspace member is dual-target — the root guest
 # lib, the `crates/*` handler libs, the std-only `template-check` gate, and

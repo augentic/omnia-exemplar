@@ -1,4 +1,0 @@
-name = "Omnia Exemplar"
-targets = ["wasm32-wasip2"]
-guest-clippy = ["crates/clippy.toml"]
-pinned = ["templates/guest/core/workflow-publish.yaml"]
