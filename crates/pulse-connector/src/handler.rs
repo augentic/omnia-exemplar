@@ -192,8 +192,7 @@ mod tests {
         let receive_message = envelope.body.receive_message;
         let message = receive_message.axml_message;
 
-        assert!(!message.is_empty());
-        assert!(message.contains("<ActualizarDatosTren>"));
+        assert!(message.contains("<ActualizarDatosTren>"), "message: {message}");
     }
 
     #[test]
