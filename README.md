@@ -430,8 +430,10 @@ mise run check  # local advisories: audit, fmt (in place), lint, outdated, deps
 every rung above, including the component rung, the examples gate and the
 template contract gate, runs inside `mise run test`. `mise tasks` lists
 everything else; the generic Rust tasks are included from
-[`augentic/.github`](https://github.com/augentic/.github/blob/main/mise/rust.toml)
-by `mise.toml`, which adds only the `wasm` release build of the guest.
+[`augentic/toolkit`](https://github.com/augentic/toolkit/blob/main/mise/rust.toml)
+by `mise.toml`, which adds only the `wasm` release build of the guest. The
+files the toolkit manages (`conventions.toml` names this repository to it) are
+written by `make conventions-sync` and held by `make conventions-check`.
 `mise.toml` is itself an `exact` entry of the guest template contract, so it
 stays token-free and free of exemplar-only tasks.
 
@@ -452,7 +454,7 @@ mise run wasm && cargo run --example runtime -- run target/wasm32-wasip2/release
 The workspace follows omnia's conventions: stable toolchain
 (`rust-toolchain.toml`, with the `wasm32-wasip2` target), edition 2024,
 workspace lints, `cargo vet` supply-chain audits (`supply-chain/`), and CI as
-thin wrappers over the reusable workflows in `augentic/.github`, pinned to a
+thin wrappers over the reusable workflows in `augentic/toolkit`, pinned to a
 release tag.
 
 Dependency on omnia is strictly one-way: the omnia crates and the

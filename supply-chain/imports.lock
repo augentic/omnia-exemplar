@@ -23,68 +23,68 @@ user-login = "jrmuizel"
 user-name = "Jeff Muizelaar"
 
 [[publisher.cranelift-assembler-x64]]
-version = "0.136.0"
-when = "2026-09-21"
+version = "0.136.2"
+when = "2026-10-02"
 trusted-publisher = "github:bytecodealliance/wasmtime"
 
 [[publisher.cranelift-assembler-x64-meta]]
-version = "0.136.0"
-when = "2026-09-21"
+version = "0.136.2"
+when = "2026-10-02"
 trusted-publisher = "github:bytecodealliance/wasmtime"
 
 [[publisher.cranelift-bforest]]
-version = "0.136.0"
-when = "2026-09-21"
+version = "0.136.2"
+when = "2026-10-02"
 trusted-publisher = "github:bytecodealliance/wasmtime"
 
 [[publisher.cranelift-bitset]]
-version = "0.136.0"
-when = "2026-09-21"
+version = "0.136.2"
+when = "2026-10-02"
 trusted-publisher = "github:bytecodealliance/wasmtime"
 
 [[publisher.cranelift-codegen]]
-version = "0.136.0"
-when = "2026-09-21"
+version = "0.136.2"
+when = "2026-10-02"
 trusted-publisher = "github:bytecodealliance/wasmtime"
 
 [[publisher.cranelift-codegen-meta]]
-version = "0.136.0"
-when = "2026-09-21"
+version = "0.136.2"
+when = "2026-10-02"
 trusted-publisher = "github:bytecodealliance/wasmtime"
 
 [[publisher.cranelift-codegen-shared]]
-version = "0.136.0"
-when = "2026-09-21"
+version = "0.136.2"
+when = "2026-10-02"
 trusted-publisher = "github:bytecodealliance/wasmtime"
 
 [[publisher.cranelift-control]]
-version = "0.136.0"
-when = "2026-09-21"
+version = "0.136.2"
+when = "2026-10-02"
 trusted-publisher = "github:bytecodealliance/wasmtime"
 
 [[publisher.cranelift-entity]]
-version = "0.136.0"
-when = "2026-09-21"
+version = "0.136.2"
+when = "2026-10-02"
 trusted-publisher = "github:bytecodealliance/wasmtime"
 
 [[publisher.cranelift-frontend]]
-version = "0.136.0"
-when = "2026-09-21"
+version = "0.136.2"
+when = "2026-10-02"
 trusted-publisher = "github:bytecodealliance/wasmtime"
 
 [[publisher.cranelift-isle]]
-version = "0.136.0"
-when = "2026-09-21"
+version = "0.136.2"
+when = "2026-10-02"
 trusted-publisher = "github:bytecodealliance/wasmtime"
 
 [[publisher.cranelift-native]]
-version = "0.136.0"
-when = "2026-09-21"
+version = "0.136.2"
+when = "2026-10-02"
 trusted-publisher = "github:bytecodealliance/wasmtime"
 
 [[publisher.cranelift-srcgen]]
-version = "0.136.0"
-when = "2026-09-21"
+version = "0.136.2"
+when = "2026-10-02"
 trusted-publisher = "github:bytecodealliance/wasmtime"
 
 [[publisher.encoding_rs]]
@@ -102,13 +102,13 @@ user-login = "hsivonen"
 user-name = "Henri Sivonen"
 
 [[publisher.pulley-interpreter]]
-version = "49.0.0"
-when = "2026-09-21"
+version = "49.0.2"
+when = "2026-10-02"
 trusted-publisher = "github:bytecodealliance/wasmtime"
 
 [[publisher.pulley-macros]]
-version = "49.0.0"
-when = "2026-09-21"
+version = "49.0.2"
+when = "2026-10-02"
 trusted-publisher = "github:bytecodealliance/wasmtime"
 
 [[publisher.regalloc2]]
@@ -164,8 +164,8 @@ when = "2026-07-20"
 trusted-publisher = "github:bytecodealliance/wasm-tools"
 
 [[publisher.wasm-encoder]]
-version = "0.258.0"
-when = "2026-08-24"
+version = "0.258.3"
+when = "2026-10-02"
 trusted-publisher = "github:bytecodealliance/wasm-tools"
 
 [[publisher.wasm-encoder]]
@@ -184,8 +184,8 @@ when = "2026-07-20"
 trusted-publisher = "github:bytecodealliance/wasm-tools"
 
 [[publisher.wasm-metadata]]
-version = "0.258.0"
-when = "2026-08-24"
+version = "0.258.3"
+when = "2026-10-02"
 trusted-publisher = "github:bytecodealliance/wasm-tools"
 
 [[publisher.wasm-metadata]]
@@ -204,8 +204,8 @@ when = "2026-07-20"
 trusted-publisher = "github:bytecodealliance/wasm-tools"
 
 [[publisher.wasmparser]]
-version = "0.258.0"
-when = "2026-08-24"
+version = "0.258.3"
+when = "2026-10-02"
 trusted-publisher = "github:bytecodealliance/wasm-tools"
 
 [[publisher.wasmparser]]
@@ -214,88 +214,88 @@ when = "2026-09-10"
 trusted-publisher = "github:bytecodealliance/wasm-tools"
 
 [[publisher.wasmprinter]]
-version = "0.258.0"
-when = "2026-08-24"
+version = "0.258.3"
+when = "2026-10-02"
 trusted-publisher = "github:bytecodealliance/wasm-tools"
 
 [[publisher.wasmtime]]
-version = "49.0.0"
-when = "2026-09-21"
+version = "49.0.2"
+when = "2026-10-02"
 trusted-publisher = "github:bytecodealliance/wasmtime"
 
 [[publisher.wasmtime-environ]]
-version = "49.0.0"
-when = "2026-09-21"
+version = "49.0.2"
+when = "2026-10-02"
 trusted-publisher = "github:bytecodealliance/wasmtime"
 
 [[publisher.wasmtime-internal-component-macro]]
-version = "49.0.0"
-when = "2026-09-21"
+version = "49.0.2"
+when = "2026-10-02"
 trusted-publisher = "github:bytecodealliance/wasmtime"
 
 [[publisher.wasmtime-internal-component-util]]
-version = "49.0.0"
-when = "2026-09-21"
+version = "49.0.2"
+when = "2026-10-02"
 trusted-publisher = "github:bytecodealliance/wasmtime"
 
 [[publisher.wasmtime-internal-core]]
-version = "49.0.0"
-when = "2026-09-21"
+version = "49.0.2"
+when = "2026-10-02"
 trusted-publisher = "github:bytecodealliance/wasmtime"
 
 [[publisher.wasmtime-internal-cranelift]]
-version = "49.0.0"
-when = "2026-09-21"
+version = "49.0.2"
+when = "2026-10-02"
 trusted-publisher = "github:bytecodealliance/wasmtime"
 
 [[publisher.wasmtime-internal-fiber]]
-version = "49.0.0"
-when = "2026-09-21"
+version = "49.0.2"
+when = "2026-10-02"
 trusted-publisher = "github:bytecodealliance/wasmtime"
 
 [[publisher.wasmtime-internal-jit-debug]]
-version = "49.0.0"
-when = "2026-09-21"
+version = "49.0.2"
+when = "2026-10-02"
 trusted-publisher = "github:bytecodealliance/wasmtime"
 
 [[publisher.wasmtime-internal-jit-icache-coherence]]
-version = "49.0.0"
-when = "2026-09-21"
+version = "49.0.2"
+when = "2026-10-02"
 trusted-publisher = "github:bytecodealliance/wasmtime"
 
 [[publisher.wasmtime-internal-unwinder]]
-version = "49.0.0"
-when = "2026-09-21"
+version = "49.0.2"
+when = "2026-10-02"
 trusted-publisher = "github:bytecodealliance/wasmtime"
 
 [[publisher.wasmtime-internal-versioned-export-macros]]
-version = "49.0.0"
-when = "2026-09-21"
+version = "49.0.2"
+when = "2026-10-02"
 trusted-publisher = "github:bytecodealliance/wasmtime"
 
 [[publisher.wasmtime-internal-wit-bindgen]]
-version = "49.0.0"
-when = "2026-09-21"
+version = "49.0.2"
+when = "2026-10-02"
 trusted-publisher = "github:bytecodealliance/wasmtime"
 
 [[publisher.wasmtime-wasi]]
-version = "49.0.0"
-when = "2026-09-21"
+version = "49.0.2"
+when = "2026-10-02"
 trusted-publisher = "github:bytecodealliance/wasmtime"
 
 [[publisher.wasmtime-wasi-config]]
-version = "49.0.0"
-when = "2026-09-21"
+version = "49.0.2"
+when = "2026-10-02"
 trusted-publisher = "github:bytecodealliance/wasmtime"
 
 [[publisher.wasmtime-wasi-http]]
-version = "49.0.0"
-when = "2026-09-21"
+version = "49.0.2"
+when = "2026-10-02"
 trusted-publisher = "github:bytecodealliance/wasmtime"
 
 [[publisher.wasmtime-wasi-io]]
-version = "49.0.0"
-when = "2026-09-21"
+version = "49.0.2"
+when = "2026-10-02"
 trusted-publisher = "github:bytecodealliance/wasmtime"
 
 [[publisher.wast]]
@@ -344,8 +344,8 @@ when = "2026-07-20"
 trusted-publisher = "github:bytecodealliance/wasm-tools"
 
 [[publisher.wit-component]]
-version = "0.258.0"
-when = "2026-08-24"
+version = "0.258.3"
+when = "2026-10-02"
 trusted-publisher = "github:bytecodealliance/wasm-tools"
 
 [[publisher.wit-component]]
@@ -364,14 +364,16 @@ when = "2026-07-20"
 trusted-publisher = "github:bytecodealliance/wasm-tools"
 
 [[publisher.wit-parser]]
-version = "0.258.0"
-when = "2026-08-24"
+version = "0.258.3"
+when = "2026-10-02"
 trusted-publisher = "github:bytecodealliance/wasm-tools"
 
 [[publisher.wit-parser]]
 version = "0.259.0"
 when = "2026-09-10"
 trusted-publisher = "github:bytecodealliance/wasm-tools"
+
+[audits.augentic.audits]
 
 [[audits.bytecode-alliance.wildcard-audits.arbitrary]]
 who = "Nick Fitzgerald <fitzgen@gmail.com>"
@@ -1979,67 +1981,5 @@ aggregated-from = "https://raw.githubusercontent.com/zcash/zcash/master/qa/suppl
 who = "Jack Grigg <jack@electriccoin.co>"
 criteria = "safe-to-deploy"
 delta = "0.2.0 -> 0.2.1"
-notes = "No code changes at all."
-aggregated-from = "https://raw.githubusercontent.com/zcash/librustzcash/main/supply-chain/audits.toml"
-
-[[audits.zcash.audits.windows-targets]]
-who = "Jack Grigg <jack@electriccoin.co>"
-criteria = "safe-to-deploy"
-delta = "0.53.0 -> 0.53.5"
-aggregated-from = "https://raw.githubusercontent.com/zcash/librustzcash/main/supply-chain/audits.toml"
-
-[[audits.zcash.audits.windows_aarch64_gnullvm]]
-who = "Jack Grigg <jack@electriccoin.co>"
-criteria = "safe-to-deploy"
-delta = "0.53.0 -> 0.53.1"
-notes = "No code changes at all."
-aggregated-from = "https://raw.githubusercontent.com/zcash/librustzcash/main/supply-chain/audits.toml"
-
-[[audits.zcash.audits.windows_aarch64_msvc]]
-who = "Jack Grigg <jack@electriccoin.co>"
-criteria = "safe-to-deploy"
-delta = "0.53.0 -> 0.53.1"
-notes = "No code changes at all."
-aggregated-from = "https://raw.githubusercontent.com/zcash/librustzcash/main/supply-chain/audits.toml"
-
-[[audits.zcash.audits.windows_i686_gnu]]
-who = "Jack Grigg <jack@electriccoin.co>"
-criteria = "safe-to-deploy"
-delta = "0.53.0 -> 0.53.1"
-notes = "No code changes at all."
-aggregated-from = "https://raw.githubusercontent.com/zcash/librustzcash/main/supply-chain/audits.toml"
-
-[[audits.zcash.audits.windows_i686_gnullvm]]
-who = "Jack Grigg <jack@electriccoin.co>"
-criteria = "safe-to-deploy"
-delta = "0.53.0 -> 0.53.1"
-notes = "No code changes at all."
-aggregated-from = "https://raw.githubusercontent.com/zcash/librustzcash/main/supply-chain/audits.toml"
-
-[[audits.zcash.audits.windows_i686_msvc]]
-who = "Jack Grigg <jack@electriccoin.co>"
-criteria = "safe-to-deploy"
-delta = "0.53.0 -> 0.53.1"
-notes = "No code changes at all."
-aggregated-from = "https://raw.githubusercontent.com/zcash/librustzcash/main/supply-chain/audits.toml"
-
-[[audits.zcash.audits.windows_x86_64_gnu]]
-who = "Jack Grigg <jack@electriccoin.co>"
-criteria = "safe-to-deploy"
-delta = "0.53.0 -> 0.53.1"
-notes = "No code changes at all."
-aggregated-from = "https://raw.githubusercontent.com/zcash/librustzcash/main/supply-chain/audits.toml"
-
-[[audits.zcash.audits.windows_x86_64_gnullvm]]
-who = "Jack Grigg <jack@electriccoin.co>"
-criteria = "safe-to-deploy"
-delta = "0.53.0 -> 0.53.1"
-notes = "No code changes at all."
-aggregated-from = "https://raw.githubusercontent.com/zcash/librustzcash/main/supply-chain/audits.toml"
-
-[[audits.zcash.audits.windows_x86_64_msvc]]
-who = "Jack Grigg <jack@electriccoin.co>"
-criteria = "safe-to-deploy"
-delta = "0.53.0 -> 0.53.1"
 notes = "No code changes at all."
 aggregated-from = "https://raw.githubusercontent.com/zcash/librustzcash/main/supply-chain/audits.toml"

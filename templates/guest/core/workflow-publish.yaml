@@ -16,7 +16,7 @@ jobs:
   ci:
     name: CI
     if: ${{ startsWith(github.ref_name, 'release-') }}
-    uses: augentic/.github/.github/workflows/ci.yaml@v0.2.0
+    uses: augentic/toolkit/.github/workflows/ci.yaml@v0.3.0
     secrets: inherit
     with:
       targets: wasm32-wasip2
@@ -24,12 +24,12 @@ jobs:
   publish:
     name: Publish
     needs: ci
-    uses: augentic/.github/.github/workflows/publish.yaml@v0.2.0
+    uses: augentic/toolkit/.github/workflows/publish.yaml@v0.3.0
 
   deploy:
     name: Deploy
     needs: publish
-    uses: augentic/.github/.github/workflows/wasm.yaml@v0.2.0
+    uses: augentic/toolkit/.github/workflows/wasm.yaml@v0.3.0
     secrets: inherit
     with:
       package: <PACKAGE_NAME>
