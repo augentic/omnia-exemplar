@@ -1,4 +1,4 @@
-#![allow(missing_docs)]
+#![expect(missing_docs, reason = "integration test suite, not a public API")]
 #![cfg(not(miri))]
 
 mod fixture;
@@ -157,7 +157,7 @@ struct XmlBuilder<'a> {
 }
 
 #[derive(PartialEq, Eq)]
-#[allow(dead_code)]
+#[expect(dead_code, reason = "variants exercised by XML builder scenarios in this suite")]
 enum UpdateType {
     None,
     Full,
@@ -165,7 +165,7 @@ enum UpdateType {
     NoActualChanges,
 }
 
-#[allow(dead_code)]
+#[expect(dead_code, reason = "builder methods used by a subset of scenarios in this suite")]
 impl<'a> XmlBuilder<'a> {
     const fn new() -> Self {
         Self {

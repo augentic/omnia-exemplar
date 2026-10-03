@@ -1,5 +1,3 @@
-#![allow(missing_docs)]
-
 //! Integration tests driving the SQL-example handlers through a scripted
 //! `TableStore`: server-assigned ids, partial updates, the referential
 //! check, the JOIN listing, and delete-with-404.
