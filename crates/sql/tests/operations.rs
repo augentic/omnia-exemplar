@@ -1,10 +1,4 @@
-//! Integration tests driving the SQL-example handlers through a scripted
-//! `TableStore`: server-assigned ids, partial updates, the referential
-//! check, the JOIN listing, and delete-with-404.
-//!
-//! `ScriptedTables` answers statements rather than evaluating them, so each
-//! test scripts the rows a handler's queries see and asserts the statements
-//! the handler issued — the ORM-rendered SQL and its bound parameters.
+#![allow(missing_docs, reason = "integration tests, not a published API")]
 
 use omnia_orm::{DataType, Field, Row};
 use omnia_sdk::api::{Client, Metadata};
