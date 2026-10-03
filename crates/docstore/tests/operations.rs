@@ -1,7 +1,4 @@
-//! Native port of the pre-trim docstore example's bash test script: seed the
-//! GTFS fixtures through the create handlers, then assert the result counts
-//! of every filter combination, pagination via the continuation token, and
-//! the CRUD round trips.
+#![allow(missing_docs, reason = "integration tests, not a published API")]
 
 use docstore::{
     CreateRouteRequest, CreateStopRequest, CreateStopTimeRequest, DeleteStopRequest,
