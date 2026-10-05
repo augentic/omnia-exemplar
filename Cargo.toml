@@ -79,7 +79,7 @@ homepage = "https://augentic.io"
 keywords = ["exemplar", "omnia", "wasi", "wasm", "component-model"]
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/augentic/omnia-exemplar"
-rust-version = "1.97"
+rust-version = "1.99"
 version = "0.1.0"
 
 [workspace.lints.rust]
