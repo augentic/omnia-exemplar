@@ -439,7 +439,7 @@ Clippy runs twice: natively with `--all-targets`, then for `wasm32-wasip2`
 over libs, bins and examples only (never tests or benches). The whole
 workspace is in the wasm32 scope — the guest, the handler crates, the
 std-only `template-check` gate — so the host in `examples/runtime.rs` stays
-`cfg_if`-gated to an empty `main` on wasm32. Regenerate the supply-chain files
+`cfg_select!`-gated to an empty `main` on wasm32. Regenerate the supply-chain files
 with `mise run vet-regen`; `vet` itself only checks.
 
 To run the host for real — a manual check, not a test — build the release
