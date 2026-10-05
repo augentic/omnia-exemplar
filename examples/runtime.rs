@@ -9,15 +9,15 @@
 
 cfg_select! {
     not(target_arch = "wasm32") => {
-        use omnia_wasi_blobstore::{WasiBlobstore, BlobstoreDefault};
-        use omnia_wasi_config::{WasiConfig, ConfigDefault};
-        use omnia_wasi_docstore::{WasiDocStore, DocStoreDefault};
-        use omnia_wasi_http::{WasiHttp, HttpDefault};
-        use omnia_wasi_identity::{WasiIdentity, IdentityDefault};
-        use omnia_wasi_keyvalue::{WasiKeyValue, KeyValueDefault};
-        use omnia_wasi_messaging::{WasiMessaging, MessagingDefault};
-        use omnia_wasi_otel::{WasiOtel, OtelDefault};
-        use omnia_wasi_sql::{WasiSql, SqlDefault};
+        use omnia_wasi_blobstore::{BlobstoreDefault, WasiBlobstore};
+        use omnia_wasi_config::{ConfigDefault, WasiConfig};
+        use omnia_wasi_docstore::{DocStoreDefault, WasiDocStore};
+        use omnia_wasi_http::{HttpDefault, WasiHttp};
+        use omnia_wasi_identity::{IdentityDefault, WasiIdentity};
+        use omnia_wasi_keyvalue::{KeyValueDefault, WasiKeyValue};
+        use omnia_wasi_messaging::{MessagingDefault, WasiMessaging};
+        use omnia_wasi_otel::{OtelDefault, WasiOtel};
+        use omnia_wasi_sql::{SqlDefault, WasiSql};
         use omnia_wasi_websocket::{WasiWebSocket, WebSocketDefault};
 
         omnia::runtime!({

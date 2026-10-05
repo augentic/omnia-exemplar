@@ -1399,7 +1399,6 @@ dependencies = [
  "axum",
  "bytes",
  "capability",
- "cfg-if",
  "chrono",
  "docstore",
  "gtfs-adapter",
