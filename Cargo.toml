@@ -41,9 +41,6 @@ tally-connector.workspace = true
 tracing.workspace = true
 wasip3.workspace = true
 
-[dev-dependencies]
-cfg-if.workspace = true
-
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 bytes.workspace = true
 chrono.workspace = true
@@ -115,7 +112,6 @@ unused_result_ok = "warn"
 anyhow = "1.0.104"
 axum = { version = "0.8.9", default-features = false, features = ["json"] }
 bytes = "1.12.1"
-cfg-if = "1.0.5"
 chrono = { version = "0.4.45", features = ["serde"] }
 chrono-tz = "0.10.4"
 http = "1.5.0"

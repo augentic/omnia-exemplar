@@ -7,8 +7,8 @@
 //! cargo run --example runtime -- run target/wasm32-wasip2/release/guest.wasm
 //! ```
 
-cfg_if::cfg_if! {
-    if #[cfg(not(target_arch = "wasm32"))] {
+cfg_select! {
+    not(target_arch = "wasm32") => {
         use omnia_wasi_blobstore::{WasiBlobstore, BlobstoreDefault};
         use omnia_wasi_config::{WasiConfig, ConfigDefault};
         use omnia_wasi_docstore::{WasiDocStore, DocStoreDefault};
@@ -34,7 +34,8 @@ cfg_if::cfg_if! {
                 WasiWebSocket: WebSocketDefault,
             }
         });
-    } else {
+    }
+    _ => {
         fn main() {}
     }
 }
