@@ -19,10 +19,11 @@ const CRATE_LIST_ANCHOR: &str = "tracing.workspace = true";
 /// The manifest is the one listed file whose fixed text matters beyond the
 /// list: the pins under `[workspace.dependencies]`, the lints, the `host`
 /// feature, and the target tables. A line that is neither the template's
-/// nor a stem's entry in one of the two lists is drift; a stem's entry,
-/// `<stem> = { path = "crates/<dir>" }` in the path list or
-/// `<stem>.workspace = true` in the crate list, is kept wherever it stands
-/// and put back after its list's anchor.
+/// nor a stem's entry in one of the two lists is drift. A stem's entry is
+/// kept wherever it stands and put back after its list's anchor:
+/// `<stem> = { path = "crates/<dir>" }` in the path list, and
+/// `<stem>.workspace = true` in the crate list for a stem the path list
+/// names, so a `[package]` key inherited in that shape is drift.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Manifest {
     path: PathBuf,
@@ -98,15 +99,15 @@ impl List {
         }
     }
 
-    // `<stem> = { path = "crates/<dir>" }` is the path list's entry,
-    // `<stem>.workspace = true` the crate list's.
-    fn entry(line: &str) -> Option<Self> {
+    // `<stem> = { path = "crates/<dir>" }` has the path list's shape,
+    // `<stem>.workspace = true` the crate list's; each names its stem.
+    fn shaped(line: &str) -> Option<(Self, &str)> {
         if let Some(stem) = line.strip_suffix(".workspace = true") {
-            return is_stem(stem).then_some(Self::Crates);
+            return is_stem(stem).then_some((Self::Crates, stem));
         }
         let (stem, rest) = line.split_once(" = { path = \"crates/")?;
         let dir = rest.strip_suffix("\" }")?;
-        (is_stem(stem) && is_stem(dir)).then_some(Self::Paths)
+        (is_stem(stem) && is_stem(dir)).then_some((Self::Paths, stem))
     }
 }
 
@@ -120,13 +121,30 @@ struct Split {
 impl Split {
     // A held line shaped as an entry, and not a line of the template, is
     // its list's, once; the rest, a second copy of an entry included, is
-    // diffed against the template.
+    // diffed against the template. A crate line is an entry only for a stem
+    // the path list names, since Cargo spells an inherited `[package]` key
+    // in the same shape.
     fn of(held: &str) -> Self {
+        let own = |line: &str| ROOT_MANIFEST.lines().any(|own| own == line);
+        let lines: Vec<&str> = held.lines().collect();
+        let stems: Vec<&str> = lines
+            .iter()
+            .filter(|line| !own(line))
+            .filter_map(|line| match List::shaped(line) {
+                Some((List::Paths, stem)) => Some(stem),
+                _ => None,
+            })
+            .collect();
+
         let mut split = Self::default();
         let mut rest = Vec::new();
-        for line in held.lines() {
-            let entry =
-                if ROOT_MANIFEST.lines().any(|own| own == line) { None } else { List::entry(line) };
+        for line in lines {
+            let entry = match List::shaped(line) {
+                _ if own(line) => None,
+                Some((List::Crates, stem)) if !stems.contains(&stem) => None,
+                Some((list, _)) => Some(list),
+                None => None,
+            };
             let list = match entry {
                 Some(List::Paths) => &mut split.paths,
                 Some(List::Crates) => &mut split.crates,

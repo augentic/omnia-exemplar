@@ -80,6 +80,41 @@ fn duplicate_entry_is_drift() {
     assert_eq!(tree.read(Manifest::PATH), Some(with_orders()), "the entry is kept once");
 }
 
+// `authors.workspace = true` has a crate line's shape and is a `[package]`
+// key, so it is drift rather than an entry put back under `[dependencies]`.
+#[test]
+fn package_key_inherited() {
+    let tree = Scratch::new();
+    let inherited = with_orders().replace(
+        "\nversion.workspace = true\n",
+        "\nversion.workspace = true\nauthors.workspace = true\n",
+    );
+    assert_ne!(inherited, with_orders(), "the `[package]` table inherits `version`");
+    tree.write(Manifest::PATH, &inherited);
+    let manifest = Manifest::new(tree.root());
+
+    let drift = manifest.restore().expect("the restore");
+
+    let [drifted] = drift.files() else { panic!("the manifest alone drifts: {drift}") };
+    assert_eq!(drifted.lines, ["+ authors.workspace = true"]);
+    assert_eq!(tree.read(Manifest::PATH), Some(with_orders()), "the key is not kept as a stem's");
+}
+
+// A crate line whose stem the path list does not name would be left
+// without its pin by a restore, so it is drift and the restore removes it.
+#[test]
+fn crate_line_without_stem() {
+    let tree = Scratch::new();
+    tree.write(Manifest::PATH, &(template().to_owned() + "serde.workspace = true\n"));
+    let manifest = Manifest::new(tree.root());
+
+    let drift = manifest.restore().expect("the restore");
+
+    let [drifted] = drift.files() else { panic!("the manifest alone drifts: {drift}") };
+    assert_eq!(drifted.lines, ["+ serde.workspace = true"]);
+    assert_eq!(tree.read(Manifest::PATH).as_deref(), Some(template()));
+}
+
 #[test]
 fn missing_laid() {
     let tree = Scratch::new();
