@@ -6,6 +6,7 @@ use std::path::{Path, PathBuf};
 
 use crate::entries::ROOT_MANIFEST;
 use crate::hold::{Drift, Drifted, Error};
+use crate::tree::replace;
 
 // The template line each list follows: the path list runs from `common`'s
 // line to the blank line after it, the guest's `[dependencies]` list from

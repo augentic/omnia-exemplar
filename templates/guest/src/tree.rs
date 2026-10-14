@@ -3,6 +3,7 @@
 use std::fs::{self, OpenOptions};
 use std::io::{ErrorKind, Write as _};
 use std::path::{Path, PathBuf};
+use std::process;
 
 use crate::entries::{ENTRIES, Entry, Role};
 use crate::hold::{Drift, Drifted, Error};
@@ -10,10 +11,11 @@ use crate::hold::{Drift, Drifted, Error};
 /// Lays every file of the template the tree at `root` lacks and returns their paths.
 ///
 /// A file the tree holds is left as it stands, whatever it holds, so a tree
-/// laid once is laid again by nothing. The directories above a file are
-/// made as needed. Every path is held before any is written: a directory
-/// or a symbolic link standing where a file goes, or a file or a symbolic
-/// link on the way to one, refuses the whole lay.
+/// laid once is laid again by nothing. A file whose write fails is removed,
+/// so the next lay lays it again. The directories above a file are made as
+/// needed. Every path is held before any is written: a directory or a
+/// symbolic link standing where a file goes, or a file or a symbolic link
+/// on the way to one, refuses the whole lay.
 ///
 /// # Errors
 ///
@@ -60,7 +62,8 @@ pub fn drift(root: &Path) -> Result<Drift, Error> {
 ///
 /// What [`drift`] would have found is written over and returned, a file
 /// the tree lacks laid among them. Every file is read before any is
-/// written, so a path the hold refuses leaves the tree as it was.
+/// written, so a path the hold refuses leaves the tree as it was, and each
+/// file is put back whole or left as it stood.
 ///
 /// # Errors
 ///
@@ -115,20 +118,50 @@ fn read(root: &Path, entry: &Entry) -> Result<Option<Vec<u8>>, Error> {
 // a file that appeared since the tree was read is kept.
 fn create(root: &Path, entry: &Entry) -> Result<bool, Error> {
     let path = parents(root, entry)?;
-    let file = OpenOptions::new().write(true).create_new(true).open(&path);
-    match file {
-        Ok(mut file) => {
-            file.write_all(entry.body.as_bytes()).map_err(|source| Error::Io { path, source })?;
-            Ok(true)
-        }
-        Err(err) if err.kind() == ErrorKind::AlreadyExists => Ok(false),
-        Err(source) => Err(Error::Io { path, source }),
+    let mut file = match OpenOptions::new().write(true).create_new(true).open(&path) {
+        Ok(file) => file,
+        Err(err) if err.kind() == ErrorKind::AlreadyExists => return Ok(false),
+        Err(source) => return Err(Error::Io { path, source }),
+    };
+    if let Err(source) = file.write_all(entry.body.as_bytes()) {
+        // a body cut short would read as held by the next lay, so the file
+        // goes with the error that cut it; the write's error is the cause
+        // to report whether or not the removal succeeds
+        drop(file);
+        let _ = fs::remove_file(&path);
+        return Err(Error::Io { path, source });
     }
+    Ok(true)
 }
 
 fn write(root: &Path, entry: &Entry) -> Result<(), Error> {
     let path = parents(root, entry)?;
-    fs::write(&path, entry.body).map_err(|source| Error::Io { path, source })
+    replace(&path, entry.body.as_bytes())
+}
+
+// Puts the body at the path whole or not at all, over whatever stands
+// there: it is written beside the path under a name of the process's own
+// and moved over it, so a write that fails leaves the file as it was, and
+// a link planted at the path since it was read is replaced rather than
+// written through.
+pub(crate) fn replace(path: &Path, body: &[u8]) -> Result<(), Error> {
+    let name = path.file_name().unwrap_or_default().to_string_lossy();
+    let staged = path.with_file_name(format!(".{name}.{}~", process::id()));
+    let io = |path: &Path| {
+        let path = path.to_path_buf();
+        move |source| Error::Io { path, source }
+    };
+    let moved = OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(&staged)
+        .and_then(|mut file| file.write_all(body))
+        .map_err(io(&staged))
+        .and_then(|()| fs::rename(&staged, path).map_err(io(path)));
+    if moved.is_err() {
+        let _ = fs::remove_file(&staged);
+    }
+    moved
 }
 
 // Makes the directories above the entry that are missing and answers the
