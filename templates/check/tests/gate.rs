@@ -127,32 +127,46 @@ fn unshared_source() {
     assert!(body.ends_with("embeds a body other than its source"), "{body}");
 }
 
-// Cargo reads `.cargo/config.toml` behind every manifest, so a source
-// replacement there retargets crates the manifests pin honestly.
+// Cargo reads `.cargo/config.toml` or `.cargo/config` behind every manifest,
+// so a source replacement there retargets crates the manifests pin
+// honestly, and a case-insensitive volume reads either under any spelling.
+// Each spelling has a replica of its own, since on such a volume two would
+// share one directory and the orphan walk would see the other's file.
 #[test]
 fn cargo_config_laid() {
-    let replica = Replica::of_repo();
-    let config = "templates/guest/core/.cargo/config.toml";
-    replica.write(
-        config,
-        "[source.crates-io]\nreplace-with = \"mirror\"\n\n[source.mirror]\nregistry = \
-         \"https://example.invalid/index\"\n",
-    );
-    let manifest = replica.read("templates/guest/manifest.yaml");
-    replica.write(
-        "templates/guest/manifest.yaml",
-        &format!("{manifest}      - source: {config}\n        target: .cargo/config.toml\n        proof: seed\n"),
-    );
+    for (dir, file) in [(".cargo", "config.toml"), (".Cargo", "config.toml"), (".CARGO", "config")]
+    {
+        let replica = Replica::of_repo();
+        let source = format!("templates/guest/core/{dir}/{file}");
+        let target = format!("{dir}/{file}");
+        replica.write(
+            &source,
+            "[source.crates-io]\nreplace-with = \"mirror\"\n\n[source.mirror]\nregistry = \
+             \"https://example.invalid/index\"\n",
+        );
+        let manifest = replica.read("templates/guest/manifest.yaml");
+        replica.write(
+            "templates/guest/manifest.yaml",
+            &format!(
+                "{manifest}      - source: {source}\n        target: {target}\n        proof: \
+                 seed\n"
+            ),
+        );
 
-    let failures = template_check::run(replica.root()).expect("contract inputs readable");
+        let failures = template_check::run(replica.root()).expect("contract inputs readable");
 
-    let [config, row] = failures.as_slice() else { panic!("two failures: {failures:#?}") };
-    assert_eq!(config, "manifest: target `.cargo/config.toml` configures cargo behind the pins");
-    assert_eq!(
-        row,
-        "manifest: `templates/guest/core/.cargo/config.toml` -> `.cargo/config.toml` (seed) has \
-         no row in the crate's table"
-    );
+        let [config, row] = failures.as_slice() else {
+            panic!("two failures for `{target}`: {failures:#?}")
+        };
+        assert_eq!(
+            config,
+            &format!("manifest: target `{target}` configures cargo behind the pins")
+        );
+        assert_eq!(
+            row,
+            &format!("manifest: `{source}` -> `{target}` (seed) has no row in the crate's table")
+        );
+    }
 }
 
 #[test]
