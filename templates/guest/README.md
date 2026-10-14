@@ -33,10 +33,13 @@ mode:
 Tokens are `<UPPER_SNAKE>` placeholders declared in the manifest's
 `tokens` map. Only seed templates may carry them; consumers receive the
 tokens verbatim and the omnia adapter's prompts leave them to the
-operator (`.github/workflows/publish.yaml` deploy parameters). The
-package is `guest`, as this repository's own root is, so no token names
-it. A lone uppercase letter (`<P>`) is a Rust generic in a `.rs` seed,
-not a token.
+operator. No entry carries one: the deploy parameters of
+`.github/workflows/publish.yaml` are read from the consuming
+repository's GitHub variables, `STORAGE_ACCOUNT` and `RESOURCE_GROUP`,
+set at repository or organisation level since a job calling a reusable
+workflow names no environment. The package is `guest`, as this
+repository's own root is, so no token names it. A lone uppercase letter
+(`<P>`) is a Rust generic in a `.rs` seed, not a token.
 
 The seed also carries the guest's starting shape: the root `Cargo.toml`
 as both the workspace and the deployable package, `crate-type =
@@ -69,7 +72,9 @@ Authoring rules:
   manifest entry without its row, a row without its entry, and a body
   under `core/` without either.
 - New tokens require a manifest `tokens` entry, a `values.yaml` render
-  value, and may appear only in `seed` templates.
+  value, and may appear only in `seed` templates. An operator's fill is
+  an edit `drift` must not report, so a body carrying a token cannot be
+  `Role::Static`.
 - A merge to `main` is a release act: the omnia adapter takes it by moving
   the commit it pins the crate at.
 - `template-check` pins an exact `schema-version` for this manifest. The

@@ -7,9 +7,7 @@
 //! read in place, so the tooling a guest starts with is the tooling this
 //! repository's CI runs under, with no copy to keep in step; a
 //! [`Seed`](Proof::Seed) entry is a project-start baseline under
-//! `templates/guest/core/`, which the project evolves. A seed body may
-//! carry the placeholders the manifest's `tokens` declare, for the
-//! operator to fill.
+//! `templates/guest/core/`, which the project evolves.
 //!
 //! A tree is laid with [`lay`] and held with [`drift`] and [`restore`]:
 //! every [`Static`](Role::Static) file byte for byte, while a

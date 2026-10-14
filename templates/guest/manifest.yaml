@@ -19,9 +19,7 @@
 
 schema-version: 3
 
-tokens:
-  STORAGE_ACCOUNT: Azure storage account receiving the built component.
-  RESOURCE_GROUP: Azure resource group owning the storage account.
+tokens: {}
 
 assemblies:
   core:
