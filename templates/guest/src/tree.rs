@@ -144,7 +144,7 @@ fn write(root: &Path, entry: &Entry) -> Result<(), Error> {
 // and moved over it, so a write that fails leaves the file as it was, and
 // a link planted at the path since it was read is replaced rather than
 // written through.
-pub(crate) fn replace(path: &Path, body: &[u8]) -> Result<(), Error> {
+pub fn replace(path: &Path, body: &[u8]) -> Result<(), Error> {
     let name = path.file_name().unwrap_or_default().to_string_lossy();
     let staged = path.with_file_name(format!(".{name}.{}~", process::id()));
     let io = |path: &Path| {

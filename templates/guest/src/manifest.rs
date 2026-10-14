@@ -48,7 +48,9 @@ impl Manifest {
     ///
     /// # Errors
     ///
-    /// Returns [`Error::Io`] when the manifest cannot be read.
+    /// - [`Error::Occupied`] when a directory or a symbolic link stands at
+    ///   the manifest's path.
+    /// - [`Error::Io`] when the manifest cannot be read.
     pub fn drift(&self) -> Result<Drift, Error> {
         Ok(self.split()?.drift)
     }
@@ -57,30 +59,36 @@ impl Manifest {
     ///
     /// Each list's entries are kept after its anchor, in the order the tree
     /// held them, and what [`drift`](Self::drift) would have found is
-    /// returned. A manifest that stands is not written.
+    /// returned. A manifest that stands is not written; one that differs is
+    /// written whole or left as it stood.
     ///
     /// # Errors
     ///
-    /// Returns [`Error::Io`] when the manifest cannot be read or written.
+    /// - [`Error::Occupied`] when a directory or a symbolic link stands at
+    ///   the manifest's path.
+    /// - [`Error::Io`] when the manifest cannot be read or written.
     pub fn restore(&self) -> Result<Drift, Error> {
         let split = self.split()?;
         if !split.drift.is_empty() {
-            fs::write(&self.path, split.render()).map_err(|source| Error::Io {
-                path: self.path.clone(),
-                source,
-            })?;
+            replace(&self.path, split.render().as_bytes())?;
         }
         Ok(split.drift)
     }
 
     fn split(&self) -> Result<Split, Error> {
-        match fs::read_to_string(&self.path) {
-            Ok(held) => Ok(Split::of(&held)),
-            Err(err) if err.kind() == ErrorKind::NotFound => Ok(Split::of("")),
-            Err(source) => Err(Error::Io {
+        let io = |source| Error::Io {
+            path: self.path.clone(),
+            source,
+        };
+        match fs::symlink_metadata(&self.path) {
+            Ok(meta) if meta.is_file() => {
+                fs::read_to_string(&self.path).map(|held| Split::of(&held)).map_err(io)
+            }
+            Ok(_) => Err(Error::Occupied {
                 path: self.path.clone(),
-                source,
             }),
+            Err(err) if err.kind() == ErrorKind::NotFound => Ok(Split::of("")),
+            Err(source) => Err(io(source)),
         }
     }
 }

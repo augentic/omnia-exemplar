@@ -2,7 +2,7 @@
 
 mod support;
 
-use omnia_template::Manifest;
+use omnia_template::{Error, Manifest};
 
 use self::support::Scratch;
 
@@ -130,6 +130,30 @@ fn missing_laid() {
         tree.read(Manifest::PATH).as_deref(),
         Some(template()),
         "the template's manifest is laid"
+    );
+}
+
+#[cfg(unix)]
+#[test]
+fn occupied_by_symlink() {
+    let tree = Scratch::new();
+    tree.write("elsewhere.toml", "[package]\nname = \"other\"\n");
+    std::os::unix::fs::symlink(
+        tree.root().join("elsewhere.toml"),
+        tree.root().join(Manifest::PATH),
+    )
+    .expect("a link at the manifest's path");
+    let manifest = Manifest::new(tree.root());
+
+    let err = manifest.drift().expect_err("the hold is refused");
+    assert!(matches!(&err, Error::Occupied { path } if path.ends_with(Manifest::PATH)), "{err}");
+
+    let err = manifest.restore().expect_err("the restore is refused");
+    assert!(matches!(&err, Error::Occupied { path } if path.ends_with(Manifest::PATH)), "{err}");
+    assert_eq!(
+        tree.read("elsewhere.toml").as_deref(),
+        Some("[package]\nname = \"other\"\n"),
+        "the link's target stands"
     );
 }
 
