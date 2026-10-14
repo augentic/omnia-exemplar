@@ -34,15 +34,57 @@ fn retargeted_pin() {
     let failures = template_check::run(replica.root()).expect("contract inputs readable");
 
     let [pin, body] = failures.as_slice() else { panic!("two failures: {failures:#?}") };
-    assert!(
-        pin.starts_with("templates/guest/core/Cargo.toml: `omnia-sdk` names a source of its own"),
-        "{pin}"
+    assert_eq!(
+        pin,
+        "templates/guest/core/Cargo.toml: `omnia-sdk` sets `git`, which a seed dependency never \
+         does"
     );
     assert_eq!(
         body,
         "omnia-template: `templates/guest/core/Cargo.toml` -> `Cargo.toml` embeds a body other \
          than its source"
     );
+}
+
+// The version reads as the root's pin while `package` fetches another crate
+// under the familiar name.
+#[test]
+fn renamed_package() {
+    let replica = Replica::of_repo();
+    let seed = replica.read(SEED_MANIFEST);
+    let pin = seed
+        .lines()
+        .find(|line| line.starts_with("omnia-sdk = "))
+        .expect("the seed pins `omnia-sdk`");
+    replica.write(
+        SEED_MANIFEST,
+        &seed.replace(pin, "omnia-sdk = { version = \"0.36.0\", package = \"omnia-test\" }"),
+    );
+
+    let failures = template_check::run(replica.root()).expect("contract inputs readable");
+
+    let [pin, body] = failures.as_slice() else { panic!("two failures: {failures:#?}") };
+    assert_eq!(
+        pin,
+        "templates/guest/core/Cargo.toml: `omnia-sdk` sets `package`, which a seed dependency \
+         never does"
+    );
+    assert!(body.ends_with("embeds a body other than its source"), "{body}");
+}
+
+// A build dependency runs on the consumer's build host, and the root never
+// pinned this one.
+#[test]
+fn unpinned_crate() {
+    let replica = Replica::of_repo();
+    let seed = replica.read(SEED_MANIFEST);
+    replica.write(SEED_MANIFEST, &format!("{seed}\n[build-dependencies]\nrand = \"0.9.0\"\n"));
+
+    let failures = template_check::run(replica.root()).expect("contract inputs readable");
+
+    let [pin, body] = failures.as_slice() else { panic!("two failures: {failures:#?}") };
+    assert_eq!(pin, "templates/guest/core/Cargo.toml: `rand` is not a pin of the root workspace");
+    assert!(body.ends_with("embeds a body other than its source"), "{body}");
 }
 
 #[test]
@@ -81,8 +123,36 @@ fn unshared_source() {
     let failures = template_check::run(replica.root()).expect("contract inputs readable");
 
     let [source, body] = failures.as_slice() else { panic!("two failures: {failures:#?}") };
-    assert_eq!(source, "templates/guest/core/Cargo.toml: `elsewhere` names a source of its own");
+    assert_eq!(source, "templates/guest/core/Cargo.toml: `elsewhere` is a path outside the tree");
     assert!(body.ends_with("embeds a body other than its source"), "{body}");
+}
+
+// Cargo reads `.cargo/config.toml` behind every manifest, so a source
+// replacement there retargets crates the manifests pin honestly.
+#[test]
+fn cargo_config_laid() {
+    let replica = Replica::of_repo();
+    let config = "templates/guest/core/.cargo/config.toml";
+    replica.write(
+        config,
+        "[source.crates-io]\nreplace-with = \"mirror\"\n\n[source.mirror]\nregistry = \
+         \"https://example.invalid/index\"\n",
+    );
+    let manifest = replica.read("templates/guest/manifest.yaml");
+    replica.write(
+        "templates/guest/manifest.yaml",
+        &format!("{manifest}      - source: {config}\n        target: .cargo/config.toml\n        proof: seed\n"),
+    );
+
+    let failures = template_check::run(replica.root()).expect("contract inputs readable");
+
+    let [config, row] = failures.as_slice() else { panic!("two failures: {failures:#?}") };
+    assert_eq!(config, "manifest: target `.cargo/config.toml` configures cargo behind the pins");
+    assert_eq!(
+        row,
+        "manifest: `templates/guest/core/.cargo/config.toml` -> `.cargo/config.toml` (seed) has \
+         no row in the crate's table"
+    );
 }
 
 #[test]

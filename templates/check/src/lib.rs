@@ -202,6 +202,12 @@ fn check_entries(
                 failures.push(format!("manifest: unsafe {label} path `{path}`"));
             }
         }
+        if Path::new(&entry.target).components().any(|part| part.as_os_str() == ".cargo") {
+            failures.push(format!(
+                "manifest: target `{}` configures cargo behind the pins",
+                entry.target
+            ));
+        }
 
         let Ok(body) = fs::read_to_string(root.join(&entry.source)) else {
             failures.push(format!("manifest: missing source `{}`", entry.source));
@@ -269,10 +275,9 @@ fn check_entries(
     }
 }
 
-/// A seed `Cargo.toml` names no source of its own and pins every dependency
-/// it shares with the root workspace at the workspace's version, so the
-/// scaffold tracks the omnia version the exemplar itself builds against and
-/// compiles nothing the root does not.
+// A seed `Cargo.toml` resolves every crate as the root workspace does, so
+// the scaffold compiles nothing the exemplar's own supply-chain gates have
+// not seen.
 fn check_seed_versions(root: &Path, source: &str, rendered: &str, failures: &mut Vec<String>) {
     let Ok(workspace) = fs::read_to_string(root.join("Cargo.toml"))
         .map_err(|err| err.to_string())
@@ -290,13 +295,22 @@ fn check_seed_versions(root: &Path, source: &str, rendered: &str, failures: &mut
 }
 
 // Every dependency of the seed that does not resolve as the root workspace
-// would have it. A `git` or `registry` key, a `path` outside the tree, or a
-// `[patch]` or `[replace]` table retargets a crate whatever its version
-// reads, so each fails outright. A `path` inside the tree is a crate of the
-// tree, which the root does not pin; a `workspace = true` line inherits the
-// pin from the seed's own workspace table, which is checked in its turn.
+// would have it. A dependency has one of three shapes, and anything else
+// fails:
+//
+// - `workspace = true` inherits the seed's own table, checked in its turn
+// - a `path` inside the tree is a crate of the tree, which the root does
+//   not pin
+// - a `version` is the root's pin for that name
+//
+// Beside its shape a dependency sets feature keys alone. The admitted keys
+// are a closed list, so `package`, `git`, `registry`, `branch`, `rev`, and
+// `tag` each fail whatever the version reads, as do a `[patch]` or
+// `[replace]` table.
 fn seed_dependency_failures(workspace: &toml::Value, seed: &toml::Value) -> Vec<String> {
-    let workspace_deps = workspace.get("workspace").and_then(|w| w.get("dependencies"));
+    const SHAPE_KEYS: [&str; 3] = ["workspace", "path", "version"];
+    const FEATURE_KEYS: [&str; 3] = ["features", "default-features", "optional"];
+    let pins = workspace.get("workspace").and_then(|w| w.get("dependencies"));
     let mut failures = Vec::new();
 
     for table in ["patch", "replace"] {
@@ -306,22 +320,38 @@ fn seed_dependency_failures(workspace: &toml::Value, seed: &toml::Value) -> Vec<
     }
 
     for (name, spec) in dependency_tables(seed) {
-        let key = |key: &str| spec.as_table().and_then(|table| table.get(key));
-        let path = key("path").and_then(toml::Value::as_str);
-        let sourced =
-            key("git").is_some() || key("registry").is_some() || path.is_some_and(is_unsafe);
-        let inherits = key("workspace").and_then(toml::Value::as_bool) == Some(true);
-        let expected = workspace_deps.and_then(|deps| deps.get(&name)).and_then(version);
+        let table = spec.as_table();
+        let mut keys = table.into_iter().flat_map(toml::Table::keys).map(String::as_str);
+        if let Some(key) = keys.find(|key| !SHAPE_KEYS.contains(key) && !FEATURE_KEYS.contains(key))
+        {
+            failures.push(format!("`{name}` sets `{key}`, which a seed dependency never does"));
+            continue;
+        }
 
-        if sourced {
-            failures.push(format!("`{name}` names a source of its own"));
-        } else if let Some(expected) = expected {
-            if path.is_some() {
-                failures.push(format!("`{name}` is a path, the workspace pins {expected:?}"));
-            } else if !inherits && version(spec).as_deref() != Some(expected.as_str()) {
-                let actual = version(spec).unwrap_or_default();
-                failures.push(format!("`{name}` pins {actual:?}, the workspace pins {expected:?}"));
+        let key = |key: &str| table.and_then(|table| table.get(key));
+        let inherits = key("workspace").and_then(toml::Value::as_bool) == Some(true);
+        let path = key("path").and_then(toml::Value::as_str);
+        let pinned = pins.and_then(|pins| pins.get(&name)).and_then(version);
+        match (inherits, path, version(spec)) {
+            (true, None, None) => {}
+            (false, Some(path), None) if is_unsafe(path) => {
+                failures.push(format!("`{name}` is a path outside the tree"));
             }
+            (false, Some(_), None) => {
+                if let Some(pinned) = pinned {
+                    failures.push(format!("`{name}` is a path, the root pins {pinned:?}"));
+                }
+            }
+            (false, None, Some(actual)) => match pinned {
+                Some(expected) if expected == actual => {}
+                Some(expected) => {
+                    failures.push(format!("`{name}` pins {actual:?}, the root pins {expected:?}"));
+                }
+                None => failures.push(format!("`{name}` is not a pin of the root workspace")),
+            },
+            _ => failures.push(format!(
+                "`{name}` is none of an inherited pin, a path in the tree, or a version"
+            )),
         }
     }
     failures
