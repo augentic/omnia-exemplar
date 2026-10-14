@@ -3,6 +3,10 @@ name: Publish Release
 on:
   workflow_dispatch:
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
 permissions: {}
 
 jobs:
@@ -22,6 +26,7 @@ jobs:
     permissions:
       contents: read
     uses: augentic/toolkit/.github/workflows/ci.yaml@v0.6.0
+    secrets: inherit
     with:
       targets: wasm32-wasip2
 
