@@ -202,7 +202,11 @@ fn check_entries(
                 failures.push(format!("manifest: unsafe {label} path `{path}`"));
             }
         }
-        if Path::new(&entry.target).components().any(|part| part.as_os_str() == ".cargo") {
+        // cargo probes `.cargo` by name, which a case-insensitive volume
+        // answers for any spelling
+        let cargo_config =
+            |part: std::path::Component<'_>| part.as_os_str().eq_ignore_ascii_case(".cargo");
+        if Path::new(&entry.target).components().any(cargo_config) {
             failures.push(format!(
                 "manifest: target `{}` configures cargo behind the pins",
                 entry.target
