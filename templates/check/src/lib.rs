@@ -5,7 +5,8 @@
 //! its repository-root file in place (`source == target`, token-free —
 //! no second copy), renders `seed` templates with `values.yaml`,
 //! syntax-checks the rendered output, and holds the `omnia-template`
-//! crate's table to the manifest entry for entry.
+//! crate's table to the manifest entry for entry, each embedded body the
+//! bytes of its source.
 //!
 //! The gate runs inside the standard test suite (`mise run test` /
 //! `mise run ci`) via `tests/gate.rs`, and stand-alone through
@@ -116,16 +117,17 @@ pub fn run(root: &Path) -> Result<Vec<String>, String> {
     check_token_declarations(&manifest.tokens, &values, &mut failures);
     check_entries(root, &subtree, &manifest, &values, &mut failures);
     check_orphans(root, &subtree, &manifest, &mut failures)?;
-    check_crate(&manifest, &mut failures);
+    check_crate(root, &manifest, &mut failures);
 
     Ok(failures)
 }
 
 // The crate's table is the manifest as data, so the two list the same
-// entries: the same source read for the same target under the same proof.
-// The body itself needs no check, since `include_str!` embeds the source
-// the row names.
-fn check_crate(manifest: &Manifest, failures: &mut Vec<String>) {
+// entries, the same source read for the same target under the same proof,
+// and a row's body is the bytes of the source it names: `lay` and
+// `restore` write the body, while the checks above read the source. A
+// source that cannot be read is reported with the manifest's entry.
+fn check_crate(root: &Path, manifest: &Manifest, failures: &mut Vec<String>) {
     let declared: BTreeSet<(&str, &str, Proof)> = manifest
         .assemblies
         .core
@@ -147,6 +149,17 @@ fn check_crate(manifest: &Manifest, failures: &mut Vec<String>) {
             "omnia-template: `{source}` -> `{target}` ({}) is not a manifest entry",
             proof.name()
         ));
+    }
+
+    for entry in ENTRIES {
+        if let Ok(on_disk) = fs::read(root.join(entry.source))
+            && on_disk != entry.body.as_bytes()
+        {
+            failures.push(format!(
+                "omnia-template: `{}` -> `{}` embeds a body other than its source",
+                entry.source, entry.path
+            ));
+        }
     }
 }
 
@@ -242,7 +255,7 @@ fn check_entries(
                 if let Some(err) = syntax_error(&entry.target, &rendered) {
                     failures.push(format!("{}: rendered output is invalid: {err}", entry.source));
                 }
-                if entry.target == "Cargo.toml" {
+                if Path::new(&entry.target).file_name().is_some_and(|name| name == "Cargo.toml") {
                     check_seed_versions(root, &entry.source, &rendered, failures);
                 }
             }
@@ -270,24 +283,41 @@ fn check_seed_versions(root: &Path, source: &str, rendered: &str, failures: &mut
     let Ok(seed) = toml::from_str::<toml::Value>(rendered) else {
         return;
     };
-    let workspace_deps = workspace.get("workspace").and_then(|w| w.get("dependencies"));
+    for failure in seed_pin_failures(&workspace, &seed) {
+        failures.push(format!("{source}: {failure}"));
+    }
+}
 
-    for (name, seed_dep) in dependency_tables(&seed) {
+// Every dependency the seed shares with the root workspace that does not
+// resolve to the root's pin. A `git`, `path`, or `registry` key retargets
+// the crate whatever its version reads, so it fails outright. A
+// `workspace = true` line without one inherits the pin from the seed's own
+// workspace table, which is checked in its turn.
+fn seed_pin_failures(workspace: &toml::Value, seed: &toml::Value) -> Vec<String> {
+    const SOURCES: [&str; 3] = ["git", "path", "registry"];
+    let workspace_deps = workspace.get("workspace").and_then(|w| w.get("dependencies"));
+    let mut failures = Vec::new();
+
+    for (name, spec) in dependency_tables(seed) {
         let Some(expected) = workspace_deps.and_then(|deps| deps.get(&name)).and_then(version)
         else {
             continue;
         };
-        // a `.workspace = true` line inherits the pin from the seed's own
-        // workspace table, which is checked in its turn
-        let Some(actual) = version(seed_dep) else {
-            continue;
-        };
-        if actual != expected {
+        let table = spec.as_table();
+        let sourced = table.is_some_and(|table| SOURCES.iter().any(|key| table.contains_key(*key)));
+        let inherits = table.is_some_and(|table| {
+            table.get("workspace").and_then(toml::Value::as_bool) == Some(true)
+        });
+        if sourced {
             failures.push(format!(
-                "{source}: `{name}` pins {actual:?}, the workspace pins {expected:?}"
+                "`{name}` names a source of its own, the workspace pins {expected:?}"
             ));
+        } else if !inherits && version(spec).as_deref() != Some(expected.as_str()) {
+            let actual = version(spec).unwrap_or_default();
+            failures.push(format!("`{name}` pins {actual:?}, the workspace pins {expected:?}"));
         }
     }
+    failures
 }
 
 /// Every `[dependencies]`-shaped table in a manifest, the workspace's and
