@@ -8,26 +8,27 @@ Unreleased
 
 ### Changed
 
-- **The guest template is a crate.** `templates/guest` is `omnia-template`:
-  `ENTRIES` embeds every file of the tree a guest starts from, an `exact`
-  entry the repository-root file read in place and a `seed` entry its body
-  under `core/` at the same path, each with a role — `static`, held byte for
-  byte, or `listed`, a file a build appends lines to — and `lay`, `drift`,
-  `restore`, and `Manifest` are what a consumer does with a tree over it.
-  The Emery omnia adapter depends on it from a pinned checkout in place of
-  reading `manifest.yaml`; that file, `values.yaml`, and the JSON schema are
-  gone, and so are the `PACKAGE_NAME` and `CRATE_NAME` tokens, the package
-  being `guest` as the root is. The template takes the layout the adapter
-  lays: the root manifest as the workspace with its pins, the `host`
-  feature and the two stem lists; `src/lib.rs` exporting HTTP and messaging
-  over `Capabilities`-bounded routers built from `src/routes.rs` and
+- **The guest template is also a crate.** `templates/guest` is
+  `omnia-template`, beside the manifest that stays the contract: `ENTRIES`
+  is `manifest.yaml`'s entries as data, each body embedded through
+  `include_str!` — an `exact` entry the repository-root file read in place,
+  a `seed` entry its body under `core/` at the target's own path — with a
+  role apiece, `static`, held byte for byte, or `listed`, a file a build
+  appends lines to; `lay`, `drift`, `restore`, and `Manifest` are what a
+  consumer does with a tree over it. The Emery omnia adapter compiles the
+  crate in at a pinned commit rather than reading a checkout at build time,
+  and `template-check` holds the crate's table to the manifest entry for
+  entry. The template takes the layout the adapter lays: the root manifest
+  as the workspace with its pins, the `host` feature and the two stem
+  lists; `src/lib.rs` exporting HTTP and messaging over
+  `Capabilities`-bounded routers built from `src/routes.rs` and
   `src/messaging.rs`; the two rungs as `ROUTES` and `TOPICS` tables; the
   `common` crate; `examples/runtime.rs`; and a least-privilege
-  `publish.yaml` naming its secrets. `template-check` holds the table to the
-  tree (exact bodies in place, tokens, syntax, pins, orphans, one toolkit
-  tag), and its scaffold proof lays the template and runs the adapter's
-  verify checks — clippy, test, and the `wasm32-wasip2` build — over it.
-  `.gitignore` gains `.emery/`.
+  `publish.yaml` naming its secrets. The package is `guest`, as the root
+  is, so the `PACKAGE_NAME` and `CRATE_NAME` tokens are gone. The scaffold
+  proof renders the manifest and runs the adapter's verify checks — clippy,
+  test, and the `wasm32-wasip2` build — over it. `.gitignore` gains
+  `.emery/`.
 - Tests moved to `omnia-test`: every hand-written `tests/provider.rs` mock is
   now an `omnia_test::guest::Provider` seeded with the `omnia_test::guest`
   doubles, and `acme-test` (`crates/test`) is gone — its `Fetch` matcher is

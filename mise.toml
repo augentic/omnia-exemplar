@@ -2,16 +2,14 @@
 includes = ["git::https://github.com/augentic/toolkit.git//mise/rust.toml?ref=v0.6.0"]
 
 # No `[env]` knobs: every workspace member is dual-target — the root guest
-# lib, the `crates/*` handler libs, the std-only template crate and its
-# gate, and the `cfg_select!`-gated `examples/runtime.rs` host (an empty
-# `main` on wasm32) — so the shared `lint` covers the whole workspace, and
-# `outdated` ignores nothing. Integration tests are host-only and never in
-# that scope.
+# lib, the `crates/*` handler libs, the std-only template crate and its gate, and
+# the `cfg_select!`-gated `examples/runtime.rs` host (an empty `main` on wasm32) —
+# so the shared `lint` covers the whole workspace, and `outdated`
+# ignores nothing. Integration tests are host-only and never in that scope.
 #
 # This file is an `exact` entry of the guest template contract
-# (`templates/guest`, the `omnia-template` crate): keep it token-free and
-# generic to any Omnia guest workspace; exemplar-only tasks do not belong
-# here.
+# (`templates/guest/manifest.yaml`): keep it token-free and generic to any
+# Omnia guest workspace; exemplar-only tasks do not belong here.
 
 # -------------------------------------
 # Guest (project-specific; the generic Rust tasks live in the include)

@@ -1,6 +1,6 @@
-//! The table of the template's files, each embedded with how it is proven and how a tree holds it.
+//! The manifest's entries as data, each with its body embedded and how a tree holds it.
 
-/// How a file of the template is proven.
+/// How a file of the template is proven, the manifest's `proof`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Proof {
     /// The repository-root file at the entry's path, read in place and
@@ -24,42 +24,23 @@ pub enum Role {
     Listed,
 }
 
-/// One file of the template: its root-relative path, its body, its proof, and its role.
+/// One entry of the manifest: where its body is read from, where it is laid, its proof, and its role.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Entry {
-    /// The `/`-separated path of the file, relative to the tree's root.
+    /// The repository-relative file the body is read from, the manifest's
+    /// `source`.
+    pub source: &'static str,
+    /// The `/`-separated path of the file, relative to the tree's root, the
+    /// manifest's `target`.
     pub path: &'static str,
-    /// The whole content the file holds when the template lays it.
+    /// The whole content the file holds when the template lays it, the
+    /// `source` embedded at compile time.
     pub body: &'static str,
     /// How the file is proven.
     pub proof: Proof,
     /// How a tree holds the file.
     pub role: Role,
 }
-
-/// A placeholder a [`Seed`](Proof::Seed) body carries for the operator to fill.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct Token {
-    /// The name between the angle brackets, `<UPPER_SNAKE>`.
-    pub name: &'static str,
-    /// What the operator fills it with.
-    pub description: &'static str,
-}
-
-/// The closed set of placeholders a body may carry, each spelled `<NAME>`.
-///
-/// Both stand in `.github/workflows/publish.yaml`, the deploy parameters
-/// no template can know.
-pub static TOKENS: &[Token] = &[
-    Token {
-        name: "STORAGE_ACCOUNT",
-        description: "Azure storage account receiving the built component.",
-    },
-    Token {
-        name: "RESOURCE_GROUP",
-        description: "Azure resource group owning the storage account.",
-    },
-];
 
 // The root manifest is the one body a rule of the crate reads on its own,
 // so it is embedded by name and the table carries the same string.
@@ -72,6 +53,7 @@ pub const ROOT_MANIFEST: &str =
 macro_rules! exact {
     ($path:literal, $role:expr) => {
         Entry {
+            source: $path,
             path: $path,
             body: include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../../", $path)),
             proof: Proof::Exact,
@@ -83,6 +65,7 @@ macro_rules! exact {
 macro_rules! seed {
     ($path:literal, $role:expr) => {
         Entry {
+            source: concat!("templates/guest/core/", $path),
             path: $path,
             body: include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/core/", $path)),
             proof: Proof::Seed,
@@ -91,7 +74,10 @@ macro_rules! seed {
     };
 }
 
-/// Every file of the template, sorted by path.
+/// Every entry of `templates/guest/manifest.yaml`, sorted by path.
+///
+/// The `template-check` gate holds this table to the manifest, entry for
+/// entry, and each body is the entry's `source` embedded at compile time.
 ///
 /// The tree is the root-package guest this repository teaches:
 ///
@@ -115,6 +101,7 @@ pub static ENTRIES: &[Entry] = &[
     exact!(".gitignore", Role::Static),
     exact!(".vscode/settings.json", Role::Static),
     Entry {
+        source: "templates/guest/core/Cargo.toml",
         path: "Cargo.toml",
         body: ROOT_MANIFEST,
         proof: Proof::Seed,

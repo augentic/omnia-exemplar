@@ -4088,6 +4088,7 @@ name = "template-check"
 version = "0.1.0"
 dependencies = [
  "omnia-template",
+ "serde",
  "serde-saphyr",
  "serde_json",
  "toml",

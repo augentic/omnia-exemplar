@@ -1,5 +1,5 @@
-//! The scaffold proof: a project laid from the template passes the checks
-//! a build is held to, with no hand edits.
+//! The scaffold proof: a project rendered from the manifest passes the
+//! checks a build is held to, with no hand edits.
 //!
 //! The scaffold builds against the same published omnia the exemplar does —
 //! the root lockfile seeds the scaffold's, so every crates.io dependency
@@ -15,7 +15,7 @@ use std::{env, fs};
 // The checks are the omnia target adapter's verify over an integrated tree,
 // so a template that passes here passes a wave whose slices wrote nothing.
 #[test]
-fn laid_scaffold() {
+fn rendered_scaffold() {
     let root = template_check::repo_root();
     let target_dir =
         env::var_os("CARGO_TARGET_DIR").map_or_else(|| root.join("target"), PathBuf::from);
@@ -23,10 +23,8 @@ fn laid_scaffold() {
     if dest.exists() {
         fs::remove_dir_all(&dest).expect("stale scaffold removed");
     }
-    fs::create_dir_all(&dest).expect("scaffold root");
 
-    let laid = omnia_template::lay(&dest).expect("the template lays");
-    assert_eq!(laid.len(), omnia_template::ENTRIES.len(), "every file is laid");
+    template_check::scaffold(&root, &dest).expect("scaffold renders");
     fs::copy(root.join("Cargo.lock"), dest.join("Cargo.lock")).expect("lockfile seeded");
 
     cargo(&dest, &target_dir, &["clippy", "--workspace", "--all-targets", "--", "-D", "warnings"]);

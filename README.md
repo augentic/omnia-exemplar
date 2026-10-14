@@ -341,8 +341,7 @@ hand-written mock provider anywhere in the workspace.
   once, its static files held and restored, its root manifest held around
   its stem lists
 - `templates/check/tests` — the template contract gate and the scaffold
-  proof (a guest laid from the template lints, tests, and builds for
-  `wasm32-wasip2`)
+  proof (a rendered guest lints, tests, and builds for `wasm32-wasip2`)
 
 ### Component rung
 
@@ -382,41 +381,46 @@ exercised.
 ## Guest template contract
 
 This repository is the source of truth for the reusable Omnia guest
-tooling. [`templates/guest`](templates/guest) is the `omnia-template`
-crate: every file of the tree a guest starts from, embedded as data, with
-the operations a consumer lays a tree and holds it with
+tooling. [`templates/guest/manifest.yaml`](templates/guest/manifest.yaml)
+maps repository files to consumer scaffold targets, and the
+`omnia-template` crate beside it ([`templates/guest`](templates/guest))
+embeds the same map as Rust, every body compiled in
 ([contract and authoring rules](templates/guest/README.md)).
 
-The Emery omnia target adapter is the consumer. It depends on the crate
-from a checkout of this repository pinned to a commit, lays the template
-into a fresh working copy before the first slice builds, and holds the
-tree's static files to it after every build and verify. `exact` entries
-are the repository-root files themselves, read in place at compile time,
-and seed baselines live under `templates/guest/core/`. **A merge to
-`main` is a release the consumer takes by moving its pin**: the CI gate
-(including the template contract check below) is required on merge so
-that every commit a consumer may pin is a green one, and a change to the
-table's shape is a change to the crate's version.
+The Emery omnia target adapter depends on the crate at a pinned commit of
+this repository and lays the template from it at build time: `exact`
+manifest entries are the repository-root files themselves, read in place
+through `include_str!`, and seed baselines live under
+`templates/guest/core/`. There is no hand-vendored copy anywhere.
+**Merges to `main` are therefore release acts**: the CI gate (including
+the template contract check below) is required on merge, not advisory,
+because every commit a consumer may pin must be a green one.
+
+The gate pins an exact `schema-version` for
+`templates/guest/manifest.yaml`; the adapter reads the crate, so a bump
+here lands with the table change it describes and reaches a consumer with
+its pin.
 
 The contract is enforced by the `template-check` gate, which runs
 inside the standard test suite and stand-alone:
 
 ```shell
-cargo run -p template-check   # exact bodies in place, tokens, syntax, pins, orphans, one toolkit tag
+cargo run -p template-check   # schema, tokens, path safety, seed render, the crate's table
 ```
 
-`exact` entries read their repository-root file in place (token-free), so
-a green root vouches for the scaffold with no diff to maintain. The seed
-gives a new service the shape above — the root package as the component
-over provider-generic HTTP and messaging routers, `rlib` alongside
-`cdylib`, the two rungs under `omnia_test::guest::Provider`, a `common`
-crate for the tables every stem shares, and the local host behind the
-`host` feature — and the suite's scaffold proof lays the template and runs
-the adapter's verify checks over it against the same published omnia the
-exemplar uses. To move to a new omnia release, bump every `omnia-*` line
-in `[workspace.dependencies]` together (and the omnia-extensions crates to
-their matching release), re-resolve `Cargo.lock`, and bump the seed's
-pins, which the gate holds equal to the workspace's.
+`exact` entries reference their repository-root file in place
+(`source == target`, token-free), so a green root vouches for the
+scaffold with no diff to maintain. The seeds give a new service the shape
+above — the root package as the component over provider-generic HTTP and
+messaging routers, `rlib` alongside `cdylib`, the two rungs under
+`omnia_test::guest::Provider`, a `common` crate for the tables every stem
+shares, and the local host behind the `host` feature — and the suite's
+scaffold test renders the manifest and lints, tests, and builds the
+result against the same published omnia the exemplar uses. To move to a
+new omnia release, bump every `omnia-*` line in `[workspace.dependencies]`
+together (and the omnia-extensions crates to their matching release),
+re-resolve `Cargo.lock`, and bump the seed's pins, which the gate holds
+equal to the workspace's.
 
 ## Development
 
