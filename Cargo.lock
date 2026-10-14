@@ -2433,6 +2433,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "omnia-template"
+version = "0.1.0"
+
+[[package]]
 name = "omnia-test"
 version = "0.36.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4083,7 +4087,7 @@ dependencies = [
 name = "template-check"
 version = "0.1.0"
 dependencies = [
- "serde",
+ "omnia-template",
  "serde-saphyr",
  "serde_json",
  "toml",

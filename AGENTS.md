@@ -1,6 +1,6 @@
 # Omnia Exemplar — Agent Instructions
 
-The reference guest for [omnia](https://github.com/augentic/omnia) services, and the source of the guest template under `templates/guest`. [README.md](README.md) is the guide: the [architecture](README.md#architecture), the [crate map](README.md#crate-map), [how to add a handler](README.md#adding-a-new-handler), [what to copy and what not to](README.md#copy-this-not-that), the [testing rungs](README.md#testing), the [guest template contract](README.md#guest-template-contract), and the [development loop](README.md#development). The rules below are the organisation's shared conventions; where the README is more specific, it governs.
+The reference guest for [omnia](https://github.com/augentic/omnia) services, and the source of the guest template, the `omnia-template` crate under `templates/guest`. [README.md](README.md) is the guide: the [architecture](README.md#architecture), the [crate map](README.md#crate-map), [how to add a handler](README.md#adding-a-new-handler), [what to copy and what not to](README.md#copy-this-not-that), the [testing rungs](README.md#testing), the [guest template contract](README.md#guest-template-contract), and the [development loop](README.md#development). The rules below are the organisation's shared conventions; where the README is more specific, it governs.
 
 ## Git
 

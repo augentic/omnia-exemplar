@@ -1,0 +1,20 @@
+[package]
+name = "omnia-template"
+description = "The guest template every Omnia guest workspace starts from, as data"
+# `exact` entries are the repository-root files read in place, so the crate
+# is consumed from a checkout of this repository and never packaged.
+publish = false
+authors.workspace = true
+categories.workspace = true
+edition.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+version.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
