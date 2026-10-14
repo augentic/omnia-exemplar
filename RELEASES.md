@@ -24,9 +24,10 @@ Unreleased
   `Capabilities`-bounded routers built from `src/routes.rs` and
   `src/messaging.rs`; the two rungs as `ROUTES` and `TOPICS` tables; the
   `common` crate; `examples/runtime.rs`; and a least-privilege
-  `publish.yaml` naming its secrets and reading its deploy parameters
+  `publish.yaml` naming its secrets, reading its deploy parameters
   from the consuming repository's `STORAGE_ACCOUNT` and `RESOURCE_GROUP`
-  variables. The package is `guest`, as the root is, so the
+  variables, and deploying under the repository's name. The package is
+  `guest`, as the root is, so the
   `PACKAGE_NAME` and `CRATE_NAME` tokens are gone, and with the deploy
   parameters in `vars` the manifest declares no token. The scaffold
   proof renders the manifest and runs the adapter's verify checks — clippy,

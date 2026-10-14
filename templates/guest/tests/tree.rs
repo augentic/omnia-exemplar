@@ -196,4 +196,35 @@ fn symlinked_parent() {
         fs::read_dir(tree.root().join("elsewhere")).expect("the directory").next().is_none(),
         "nothing is written through the link"
     );
+    assert!(tree.read("Makefile").is_none(), "nothing is laid when a path is refused");
+}
+
+#[test]
+fn file_as_parent() {
+    let tree = Scratch::new();
+    tree.write("src", "");
+
+    let err = lay(tree.root()).expect_err("the lay is refused");
+
+    assert!(matches!(&err, Error::Occupied { path } if path.ends_with("src")), "{err}");
+    assert!(tree.read("Makefile").is_none(), "nothing is laid when a path is refused");
+}
+
+// `Makefile` sorts before `src/`, so a restore that held each file only as
+// it reached it would put the Makefile back before refusing the link.
+#[cfg(unix)]
+#[test]
+fn restore_with_symlinked_parent() {
+    let tree = Scratch::new();
+    lay(tree.root()).expect("the lay");
+    tree.write("Makefile", "# edited\n");
+    fs::rename(tree.root().join("src"), tree.root().join("elsewhere"))
+        .expect("the directory moved");
+    std::os::unix::fs::symlink(tree.root().join("elsewhere"), tree.root().join("src"))
+        .expect("a link where the directory was");
+
+    let err = restore(tree.root()).expect_err("the restore is refused");
+
+    assert!(matches!(&err, Error::Occupied { path } if path.ends_with("src")), "{err}");
+    assert_eq!(tree.read("Makefile").as_deref(), Some("# edited\n"), "nothing is put back");
 }

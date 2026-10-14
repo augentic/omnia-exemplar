@@ -37,7 +37,9 @@ operator. No entry carries one: the deploy parameters of
 `.github/workflows/publish.yaml` are read from the consuming
 repository's GitHub variables, `STORAGE_ACCOUNT` and `RESOURCE_GROUP`,
 set at repository or organisation level since a job calling a reusable
-workflow names no environment. The package is `guest`, as this
+workflow names no environment, and the component deploys under the
+repository's name, or `APP_NAME` where that name does not fit a
+container app's. The package is `guest`, as this
 repository's own root is, so no token names it. A lone uppercase letter
 (`<P>`) is a Rust generic in a `.rs` seed, not a token.
 

@@ -12,7 +12,8 @@ use crate::hold::{Drift, Drifted, Error};
 /// A file the tree holds is left as it stands, whatever it holds, so a tree
 /// laid once is laid again by nothing. The directories above a file are
 /// made as needed. Every path is held before any is written: a directory
-/// or a symbolic link standing where a file goes refuses the whole lay.
+/// or a symbolic link standing where a file goes, or a file or a symbolic
+/// link on the way to one, refuses the whole lay.
 ///
 /// # Errors
 ///
@@ -91,8 +92,14 @@ fn drifted(root: &Path) -> Result<Vec<(&'static Entry, Option<Drifted>)>, Error>
 }
 
 // The file at the entry's path as the tree holds it, nothing where the tree
-// lacks it, and a refusal where no file could be laid.
+// lacks it, and a refusal where no file could be laid, the directories
+// above it held first.
 fn read(root: &Path, entry: &Entry) -> Result<Option<Vec<u8>>, Error> {
+    for dir in above(root, entry) {
+        if !standing(&dir)? {
+            return Ok(None);
+        }
+    }
     let path = root.join(entry.path);
     match fs::symlink_metadata(&path) {
         Ok(meta) if meta.is_file() => {
@@ -124,24 +131,46 @@ fn write(root: &Path, entry: &Entry) -> Result<(), Error> {
     fs::write(&path, entry.body).map_err(|source| Error::Io { path, source })
 }
 
-// Makes the directories above the entry one at a time, so a symbolic link
-// among them is refused rather than followed, and answers the entry's path.
+// Makes the directories above the entry that are missing and answers the
+// entry's path.
 fn parents(root: &Path, entry: &Entry) -> Result<PathBuf, Error> {
-    let mut dir = root.to_path_buf();
-    let above = Path::new(entry.path).parent().into_iter().flat_map(Path::components);
-    for component in above {
-        dir.push(component);
-        match fs::symlink_metadata(&dir) {
-            Ok(meta) if meta.is_dir() => {}
-            Ok(_) => return Err(Error::Occupied { path: dir }),
-            Err(err) if err.kind() == ErrorKind::NotFound => {
-                fs::create_dir(&dir).map_err(|source| Error::Io {
-                    path: dir.clone(),
-                    source,
-                })?;
-            }
-            Err(source) => return Err(Error::Io { path: dir, source }),
+    for dir in above(root, entry) {
+        if !standing(&dir)? {
+            fs::create_dir(&dir).map_err(|source| Error::Io {
+                path: dir.clone(),
+                source,
+            })?;
         }
     }
     Ok(root.join(entry.path))
+}
+
+// Each directory above the entry, the nearest the root first.
+fn above(root: &Path, entry: &Entry) -> Vec<PathBuf> {
+    let mut dir = root.to_path_buf();
+    Path::new(entry.path)
+        .parent()
+        .into_iter()
+        .flat_map(Path::components)
+        .map(|component| {
+            dir.push(component);
+            dir.clone()
+        })
+        .collect()
+}
+
+// Whether a directory above an entry stands: a file or a symbolic link in
+// its place is refused rather than followed.
+fn standing(dir: &Path) -> Result<bool, Error> {
+    match fs::symlink_metadata(dir) {
+        Ok(meta) if meta.is_dir() => Ok(true),
+        Ok(_) => Err(Error::Occupied {
+            path: dir.to_path_buf(),
+        }),
+        Err(err) if err.kind() == ErrorKind::NotFound => Ok(false),
+        Err(source) => Err(Error::Io {
+            path: dir.to_path_buf(),
+            source,
+        }),
+    }
 }

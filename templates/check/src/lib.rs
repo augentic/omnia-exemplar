@@ -269,9 +269,10 @@ fn check_entries(
     }
 }
 
-/// A seed `Cargo.toml` pins every dependency it shares with the root
-/// workspace at the workspace's version, so the scaffold tracks the omnia
-/// version the exemplar itself builds against.
+/// A seed `Cargo.toml` names no source of its own and pins every dependency
+/// it shares with the root workspace at the workspace's version, so the
+/// scaffold tracks the omnia version the exemplar itself builds against and
+/// compiles nothing the root does not.
 fn check_seed_versions(root: &Path, source: &str, rendered: &str, failures: &mut Vec<String>) {
     let Ok(workspace) = fs::read_to_string(root.join("Cargo.toml"))
         .map_err(|err| err.to_string())
@@ -283,38 +284,44 @@ fn check_seed_versions(root: &Path, source: &str, rendered: &str, failures: &mut
     let Ok(seed) = toml::from_str::<toml::Value>(rendered) else {
         return;
     };
-    for failure in seed_pin_failures(&workspace, &seed) {
+    for failure in seed_dependency_failures(&workspace, &seed) {
         failures.push(format!("{source}: {failure}"));
     }
 }
 
-// Every dependency the seed shares with the root workspace that does not
-// resolve to the root's pin. A `git`, `path`, or `registry` key retargets
-// the crate whatever its version reads, so it fails outright. A
-// `workspace = true` line without one inherits the pin from the seed's own
-// workspace table, which is checked in its turn.
-fn seed_pin_failures(workspace: &toml::Value, seed: &toml::Value) -> Vec<String> {
-    const SOURCES: [&str; 3] = ["git", "path", "registry"];
+// Every dependency of the seed that does not resolve as the root workspace
+// would have it. A `git` or `registry` key, a `path` outside the tree, or a
+// `[patch]` or `[replace]` table retargets a crate whatever its version
+// reads, so each fails outright. A `path` inside the tree is a crate of the
+// tree, which the root does not pin; a `workspace = true` line inherits the
+// pin from the seed's own workspace table, which is checked in its turn.
+fn seed_dependency_failures(workspace: &toml::Value, seed: &toml::Value) -> Vec<String> {
     let workspace_deps = workspace.get("workspace").and_then(|w| w.get("dependencies"));
     let mut failures = Vec::new();
 
+    for table in ["patch", "replace"] {
+        if seed.get(table).is_some() {
+            failures.push(format!("`[{table}]` retargets crates behind the pins"));
+        }
+    }
+
     for (name, spec) in dependency_tables(seed) {
-        let Some(expected) = workspace_deps.and_then(|deps| deps.get(&name)).and_then(version)
-        else {
-            continue;
-        };
-        let table = spec.as_table();
-        let sourced = table.is_some_and(|table| SOURCES.iter().any(|key| table.contains_key(*key)));
-        let inherits = table.is_some_and(|table| {
-            table.get("workspace").and_then(toml::Value::as_bool) == Some(true)
-        });
+        let key = |key: &str| spec.as_table().and_then(|table| table.get(key));
+        let path = key("path").and_then(toml::Value::as_str);
+        let sourced =
+            key("git").is_some() || key("registry").is_some() || path.is_some_and(is_unsafe);
+        let inherits = key("workspace").and_then(toml::Value::as_bool) == Some(true);
+        let expected = workspace_deps.and_then(|deps| deps.get(&name)).and_then(version);
+
         if sourced {
-            failures.push(format!(
-                "`{name}` names a source of its own, the workspace pins {expected:?}"
-            ));
-        } else if !inherits && version(spec).as_deref() != Some(expected.as_str()) {
-            let actual = version(spec).unwrap_or_default();
-            failures.push(format!("`{name}` pins {actual:?}, the workspace pins {expected:?}"));
+            failures.push(format!("`{name}` names a source of its own"));
+        } else if let Some(expected) = expected {
+            if path.is_some() {
+                failures.push(format!("`{name}` is a path, the workspace pins {expected:?}"));
+            } else if !inherits && version(spec).as_deref() != Some(expected.as_str()) {
+                let actual = version(spec).unwrap_or_default();
+                failures.push(format!("`{name}` pins {actual:?}, the workspace pins {expected:?}"));
+            }
         }
     }
     failures
@@ -366,12 +373,16 @@ fn version(spec: &toml::Value) -> Option<String> {
 /// # Errors
 ///
 /// Returns `Err` when the manifest, the values, or a source cannot be read,
-/// or when a target cannot be written.
+/// when an entry's path is absolute or climbs out of its root, or when a
+/// target cannot be written.
 pub fn scaffold(root: &Path, dest: &Path) -> Result<(), String> {
     let manifest: Manifest = parse_yaml(&root.join(MANIFEST))?;
     let values: BTreeMap<String, String> = parse_yaml(&root.join(SUBTREE).join("values.yaml"))?;
 
     for entry in &manifest.assemblies.core.files {
+        if is_unsafe(&entry.source) || is_unsafe(&entry.target) {
+            return Err(format!("manifest: unsafe path `{}` -> `{}`", entry.source, entry.target));
+        }
         let source = root.join(&entry.source);
         let body =
             fs::read_to_string(&source).map_err(|err| format!("{}: {err}", source.display()))?;

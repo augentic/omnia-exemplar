@@ -45,5 +45,6 @@ jobs:
       AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
     with:
       package: guest
+      app-name: ${{ vars.APP_NAME || github.event.repository.name }}
       storage-account: ${{ vars.STORAGE_ACCOUNT }}
       resource-group: ${{ vars.RESOURCE_GROUP }}
