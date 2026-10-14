@@ -1,13 +1,19 @@
 //! The scaffold proof: a project rendered from the manifest passes the
 //! checks a build is held to, with no hand edits.
 //!
-//! The scaffold builds against the same published omnia the exemplar does —
+//! The scaffold builds against the same published omnia the exemplar does:
 //! the root lockfile seeds the scaffold's, so every crates.io dependency
-//! resolves to the exemplar's exact version — and shares the exemplar's
-//! target directory so dependencies compile once.
+//! resolves to the exemplar's exact version. The native checks share the
+//! exemplar's target directory so dependencies compile once; both packages
+//! are `guest`, so the `libguest` the exemplar uplifts to `target/debug` is
+//! the scaffold's after a run, which nothing reads. The component is built
+//! under a target directory of its own, since the exemplar's holds no
+//! `wasm32-wasip2` build to share and the one artifact asserted must be
+//! this render's.
 
 #![cfg(not(miri))]
 
+use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::{env, fs};
@@ -29,11 +35,17 @@ fn rendered_scaffold() {
 
     cargo(&dest, &target_dir, &["clippy", "--workspace", "--all-targets", "--", "-D", "warnings"]);
     cargo(&dest, &target_dir, &["test", "--workspace"]);
-    cargo(&dest, &target_dir, &["build", "--target", "wasm32-wasip2"]);
-    assert!(
-        target_dir.join("wasm32-wasip2/debug/guest.wasm").is_file(),
-        "the guest component is built"
-    );
+
+    // the component, from this build alone
+    let wasm_target_dir = target_dir.join("template-scaffold-wasm32");
+    let component = wasm_target_dir.join("wasm32-wasip2/debug/guest.wasm");
+    if let Err(err) = fs::remove_file(&component)
+        && err.kind() != ErrorKind::NotFound
+    {
+        panic!("stale component removed: {err}");
+    }
+    cargo(&dest, &wasm_target_dir, &["build", "--target", "wasm32-wasip2"]);
+    assert!(component.is_file(), "the guest component is built");
 }
 
 fn cargo(dir: &Path, target_dir: &Path, args: &[&str]) {
