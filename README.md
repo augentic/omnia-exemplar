@@ -96,7 +96,8 @@ Start a new service from the closest template.
 
 The root `Cargo.toml` is both the workspace and the deployable guest package
 (`name = "guest"`, `crate-type = ["cdylib"]`). Workspace members are
-`crates/*` (plus `templates/check` for the template gate). There is no
+`crates/*` (plus `templates/guest`, the guest template as a crate, and
+`templates/check`, its gate). There is no
 `guests/` directory.
 
 The guest:
@@ -336,8 +337,11 @@ hand-written mock provider anywhere in the workspace.
 - `crates/pattern/tests` — `MatchedHttp` recording outbound HTTP requests,
   covering the decode cache (hit and miss), the ORM-backed nearby query, and
   the structured-error upsert rejection
+- `templates/guest/tests` — the template crate's contract: a tree laid
+  once, its static files held and restored, its root manifest held around
+  its stem lists
 - `templates/check/tests` — the template contract gate and the scaffold
-  proof (a rendered guest builds for `wasm32-wasip2` and passes its test)
+  proof (a rendered guest lints, tests, and builds for `wasm32-wasip2`)
 
 ### Component rung
 
@@ -378,42 +382,45 @@ exercised.
 
 This repository is the source of truth for the reusable Omnia guest
 tooling. [`templates/guest/manifest.yaml`](templates/guest/manifest.yaml)
-maps repository files to consumer scaffold targets
+maps repository files to consumer scaffold targets, and the
+`omnia-template` crate beside it ([`templates/guest`](templates/guest))
+embeds the same map as Rust, every body compiled in
 ([contract and authoring rules](templates/guest/README.md)).
 
-The Emery omnia target adapter directs each consumer build to a fresh
-checkout of `main` and reads the contract from that checkout at build
-time: `exact` manifest entries are the repository-root files
-themselves, and seed baselines live under `templates/guest/core/`.
-There is no vendored or baked-in copy anywhere. **Merges to `main` are
-therefore release acts**: the CI gate (including the template contract
-check below) is required on merge, not advisory, because downstream
-consumers track `main` unpinned.
+The Emery omnia target adapter depends on the crate at a pinned commit of
+this repository and lays the template from it at build time: `exact`
+manifest entries are the repository-root files themselves, read in place
+through `include_str!`, and seed baselines live under
+`templates/guest/core/`. There is no hand-vendored copy anywhere.
+**Merges to `main` are therefore release acts**: the CI gate (including
+the template contract check below) is required on merge, not advisory,
+because every commit a consumer may pin must be a green one.
 
-The adapter pins an exact `schema-version` for
-`templates/guest/manifest.yaml`. Bumping that version here requires a
-coordinated adapter release, or consumer builds fail closed at the
-scaffold prelude.
+The gate pins an exact `schema-version` for
+`templates/guest/manifest.yaml`; the adapter reads the crate, so a bump
+here lands with the table change it describes and reaches a consumer with
+its pin.
 
 The contract is enforced by the `template-check` gate, which runs
 inside the standard test suite and stand-alone:
 
 ```shell
-cargo run -p template-check   # schema, tokens, path safety, seed render
+cargo run -p template-check   # schema, tokens, path safety, seed render, the crate's table
 ```
 
 `exact` entries reference their repository-root file in place
 (`source == target`, token-free), so a green root vouches for the
-scaffold with no diff to maintain. The `Cargo.toml`, `src/lib.rs` and
-`tests/routes.rs` seeds give a new service the shape above — a
-provider-generic router, `rlib` alongside `cdylib`, and a route rung
-under `omnia_test::guest::Provider` — and the suite's scaffold test renders
-the manifest and builds and tests the result against the same published
-omnia the exemplar uses. To move to a new omnia release, bump every
-`omnia-*` line in `[workspace.dependencies]` together (and the
-omnia-extensions crates to their matching release), re-resolve
-`Cargo.lock`, and bump the seed's pins, which the gate holds equal to the
-workspace's.
+scaffold with no diff to maintain. The seeds give a new service the shape
+above — the root package as the component over provider-generic HTTP and
+messaging routers, `rlib` alongside `cdylib`, the two rungs under
+`omnia_test::guest::Provider`, a `common` crate for the tables every stem
+shares, and the local host behind the `host` feature — and the suite's
+scaffold test renders the manifest and lints, tests, and builds the
+result against the same published omnia the exemplar uses. To move to a
+new omnia release, bump every `omnia-*` line in `[workspace.dependencies]`
+together (and the omnia-extensions crates to their matching release),
+re-resolve `Cargo.lock`, and bump the seed's pins, which the gate holds
+equal to the workspace's.
 
 ## Development
 
@@ -438,7 +445,8 @@ stays token-free and free of exemplar-only tasks.
 Clippy runs twice: natively with `--all-targets`, then for `wasm32-wasip2`
 over libs, bins and examples only (never tests or benches). The whole
 workspace is in the wasm32 scope — the guest, the handler crates, the
-std-only `template-check` gate — so the host in `examples/runtime.rs` stays
+std-only `omnia-template` crate and its `template-check` gate — so the host
+in `examples/runtime.rs` stays
 `cfg_select!`-gated to an empty `main` on wasm32. Regenerate the supply-chain files
 with `mise run vet-regen`; `vet` itself only checks.
 

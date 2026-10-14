@@ -1,0 +1,14 @@
+[package]
+name = "common"
+description = "The route and topic tables and the configuration catalog every stem shares"
+publish.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+version.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+omnia-sdk.workspace = true
+tracing.workspace = true

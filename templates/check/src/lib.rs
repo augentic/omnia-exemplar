@@ -3,8 +3,10 @@
 //! Strictly parses `templates/guest/manifest.yaml`, enforces token
 //! discipline and path safety, requires every `exact` entry to reference
 //! its repository-root file in place (`source == target`, token-free —
-//! no second copy), renders `seed` templates with `values.yaml`, and
-//! syntax-checks the rendered output.
+//! no second copy), renders `seed` templates with `values.yaml`,
+//! syntax-checks the rendered output, and holds the `omnia-template`
+//! crate's table to the manifest entry for entry, each embedded body the
+//! bytes of its source.
 //!
 //! The gate runs inside the standard test suite (`mise run test` /
 //! `mise run ci`) via `tests/gate.rs`, and stand-alone through
@@ -15,6 +17,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::path::{Path, PathBuf};
 
+use omnia_template::ENTRIES;
 use serde::Deserialize;
 
 const MANIFEST: &str = "templates/guest/manifest.yaml";
@@ -49,11 +52,29 @@ struct FileEntry {
     proof: Proof,
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Deserialize)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Deserialize)]
 #[serde(rename_all = "lowercase")]
 enum Proof {
     Exact,
     Seed,
+}
+
+impl Proof {
+    const fn name(self) -> &'static str {
+        match self {
+            Self::Exact => "exact",
+            Self::Seed => "seed",
+        }
+    }
+}
+
+impl From<omnia_template::Proof> for Proof {
+    fn from(proof: omnia_template::Proof) -> Self {
+        match proof {
+            omnia_template::Proof::Exact => Self::Exact,
+            omnia_template::Proof::Seed => Self::Seed,
+        }
+    }
 }
 
 /// The repository root this crate is checked out under.
@@ -96,8 +117,50 @@ pub fn run(root: &Path) -> Result<Vec<String>, String> {
     check_token_declarations(&manifest.tokens, &values, &mut failures);
     check_entries(root, &subtree, &manifest, &values, &mut failures);
     check_orphans(root, &subtree, &manifest, &mut failures)?;
+    check_crate(root, &manifest, &mut failures);
 
     Ok(failures)
+}
+
+// The crate's table is the manifest as data, so the two list the same
+// entries, the same source read for the same target under the same proof,
+// and a row's body is the bytes of the source it names: `lay` and
+// `restore` write the body, while the checks above read the source. A
+// source that cannot be read is reported with the manifest's entry.
+fn check_crate(root: &Path, manifest: &Manifest, failures: &mut Vec<String>) {
+    let declared: BTreeSet<(&str, &str, Proof)> = manifest
+        .assemblies
+        .core
+        .files
+        .iter()
+        .map(|entry| (entry.source.as_str(), entry.target.as_str(), entry.proof))
+        .collect();
+    let embedded: BTreeSet<(&str, &str, Proof)> =
+        ENTRIES.iter().map(|entry| (entry.source, entry.path, entry.proof.into())).collect();
+
+    for (source, target, proof) in declared.difference(&embedded) {
+        failures.push(format!(
+            "manifest: `{source}` -> `{target}` ({}) has no row in the crate's table",
+            proof.name()
+        ));
+    }
+    for (source, target, proof) in embedded.difference(&declared) {
+        failures.push(format!(
+            "omnia-template: `{source}` -> `{target}` ({}) is not a manifest entry",
+            proof.name()
+        ));
+    }
+
+    for entry in ENTRIES {
+        if let Ok(on_disk) = fs::read(root.join(entry.source))
+            && on_disk != entry.body.as_bytes()
+        {
+            failures.push(format!(
+                "omnia-template: `{}` -> `{}` embeds a body other than its source",
+                entry.source, entry.path
+            ));
+        }
+    }
 }
 
 fn parse_yaml<T: serde::de::DeserializeOwned>(path: &Path) -> Result<T, String> {
@@ -138,6 +201,16 @@ fn check_entries(
             if is_unsafe(path) {
                 failures.push(format!("manifest: unsafe {label} path `{path}`"));
             }
+        }
+        // cargo probes `.cargo` by name, which a case-insensitive volume
+        // answers for any spelling
+        let cargo_config =
+            |part: std::path::Component<'_>| part.as_os_str().eq_ignore_ascii_case(".cargo");
+        if Path::new(&entry.target).components().any(cargo_config) {
+            failures.push(format!(
+                "manifest: target `{}` configures cargo behind the pins",
+                entry.target
+            ));
         }
 
         let Ok(body) = fs::read_to_string(root.join(&entry.source)) else {
@@ -192,7 +265,7 @@ fn check_entries(
                 if let Some(err) = syntax_error(&entry.target, &rendered) {
                     failures.push(format!("{}: rendered output is invalid: {err}", entry.source));
                 }
-                if entry.target == "Cargo.toml" {
+                if Path::new(&entry.target).file_name().is_some_and(|name| name == "Cargo.toml") {
                     check_seed_versions(root, &entry.source, &rendered, failures);
                 }
             }
@@ -206,9 +279,9 @@ fn check_entries(
     }
 }
 
-/// A seed `Cargo.toml` pins every dependency it shares with the root
-/// workspace at the workspace's version, so the scaffold tracks the omnia
-/// version the exemplar itself builds against.
+// A seed `Cargo.toml` resolves every crate as the root workspace does, so
+// the scaffold compiles nothing the exemplar's own supply-chain gates have
+// not seen.
 fn check_seed_versions(root: &Path, source: &str, rendered: &str, failures: &mut Vec<String>) {
     let Ok(workspace) = fs::read_to_string(root.join("Cargo.toml"))
         .map_err(|err| err.to_string())
@@ -220,27 +293,86 @@ fn check_seed_versions(root: &Path, source: &str, rendered: &str, failures: &mut
     let Ok(seed) = toml::from_str::<toml::Value>(rendered) else {
         return;
     };
-    let workspace_deps = workspace.get("workspace").and_then(|w| w.get("dependencies"));
-
-    for (name, seed_dep) in dependency_tables(&seed) {
-        let Some(expected) = workspace_deps.and_then(|deps| deps.get(&name)).and_then(version)
-        else {
-            continue;
-        };
-        let actual = version(seed_dep).unwrap_or_default();
-        if actual != expected {
-            failures.push(format!(
-                "{source}: `{name}` pins {actual:?}, the workspace pins {expected:?}"
-            ));
-        }
+    for failure in seed_dependency_failures(&workspace, &seed) {
+        failures.push(format!("{source}: {failure}"));
     }
 }
 
-/// Every `[dependencies]`-shaped table in a package manifest, including the
-/// target-gated ones, flattened to `(name, spec)`.
+// Every dependency of the seed that does not resolve as the root workspace
+// would have it. A dependency has one of three shapes, and anything else
+// fails:
+//
+// - `workspace = true` inherits the seed's own table, checked in its turn
+// - a `path` inside the tree is a crate of the tree, which the root does
+//   not pin
+// - a `version` is the root's pin for that name
+//
+// Beside its shape a dependency sets feature keys alone. The admitted keys
+// are a closed list, so `package`, `git`, `registry`, `branch`, `rev`, and
+// `tag` each fail whatever the version reads, as do a `[patch]` or
+// `[replace]` table.
+fn seed_dependency_failures(workspace: &toml::Value, seed: &toml::Value) -> Vec<String> {
+    const SHAPE_KEYS: [&str; 3] = ["workspace", "path", "version"];
+    const FEATURE_KEYS: [&str; 3] = ["features", "default-features", "optional"];
+    let pins = workspace.get("workspace").and_then(|w| w.get("dependencies"));
+    let mut failures = Vec::new();
+
+    for table in ["patch", "replace"] {
+        if seed.get(table).is_some() {
+            failures.push(format!("`[{table}]` retargets crates behind the pins"));
+        }
+    }
+
+    for (name, spec) in dependency_tables(seed) {
+        let table = spec.as_table();
+        let mut keys = table.into_iter().flat_map(toml::Table::keys).map(String::as_str);
+        if let Some(key) = keys.find(|key| !SHAPE_KEYS.contains(key) && !FEATURE_KEYS.contains(key))
+        {
+            failures.push(format!("`{name}` sets `{key}`, which a seed dependency never does"));
+            continue;
+        }
+
+        let key = |key: &str| table.and_then(|table| table.get(key));
+        let inherits = key("workspace").and_then(toml::Value::as_bool) == Some(true);
+        let path = key("path").and_then(toml::Value::as_str);
+        let pinned = pins.and_then(|pins| pins.get(&name)).and_then(version);
+        match (inherits, path, version(spec)) {
+            (true, None, None) => {}
+            (false, Some(path), None) if is_unsafe(path) => {
+                failures.push(format!("`{name}` is a path outside the tree"));
+            }
+            (false, Some(_), None) => {
+                if let Some(pinned) = pinned {
+                    failures.push(format!("`{name}` is a path, the root pins {pinned:?}"));
+                }
+            }
+            (false, None, Some(actual)) => match pinned {
+                Some(expected) if expected == actual => {}
+                Some(expected) => {
+                    failures.push(format!("`{name}` pins {actual:?}, the root pins {expected:?}"));
+                }
+                None => failures.push(format!("`{name}` is not a pin of the root workspace")),
+            },
+            _ => failures.push(format!(
+                "`{name}` is none of an inherited pin, a path in the tree, or a version"
+            )),
+        }
+    }
+    failures
+}
+
+/// Every `[dependencies]`-shaped table in a manifest, the workspace's and
+/// the target-gated ones included, flattened to `(name, spec)`.
 fn dependency_tables(manifest: &toml::Value) -> Vec<(String, &toml::Value)> {
     const KINDS: [&str; 3] = ["dependencies", "dev-dependencies", "build-dependencies"];
     let mut tables = Vec::new();
+    if let Some(table) = manifest
+        .get("workspace")
+        .and_then(|workspace| workspace.get("dependencies"))
+        .and_then(toml::Value::as_table)
+    {
+        tables.push(table);
+    }
     for kind in KINDS {
         if let Some(table) = manifest.get(kind).and_then(toml::Value::as_table) {
             tables.push(table);
@@ -275,12 +407,16 @@ fn version(spec: &toml::Value) -> Option<String> {
 /// # Errors
 ///
 /// Returns `Err` when the manifest, the values, or a source cannot be read,
-/// or when a target cannot be written.
+/// when an entry's path is absolute or climbs out of its root, or when a
+/// target cannot be written.
 pub fn scaffold(root: &Path, dest: &Path) -> Result<(), String> {
     let manifest: Manifest = parse_yaml(&root.join(MANIFEST))?;
     let values: BTreeMap<String, String> = parse_yaml(&root.join(SUBTREE).join("values.yaml"))?;
 
     for entry in &manifest.assemblies.core.files {
+        if is_unsafe(&entry.source) || is_unsafe(&entry.target) {
+            return Err(format!("manifest: unsafe path `{}` -> `{}`", entry.source, entry.target));
+        }
         let source = root.join(&entry.source);
         let body =
             fs::read_to_string(&source).map_err(|err| format!("{}: {err}", source.display()))?;
@@ -307,13 +443,29 @@ fn check_orphans(
     let listed: BTreeSet<PathBuf> =
         manifest.assemblies.core.files.iter().map(|entry| PathBuf::from(&entry.source)).collect();
     let core_dir = root.join(subtree).join("core");
-    let entries =
-        fs::read_dir(&core_dir).map_err(|err| format!("{}: {err}", core_dir.display()))?;
-    for dir_entry in entries {
-        let dir_entry = dir_entry.map_err(|err| format!("{}: {err}", core_dir.display()))?;
-        let relative = subtree.join("core").join(dir_entry.file_name());
+    let mut files = Vec::new();
+    walk(&core_dir, &mut files)?;
+    for file in files {
+        let relative = file.strip_prefix(&core_dir).map_err(|err| err.to_string())?;
+        let relative = subtree.join("core").join(relative);
         if !listed.contains(&relative) {
             failures.push(format!("{}: not listed in the manifest (orphan)", relative.display()));
+        }
+    }
+    Ok(())
+}
+
+// Every file beneath `dir`, hidden directories included, since a seed body
+// sits at its target's own path and `.github/` is one.
+fn walk(dir: &Path, files: &mut Vec<PathBuf>) -> Result<(), String> {
+    let entries = fs::read_dir(dir).map_err(|err| format!("{}: {err}", dir.display()))?;
+    for entry in entries {
+        let entry = entry.map_err(|err| format!("{}: {err}", dir.display()))?;
+        let path = entry.path();
+        if path.is_dir() {
+            walk(&path, files)?;
+        } else {
+            files.push(path);
         }
     }
     Ok(())
