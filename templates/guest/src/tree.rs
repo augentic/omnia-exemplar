@@ -3,7 +3,6 @@
 use std::fs::{self, OpenOptions};
 use std::io::{ErrorKind, Write as _};
 use std::path::{Path, PathBuf};
-use std::process;
 
 use crate::entries::{ENTRIES, Entry, Role};
 use crate::hold::{Drift, Drifted, Error};
@@ -140,17 +139,21 @@ fn write(root: &Path, entry: &Entry) -> Result<(), Error> {
 }
 
 // Puts the body at the path whole or not at all, over whatever stands
-// there: it is written beside the path under a name of the process's own
+// there: it is written beside the path under a name of the crate's own
 // and moved over it, so a write that fails leaves the file as it was, and
 // a link planted at the path since it was read is replaced rather than
-// written through.
+// written through. The name carries no process id, since a `wasm32` guest
+// has none, so a staged file a write that stopped short left behind is
+// removed before the next write stages there: one process holds a tree at
+// a time.
 pub fn replace(path: &Path, body: &[u8]) -> Result<(), Error> {
     let name = path.file_name().unwrap_or_default().to_string_lossy();
-    let staged = path.with_file_name(format!(".{name}.{}~", process::id()));
+    let staged = path.with_file_name(format!(".{name}.omnia-template~"));
     let io = |path: &Path| {
         let path = path.to_path_buf();
         move |source| Error::Io { path, source }
     };
+    let _ = fs::remove_file(&staged);
     let moved = OpenOptions::new()
         .write(true)
         .create_new(true)
