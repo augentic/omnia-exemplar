@@ -28,8 +28,6 @@ use docstore::{
 #[cfg(feature = "god-mode")]
 use gtfs_adapter::set_trip;
 use gtfs_adapter::{motion, passenger_count, train_avl, vehicle_info};
-#[cfg(target_arch = "wasm32")]
-use omnia_sdk::api::http::serve;
 use omnia_sdk::api::http::{MethodFilter, RawRequest, delete, get, handle_with, patch, post, put};
 use omnia_sdk::api::messaging::{self, Delivery, consume, consume_with};
 use omnia_sdk::api::{Client, DecodeError};
@@ -37,8 +35,6 @@ use omnia_sdk::{
     BlobStore, Broadcast, Config, DocumentStore, HttpError, HttpRequest, Identity, Publish,
     StateStore, TableStore,
 };
-#[cfg(target_arch = "wasm32")]
-use omnia_wasi_messaging::types::{Error, Message};
 use pattern::{
     NearbyPlacesReply, NearbyPlacesRequest, decode_segment, nearby_places, upsert_place,
 };
@@ -49,54 +45,58 @@ use sql::{
     list_all_feeds, update_agency,
 };
 use tally_connector::tally;
-#[cfg(target_arch = "wasm32")]
-use tracing::Level;
-#[cfg(target_arch = "wasm32")]
-use wasip3::exports::http::handler::Guest;
-#[cfg(target_arch = "wasm32")]
-use wasip3::http::types as p3;
 
 /// The tenant that owns this deployment.
 pub const OWNER: &str = "acme";
 
-/// Bare provider backed by the default WASI capability implementations.
-///
-/// Each capability trait ships its WASI-backed methods as defaults, so an
-/// empty `impl` per capability is the whole production wiring.
-#[cfg(target_arch = "wasm32")]
-pub struct Provider;
+cfg_select! {
+    target_arch = "wasm32" => {
+        use omnia_sdk::api::http::serve;
+        use omnia_wasi_messaging::types::{Error, Message};
+        use tracing::Level;
+        use wasip3::exports::http::handler::Guest;
+        use wasip3::http::types as p3;
 
-#[cfg(target_arch = "wasm32")]
-impl BlobStore for Provider {}
-#[cfg(target_arch = "wasm32")]
-impl Broadcast for Provider {}
-#[cfg(target_arch = "wasm32")]
-impl Config for Provider {}
-#[cfg(target_arch = "wasm32")]
-impl DocumentStore for Provider {}
-#[cfg(target_arch = "wasm32")]
-impl HttpRequest for Provider {}
-#[cfg(target_arch = "wasm32")]
-impl Identity for Provider {}
-#[cfg(target_arch = "wasm32")]
-impl Publish for Provider {}
-#[cfg(target_arch = "wasm32")]
-impl StateStore for Provider {}
-#[cfg(target_arch = "wasm32")]
-impl TableStore for Provider {}
+        /// Bare provider backed by the default WASI capability implementations.
+        ///
+        /// Each capability trait ships its WASI-backed methods as defaults, so an
+        /// empty `impl` per capability is the whole production wiring.
+        pub struct Provider;
 
-/// WASI HTTP export.
-#[cfg(target_arch = "wasm32")]
-pub struct Http;
-#[cfg(target_arch = "wasm32")]
-wasip3::http::service::export!(Http);
+        impl BlobStore for Provider {}
+        impl Broadcast for Provider {}
+        impl Config for Provider {}
+        impl DocumentStore for Provider {}
+        impl HttpRequest for Provider {}
+        impl Identity for Provider {}
+        impl Publish for Provider {}
+        impl StateStore for Provider {}
+        impl TableStore for Provider {}
 
-#[cfg(target_arch = "wasm32")]
-impl Guest for Http {
-    #[omnia_wasi_otel::instrument(name = "http_guest_handle", level = Level::INFO)]
-    async fn handle(request: p3::Request) -> Result<p3::Response, p3::ErrorCode> {
-        serve(router(Provider), request).await
+        /// WASI HTTP export.
+        pub struct Http;
+        wasip3::http::service::export!(Http);
+
+        impl Guest for Http {
+            #[omnia_wasi_otel::instrument(name = "http_guest_handle", level = Level::INFO)]
+            async fn handle(request: p3::Request) -> Result<p3::Response, p3::ErrorCode> {
+                serve(router(Provider), request).await
+            }
+        }
+
+        /// WASI Messaging export.
+        pub struct Messaging;
+        omnia_wasi_messaging::export!(Messaging with_types_in omnia_wasi_messaging);
+
+        impl omnia_wasi_messaging::incoming_handler::Guest for Messaging {
+            #[omnia_wasi_otel::instrument(name = "messaging_guest_handle")]
+            async fn handle(message: Message) -> Result<(), Error> {
+                let router = messaging_router(Provider).await;
+                messaging::handle(&router, message).await
+            }
+        }
     }
+    _ => {}
 }
 
 /// Build the HTTP router over one provider-owning [`Client`].
@@ -217,21 +217,6 @@ fn decode_nearby(body: &[u8]) -> Result<NearbyPlacesRequest, DecodeError> {
 /// not just a straight serialization.
 fn encode_nearby(reply: NearbyPlacesReply) -> Response {
     Json(reply).into_response()
-}
-
-/// WASI Messaging export.
-#[cfg(target_arch = "wasm32")]
-pub struct Messaging;
-#[cfg(target_arch = "wasm32")]
-omnia_wasi_messaging::export!(Messaging with_types_in omnia_wasi_messaging);
-
-#[cfg(target_arch = "wasm32")]
-impl omnia_wasi_messaging::incoming_handler::Guest for Messaging {
-    #[omnia_wasi_otel::instrument(name = "messaging_guest_handle")]
-    async fn handle(message: Message) -> Result<(), Error> {
-        let router = messaging_router(Provider).await;
-        messaging::handle(&router, message).await
-    }
 }
 
 /// Build the exact-topic messaging router over one provider-owning [`Client`].
