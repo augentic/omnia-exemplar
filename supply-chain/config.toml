@@ -677,6 +677,14 @@ criteria = "safe-to-deploy"
 version = "0.1.4"
 criteria = "safe-to-deploy"
 
+[[exemptions.omnia]]
+version = "0.36.0"
+criteria = "safe-to-deploy"
+
+[[exemptions.omnia-cli]]
+version = "0.36.0"
+criteria = "safe-to-deploy"
+
 [[exemptions.omnia-core]]
 version = "0.36.0"
 criteria = "safe-to-deploy"
@@ -685,15 +693,31 @@ criteria = "safe-to-deploy"
 version = "0.36.0"
 criteria = "safe-to-deploy"
 
+[[exemptions.omnia-host-macros]]
+version = "0.36.0"
+criteria = "safe-to-deploy"
+
 [[exemptions.omnia-http-cache]]
 version = "0.34.0"
+criteria = "safe-to-deploy"
+
+[[exemptions.omnia-link]]
+version = "0.36.0"
 criteria = "safe-to-deploy"
 
 [[exemptions.omnia-orm]]
 version = "0.34.0"
 criteria = "safe-to-deploy"
 
+[[exemptions.omnia-plugin]]
+version = "0.36.0"
+criteria = "safe-to-deploy"
+
 [[exemptions.omnia-sdk]]
+version = "0.36.0"
+criteria = "safe-to-deploy"
+
+[[exemptions.omnia-test]]
 version = "0.36.0"
 criteria = "safe-to-deploy"
 
@@ -702,6 +726,10 @@ version = "0.36.0"
 criteria = "safe-to-deploy"
 
 [[exemptions.omnia-wasi-config]]
+version = "0.36.0"
+criteria = "safe-to-deploy"
+
+[[exemptions.omnia-wasi-docstore]]
 version = "0.36.0"
 criteria = "safe-to-deploy"
 
@@ -733,6 +761,10 @@ criteria = "safe-to-deploy"
 version = "0.36.0"
 criteria = "safe-to-deploy"
 
+[[exemptions.omnia-wasi-vault]]
+version = "0.36.0"
+criteria = "safe-to-deploy"
+
 [[exemptions.omnia-wasi-websocket]]
 version = "0.36.0"
 criteria = "safe-to-deploy"
@@ -749,28 +781,16 @@ criteria = "safe-to-deploy"
 version = "0.32.0"
 criteria = "safe-to-deploy"
 
-[[exemptions.opentelemetry]]
-version = "0.33.1"
-criteria = "safe-to-deploy"
-
 [[exemptions.opentelemetry-otlp]]
-version = "0.33.1"
+version = "0.32.0"
 criteria = "safe-to-deploy"
 
 [[exemptions.opentelemetry-proto]]
 version = "0.32.0"
 criteria = "safe-to-deploy"
 
-[[exemptions.opentelemetry-proto]]
-version = "0.33.1"
-criteria = "safe-to-deploy"
-
 [[exemptions.opentelemetry_sdk]]
 version = "0.32.1"
-criteria = "safe-to-deploy"
-
-[[exemptions.opentelemetry_sdk]]
-version = "0.33.1"
 criteria = "safe-to-deploy"
 
 [[exemptions.parking_lot]]
@@ -1251,10 +1271,6 @@ criteria = "safe-to-deploy"
 
 [[exemptions.tracing-opentelemetry]]
 version = "0.33.0"
-criteria = "safe-to-deploy"
-
-[[exemptions.tracing-opentelemetry]]
-version = "0.34.0"
 criteria = "safe-to-deploy"
 
 [[exemptions.tracing-subscriber]]
