@@ -116,7 +116,7 @@ fn crate_line_without_stem() {
 }
 
 #[test]
-fn missing_laid() {
+fn missing_restored() {
     let tree = Scratch::new();
     let manifest = Manifest::new(tree.root());
 
@@ -129,7 +129,7 @@ fn missing_laid() {
     assert_eq!(
         tree.read(Manifest::PATH).as_deref(),
         Some(template()),
-        "the template's manifest is laid"
+        "the template's manifest is written"
     );
 }
 

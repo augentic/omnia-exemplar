@@ -4,12 +4,12 @@ The base-repo tooling contract every Omnia guest workspace starts from.
 The Emery omnia target adapter compiles it in as the `omnia-template`
 crate this directory is: `ENTRIES` (`src/entries.rs`) is the manifest's
 entries as Rust, each body embedded through `include_str!`, depended on
-at a pinned commit of this repository and laid into a fresh working copy,
-fill-only, before the first slice builds. Nothing here is copied into the
-adapter by hand — the crate is the single physical source, and the gate
-below holds its table to the manifest entry for entry. What the crate
-does with a tree — `lay`, `drift`, `restore`, and the root `Cargo.toml`
-held around its lists — is its own documentation
+at a pinned commit of this repository and scaffolded into a fresh working
+copy, fill-only, before the first slice builds. Nothing here is copied
+into the adapter by hand — the crate is the single physical source, and
+the gate below holds its table to the manifest entry for entry. What the
+crate does with a tree — `scaffold`, `drift`, `restore`, and the root
+`Cargo.toml` held around its lists — is its own documentation
 (`cargo doc -p omnia-template`).
 
 [`manifest.yaml`](manifest.yaml) is the sole source-to-target map.
@@ -61,13 +61,13 @@ dependency pins must match the root workspace's, and
 `templates/check/tests/scaffold.rs` renders the whole manifest into
 `target/template-scaffold/` and proves the result lints, tests, and
 builds for `wasm32-wasip2` with no hand edits, bare and then with the
-fixture stem under `templates/check/fixtures/stem/` laid in as a slice
-lays one: its crate whole and its line in each list.
+fixture stem under `templates/check/fixtures/stem/` written in as a slice
+writes one: its crate whole and its line in each list.
 
 A stem is one crate under `crates/<stem>/`, and the fixture stem
 `orders` is its proof and the shape a generated stem copies. Its
 `src/lib.rs` is the crate doc, one `pub mod <part>;` line per part, and
-the two functions the root lists compose, laid whichever parts the stem
+the two functions the root lists compose, written whichever parts the stem
 has: `pub fn router<P: Capabilities>() -> axum::Router<Client<P>>`,
 `common::routers([..])` over one `<part>::routes(),` entry per part
 with routes, and `pub fn topics<P: Capabilities>(router:
@@ -76,7 +76,7 @@ messaging::Router<P>, env: &str) -> messaging::Router<P>`,
 entry per part with topics. Each array is a list under a comment that
 anchors it, empty for a stem with no route or no topic yet, so every
 line of the entry outside its three lists is the same whichever slice
-writes it and two slices laying one stem at once merge line by line. A
+writes it and two slices writing one stem at once merge line by line. A
 part is one module: its paths, its settings' keys, and its state keys
 as `pub(crate) const`, its handlers `pub(crate)`, and `pub(crate) fn
 routes()` and `pub(crate) fn topics(router, env)` registering them, so

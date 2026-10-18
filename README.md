@@ -349,9 +349,9 @@ hand-written mock provider anywhere in the workspace.
 - `crates/pattern/tests` — `MatchedHttp` recording outbound HTTP requests,
   covering the decode cache (hit and miss), the ORM-backed nearby query, and
   the structured-error upsert rejection
-- `templates/guest/tests` — the template crate's contract: a tree laid
-  once, its static files held and restored, its root manifest held around
-  its stem lists
+- `templates/guest/tests` — the template crate's contract: a tree
+  scaffolded once, its static files held and restored, its root manifest
+  held around its stem lists
 - `templates/check/tests` — the template contract gate and the scaffold
   proof (a rendered guest lints, tests, and builds for `wasm32-wasip2`)
 
@@ -400,7 +400,7 @@ embeds the same map as Rust, every body compiled in
 ([contract and authoring rules](templates/guest/README.md)).
 
 The Emery omnia target adapter depends on the crate at a pinned commit of
-this repository and lays the template from it at build time: `exact`
+this repository and scaffolds the template from it at build time: `exact`
 manifest entries are the repository-root files themselves, read in place
 through `include_str!`, and seed baselines live under
 `templates/guest/core/`. There is no hand-vendored copy anywhere.

@@ -133,7 +133,7 @@ fn unshared_source() {
 // Each spelling has a replica of its own, since on such a volume two would
 // share one directory and the orphan walk would see the other's file.
 #[test]
-fn cargo_config_laid() {
+fn cargo_config_scaffolded() {
     for (dir, file) in [(".cargo", "config.toml"), (".Cargo", "config.toml"), (".CARGO", "config")]
     {
         let replica = Replica::of_repo();

@@ -26,7 +26,7 @@ const STEM: &str = "templates/check/fixtures/stem";
 
 // What a slice appends for the fixture stem: its line in each list, after
 // the anchor the layout names, or at the end of a list file that names
-// none. The stem's own files are laid whole from `STEM`.
+// none. The stem's own files are written whole from `STEM`.
 const STEM_LINES: &[(&str, &str, &str)] = &[
     (
         "Cargo.toml",
@@ -152,7 +152,7 @@ pub fn run(root: &Path) -> Result<Vec<String>, String> {
 
 // The crate's table is the manifest as data, so the two list the same
 // entries, the same source read for the same target under the same proof,
-// and a row's body is the bytes of the source it names: `lay` and
+// and a row's body is the bytes of the source it names: `scaffold` and
 // `restore` write the body, while the checks above read the source. A
 // source that cannot be read is reported with the manifest's entry.
 fn check_crate(root: &Path, manifest: &Manifest, failures: &mut Vec<String>) {
@@ -458,8 +458,9 @@ pub fn scaffold(root: &Path, dest: &Path) -> Result<(), String> {
     Ok(())
 }
 
-/// Lay the fixture stem into a rendered scaffold at `dest`, as a slice lays
-/// one: its crate whole under `crates/orders/`, and its line in each list.
+/// Write the fixture stem into a rendered scaffold at `dest`, as a slice
+/// writes one: its crate whole under `crates/orders/`, and its line in each
+/// list.
 ///
 /// # Errors
 ///

@@ -1,10 +1,10 @@
-//! Laying the template into a tree and holding the tree's static files to it.
+//! Scaffolding the template into a tree and holding the tree's static files to it.
 
 mod support;
 
 use std::fs;
 
-use omnia_template::{ENTRIES, Error, Proof, Role, drift, lay, restore};
+use omnia_template::{ENTRIES, Error, Proof, Role, drift, restore, scaffold};
 
 use self::support::Scratch;
 
@@ -44,21 +44,26 @@ fn table() {
 }
 
 #[test]
-fn laid_once() {
+fn scaffolded_once() {
     let tree = Scratch::new();
 
-    let laid = lay(tree.root()).expect("the lay");
+    let scaffolded = scaffold(tree.root()).expect("the scaffold");
 
     let paths: Vec<&str> = ENTRIES.iter().map(|entry| entry.path).collect();
-    assert_eq!(laid, paths, "every file is laid, in the table's order");
+    assert_eq!(scaffolded, paths, "every file is scaffolded, in the table's order");
     for entry in ENTRIES {
-        assert_eq!(tree.read(entry.path).as_deref(), Some(entry.body), "`{}` is laid", entry.path);
+        assert_eq!(
+            tree.read(entry.path).as_deref(),
+            Some(entry.body),
+            "`{}` is scaffolded",
+            entry.path
+        );
     }
     assert!(
-        lay(tree.root()).expect("the second lay").is_empty(),
-        "a laid tree is laid again by nothing"
+        scaffold(tree.root()).expect("the second scaffold").is_empty(),
+        "a scaffolded tree is scaffolded again by nothing"
     );
-    assert!(drift(tree.root()).expect("the drift").is_empty(), "a laid tree stands");
+    assert!(drift(tree.root()).expect("the drift").is_empty(), "a scaffolded tree stands");
 }
 
 #[test]
@@ -67,13 +72,13 @@ fn held_file_kept() {
     tree.write("Makefile", "# held\n");
     tree.write("src/routes.rs", "// held\n");
 
-    let laid = lay(tree.root()).expect("the lay");
+    let scaffolded = scaffold(tree.root()).expect("the scaffold");
 
     assert!(
-        !laid.contains(&"Makefile") && !laid.contains(&"src/routes.rs"),
-        "a held file is not laid"
+        !scaffolded.contains(&"Makefile") && !scaffolded.contains(&"src/routes.rs"),
+        "a held file is not scaffolded"
     );
-    assert_eq!(laid.len(), ENTRIES.len() - 2);
+    assert_eq!(scaffolded.len(), ENTRIES.len() - 2);
     assert_eq!(tree.read("Makefile").as_deref(), Some("# held\n"), "a held file stands");
     assert_eq!(tree.read("src/routes.rs").as_deref(), Some("// held\n"));
 }
@@ -81,7 +86,7 @@ fn held_file_kept() {
 #[test]
 fn static_files_restored() {
     let tree = Scratch::new();
-    lay(tree.root()).expect("the lay");
+    scaffold(tree.root()).expect("the scaffold");
     tree.write("src/lib.rs", "//! mine\n");
     fs::remove_file(tree.root().join("Makefile")).expect("the file removed");
     tree.write("src/routes.rs", "// a list, left to its consumer\n");
@@ -121,7 +126,7 @@ fn static_files_restored() {
     assert_eq!(
         tree.read("Makefile").as_deref(),
         Some(body("Makefile")),
-        "the missing file is laid"
+        "the missing file is written"
     );
     assert_eq!(
         tree.read("src/lib.rs").as_deref(),
@@ -139,7 +144,7 @@ fn static_files_restored() {
 #[test]
 fn ending_differs() {
     let tree = Scratch::new();
-    lay(tree.root()).expect("the lay");
+    scaffold(tree.root()).expect("the scaffold");
     tree.write("rustfmt.toml", body("rustfmt.toml").trim_end());
 
     let found = drift(tree.root()).expect("the drift");
@@ -154,17 +159,17 @@ fn occupied_by_directory() {
     let tree = Scratch::new();
     fs::create_dir(tree.root().join("Makefile")).expect("a directory at a file's path");
 
-    let err = lay(tree.root()).expect_err("the lay is refused");
+    let err = scaffold(tree.root()).expect_err("the scaffold is refused");
 
     assert!(matches!(&err, Error::Occupied { path } if path.ends_with("Makefile")), "{err}");
-    assert!(tree.read(".gitignore").is_none(), "nothing is laid when a path is refused");
+    assert!(tree.read(".gitignore").is_none(), "nothing is scaffolded when a path is refused");
 }
 
 #[cfg(unix)]
 #[test]
 fn occupied_by_symlink() {
     let tree = Scratch::new();
-    lay(tree.root()).expect("the lay");
+    scaffold(tree.root()).expect("the scaffold");
     fs::remove_file(tree.root().join("rustfmt.toml")).expect("the file removed");
     std::os::unix::fs::symlink(tree.root().join("taplo.toml"), tree.root().join("rustfmt.toml"))
         .expect("a link at a file's path");
@@ -189,14 +194,14 @@ fn symlinked_parent() {
     std::os::unix::fs::symlink(tree.root().join("elsewhere"), tree.root().join("src"))
         .expect("a link where a directory goes");
 
-    let err = lay(tree.root()).expect_err("the lay is refused");
+    let err = scaffold(tree.root()).expect_err("the scaffold is refused");
 
     assert!(matches!(&err, Error::Occupied { path } if path.ends_with("src")), "{err}");
     assert!(
         fs::read_dir(tree.root().join("elsewhere")).expect("the directory").next().is_none(),
         "nothing is written through the link"
     );
-    assert!(tree.read("Makefile").is_none(), "nothing is laid when a path is refused");
+    assert!(tree.read("Makefile").is_none(), "nothing is scaffolded when a path is refused");
 }
 
 #[test]
@@ -204,10 +209,10 @@ fn file_as_parent() {
     let tree = Scratch::new();
     tree.write("src", "");
 
-    let err = lay(tree.root()).expect_err("the lay is refused");
+    let err = scaffold(tree.root()).expect_err("the scaffold is refused");
 
     assert!(matches!(&err, Error::Occupied { path } if path.ends_with("src")), "{err}");
-    assert!(tree.read("Makefile").is_none(), "nothing is laid when a path is refused");
+    assert!(tree.read("Makefile").is_none(), "nothing is scaffolded when a path is refused");
 }
 
 // `Makefile` sorts before `src/`, so a restore that held each file only as
@@ -216,7 +221,7 @@ fn file_as_parent() {
 #[test]
 fn restore_with_symlinked_parent() {
     let tree = Scratch::new();
-    lay(tree.root()).expect("the lay");
+    scaffold(tree.root()).expect("the scaffold");
     tree.write("Makefile", "# edited\n");
     fs::rename(tree.root().join("src"), tree.root().join("elsewhere"))
         .expect("the directory moved");

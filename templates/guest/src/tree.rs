@@ -1,4 +1,4 @@
-//! Lays the template into a tree and holds the tree's static files to it.
+//! Scaffolds the template into a tree and holds the tree's static files to it.
 
 use std::fs::{self, OpenOptions};
 use std::io::{ErrorKind, Write as _};
@@ -7,21 +7,21 @@ use std::path::{Path, PathBuf};
 use crate::entries::{ENTRIES, Entry, Role};
 use crate::hold::{Drift, Drifted, Error};
 
-/// Lays every file of the template the tree at `root` lacks and returns their paths.
+/// Scaffolds every file of the template the tree at `root` lacks and returns their paths.
 ///
 /// A file the tree holds is left as it stands, whatever it holds, so a tree
-/// laid once is laid again by nothing. A file whose write fails is removed,
-/// so the next lay lays it again. The directories above a file are made as
-/// needed. Every path is held before any is written: a directory or a
-/// symbolic link standing where a file goes, or a file or a symbolic link
-/// on the way to one, refuses the whole lay.
+/// scaffolded once is scaffolded again by nothing. A file whose write fails
+/// is removed, so the next scaffold writes it again. The directories above a
+/// file are made as needed. Every path is held before any is written: a
+/// directory or a symbolic link standing where a file goes, or a file or a
+/// symbolic link on the way to one, refuses the whole scaffold.
 ///
 /// # Errors
 ///
 /// - [`Error::Occupied`] when a directory or a symbolic link stands at a
 ///   file's path, or on the way to one.
 /// - [`Error::Io`] when a path cannot be read or written.
-pub fn lay(root: &Path) -> Result<Vec<&'static str>, Error> {
+pub fn scaffold(root: &Path) -> Result<Vec<&'static str>, Error> {
     let missing: Vec<&Entry> = ENTRIES
         .iter()
         .map(|entry| Ok(read(root, entry)?.is_none().then_some(entry)))
@@ -30,13 +30,13 @@ pub fn lay(root: &Path) -> Result<Vec<&'static str>, Error> {
         .flatten()
         .collect();
 
-    let mut laid = Vec::with_capacity(missing.len());
+    let mut scaffolded = Vec::with_capacity(missing.len());
     for entry in missing {
         if create(root, entry)? {
-            laid.push(entry.path);
+            scaffolded.push(entry.path);
         }
     }
-    Ok(laid)
+    Ok(scaffolded)
 }
 
 /// Returns how the tree at `root` differs from the template in its static files.
@@ -60,7 +60,7 @@ pub fn drift(root: &Path) -> Result<Drift, Error> {
 /// Puts every static file of the tree at `root` back as the template spells it.
 ///
 /// What [`drift`] would have found is written over and returned, a file
-/// the tree lacks laid among them. Every file is read before any is
+/// the tree lacks written among them. Every file is read before any is
 /// written, so a path the hold refuses leaves the tree as it was, and each
 /// file is put back whole or left as it stood.
 ///
@@ -94,7 +94,7 @@ fn drifted(root: &Path) -> Result<Vec<(&'static Entry, Option<Drifted>)>, Error>
 }
 
 // The file at the entry's path as the tree holds it, nothing where the tree
-// lacks it, and a refusal where no file could be laid, the directories
+// lacks it, and a refusal where no file could be written, the directories
 // above it held first.
 fn read(root: &Path, entry: &Entry) -> Result<Option<Vec<u8>>, Error> {
     for dir in above(root, entry) {
@@ -113,7 +113,7 @@ fn read(root: &Path, entry: &Entry) -> Result<Option<Vec<u8>>, Error> {
     }
 }
 
-// Lays the entry where the tree holds no file, and answers whether it did:
+// Creates the entry's file where the tree holds none, and answers whether it did:
 // a file that appeared since the tree was read is kept.
 fn create(root: &Path, entry: &Entry) -> Result<bool, Error> {
     let path = parents(root, entry)?;
@@ -123,7 +123,7 @@ fn create(root: &Path, entry: &Entry) -> Result<bool, Error> {
         Err(source) => return Err(Error::Io { path, source }),
     };
     if let Err(source) = file.write_all(entry.body.as_bytes()) {
-        // a body cut short would read as held by the next lay, so the file
+        // a body cut short would read as held by the next scaffold, so the file
         // goes with the error that cut it; the write's error is the cause
         // to report whether or not the removal succeeds
         drop(file);

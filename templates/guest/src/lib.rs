@@ -1,4 +1,4 @@
-//! The guest template every Omnia guest workspace starts from, as data a consumer lays and holds a tree to.
+//! The guest template every Omnia guest workspace starts from, as data a consumer scaffolds a tree from and holds it to.
 //!
 //! The contract is `templates/guest/manifest.yaml`, beside this crate.
 //! [`ENTRIES`] is its entries as data, each body embedded at compile time,
@@ -9,7 +9,7 @@
 //! [`Seed`](Proof::Seed) entry is a project-start baseline under
 //! `templates/guest/core/`, which the project evolves.
 //!
-//! A tree is laid with [`lay`] and held with [`drift`] and [`restore`]:
+//! A tree is scaffolded with [`scaffold`] and held with [`drift`] and [`restore`]:
 //! every [`Static`](Role::Static) file byte for byte, while a
 //! [`Listed`](Role::Listed) file, which holds a list a slice appends its
 //! lines to, is left to its consumer. The root `Cargo.toml` is the one
@@ -28,4 +28,4 @@ mod tree;
 pub use self::entries::{ENTRIES, Entry, Proof, Role, entry};
 pub use self::hold::{Drift, Drifted, Error};
 pub use self::manifest::Manifest;
-pub use self::tree::{drift, lay, restore};
+pub use self::tree::{drift, restore, scaffold};
