@@ -1,9 +1,8 @@
 //! HTTP paths for the SQL-example handlers.
 //!
 //! Path constants for mounting the handlers under `/examples/*`,
-//! deliberately outside the canonical transit tables in
-//! `acme_common::routes` — these routes are pedagogical, not part of the
-//! Acme service surface.
+//! deliberately apart from the transit crates' paths — these routes are
+//! pedagogical, not part of the Acme service surface.
 
 /// Agency collection: list (GET) and create (POST).
 pub const AGENCIES: &str = "/examples/agencies";

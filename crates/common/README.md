@@ -4,8 +4,9 @@ Shared logic for the (fictional) Acme transit domain:
 
 - `config` — the configuration key catalog plus `env()` / `topic()` helpers
   with a single documented resolution policy.
-- `routes` — the canonical HTTP path and messaging topic tables consumed by
-  both guests and the domain crates.
+- `topic` — the messaging topic table a publishing crate and its consumer
+  both name, so the two agree on the surface by construction.
+- `Capabilities` — the bound every crate's `router()` and `topics()` take.
 - `block_mgt` / `fleet` — clients for the Block Management and Fleet APIs,
   retrieving vehicle allocations and vehicle metadata respectively.
 

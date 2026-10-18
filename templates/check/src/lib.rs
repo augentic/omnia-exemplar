@@ -22,6 +22,34 @@ use serde::Deserialize;
 
 const MANIFEST: &str = "templates/guest/manifest.yaml";
 const SUBTREE: &str = "templates/guest";
+const STEM: &str = "templates/check/fixtures/stem";
+
+// What a slice appends for the fixture stem: its line in each list, after
+// the anchor the layout names, or at the end of a list file that names
+// none. The stem's own files are laid whole from `STEM`.
+const STEM_LINES: &[(&str, &str, &str)] = &[
+    (
+        "Cargo.toml",
+        "common = { path = \"crates/common\" }\n",
+        "orders = { path = \"crates/orders\" }\n",
+    ),
+    ("Cargo.toml", "tracing.workspace = true\n", "orders.workspace = true\n"),
+    (
+        "src/routes.rs",
+        "    let router = axum::Router::new();\n",
+        "    let router = router.merge(orders::router());\n",
+    ),
+    (
+        "src/messaging.rs",
+        "    let router = messaging::Router::new(Client::new(OWNER, provider));\n",
+        "    let router = orders::topics(router, &env);\n",
+    ),
+    (
+        "crates/common/src/topic.rs",
+        "",
+        "\n/// An order was placed.\npub const ORDER_PLACED: &str = \"order-placed\";\n",
+    ),
+];
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields, rename_all = "kebab-case")]
@@ -426,6 +454,42 @@ pub fn scaffold(root: &Path, dest: &Path) -> Result<(), String> {
         }
         fs::write(&target, render(&body, &values))
             .map_err(|err| format!("{}: {err}", target.display()))?;
+    }
+    Ok(())
+}
+
+/// Lay the fixture stem into a rendered scaffold at `dest`, as a slice lays
+/// one: its crate whole under `crates/orders/`, and its line in each list.
+///
+/// # Errors
+///
+/// Returns `Err` when a fixture file cannot be read or written, or when a
+/// list file lacks the anchor its line follows.
+pub fn stem(root: &Path, dest: &Path) -> Result<(), String> {
+    let fixture = root.join(STEM);
+    let mut files = Vec::new();
+    walk(&fixture, &mut files)?;
+    for file in files {
+        let relative = file.strip_prefix(&fixture).map_err(|err| err.to_string())?;
+        let target = dest.join(relative);
+        if let Some(parent) = target.parent() {
+            fs::create_dir_all(parent).map_err(|err| format!("{}: {err}", parent.display()))?;
+        }
+        fs::copy(&file, &target).map_err(|err| format!("{}: {err}", target.display()))?;
+    }
+
+    for (path, anchor, line) in STEM_LINES {
+        let file = dest.join(path);
+        let text = fs::read_to_string(&file).map_err(|err| format!("{}: {err}", file.display()))?;
+        let appended = if anchor.is_empty() {
+            format!("{text}{line}")
+        } else {
+            let (before, after) = text
+                .split_once(anchor)
+                .ok_or_else(|| format!("{path}: the list lacks its anchor {anchor:?}"))?;
+            format!("{before}{anchor}{line}{after}")
+        };
+        fs::write(&file, appended).map_err(|err| format!("{}: {err}", file.display()))?;
     }
     Ok(())
 }

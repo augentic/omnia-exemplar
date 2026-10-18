@@ -19,6 +19,7 @@ workspace = true
 crate-type = ["lib"]
 
 [dependencies]
+axum.workspace = true
 anyhow.workspace = true
 omnia-sdk.workspace = true
 omnia-wasi-sql.workspace = true
@@ -31,3 +32,4 @@ tokio.workspace = true
 # Target-gated so the guest's wasm32 dependency graph never sees the doubles.
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 omnia-test = { workspace = true, features = ["guest"] }
+tower.workspace = true

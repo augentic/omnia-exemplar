@@ -12,7 +12,7 @@
 #           CI is the template's proof.
 #   seed  — a project-start baseline the consuming project immediately
 #           evolves (the root package and the lists a build appends to,
-#           vet state, clippy duplicate lists, deploy parameters); the
+#           vet state, the lint configuration, deploy parameters); the
 #           body lives under `templates/guest/core/` at the target's own
 #           path, is rendered with `values.yaml` and syntax-checked, and
 #           is never diffed against the root.
@@ -55,14 +55,8 @@ assemblies:
       - source: templates/guest/core/crates/common/src/config.rs
         target: crates/common/src/config.rs
         proof: seed
-      - source: templates/guest/core/crates/common/src/routes.rs
-        target: crates/common/src/routes.rs
-        proof: seed
-      - source: templates/guest/core/crates/common/src/routes/http.rs
-        target: crates/common/src/routes/http.rs
-        proof: seed
-      - source: templates/guest/core/crates/common/src/routes/topic.rs
-        target: crates/common/src/routes/topic.rs
+      - source: templates/guest/core/crates/common/src/topic.rs
+        target: crates/common/src/topic.rs
         proof: seed
       - source: Makefile
         target: Makefile

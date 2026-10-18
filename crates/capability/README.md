@@ -15,9 +15,10 @@ capability trait:
 | `table` | `TableStore` | `reading(ReadingRequest)` — insert a reading and count the sensor's rows |
 
 The crate-level tests (`tests/`) drive every handler through
-`omnia_test::guest::Provider` doubles. Route constants for mounting the handlers under `/examples/*`
-live in `src/routes.rs`; the workspace-root guest does not wire them by
-default (there is no `guests/` tree — see the repository README).
+`omnia_test::guest::Provider` doubles, and `tests/dispatch.rs` drives the
+crate's `router()`. Route constants for mounting the handlers under
+`/examples/*` live in `src/routes.rs`, and the workspace-root guest merges
+the router (there is no `guests/` tree — see the repository README).
 
 `Broadcast::send` is client-side only — the guest connects out to the
 broadcast channel — so serving it requires no WebSocket export.

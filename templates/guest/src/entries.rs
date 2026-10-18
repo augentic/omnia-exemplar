@@ -83,10 +83,10 @@ macro_rules! seed {
 ///
 /// - the root package `guest` is the component, exporting WASI HTTP and
 ///   WASI Messaging over one provider and building both routers from the
-///   two lists `src/routes.rs` and `src/messaging.rs`, each driven natively
-///   by a rung under `tests/`;
-/// - `crates/common` holds the route and topic tables and the
-///   configuration catalog every stem shares;
+///   two lists `src/routes.rs` and `src/messaging.rs`, one statement per
+///   stem, each built natively by a rung under `tests/`;
+/// - `crates/common` holds the capability bound, the topic table, and the
+///   environment helpers every stem shares;
 /// - `examples/runtime.rs` is the local host behind the `host` feature;
 /// - the rest is the tooling this repository runs under, the toolchain,
 ///   the formatter, lint, deny, and vet configuration, the task runner,
@@ -108,13 +108,11 @@ pub static ENTRIES: &[Entry] = &[
         role: Role::Listed,
     },
     exact!("Makefile", Role::Static),
-    seed!("clippy.toml", Role::Listed),
+    seed!("clippy.toml", Role::Static),
     seed!("crates/common/Cargo.toml", Role::Static),
-    seed!("crates/common/src/config.rs", Role::Listed),
+    seed!("crates/common/src/config.rs", Role::Static),
     seed!("crates/common/src/lib.rs", Role::Static),
-    seed!("crates/common/src/routes.rs", Role::Static),
-    seed!("crates/common/src/routes/http.rs", Role::Listed),
-    seed!("crates/common/src/routes/topic.rs", Role::Listed),
+    seed!("crates/common/src/topic.rs", Role::Listed),
     seed!("deny.toml", Role::Static),
     seed!("examples/runtime.rs", Role::Static),
     exact!("mise.toml", Role::Static),
@@ -127,8 +125,8 @@ pub static ENTRIES: &[Entry] = &[
     seed!("supply-chain/audits.toml", Role::Static),
     seed!("supply-chain/config.toml", Role::Static),
     exact!("taplo.toml", Role::Static),
-    seed!("tests/messaging.rs", Role::Listed),
-    seed!("tests/routes.rs", Role::Listed),
+    seed!("tests/messaging.rs", Role::Static),
+    seed!("tests/routes.rs", Role::Static),
 ];
 
 /// Returns the entry at `path`, a `/`-separated path relative to the tree's root.

@@ -1,9 +1,8 @@
 //! HTTP routes for the pattern-example handlers.
 //!
 //! Served by the guest to instantiate the composed default WASM capability
-//! implementations, deliberately outside the canonical transit tables in
-//! `acme_common::routes` — these routes are pedagogical, not part of the
-//! Acme service surface.
+//! implementations, deliberately apart from the transit crates' paths —
+//! these routes are pedagogical, not part of the Acme service surface.
 
 /// Decode-through-cache segment lookup.
 pub const DECODE: &str = "/examples/patterns/decode";

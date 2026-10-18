@@ -1,10 +1,10 @@
 //! HTTP paths for the docstore-example handlers.
 //!
 //! Path constants for mounting the handlers under `/examples/*`,
-//! deliberately outside the canonical transit tables in
-//! `acme_common::routes` — these routes are pedagogical, not part of the
-//! Acme service surface. Named `paths` (not `routes`) because this crate's
-//! [`route`](crate::route) module is the GTFS route collection.
+//! deliberately apart from the transit crates' paths — these routes are
+//! pedagogical, not part of the Acme service surface. Named `paths` (not
+//! `routes`) because this crate's [`route`](crate::route) module is the GTFS
+//! route collection.
 
 /// Stop collection: list (GET) and create (POST).
 pub const STOPS: &str = "/examples/stops";

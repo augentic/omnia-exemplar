@@ -8,6 +8,47 @@ Unreleased
 
 ### Changed
 
+- **Composition replaces registration.** A stem is one crate exposing
+  `router()` and `topics(router, env)`, and the root lists compose them: one
+  `router.merge(<stem>::router())` statement per stem in `src/routes.rs`,
+  one `<stem>::topics(router, &env)` per stem in `src/messaging.rs`. A
+  stem's entry folds its parts through two helpers of `common`,
+  `common::routers([..])` and `common::topics(router, env).parts([..])`,
+  each over a list that may be empty, so the entry is laid the same by
+  every slice of the stem and merges line by line. A part's paths,
+  settings, and state keys are its own `pub(crate)` constants, its
+  handlers `pub(crate)`, registered by its `routes()` and `topics()`, so a
+  part the stem does not name is dead code, and a stem's tests drive its
+  routers rather than its handlers. `Capabilities` moves to `common`, so a
+  stem bounds on it; the route table and the configuration
+  catalog are gone from `common`, the topic table alone staying as
+  `crates/common/src/topic.rs`, since a publisher and its consumer may land
+  in different waves; `config.rs` keeps `ENV` and the environment helpers
+  and is static, as the two rungs are, each now one test that the composed
+  router builds and one that an unknown path or topic is refused, since
+  axum and the messaging router refuse a route or topic two stems claim as
+  they build. The app takes the same shape: every crate exposes `router()`
+  or `topics()`, the root `src/lib.rs` is the template's, `acme_common::
+  routes::http` moves to the crates that serve each path, `routes::topic`
+  becomes `acme_common::topic`, and the root rungs' dispatch coverage moves
+  to each crate's own tests. The fixture stem under
+  `templates/check/fixtures/stem/` carries the stem shape, and the
+  template's README spells it.
+- **The template's lints carry the host boundary.** The seed's
+  `clippy.toml` gains `disallowed-methods`, `disallowed-types`, and
+  `disallowed-macros` over what a guest never reaches on its own — the
+  environment, the file system, the network, the clock, threads and tasks,
+  the process, state kept across calls, a file compiled in — each entry's
+  `reason` naming the capability to reach instead; the seed's
+  `[workspace.lints]` sets the three and `allow_attributes` to `forbid`, so
+  no crate lifts them, and warns `infinite_loop`. `allowed-duplicate-crates`
+  is gone and `multiple_crate_versions` allowed, since the guest links what
+  omnia pins, so `clippy.toml` holds no list and is a static entry. The
+  scaffold proof lays the fixture stem under `templates/check/fixtures/stem/`
+  into the rendered template after the bare checks pass — its crate whole
+  and its line in each list, as a slice lays one — and runs the checks
+  again, so a line in every list and a stem under the lints compile on
+  every CI run.
 - **The guest template is also a crate.** `templates/guest` is
   `omnia-template`, beside the manifest that stays the contract: `ENTRIES`
   is `manifest.yaml`'s entries as data, each body embedded through

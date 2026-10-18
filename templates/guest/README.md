@@ -24,7 +24,7 @@ mode:
   enforces the shape.
 - **seed** — a project-start baseline the consuming project immediately
   evolves: the root package and the lists a build appends its lines to,
-  cargo-vet state, clippy duplicate-crate lists, deploy parameters. Seed
+  cargo-vet state, the lint configuration, deploy parameters. Seed
   bodies live under [`core/`](core/) at their target paths, are rendered
   with [`values.yaml`](values.yaml) and syntax-checked, and are never
   diffed against the root, because the root's copies legitimately
@@ -48,16 +48,57 @@ as both the workspace and the deployable package, `crate-type =
 ["cdylib", "rlib"]`, every pin under `[workspace.dependencies]`, the
 `wasm32`-excluded `omnia-test` dev-dependency (`features = ["guest"]`)
 and the `host` feature; `src/lib.rs` with the `wasm32`-gated WASI HTTP
-and WASI Messaging exports over provider-generic routers built from the
-lists `src/routes.rs` and `src/messaging.rs`; `tests/routes.rs` and
-`tests/messaging.rs`, one native rung each over a seeded
-`omnia_test::guest::Provider`; `crates/common`, the route and topic
-tables and the configuration catalog every stem shares; and
+and WASI Messaging exports over provider-generic routers composed by
+the lists `src/routes.rs` and `src/messaging.rs`, one statement per
+stem; `tests/routes.rs` and `tests/messaging.rs`, one native rung each
+that builds the composed router over a seeded
+`omnia_test::guest::Provider`, so two stems serving one route or
+consuming one topic fail there; `crates/common`, the `Capabilities`
+bound a stem's routers take, the topic table a publisher and its
+consumer agree on, and the environment helpers; and
 `examples/runtime.rs`, the local host behind `host`. Its shared
 dependency pins must match the root workspace's, and
 `templates/check/tests/scaffold.rs` renders the whole manifest into
 `target/template-scaffold/` and proves the result lints, tests, and
-builds for `wasm32-wasip2` with no hand edits.
+builds for `wasm32-wasip2` with no hand edits, bare and then with the
+fixture stem under `templates/check/fixtures/stem/` laid in as a slice
+lays one: its crate whole and its line in each list.
+
+A stem is one crate under `crates/<stem>/`, and the fixture stem
+`orders` is its proof and the shape a generated stem copies. Its
+`src/lib.rs` is the crate doc, one `pub mod <part>;` line per part, and
+the two functions the root lists compose, laid whichever parts the stem
+has: `pub fn router<P: Capabilities>() -> axum::Router<Client<P>>`,
+`common::routers([..])` over one `<part>::routes(),` entry per part
+with routes, and `pub fn topics<P: Capabilities>(router:
+messaging::Router<P>, env: &str) -> messaging::Router<P>`,
+`common::topics(router, env).parts([..])` over one `<part>::topics,`
+entry per part with topics. Each array is a list under a comment that
+anchors it, empty for a stem with no route or no topic yet, so every
+line of the entry outside its three lists is the same whichever slice
+writes it and two slices laying one stem at once merge line by line. A
+part is one module: its paths, its settings' keys, and its state keys
+as `pub(crate) const`, its handlers `pub(crate)`, and `pub(crate) fn
+routes()` and `pub(crate) fn topics(router, env)` registering them, so
+a part the stem's lists do not name is dead code. Its tests under
+`tests/<part>.rs` drive the stem's `router()` with `oneshot` and its
+`topics()` through a `messaging::Router` over a `Client` of the
+doubles, so a route or a topic is asserted as the wire reaches it. The
+root `Cargo.toml` names the crate in its path list and its
+`[dependencies]`, `src/routes.rs` merges its `router()`,
+`src/messaging.rs` registers its `topics()`, and a topic the stem
+publishes or consumes is one constant appended to
+`crates/common/src/topic.rs`; nothing else of the seed is edited.
+
+The seed's `clippy.toml` and the `[workspace.lints]` of its `Cargo.toml`
+carry the host boundary: `disallowed-methods`, `disallowed-types`, and
+`disallowed-macros` name what a guest never reaches on its own — the
+environment, the file system, the network, the clock, threads and
+tasks, the process, state kept across calls, a file compiled in — and
+each entry's `reason` names the capability to reach instead. The lints
+are `forbid`, so no crate lifts them with an `allow` or an `expect`, and
+`allow_attributes` is forbidden beside them. `clippy.toml` is a static
+file: a project adds a `doc-valid-idents` entry by editing the seed here.
 
 Project-specific root policy — concrete crate names, private
 registries, supply-chain exemptions, release-branch details — stays

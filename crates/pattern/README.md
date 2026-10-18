@@ -10,10 +10,10 @@ time, each handler here composes several:
 | `place` | `TableStore` + `omnia-orm` | `upsert_place` — ORM `INSERT … ON CONFLICT` upsert, rejecting bad coordinates with a structured JSON error body extending the framework's `ErrorBody` envelope (`PlaceError`) |
 | `place` | `TableStore` | `nearby_places` — bounding-box `SELECT` refined by haversine |
 
-The guest serves these under `/examples/patterns/*` (see `src/routes.rs`).
-The routes are pedagogical: they exist to instantiate the composed default
-WASM capability implementations, deliberately outside the canonical transit
-tables in `acme_common::routes`.
+The crate's `router()` serves these under `/examples/patterns/*` (see
+`src/routes.rs`). The routes are pedagogical: they exist to instantiate the
+composed default WASM capability implementations, deliberately apart from
+the transit crates' paths.
 
 ## Decode-through-cache
 

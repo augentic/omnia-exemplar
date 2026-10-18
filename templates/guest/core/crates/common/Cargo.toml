@@ -1,6 +1,6 @@
 [package]
 name = "common"
-description = "The route and topic tables and the configuration catalog every stem shares"
+description = "The capability bound, the topic table, and the environment helpers every stem shares"
 publish.workspace = true
 edition.workspace = true
 rust-version.workspace = true
