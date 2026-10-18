@@ -1,6 +1,6 @@
 //! Tally APC connector handler.
 
-use acme_common::{config, routes};
+use acme_common::{config, topic};
 use anyhow::Context as _;
 use omnia_sdk::api::Context;
 use omnia_sdk::{Config, Message, Publish, Result};
@@ -26,7 +26,7 @@ where
     let site = message.device.as_ref().map_or_else(|| "undefined", |device| &device.site);
     msg.headers.insert("key".to_string(), site.to_string());
 
-    let topic = config::topic(provider, routes::topic::TALLY_APC).await;
+    let topic = config::topic(provider, topic::TALLY_APC).await;
 
     Publish::send(provider, &topic, &msg).await?;
 

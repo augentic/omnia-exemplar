@@ -1,5 +1,6 @@
 //! The scaffold proof: a project rendered from the manifest passes the
-//! checks a build is held to, with no hand edits.
+//! checks a build is held to, bare and with one stem laid in, with no hand
+//! edits.
 //!
 //! The scaffold builds against the same published omnia the exemplar does:
 //! the root lockfile seeds the scaffold's, so every crates.io dependency
@@ -19,7 +20,9 @@ use std::process::Command;
 use std::{env, fs};
 
 // The checks are the omnia target adapter's verify over an integrated tree,
-// so a template that passes here passes a wave whose slices wrote nothing.
+// so a template that passes here bare passes a wave whose slices wrote
+// nothing, and one that passes with the fixture stem laid in accepts a
+// slice's line in each list and a stem's crate under the workspace lints.
 // Every feature is on, as CI has it, so the `host` example compiles too.
 #[test]
 fn rendered_scaffold() {
@@ -33,11 +36,17 @@ fn rendered_scaffold() {
 
     template_check::scaffold(&root, &dest).expect("scaffold renders");
     fs::copy(root.join("Cargo.lock"), dest.join("Cargo.lock")).expect("lockfile seeded");
+    checks(&dest, &target_dir);
 
+    template_check::stem(&root, &dest).expect("the fixture stem lays");
+    checks(&dest, &target_dir);
+}
+
+fn checks(dest: &Path, target_dir: &Path) {
     let clippy =
         ["clippy", "--workspace", "--all-targets", "--all-features", "--", "-D", "warnings"];
-    cargo(&dest, &target_dir, &clippy);
-    cargo(&dest, &target_dir, &["test", "--workspace", "--all-features"]);
+    cargo(dest, target_dir, &clippy);
+    cargo(dest, target_dir, &["test", "--workspace", "--all-features"]);
 
     // the component, from this build alone
     let wasm_target_dir = target_dir.join("template-scaffold-wasm32");
@@ -47,7 +56,7 @@ fn rendered_scaffold() {
     {
         panic!("stale component removed: {err}");
     }
-    cargo(&dest, &wasm_target_dir, &["build", "--target", "wasm32-wasip2"]);
+    cargo(dest, &wasm_target_dir, &["build", "--target", "wasm32-wasip2"]);
     assert!(component.is_file(), "the guest component is built");
 }
 

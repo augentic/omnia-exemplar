@@ -336,12 +336,14 @@ name = "capability"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "axum",
  "omnia-sdk",
  "omnia-test",
  "omnia-wasi-sql",
  "serde",
  "serde_json",
  "tokio",
+ "tower",
 ]
 
 [[package]]
@@ -1001,11 +1003,13 @@ name = "docstore"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "axum",
  "omnia-sdk",
  "omnia-test",
  "serde",
  "serde_json",
  "tokio",
+ "tower",
 ]
 
 [[package]]
@@ -1375,6 +1379,7 @@ version = "0.1.0"
 dependencies = [
  "acme-common",
  "anyhow",
+ "axum",
  "bytes",
  "chrono",
  "chrono-tz",
@@ -1386,6 +1391,7 @@ dependencies = [
  "serde_json",
  "thiserror 2.0.21",
  "tokio",
+ "tower",
  "tracing",
  "uuid",
 ]
@@ -2795,6 +2801,7 @@ dependencies = [
  "serde_json",
  "thiserror 2.0.21",
  "tokio",
+ "tower",
 ]
 
 [[package]]
@@ -3026,6 +3033,7 @@ dependencies = [
  "serde",
  "thiserror 2.0.21",
  "tokio",
+ "tower",
  "tracing",
 ]
 
@@ -3906,12 +3914,14 @@ name = "sql"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "axum",
  "chrono",
  "omnia-orm",
  "omnia-sdk",
  "omnia-test",
  "serde",
  "tokio",
+ "tower",
 ]
 
 [[package]]
@@ -4037,11 +4047,13 @@ version = "0.1.0"
 dependencies = [
  "acme-common",
  "anyhow",
+ "axum",
  "omnia-sdk",
  "omnia-test",
  "serde",
  "serde_json",
  "tokio",
+ "tower",
 ]
 
 [[package]]

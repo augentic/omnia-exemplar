@@ -2,7 +2,7 @@
 //!
 //! Transform a Pulse XML message into Motion events.
 
-use acme_common::{block_mgt, config, routes};
+use acme_common::{block_mgt, config, topic};
 use anyhow::Context as _;
 use chrono::Utc;
 use omnia_sdk::api::Context;
@@ -68,7 +68,7 @@ where
     let events = update.into_events(context.owner(), provider).await?;
 
     // publish events to Motion topic (repeated — see `PUBLISH_REPEATS`)
-    let topic = config::topic(provider, routes::topic::PULSE_TO_MOTION).await;
+    let topic = config::topic(provider, topic::PULSE_TO_MOTION).await;
 
     for _ in 0..PUBLISH_REPEATS {
         for event in &events {

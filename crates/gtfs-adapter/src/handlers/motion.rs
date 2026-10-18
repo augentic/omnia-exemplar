@@ -1,6 +1,6 @@
 //! Motion AVL message processing.
 
-use acme_common::{config, routes};
+use acme_common::{config, topic};
 use chrono::{DateTime, Utc};
 use omnia_sdk::api::Context;
 use omnia_sdk::{Config, HttpRequest, Identity, Message, Publish, Result, StateStore, bad_request};
@@ -38,12 +38,8 @@ where
     };
 
     let (payload, key, suffix) = match location {
-        Location::VehiclePosition(feed) => {
-            (serde_json::to_vec(&feed)?, feed.id, routes::topic::GTFS_VP)
-        }
-        Location::DeadReckoning(dr) => {
-            (serde_json::to_vec(&dr)?, dr.id, routes::topic::DEAD_RECKONING)
-        }
+        Location::VehiclePosition(feed) => (serde_json::to_vec(&feed)?, feed.id, topic::GTFS_VP),
+        Location::DeadReckoning(dr) => (serde_json::to_vec(&dr)?, dr.id, topic::DEAD_RECKONING),
     };
 
     let topic = config::topic(provider, suffix).await;

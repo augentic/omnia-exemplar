@@ -31,6 +31,10 @@ pub mod feed;
 pub mod paths;
 pub mod schema;
 
+use omnia_sdk::TableStore;
+use omnia_sdk::api::Client;
+use omnia_sdk::api::http::{delete, get, patch, post};
+
 pub use crate::agency::{
     AgenciesReply, Agency, AgencyReply, CreateAgencyRequest, GetAgencyRequest, ListAgenciesRequest,
     UpdateAgencyRequest, create_agency, get_agency, list_agencies, update_agency,
@@ -40,6 +44,16 @@ pub use crate::feed::{
     FeedsReply, FeedsWithAgencyReply, ListAgencyFeedsRequest, ListAllFeedsRequest, create_feed,
     delete_feed, list_agency_feeds, list_all_feeds,
 };
+
+/// The crate's routes, merged onto the guest's router.
+pub fn router<P: TableStore + Send + Sync + 'static>() -> axum::Router<Client<P>> {
+    axum::Router::new()
+        .route(paths::AGENCIES, get(list_agencies).merge(post(create_agency)))
+        .route(paths::AGENCY, get(get_agency).merge(patch(update_agency)))
+        .route(paths::AGENCY_FEEDS, get(list_agency_feeds).merge(post(create_feed)))
+        .route(paths::FEEDS, get(list_all_feeds))
+        .route(paths::FEED, delete(delete_feed))
+}
 
 /// Named connection configured by the host.
 pub const CONNECTION: &str = "db";

@@ -1,18 +1,14 @@
 //! # guest
 //!
-//! An Omnia WASI guest: every stem's HTTP routes on one router and every
-//! stem's topics on one messaging router, over one provider. Only the WASI
-//! exports are `wasm32`-gated: the routers are generic over their provider,
-//! so `tests/routes.rs` and `tests/messaging.rs` drive the production
-//! tables natively under `omnia_test::guest::Provider` doubles.
+//! An Omnia WASI guest: every stem's routes merged onto one HTTP router and
+//! every stem's topics registered on one messaging router, over one
+//! provider. Only the WASI exports are `wasm32`-gated: the routers are
+//! generic over their provider, so `tests/routes.rs` and `tests/messaging.rs`
+//! build the production routers natively under `omnia_test::guest::Provider`
+//! doubles.
 
 mod messaging;
 mod routes;
-
-use omnia_sdk::{
-    BlobStore, Broadcast, Config, DocumentStore, HttpRequest, Identity, Publish, StateStore,
-    TableStore,
-};
 
 pub use self::messaging::messaging_router;
 pub use self::routes::router;
@@ -20,44 +16,13 @@ pub use self::routes::router;
 /// The tenant that owns this deployment.
 pub const OWNER: &str = "guest";
 
-/// Every capability a stem may bound its provider on.
-///
-/// Both routers take any provider under this bound, so a stem reaching a
-/// capability no stem reached before changes neither router's signature.
-pub trait Capabilities:
-    BlobStore
-    + Broadcast
-    + Config
-    + DocumentStore
-    + HttpRequest
-    + Identity
-    + Publish
-    + StateStore
-    + TableStore
-    + Send
-    + Sync
-    + 'static
-{
-}
-
-impl<P> Capabilities for P where
-    P: BlobStore
-        + Broadcast
-        + Config
-        + DocumentStore
-        + HttpRequest
-        + Identity
-        + Publish
-        + StateStore
-        + TableStore
-        + Send
-        + Sync
-        + 'static
-{
-}
-
 cfg_select! {
     target_arch = "wasm32" => {
+        use omnia_sdk::{
+            BlobStore, Broadcast, Config, DocumentStore, HttpRequest, Identity, Publish,
+            StateStore, TableStore,
+        };
+
         /// Bare provider backed by the default WASI capability implementations.
         ///
         /// Each capability trait ships its WASI-backed methods as defaults, so an

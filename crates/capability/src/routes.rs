@@ -1,9 +1,8 @@
 //! HTTP routes for the capability-example handlers.
 //!
 //! Route constants for mounting the handlers under `/examples/*`,
-//! deliberately outside the canonical transit tables in
-//! `acme_common::routes`. The workspace-root guest wires all four as
-//! body-JSON POSTs.
+//! deliberately apart from the transit crates' paths. The crate's
+//! [`router`](crate::router) serves all four as body-JSON POSTs.
 
 /// Blobstore archive ingress.
 pub const ARCHIVE: &str = "/examples/archive";

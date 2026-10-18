@@ -92,6 +92,16 @@ print_stderr = "warn"
 print_stdout = "warn"
 unused_result_ok = "warn"
 
+# The host boundary, spelled in `clippy.toml`: forbidden, so no crate lifts it
+# with an `allow` or an `expect`, and the repair is the capability the lint names.
+allow_attributes = "forbid"
+disallowed_macros = "forbid"
+disallowed_methods = "forbid"
+disallowed_types = "forbid"
+infinite_loop = "warn"
+# The guest links what omnia pins; duplicate crates beneath them are omnia's.
+multiple_crate_versions = "allow"
+
 [workspace.dependencies]
 anyhow = "1.0.104"
 axum = { version = "0.8.9", default-features = false, features = ["json"] }

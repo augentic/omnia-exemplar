@@ -5,7 +5,7 @@
 
 use std::fmt::{self, Display};
 
-use acme_common::{config, routes};
+use acme_common::{config, topic};
 use anyhow::Context as _;
 use http::{HeaderValue, StatusCode};
 use omnia_sdk::api::Context;
@@ -59,7 +59,7 @@ where
     }
 
     // forward to pulse-adapter topic
-    let topic = config::topic(provider, routes::topic::PULSE).await;
+    let topic = config::topic(provider, topic::PULSE).await;
 
     let msg = Message::new(message.as_bytes());
     Publish::send(provider, &topic, &msg).await.map_err(|error| {

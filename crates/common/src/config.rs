@@ -46,7 +46,7 @@ pub async fn env(provider: &impl Config) -> String {
 }
 
 /// Build a fully-qualified messaging topic from an environment-agnostic
-/// suffix (see [`crate::routes::topic`]), e.g. `realtime-pulse.v1` becomes
+/// suffix (see [`crate::topic`]), e.g. `realtime-pulse.v1` becomes
 /// `dev-realtime-pulse.v1`.
 pub async fn topic(provider: &impl Config, suffix: &str) -> String {
     topic_for(&env(provider).await, suffix)

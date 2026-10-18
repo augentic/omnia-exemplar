@@ -114,7 +114,7 @@ async fn http_export() {
 
     // `Host` is required: the handler answers a request without an authority
     // with `400` before the guest sees it.
-    let request = Request::post(acme_common::routes::http::APC)
+    let request = Request::post(tally_connector::APC)
         .header(HOST, "guest.test")
         .header(CONTENT_TYPE, "application/json")
         .body(Full::new(Bytes::from_static(TALLY_MESSAGE)))
@@ -127,10 +127,7 @@ async fn http_export() {
         .await
         .expect("the publish reaches the broker")
         .expect("the broker stays open");
-    assert_eq!(
-        sent.topic,
-        acme_common::config::topic_for("dev", acme_common::routes::topic::TALLY_APC)
-    );
+    assert_eq!(sent.topic, acme_common::config::topic_for("dev", acme_common::topic::TALLY_APC));
     assert!(
         tokio::time::timeout(Duration::from_millis(200), broker.next()).await.is_err(),
         "nothing else reached the broker"
@@ -150,8 +147,7 @@ async fn messaging_export() {
         .expect("the guest exports the messaging handler");
 
     let mut message = Message::new(fixture_value(PASSENGER_COUNT, 0));
-    message.topic =
-        acme_common::config::topic_for("dev", acme_common::routes::topic::PASSENGER_COUNT);
+    message.topic = acme_common::config::topic_for("dev", acme_common::topic::PASSENGER_COUNT);
     handler.handle(message).await.expect("handled");
 
     // The guest's `StateStore` writes the occupancy under its composite key

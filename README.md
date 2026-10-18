@@ -7,11 +7,14 @@ passenger counting, and GTFS realtime adaptation.
 
 Domain logic lives under `crates/*` as plain
 `pub async fn name<P>(input, Context<P>)` handlers (each is a `Handler<P>`
-by omnia's blanket impl). The **guest is the workspace root package**
-(`src/lib.rs`) — explicit HTTP routes bound to those fns (`post(tally)`) and
-an exact-topic messaging router over a provider-owning `Client`. Match this
-layout when creating a new Omnia service: root `src/`, not a
-`guests/<name>/` tree.
+by omnia's blanket impl), and each crate exposes its wiring: `router()`, an
+`axum::Router` binding its paths to its fns (`post(tally)`), and
+`topics(router, env)`, registering its consumers on the exact-topic
+messaging router. The **guest is the workspace root package**
+(`src/lib.rs`) — one `merge` per crate in `src/routes.rs`, one
+registration per crate in `src/messaging.rs`, over a provider-owning
+`Client`. Match this layout when creating a new Omnia service: root
+`src/`, not a `guests/<name>/` tree.
 
 ## Relation to omnia
 
@@ -102,12 +105,13 @@ The root `Cargo.toml` is both the workspace and the deployable guest package
 
 The guest:
 
-- Registers typed HTTP routes (`omnia_sdk::api::http::{get, post}`, with
-  `handle_with` for non-JSON wire formats) on an `axum::Router` and
-  serves them through `omnia_sdk::api::http::serve`
+- Merges each crate's `router()` — typed HTTP routes
+  (`omnia_sdk::api::http::{get, post}`, with `handle_with` for non-JSON
+  wire formats) on an `axum::Router` — and serves the whole through
+  `omnia_sdk::api::http::serve`
 - Exports messaging with `omnia_wasi_messaging::export!`, dispatching through
   an exact-topic `omnia_sdk::api::messaging::Router` of **exact**
-  env-qualified topics
+  env-qualified topics each crate's `topics()` registers
 - Uses a unit `Provider` with one empty `impl` per capability trait, taking
   the WASI-backed default methods each trait ships (`BlobStore`,
   `Broadcast`, `Config`, `DocumentStore`, `HttpRequest`, `Identity`,
@@ -150,7 +154,7 @@ consumer is out of scope for the exemplar.
 
 | Crate | Role |
 | --- | --- |
-| `crates/common` (`acme-common`) | Config key catalog, canonical route/topic tables, and shared clients for the Block Management and Fleet APIs |
+| `crates/common` (`acme-common`) | Config key catalog, the topic table producers and consumers share, the `Capabilities` bound every router takes, and shared clients for the Block Management and Fleet APIs |
 | `crates/pulse-connector` | HTTP ingress for the vendor "Pulse" SOAP/XML position feed; republishes to messaging |
 | `crates/pulse-adapter` | Converts Pulse train updates into Motion location events |
 | `crates/tally-connector` | HTTP ingress for the vendor "Tally" passenger-count feed |
@@ -184,17 +188,20 @@ clients stay provider-generic, and `omnia-orm` only renders
    (e.g. `P: Config + Publish`), a `///` summary, and an `# Errors` section;
    re-export it from the crate root. Read capabilities through
    `context.provider()`.
-4. Add any new topic suffix or HTTP path to `acme_common::routes`, and any
-   new configuration key to `acme_common::config` plus `.env.example`.
-5. Wire the handler into the HTTP or messaging router in `src/lib.rs` from
-   the shared route tables (`post(handler)`, `consume(handler)`, or a
-   `_with` variant taking the handler plus custom codecs for non-JSON wire
-   formats).
+4. Declare the path as a `pub const` of the crate, any new topic suffix in
+   `acme_common::topic`, and any new configuration key in
+   `acme_common::config` plus `.env.example`.
+5. Bind the handler in the crate's `router()` (`post(handler)`, or a
+   `handle_with` taking the handler plus custom codecs for non-JSON wire
+   formats) or `topics()` (`consume(handler)`, `consume_with`). A new crate
+   adds one `merge(<crate>::router())` line to `src/routes.rs` or one
+   `<crate>::topics(router, &env)` line to `src/messaging.rs`.
 6. Add fixtures under the crate's `data/` and native tests under `tests/`
    that seed an `omnia_test::guest::Provider` with the doubles the
    handler's capabilities read (copy the shape of
-   `crates/tally-connector/tests` or `crates/gtfs-adapter/tests`), then add
-   the route to `tests/routes.rs` or the topic to `tests/messaging.rs`.
+   `crates/tally-connector/tests` or `crates/gtfs-adapter/tests`), and a
+   request or delivery through the crate's `router()` or `topics()` in its
+   `tests/dispatch.rs`.
 7. Run `mise run ci` — fmt-check, clippy (native + wasm), tests, docs, vet, deny.
 
 ## Configuration
@@ -231,15 +238,17 @@ state.
 Patterns worth copying into new services:
 
 - Handler fns (`async fn(Input, Context<P>)`) behind capability traits,
-  with the guest as a thin routing layer at the **workspace root**
-  (`src/lib.rs`) that binds each route to its fn (`post(tally)`).
-- One canonical route/topic table (`acme_common::routes`) consumed by
-  producers, consumers, and the guest.
+  each crate binding its own to its paths and topics in `router()` and
+  `topics()`, with the guest as a thin composing layer at the **workspace
+  root** (`src/routes.rs`, `src/messaging.rs`), one line per crate.
+- One topic table (`acme_common::topic`) a producer and its consumer both
+  name, so they agree by construction.
 - Named config keys with a single documented resolution policy
   (`acme_common::config`).
 - Native tests under `omnia_test::guest::Provider` doubles plus captured fixtures
-  (`tests/` + `data/` in each crate), and a route rung per router at the
-  root (`tests/routes.rs`, `tests/messaging.rs`).
+  (`tests/` + `data/` in each crate), each crate driving its own routers
+  in `tests/dispatch.rs`, and a rung per router at the root
+  (`tests/routes.rs`, `tests/messaging.rs`) that builds the composed whole.
 - Decode-through-cache: expensive lookups go through `StateStore` in one
   handler — miss → `Config` → `HttpRequest` → write back with a TTL —
   instead of a separate cache-population process
@@ -311,13 +320,16 @@ and assertions read the `pub` fields (`provider.publish.sent()`). There is no
 hand-written mock provider anywhere in the workspace.
 
 - `tests/routes.rs`, `tests/messaging.rs` — the root guest's production
-  routers driven natively (`oneshot` and `Router::handle`) under the
-  production capability list as doubles. `routes::dispatch` sends one
-  request to every `(method, path)` `router()` registers and asserts neither
-  `404` nor `405` — a miss means a route is miswired, any other status means
-  the handler ran — beside the wire-format checks (`pulse_malformed_xml`,
-  `pulse_receive`, `nearby_body`, the feature-gated `set_trip`) and
-  `apc_tally`
+  routers built natively under the production capability list as doubles.
+  Building is the check: axum and the messaging router panic where two
+  crates claim one route or topic, and an unknown path or topic is refused
+- `crates/*/tests/dispatch.rs` — each crate's `router()` and `topics()`
+  driven as the wire reaches them (`oneshot` and `Router::handle`): one
+  request per `(method, path)` asserting neither `404` nor `405` — a miss
+  means a route is miswired, any other status means the handler ran — and
+  the wire-format checks (`pulse_malformed_xml`, `pulse_receive`,
+  `nearby_body`, the feature-gated `set_trip`, `apc_tally`) beside one
+  delivery per topic
 - `crates/tally-connector/tests` — the minimal handler test
 - `crates/pulse-connector/tests` — SOAP happy path and fault sad path
 - `crates/gtfs-adapter/tests` — `MatchedHttp` seeded with the exact
@@ -411,10 +423,11 @@ cargo run -p template-check   # schema, tokens, path safety, seed render, the cr
 `exact` entries reference their repository-root file in place
 (`source == target`, token-free), so a green root vouches for the
 scaffold with no diff to maintain. The seeds give a new service the shape
-above — the root package as the component over provider-generic HTTP and
-messaging routers, `rlib` alongside `cdylib`, the two rungs under
-`omnia_test::guest::Provider`, a `common` crate for the tables every stem
-shares, and the local host behind the `host` feature — and the suite's
+above — the root package as the component composing every stem's
+provider-generic routers, `rlib` alongside `cdylib`, the two rungs under
+`omnia_test::guest::Provider`, a `common` crate for the capability bound
+and the topic table every stem shares, and the local host behind the
+`host` feature — and the suite's
 scaffold test renders the manifest and lints, tests, and builds the
 result against the same published omnia the exemplar uses. To move to a
 new omnia release, bump every `omnia-*` line in `[workspace.dependencies]`

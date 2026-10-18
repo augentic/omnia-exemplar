@@ -22,8 +22,9 @@
 //! - `gte`/`lte` ranges — [`ListStopTimesRequest`] time and sequence bounds
 //!
 //! Each handler is generic over `P: DocumentStore`, so the same code runs
-//! inside the WASM guest (wired under the [`paths`] constants) and against
-//! the filter-evaluating `MemoryDocs` double in the crate-level tests.
+//! inside the WASM guest (served by [`router`] under the [`paths`]
+//! constants) and against the filter-evaluating `MemoryDocs` double in the
+//! crate-level tests.
 //!
 //! [`DocumentStore`]: omnia_sdk::DocumentStore
 
@@ -33,6 +34,9 @@ pub mod stop;
 pub mod stop_time;
 
 use anyhow::Context as _;
+use omnia_sdk::DocumentStore;
+use omnia_sdk::api::Client;
+use omnia_sdk::api::http::{delete, get, post, put};
 use omnia_sdk::document_store::Document;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
@@ -49,6 +53,17 @@ pub use crate::stop_time::{
     CreateStopTimeRequest, GetStopTimeRequest, ListStopTimesRequest, StopTime, StopTimesReply,
     create_stop_time, get_stop_time, list_stop_times,
 };
+
+/// The crate's routes, merged onto the guest's router.
+pub fn router<P: DocumentStore + Send + Sync + 'static>() -> axum::Router<Client<P>> {
+    axum::Router::new()
+        .route(paths::STOPS, get(list_stops).merge(post(create_stop)))
+        .route(paths::STOP, get(get_stop).merge(put(upsert_stop)).merge(delete(delete_stop)))
+        .route(paths::ROUTES, get(list_routes).merge(post(create_route)))
+        .route(paths::ROUTE, get(get_route))
+        .route(paths::STOP_TIMES, get(list_stop_times).merge(post(create_stop_time)))
+        .route(paths::STOP_TIME, get(get_stop_time))
+}
 
 /// A stored document paired with its id, flattened onto the wire.
 ///

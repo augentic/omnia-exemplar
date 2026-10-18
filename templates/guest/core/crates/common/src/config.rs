@@ -1,14 +1,12 @@
-//! Configuration keys and helpers.
+//! The deployment environment and the helpers that qualify a topic for it.
 //!
-//! Every configuration key the guest reads is declared here, so there is one
-//! catalog of what a deployment must provide, and every topic is qualified
-//! for the deployment's environment through [`topic`] or [`topic_for`].
+//! Every other configuration key is a stem's own, declared beside the
+//! handler that reads it through [`Config::get`].
 
 use omnia_sdk::Config;
 
 /// Deployment environment (`dev`, `prod`). Prefixes every messaging topic;
-/// see [`topic`]. One constant per key after this one, each added at the end
-/// of the list, before [`env`].
+/// see [`topic`].
 pub const ENV: &str = "ENV";
 
 /// Resolve the deployment environment.
@@ -28,7 +26,7 @@ pub async fn env(provider: &impl Config) -> String {
 }
 
 /// Build a fully-qualified messaging topic from an environment-agnostic
-/// suffix (see [`crate::routes::topic`]): `realtime-orders.v1` becomes
+/// suffix (see [`crate::topic`]): `realtime-orders.v1` becomes
 /// `dev-realtime-orders.v1`.
 pub async fn topic(provider: &impl Config, suffix: &str) -> String {
     topic_for(&env(provider).await, suffix)
