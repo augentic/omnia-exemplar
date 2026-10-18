@@ -15,7 +15,7 @@ pub enum Proof {
 /// How a tree built from the template holds a file.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Role {
-    /// Laid once and never edited: [`drift`](crate::drift) and
+    /// Scaffolded once and never edited: [`drift`](crate::drift) and
     /// [`restore`](crate::restore) hold the file to its body byte for byte.
     Static,
     /// Holds a list a slice appends its lines to, the text around the list
@@ -24,7 +24,7 @@ pub enum Role {
     Listed,
 }
 
-/// One entry of the manifest: where its body is read from, where it is laid, its proof, and its role.
+/// One entry of the manifest: where its body is read from, where it goes, its proof, and its role.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Entry {
     /// The repository-relative file the body is read from, the manifest's
@@ -33,7 +33,7 @@ pub struct Entry {
     /// The `/`-separated path of the file, relative to the tree's root, the
     /// manifest's `target`.
     pub path: &'static str,
-    /// The whole content the file holds when the template lays it, the
+    /// The whole content the file holds when the template scaffolds it, the
     /// `source` embedded at compile time.
     pub body: &'static str,
     /// How the file is proven.

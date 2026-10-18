@@ -1,6 +1,6 @@
 //! The scaffold proof: a project rendered from the manifest passes the
-//! checks a build is held to, bare and with one stem laid in, with no hand
-//! edits.
+//! checks a build is held to, bare and with one stem written in, with no
+//! hand edits.
 //!
 //! The scaffold builds against the same published omnia the exemplar does:
 //! the root lockfile seeds the scaffold's, so every crates.io dependency
@@ -21,7 +21,7 @@ use std::{env, fs};
 
 // The checks are the omnia target adapter's verify over an integrated tree,
 // so a template that passes here bare passes a wave whose slices wrote
-// nothing, and one that passes with the fixture stem laid in accepts a
+// nothing, and one that passes with the fixture stem written in accepts a
 // slice's line in each list and a stem's crate under the workspace lints.
 // Every feature is on, as CI has it, so the `host` example compiles too.
 #[test]
@@ -38,7 +38,7 @@ fn rendered_scaffold() {
     fs::copy(root.join("Cargo.lock"), dest.join("Cargo.lock")).expect("lockfile seeded");
     checks(&dest, &target_dir);
 
-    template_check::stem(&root, &dest).expect("the fixture stem lays");
+    template_check::stem(&root, &dest).expect("the fixture stem is written");
     checks(&dest, &target_dir);
 }
 

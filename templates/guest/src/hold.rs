@@ -100,12 +100,12 @@ impl Drifted {
     }
 }
 
-/// Why a tree could not be laid, read, or written.
+/// Why a tree could not be scaffolded, read, or written.
 #[derive(Debug)]
 #[non_exhaustive]
 pub enum Error {
     /// A directory or a symbolic link stands where a file of the template
-    /// goes, so nothing is laid over it.
+    /// goes, so nothing is written over it.
     Occupied {
         /// The path beneath the tree's root where the file goes.
         path: PathBuf,
