@@ -117,13 +117,13 @@ chrono-tz = "0.10.4"
 http = "1.5.0"
 http-body = "1.1.0"
 http-body-util = "0.1.5"
-quick-xml = { version = "0.41.0", features = ["serde", "serialize"] }
+quick-xml = { version = "0.42.0", features = ["serde", "serialize"] }
 serde = { version = "1.0.229", features = ["derive"] }
 serde-saphyr = "2.0.0"
 serde_json = "1.0.154"
 serde_repr = "0.1.21"
 thiserror = "2.0.21"
-tokio = { version = "1.53.3", default-features = false, features = [
+tokio = { version = "1.54.1", default-features = false, features = [
     "io-util",
     "macros",
     "rt",
@@ -137,24 +137,24 @@ urlencoding = "2.1.3"
 uuid = { version = "1.28.0", features = ["v4"] }
 wasip3 = { version = "0.9.0", features = ["http-compat"] }
 
-omnia = "0.36.0"
-omnia-sdk = "0.36.0"
-omnia-test = "0.36.0"
-omnia-wasi-blobstore = "0.36.0"
-omnia-wasi-config = "0.36.0"
-omnia-wasi-docstore = "0.36.0"
-omnia-wasi-http = "0.36.0"
-omnia-wasi-identity = "0.36.0"
-omnia-wasi-keyvalue = "0.36.0"
-omnia-wasi-messaging = "0.36.0"
-omnia-wasi-otel = "0.36.0"
-omnia-wasi-sql = "0.36.0"
-omnia-wasi-websocket = "0.36.0"
+omnia = "0.37.0"
+omnia-sdk = "0.37.0"
+omnia-test = "0.37.0"
+omnia-wasi-blobstore = "0.37.0"
+omnia-wasi-config = "0.37.0"
+omnia-wasi-docstore = "0.37.0"
+omnia-wasi-http = "0.37.0"
+omnia-wasi-identity = "0.37.0"
+omnia-wasi-keyvalue = "0.37.0"
+omnia-wasi-messaging = "0.37.0"
+omnia-wasi-otel = "0.37.0"
+omnia-wasi-sql = "0.37.0"
+omnia-wasi-websocket = "0.37.0"
 
 # omnia-extensions releases track omnia's: bump both together with the
 # `omnia-*` lines above.
-omnia-http-cache = "0.34.0"
-omnia-orm = "0.34.0"
+omnia-http-cache = "0.35.0"
+omnia-orm = "0.35.0"
 
 acme-common = { path = "crates/common" }
 capability = { path = "crates/capability" }

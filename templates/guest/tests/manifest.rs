@@ -9,8 +9,8 @@ use self::support::Scratch;
 const PATH_LIST_ANCHOR: &str = "common = { path = \"crates/common\" }\n";
 const PATH_LINE: &str = "orders = { path = \"crates/orders\" }\n";
 const CRATE_LINE: &str = "orders.workspace = true\n";
-const PIN: &str = "omnia-sdk = \"0.36.0\"";
-const PIN_EDITED: &str = "omnia-sdk = \"0.37.0\"";
+const PIN: &str = "omnia-sdk = \"0.37.0\"";
+const PIN_EDITED: &str = "omnia-sdk = \"0.38.0\"";
 
 fn template() -> &'static str {
     omnia_template::entry(Manifest::PATH).expect("the template holds the manifest").body

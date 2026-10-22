@@ -112,7 +112,7 @@ http-body-util = "0.1.5"
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0.154"
 thiserror = "2.0.21"
-tokio = { version = "1.53.3", default-features = false, features = ["macros", "rt"] }
+tokio = { version = "1.54.1", default-features = false, features = ["macros", "rt"] }
 tower = { version = "0.5.3", default-features = false, features = ["util"] }
 tracing = "0.1.44"
 uuid = { version = "1.28.0", features = ["serde", "v4"] }
@@ -121,19 +121,19 @@ wasip3 = { version = "0.9.0", features = ["http-compat"] }
 # Every `omnia-*` line below moves together: bump them to the same release in
 # one change, and keep the shared pins above at the versions omnia itself pins
 # so the guest links one copy of each.
-omnia = "0.36.0"
-omnia-sdk = "0.36.0"
-omnia-test = "0.36.0"
-omnia-wasi-blobstore = "0.36.0"
-omnia-wasi-config = "0.36.0"
-omnia-wasi-docstore = "0.36.0"
-omnia-wasi-http = "0.36.0"
-omnia-wasi-identity = { version = "0.36.0", default-features = false }
-omnia-wasi-keyvalue = "0.36.0"
-omnia-wasi-messaging = "0.36.0"
-omnia-wasi-otel = "0.36.0"
-omnia-wasi-sql = "0.36.0"
-omnia-wasi-websocket = "0.36.0"
+omnia = "0.37.0"
+omnia-sdk = "0.37.0"
+omnia-test = "0.37.0"
+omnia-wasi-blobstore = "0.37.0"
+omnia-wasi-config = "0.37.0"
+omnia-wasi-docstore = "0.37.0"
+omnia-wasi-http = "0.37.0"
+omnia-wasi-identity = { version = "0.37.0", default-features = false }
+omnia-wasi-keyvalue = "0.37.0"
+omnia-wasi-messaging = "0.37.0"
+omnia-wasi-otel = "0.37.0"
+omnia-wasi-sql = "0.37.0"
+omnia-wasi-websocket = "0.37.0"
 
 # The crates of this tree: `common`, then one line per stem, each added at the end.
 common = { path = "crates/common" }
