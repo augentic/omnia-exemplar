@@ -25,7 +25,7 @@ use omnia::Runtime;
 use omnia::futures::StreamExt as _;
 use omnia_test::host::{Backends, Deployment};
 use omnia_wasi_http::HttpHandler;
-use omnia_wasi_messaging::{Client as _, Message, MessagingHandler};
+use omnia_wasi_messaging::{Message, MessagingHandler};
 use serde_json::Value;
 
 include!(concat!(env!("OUT_DIR"), "/gen.rs"));
@@ -107,7 +107,7 @@ async fn http_export() {
     let (backends, runtime) = boot().await;
     // The in-memory broker fans out only to live subscribers: subscribe
     // before the guest publishes, or the message is dropped.
-    let mut broker = backends.messaging.subscribe().await.expect("subscribe");
+    let mut broker = backends.messaging.subscribe();
     let handler = HttpHandler::new(&runtime)
         .expect("http routes consistent")
         .expect("the guest exports the http handler");
