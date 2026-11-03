@@ -1,7 +1,7 @@
 #![allow(missing_docs, reason = "integration tests, not a published API")]
 
-use omnia_orm::{DataType, Field, Row};
 use omnia_sdk::api::{Client, Metadata};
+use omnia_sdk::sql::{DataType, Field, Row};
 use omnia_test::guest::{Provider, ScriptedTables, Statement};
 use sql::{
     CreateAgencyRequest, CreateFeedRequest, DeleteFeedRequest, GetAgencyRequest,

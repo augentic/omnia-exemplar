@@ -33,20 +33,21 @@ docstore and SQL examples that omnia trimmed from its own `examples/` tree
 portable docstore filter type, every ORM builder, a JOIN entity, and
 server-assigned ids. The example host (`examples/runtime.rs`) is a single
 `omnia::runtime!` invocation wiring every capability the guest imports —
-including `WasiBlobstore` and `WasiWebSocket` — to the in-tree default
+including `WasiBlobStore` and `WasiWebSocket` — to the in-tree default
 backends; swapping in production backends from
 [omnia-backends](https://github.com/augentic/omnia-backends) is a host-side
 change only (see the omnia
 [Production Backends guide](https://github.com/augentic/omnia/blob/main/docs/guides/production-backends.md)).
-The omnia crates are crates.io dependencies (currently 0.36.0) declared once
+The omnia crates are crates.io dependencies (currently 0.38.0) declared once
 under `[workspace.dependencies]` in `Cargo.toml`; every `omnia-*` line moves
-together. Two guest-side layers come from
+together. Three layers come from
 [omnia-extensions](https://github.com/augentic/omnia-extensions), also from
-crates.io (0.34.0), rather than the runtime: outbound HTTP caching is opt-in
+crates.io (0.36.0), rather than the runtime: outbound HTTP caching is opt-in
 per call site through `omnia-http-cache`, a `HttpRequest` decorator that
-stores responses in the provider's `StateStore` (see `crates/common`), and
+stores responses in the provider's `StateStore` (see `crates/common`),
 the `entity!` macro and typed query builders over `TableStore` come from
-`omnia-orm` (see `crates/sql` and `crates/pattern`).
+`omnia-orm` (see `crates/sql` and `crates/pattern`), and Dapr HTTP v1.0
+sidecar integration comes from `omnia-dapr` (see `examples/dapr.rs`).
 
 ## Quick start
 
@@ -98,7 +99,7 @@ Start a new service from the closest template.
 ## Guest packaging
 
 The root `Cargo.toml` is both the workspace and the deployable guest package
-(`name = "guest"`, `crate-type = ["cdylib"]`). Workspace members are
+(`name = "guest"`, `crate-type = ["cdylib", "rlib"]`). Workspace members are
 `crates/*` (plus `templates/guest`, the guest template as a crate, and
 `templates/check`, its gate). There is no
 `guests/` directory.
@@ -107,19 +108,38 @@ The guest:
 
 - Merges each crate's `router()` — typed HTTP routes
   (`omnia_sdk::api::http::{get, post}`, with `handle_with` for non-JSON
-  wire formats) on an `axum::Router` — and serves the whole through
-  `omnia_sdk::api::http::serve`
-- Exports messaging with `omnia_wasi_messaging::export!`, dispatching through
-  an exact-topic `omnia_sdk::api::messaging::Router` of **exact**
-  env-qualified topics each crate's `topics()` registers
-- Uses a unit `Provider` with one empty `impl` per capability trait, taking
-  the WASI-backed default methods each trait ships (`BlobStore`,
-  `Broadcast`, `Config`, `DocumentStore`, `HttpRequest`, `Identity`,
-  `Publish`, `StateStore`, `TableStore`)
-- Routes both transports through one provider-owning `Client` per request
-- Ships a native host example at `examples/runtime.rs` via `omnia::runtime!`,
-  with a default host for every imported capability (config, docstore,
-  http, identity, keyvalue, messaging, otel, sql, blobstore, websocket)
+  wire formats) on an `axum::Router` — and exports `wasi:http` via
+  `omnia_sdk::http!(router(omnia_sdk::WasiProvider))`
+- Exports `wasi:messaging` via
+  `omnia_sdk::messaging!(messaging_router(omnia_sdk::WasiProvider))`,
+  dispatching through an exact-topic `omnia_sdk::api::messaging::Router` of
+  **exact** env-qualified topics each crate's `topics()` registers
+- Uses `omnia_sdk::WasiProvider`, the zero-sized provider implementing every
+  capability trait (`BlobStore`, `Broadcast`, `Config`, `DocumentStore`,
+  `HttpRequest`, `Identity`, `Publish`, `StateStore`, `TableStore`) over its
+  WASI-backed default methods on `wasm32`
+- Routes both transports through one provider-owning `Client` per request,
+  keeping the native library dependency graph completely free of `wasmtime`
+  and `omnia-wasi-*` (enforced by `deny.toml`)
+
+## Deployment modes
+
+Because domain crates depend on `omnia-sdk` alone and `guest::router(provider)`
+and `guest::messaging_router(provider)` are generic over `P: Capabilities`,
+the provider is chosen at the binary entrypoint (see the omnia
+[Provider Portability guide](https://github.com/augentic/omnia/blob/main/docs/guides/portability.md)):
+
+| Mode | Entrypoint | Provider | Runner |
+| --- | --- | --- | --- |
+| **Sandboxed WASI component** | `src/lib.rs` + `examples/runtime.rs` | `omnia_sdk::WasiProvider` | `omnia_sdk::http!` and `omnia_sdk::messaging!` inside `omnia::runtime!` |
+| **Native binary** | `examples/native.rs` | `#[derive(omnia_sdk::Provider)]` over `omnia_native::Direct<T>` | `omnia_native::Serve` (`axum::serve` + `Endpoint::consume`), with zero `wasmtime` in the binary |
+| **Dapr sidecar app** | `examples/dapr.rs` | `#[derive(omnia_sdk::Provider)]` over `omnia_dapr::Dapr<Direct<HttpDefault>>` (`Config`, `StateStore`, `Publish`) plus `Direct<T>` | `omnia_native::Serve` with `omnia_dapr::axum::subscriptions` (`GET /dapr/subscribe`, `POST /dapr/events/{*topic}`) |
+| **In-memory test doubles** | `tests/*.rs`, `crates/*/tests/*.rs` | `omnia_test::guest::Provider` | `tower::ServiceExt::oneshot` and `messaging::Router::handle` |
+
+Both `examples/native.rs` and `examples/dapr.rs` wire `Direct<*Default>` so
+this repository carries no `omnia-backends` dependencies; in production, swap
+any `Direct<*Default>` field for the corresponding `omnia-backends` client
+(e.g. `Direct<omnia_redis::Client>`, `Direct<omnia_postgres::Client>`).
 
 ## Routes and topics
 
@@ -386,9 +406,9 @@ environment variable and connects nothing, so the rung is deterministic.
 ### Examples gate
 
 `tests/examples.rs::build` runs `cargo build --locked --examples` from the
-package root. The host in `examples/runtime.rs` is a server that never
-exits, so it is compiled, not run; the component rung is where its wiring is
-exercised.
+package root. The example hosts (`examples/runtime.rs`, `examples/native.rs`,
+and `examples/dapr.rs`) are servers that never exit, so they are compiled, not
+run; the component rung is where `examples/runtime.rs`'s wiring is exercised.
 
 ## Guest template contract
 
@@ -458,8 +478,8 @@ stays token-free and free of exemplar-only tasks.
 Clippy runs twice: natively with `--all-targets`, then for `wasm32-wasip2`
 over libs, bins and examples only (never tests or benches). The whole
 workspace is in the wasm32 scope — the guest, the handler crates, the
-std-only `omnia-template` crate and its `template-check` gate — so the host
-in `examples/runtime.rs` stays
+std-only `omnia-template` crate and its `template-check` gate — so the hosts
+in `examples/{runtime,native,dapr}.rs` stay
 `cfg_select!`-gated to an empty `main` on wasm32. Regenerate the supply-chain files
 with `mise run vet-regen`; `vet` itself only checks.
 
@@ -478,6 +498,6 @@ release tag.
 
 Dependency on omnia is strictly one-way: the omnia crates and the
 [omnia-extensions](https://github.com/augentic/omnia-extensions) crates
-(`omnia-http-cache`, `omnia-orm`) are published crates.io dependencies
+(`omnia-dapr`, `omnia-http-cache`, `omnia-orm`) are published crates.io dependencies
 declared once under `[workspace.dependencies]`, bumped together, with no
 `[patch.crates-io]` overrides.

@@ -47,8 +47,9 @@ The seed also carries the guest's starting shape: the root `Cargo.toml`
 as both the workspace and the deployable package, `crate-type =
 ["cdylib", "rlib"]`, every pin under `[workspace.dependencies]`, the
 `wasm32`-excluded `omnia-test` dev-dependency (`features = ["guest"]`)
-and the `host` feature; `src/lib.rs` with the `wasm32`-gated WASI HTTP
-and WASI Messaging exports over provider-generic routers composed by
+and the `host` feature; `src/lib.rs` with `omnia_sdk::http!` and
+`omnia_sdk::messaging!` over `omnia_sdk::WasiProvider` and the
+provider-generic routers composed by
 the lists `src/routes.rs` and `src/messaging.rs`, one statement per
 stem; `tests/routes.rs` and `tests/messaging.rs`, one native rung each
 that builds the composed router over a seeded

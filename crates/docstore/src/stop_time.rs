@@ -6,7 +6,7 @@
 
 use anyhow::Context as _;
 use omnia_sdk::api::Context;
-use omnia_sdk::document_store::{Document, Filter, QueryOptions, SortField};
+use omnia_sdk::docstore::{Document, Filter, QueryOptions, SortField};
 use omnia_sdk::{DocumentStore, Result, not_found};
 use serde::{Deserialize, Serialize};
 

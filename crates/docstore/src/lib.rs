@@ -37,7 +37,7 @@ use anyhow::Context as _;
 use omnia_sdk::DocumentStore;
 use omnia_sdk::api::Client;
 use omnia_sdk::api::http::{delete, get, post, put};
-use omnia_sdk::document_store::Document;
+use omnia_sdk::docstore::Document;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 
