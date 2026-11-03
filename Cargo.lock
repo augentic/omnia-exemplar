@@ -2282,8 +2282,6 @@ dependencies = [
  "cap-std",
  "chrono",
  "futures",
- "http",
- "http-body-util",
  "opentelemetry-proto",
  "schemars",
  "serde",
@@ -2470,7 +2468,6 @@ dependencies = [
  "omnia-wasi-vault",
  "omnia-wasi-vcs",
  "omnia-wasi-websocket",
- "serde_json",
  "tempfile",
  "tokio",
 ]
@@ -2513,7 +2510,6 @@ dependencies = [
  "futures",
  "omnia-backend",
  "omnia-core",
- "serde_json",
  "tracing",
  "wasmtime",
  "wasmtime-wasi",
@@ -2534,7 +2530,6 @@ dependencies = [
  "http-body",
  "http-body-util",
  "hyper",
- "omnia-backend",
  "omnia-core",
  "reqwest 0.13.5",
  "rustls",
@@ -5937,7 +5932,3 @@ name = "zmij"
 version = "1.0.23"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "29666d0abbfad1e3dc4dcf6144730dd3a3ab225bbbdac83319345b1b44ccfc1b"
-
-[[patch.unused]]
-name = "omnia-dapr"
-version = "0.36.0"
