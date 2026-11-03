@@ -170,8 +170,6 @@ dependencies = [
  "http",
  "http-body",
  "http-body-util",
- "hyper",
- "hyper-util",
  "itoa",
  "matchit",
  "memchr",
@@ -182,7 +180,6 @@ dependencies = [
  "serde_json",
  "serde_path_to_error",
  "sync_wrapper",
- "tokio",
  "tower",
  "tower-layer",
  "tower-service",
@@ -1414,9 +1411,6 @@ dependencies = [
  "http",
  "http-body-util",
  "omnia",
- "omnia-backend",
- "omnia-dapr",
- "omnia-native",
  "omnia-sdk",
  "omnia-test",
  "omnia-wasi-blobstore",
@@ -2283,43 +2277,20 @@ name = "omnia-backend"
 version = "0.38.0"
 dependencies = [
  "anyhow",
- "base64ct",
  "bon",
  "bytes",
- "cap-fs-ext",
  "cap-std",
  "chrono",
- "dashmap",
- "fromenv",
  "futures",
- "futures-channel",
- "futures-util",
  "http",
- "http-body",
  "http-body-util",
- "hyper",
- "moka",
- "oauth2",
- "opentelemetry",
- "opentelemetry-otlp",
  "opentelemetry-proto",
- "opentelemetry_sdk",
- "parking_lot 0.13.0",
- "reqwest 0.13.5",
- "rusqlite",
- "rustls",
  "schemars",
  "serde",
  "serde_json",
  "thiserror 2.0.21",
  "tokio",
- "tokio-stream",
- "tokio-tungstenite",
- "tracing",
- "tracing-opentelemetry",
- "tracing-subscriber",
  "wasm-pkg-common",
- "x509-cert",
 ]
 
 [[package]]
@@ -2343,36 +2314,25 @@ name = "omnia-core"
 version = "0.38.0"
 dependencies = [
  "anyhow",
+ "cap-fs-ext",
+ "cap-std",
  "fromenv",
  "futures",
  "http",
  "omnia-backend",
  "omnia-compile",
+ "opentelemetry",
+ "opentelemetry-otlp",
+ "opentelemetry_sdk",
  "pastey",
  "serde",
  "sha2 0.11.1",
  "tokio",
  "tracing",
+ "tracing-opentelemetry",
+ "tracing-subscriber",
  "wasmtime",
  "wasmtime-wasi",
-]
-
-[[package]]
-name = "omnia-dapr"
-version = "0.36.0"
-dependencies = [
- "anyhow",
- "axum",
- "base64ct",
- "bytes",
- "http",
- "http-body",
- "http-body-util",
- "omnia-sdk",
- "serde",
- "serde_json",
- "thiserror 2.0.21",
- "tracing",
 ]
 
 [[package]]
@@ -2416,23 +2376,6 @@ dependencies = [
  "omnia-core",
  "tracing",
  "wasmtime",
-]
-
-[[package]]
-name = "omnia-native"
-version = "0.38.0"
-dependencies = [
- "anyhow",
- "axum",
- "bytes",
- "futures",
- "http",
- "http-body",
- "http-body-util",
- "omnia-backend",
- "omnia-sdk",
- "tokio",
- "tracing",
 ]
 
 [[package]]
@@ -2513,7 +2456,6 @@ dependencies = [
  "http-body-util",
  "omnia",
  "omnia-backend",
- "omnia-native",
  "omnia-sdk",
  "omnia-wasi-blobstore",
  "omnia-wasi-config",
@@ -2528,7 +2470,9 @@ dependencies = [
  "omnia-wasi-vault",
  "omnia-wasi-vcs",
  "omnia-wasi-websocket",
+ "serde_json",
  "tempfile",
+ "tokio",
 ]
 
 [[package]]
@@ -2537,8 +2481,10 @@ version = "0.38.0"
 dependencies = [
  "anyhow",
  "bytes",
+ "futures",
  "omnia-backend",
  "omnia-core",
+ "parking_lot 0.13.0",
  "tracing",
  "wasmtime",
  "wasmtime-wasi",
@@ -2550,6 +2496,7 @@ name = "omnia-wasi-config"
 version = "0.38.0"
 dependencies = [
  "anyhow",
+ "futures",
  "omnia-backend",
  "omnia-core",
  "tracing",
@@ -2563,8 +2510,10 @@ name = "omnia-wasi-docstore"
 version = "0.38.0"
 dependencies = [
  "anyhow",
+ "futures",
  "omnia-backend",
  "omnia-core",
+ "serde_json",
  "tracing",
  "wasmtime",
  "wasmtime-wasi",
@@ -2577,7 +2526,9 @@ version = "0.38.0"
 dependencies = [
  "anyhow",
  "axum",
+ "base64ct",
  "bytes",
+ "fromenv",
  "futures",
  "http",
  "http-body",
@@ -2585,12 +2536,15 @@ dependencies = [
  "hyper",
  "omnia-backend",
  "omnia-core",
+ "reqwest 0.13.5",
+ "rustls",
  "tokio",
  "tower",
  "tracing",
  "wasip3",
  "wasmtime",
  "wasmtime-wasi-http",
+ "x509-cert",
 ]
 
 [[package]]
@@ -2598,6 +2552,9 @@ name = "omnia-wasi-identity"
 version = "0.38.0"
 dependencies = [
  "anyhow",
+ "fromenv",
+ "futures",
+ "oauth2",
  "omnia-backend",
  "omnia-core",
  "tracing",
@@ -2611,6 +2568,8 @@ name = "omnia-wasi-keyvalue"
 version = "0.38.0"
 dependencies = [
  "anyhow",
+ "futures",
+ "moka",
  "omnia-backend",
  "omnia-core",
  "tracing",
@@ -2628,6 +2587,7 @@ dependencies = [
  "omnia-backend",
  "omnia-core",
  "tokio",
+ "tokio-stream",
  "tracing",
  "wasmtime",
  "wasmtime-wasi",
@@ -2644,6 +2604,7 @@ dependencies = [
  "omnia-backend",
  "omnia-core",
  "serde",
+ "serde_json",
  "tokio",
  "tracing",
  "wasip3",
@@ -2657,6 +2618,7 @@ name = "omnia-wasi-otel"
 version = "0.38.0"
 dependencies = [
  "anyhow",
+ "futures",
  "getrandom 0.4.3",
  "hex",
  "omnia-backend",
@@ -2678,8 +2640,13 @@ name = "omnia-wasi-sql"
 version = "0.38.0"
 dependencies = [
  "anyhow",
+ "fromenv",
+ "futures",
  "omnia-backend",
  "omnia-core",
+ "parking_lot 0.13.0",
+ "rusqlite",
+ "tokio",
  "tracing",
  "wasmtime",
  "wasmtime-wasi",
@@ -2691,8 +2658,10 @@ name = "omnia-wasi-vault"
 version = "0.38.0"
 dependencies = [
  "anyhow",
+ "futures",
  "omnia-backend",
  "omnia-core",
+ "parking_lot 0.13.0",
  "tracing",
  "wasmtime",
  "wasmtime-wasi",
@@ -2719,10 +2688,15 @@ name = "omnia-wasi-websocket"
 version = "0.38.0"
 dependencies = [
  "anyhow",
+ "dashmap",
  "futures",
+ "futures-channel",
+ "futures-util",
  "omnia-backend",
  "omnia-core",
  "tokio",
+ "tokio-stream",
+ "tokio-tungstenite",
  "tracing",
  "wasmtime",
  "wasmtime-wasi",
@@ -5963,3 +5937,7 @@ name = "zmij"
 version = "1.0.23"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "29666d0abbfad1e3dc4dcf6144730dd3a3ab225bbbdac83319345b1b44ccfc1b"
+
+[[patch.unused]]
+name = "omnia-dapr"
+version = "0.36.0"
