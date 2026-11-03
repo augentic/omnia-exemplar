@@ -40,14 +40,13 @@ change only (see the omnia
 [Production Backends guide](https://github.com/augentic/omnia/blob/main/docs/guides/production-backends.md)).
 The omnia crates are crates.io dependencies (currently 0.38.0) declared once
 under `[workspace.dependencies]` in `Cargo.toml`; every `omnia-*` line moves
-together. Three layers come from
+together. Two layers come from
 [omnia-extensions](https://github.com/augentic/omnia-extensions), also from
 crates.io (0.36.0), rather than the runtime: outbound HTTP caching is opt-in
 per call site through `omnia-http-cache`, a `HttpRequest` decorator that
-stores responses in the provider's `StateStore` (see `crates/common`),
+stores responses in the provider's `StateStore` (see `crates/common`), and
 the `entity!` macro and typed query builders over `TableStore` come from
-`omnia-orm` (see `crates/sql` and `crates/pattern`), and Dapr HTTP v1.0
-sidecar integration comes from `omnia-dapr` (see `examples/dapr.rs`).
+`omnia-orm` (see `crates/sql` and `crates/pattern`).
 
 ## Quick start
 
@@ -121,25 +120,6 @@ The guest:
 - Routes both transports through one provider-owning `Client` per request,
   keeping the native library dependency graph completely free of `wasmtime`
   and `omnia-wasi-*` (enforced by `deny.toml`)
-
-## Deployment modes
-
-Because domain crates depend on `omnia-sdk` alone and `guest::router(provider)`
-and `guest::messaging_router(provider)` are generic over `P: Capabilities`,
-the provider is chosen at the binary entrypoint (see the omnia
-[Provider Portability guide](https://github.com/augentic/omnia/blob/main/docs/guides/portability.md)):
-
-| Mode | Entrypoint | Provider | Runner |
-| --- | --- | --- | --- |
-| **Sandboxed WASI component** | `src/lib.rs` + `examples/runtime.rs` | `omnia_sdk::WasiProvider` | `omnia_sdk::http!` and `omnia_sdk::messaging!` inside `omnia::runtime!` |
-| **Native binary** | `examples/native.rs` | `#[derive(omnia_sdk::Provider)]` over `omnia_native::Direct<T>` | `omnia_native::Serve` (`axum::serve` + `Endpoint::consume`), with zero `wasmtime` in the binary |
-| **Dapr sidecar app** | `examples/dapr.rs` | `#[derive(omnia_sdk::Provider)]` over `omnia_dapr::Dapr<Direct<HttpDefault>>` (`Config`, `StateStore`, `Publish`) plus `Direct<T>` | `omnia_native::Serve` with `omnia_dapr::axum::subscriptions` (`GET /dapr/subscribe`, `POST /dapr/events/{*topic}`) |
-| **In-memory test doubles** | `tests/*.rs`, `crates/*/tests/*.rs` | `omnia_test::guest::Provider` | `tower::ServiceExt::oneshot` and `messaging::Router::handle` |
-
-Both `examples/native.rs` and `examples/dapr.rs` wire `Direct<*Default>` so
-this repository carries no `omnia-backends` dependencies; in production, swap
-any `Direct<*Default>` field for the corresponding `omnia-backends` client
-(e.g. `Direct<omnia_redis::Client>`, `Direct<omnia_postgres::Client>`).
 
 ## Routes and topics
 
@@ -406,9 +386,9 @@ environment variable and connects nothing, so the rung is deterministic.
 ### Examples gate
 
 `tests/examples.rs::build` runs `cargo build --locked --examples` from the
-package root. The example hosts (`examples/runtime.rs`, `examples/native.rs`,
-and `examples/dapr.rs`) are servers that never exit, so they are compiled, not
-run; the component rung is where `examples/runtime.rs`'s wiring is exercised.
+package root. The example host (`examples/runtime.rs`) is a server that never
+exits, so it is compiled, not run; the component rung is where its wiring is
+exercised.
 
 ## Guest template contract
 
@@ -478,8 +458,8 @@ stays token-free and free of exemplar-only tasks.
 Clippy runs twice: natively with `--all-targets`, then for `wasm32-wasip2`
 over libs, bins and examples only (never tests or benches). The whole
 workspace is in the wasm32 scope — the guest, the handler crates, the
-std-only `omnia-template` crate and its `template-check` gate — so the hosts
-in `examples/{runtime,native,dapr}.rs` stay
+std-only `omnia-template` crate and its `template-check` gate — so the host
+in `examples/runtime.rs` stays
 `cfg_select!`-gated to an empty `main` on wasm32. Regenerate the supply-chain files
 with `mise run vet-regen`; `vet` itself only checks.
 
@@ -498,6 +478,6 @@ release tag.
 
 Dependency on omnia is strictly one-way: the omnia crates and the
 [omnia-extensions](https://github.com/augentic/omnia-extensions) crates
-(`omnia-dapr`, `omnia-http-cache`, `omnia-orm`) are published crates.io dependencies
+(`omnia-http-cache`, `omnia-orm`) are published crates.io dependencies
 declared once under `[workspace.dependencies]`, bumped together, with no
 `[patch.crates-io]` overrides.
