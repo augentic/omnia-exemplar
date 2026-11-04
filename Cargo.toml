@@ -150,8 +150,7 @@ omnia-wasi-otel = "0.38.0"
 omnia-wasi-sql = "0.38.0"
 omnia-wasi-websocket = "0.38.0"
 
-# omnia-extensions releases track omnia's: bump both together with the
-# `omnia-*` lines above.
+# omnia-extensions
 omnia-http-cache = "0.36.0"
 omnia-orm = "0.36.0"
 
@@ -164,6 +163,39 @@ pulse-adapter = { path = "crates/pulse-adapter" }
 pulse-connector = { path = "crates/pulse-connector" }
 sql = { path = "crates/sql" }
 tally-connector = { path = "crates/tally-connector" }
+
+[patch.crates-io]
+omnia = { git = "https://github.com/augentic/omnia" }
+omnia-sdk = { git = "https://github.com/augentic/omnia" }
+omnia-test = { git = "https://github.com/augentic/omnia" }
+omnia-wasi-blobstore = { git = "https://github.com/augentic/omnia" }
+omnia-wasi-config = { git = "https://github.com/augentic/omnia" }
+omnia-wasi-docstore = { git = "https://github.com/augentic/omnia" }
+omnia-wasi-http = { git = "https://github.com/augentic/omnia" }
+omnia-wasi-identity = { git = "https://github.com/augentic/omnia" }
+omnia-wasi-keyvalue = { git = "https://github.com/augentic/omnia" }
+omnia-wasi-messaging = { git = "https://github.com/augentic/omnia" }
+omnia-wasi-otel = { git = "https://github.com/augentic/omnia" }
+omnia-wasi-sql = { git = "https://github.com/augentic/omnia" }
+omnia-wasi-websocket = { git = "https://github.com/augentic/omnia" }
+omnia-http-cache = { git = "https://github.com/augentic/omnia-extensions" }
+omnia-orm = { git = "https://github.com/augentic/omnia-extensions" }
+
+# omnia = { path = "../omnia/crates/omnia" }
+# omnia-sdk = { path = "../omnia/crates/sdk" }
+# omnia-test = { path = "../omnia/crates/test" }
+# omnia-wasi-blobstore = { path = "../omnia/crates/wasi-blobstore" }
+# omnia-wasi-config = { path = "../omnia/crates/wasi-config" }
+# omnia-wasi-docstore = { path = "../omnia/crates/wasi-docstore" }
+# omnia-wasi-http = { path = "../omnia/crates/wasi-http" }
+# omnia-wasi-identity = { path = "../omnia/crates/wasi-identity" }
+# omnia-wasi-keyvalue = { path = "../omnia/crates/wasi-keyvalue" }
+# omnia-wasi-messaging = { path = "../omnia/crates/wasi-messaging" }
+# omnia-wasi-otel = { path = "../omnia/crates/wasi-otel" }
+# omnia-wasi-sql = { path = "../omnia/crates/wasi-sql" }
+# omnia-wasi-websocket = { path = "../omnia/crates/wasi-websocket" }
+# omnia-http-cache = { path = "../omnia-extensions/crates/http-cache" }
+# omnia-orm = { path = "../omnia-extensions/crates/orm" }
 
 [profile.release]
 lto = true
