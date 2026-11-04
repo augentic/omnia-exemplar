@@ -486,8 +486,7 @@ pub fn carry_patches(root: &Path, dest: &Path) -> Result<(), String> {
 
     let mut block = toml::Table::new();
     block.insert("patch".to_string(), patch.clone());
-    let block =
-        toml::to_string(&block).map_err(|err| format!("patch block: {err}"))?;
+    let block = toml::to_string(&block).map_err(|err| format!("patch block: {err}"))?;
 
     let manifest_path = dest.join("Cargo.toml");
     let mut seeded = fs::read_to_string(&manifest_path)
