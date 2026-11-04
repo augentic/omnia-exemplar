@@ -458,6 +458,46 @@ pub fn scaffold(root: &Path, dest: &Path) -> Result<(), String> {
     Ok(())
 }
 
+/// Append the root workspace `[patch]` tables when the exemplar retargets
+/// pins the seed never carries.
+///
+/// Relative `path` entries are made absolute against `root`.
+///
+/// # Errors
+///
+/// Returns `Err` when the root or scaffold manifest cannot be read, parsed,
+/// or written.
+pub fn carry_patches(root: &Path, dest: &Path) -> Result<(), String> {
+    let text = fs::read_to_string(root.join("Cargo.toml"))
+        .map_err(|err| format!("{}: {err}", root.join("Cargo.toml").display()))?;
+    let mut manifest: toml::Value =
+        toml::from_str(&text).map_err(|err| format!("root manifest: {err}"))?;
+    let Some(patch) = manifest.get_mut("patch") else {
+        return Ok(());
+    };
+    for registry in patch.as_table_mut().into_iter().flat_map(toml::Table::iter_mut) {
+        for spec in registry.1.as_table_mut().into_iter().flat_map(toml::Table::iter_mut) {
+            if let Some(path) = spec.1.get("path").and_then(toml::Value::as_str) {
+                let absolute = root.join(path).display().to_string();
+                spec.1["path"] = toml::Value::String(absolute);
+            }
+        }
+    }
+
+    let mut block = toml::Table::new();
+    block.insert("patch".to_string(), patch.clone());
+    let block = toml::to_string(&block).map_err(|err| format!("patch block: {err}"))?;
+
+    let manifest_path = dest.join("Cargo.toml");
+    let mut seeded = fs::read_to_string(&manifest_path)
+        .map_err(|err| format!("{}: {err}", manifest_path.display()))?;
+    seeded.push('\n');
+    seeded.push_str(&block);
+    fs::write(&manifest_path, seeded)
+        .map_err(|err| format!("{}: {err}", manifest_path.display()))?;
+    Ok(())
+}
+
 /// Write the fixture stem into a rendered scaffold at `dest`, as a slice
 /// writes one: its crate whole under `crates/orders/`, and its line in each
 /// list.

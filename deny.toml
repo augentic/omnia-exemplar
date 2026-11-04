@@ -2,7 +2,8 @@
 
 [graph]
 all-features = true
-targets = ["aarch64-apple-darwin", "wasm32-wasip2"]
+targets = ["x86_64-unknown-linux-gnu", "aarch64-apple-darwin"]
+exclude-dev = true
 
 [output]
 feature-depth = 1
@@ -16,16 +17,10 @@ ignore = [
 allow = [
   "Apache-2.0 WITH LLVM-exception",
   "Apache-2.0",
-  "BSD-2-Clause",
   "BSD-3-Clause",
   "BSL-1.0",
-  "CC0-1.0",
-  "CDLA-Permissive-2.0",
-  "ISC",
   "MIT",
-  "MIT-0",
   "Unicode-3.0",
-  "Zlib",
 ]
 
 [licenses.private]
@@ -37,13 +32,18 @@ expression = "MIT AND ISC AND OpenSSL"
 license-files = [{ path = "LICENSE", hash = 0xbd0eed23 }]
 
 [sources]
-allow-git = []
+allow-git = [
+  "https://github.com/augentic/omnia",
+  "https://github.com/augentic/omnia-extensions",
+]
 private = [
 ]
 
 [bans]
 deny = [
   { name = "tokio", deny-multiple-versions = true },
+  { name = "wasmtime" },
+  { name = "omnia-core" },
 ]
 multiple-versions = "allow"
 skip = []
@@ -53,4 +53,5 @@ wildcards = "allow"
 [bans.workspace-dependencies]
 duplicates = "deny"
 include-path-dependencies = true
-unused = "warn"
+# `exclude-dev = true` prunes dev-only workspace dependencies from the graph.
+unused = "allow"

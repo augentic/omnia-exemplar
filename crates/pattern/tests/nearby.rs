@@ -10,9 +10,9 @@ use axum::response::IntoResponse as _;
 use http::StatusCode;
 use http::header::CONTENT_TYPE;
 use http_body_util::BodyExt as _;
-use omnia_orm::{DataType, Field, Row};
 use omnia_sdk::HttpError;
 use omnia_sdk::api::{Client, Metadata};
+use omnia_sdk::sql::{DataType, Field, Row};
 use omnia_test::guest::{Provider, ScriptedTables, Statement};
 use pattern::{NearbyPlacesRequest, PlaceError, UpsertPlaceRequest, nearby_places, upsert_place};
 

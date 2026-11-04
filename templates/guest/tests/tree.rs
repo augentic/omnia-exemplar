@@ -87,7 +87,7 @@ fn held_file_kept() {
 fn static_files_restored() {
     let tree = Scratch::new();
     scaffold(tree.root()).expect("the scaffold");
-    tree.write("src/lib.rs", "//! mine\n");
+    tree.write("src/lib.rs", &"//! mine\n".repeat(5));
     fs::remove_file(tree.root().join("Makefile")).expect("the file removed");
     tree.write("src/routes.rs", "// a list, left to its consumer\n");
 

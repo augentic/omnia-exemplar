@@ -2,7 +2,7 @@
 
 use anyhow::Context as _;
 use omnia_sdk::api::Context;
-use omnia_sdk::document_store::Document;
+use omnia_sdk::docstore::Document;
 use omnia_sdk::{DocumentStore, Result};
 use serde::{Deserialize, Serialize};
 

@@ -33,16 +33,16 @@ docstore and SQL examples that omnia trimmed from its own `examples/` tree
 portable docstore filter type, every ORM builder, a JOIN entity, and
 server-assigned ids. The example host (`examples/runtime.rs`) is a single
 `omnia::runtime!` invocation wiring every capability the guest imports —
-including `WasiBlobstore` and `WasiWebSocket` — to the in-tree default
+including `WasiBlobStore` and `WasiWebSocket` — to the in-tree default
 backends; swapping in production backends from
 [omnia-backends](https://github.com/augentic/omnia-backends) is a host-side
 change only (see the omnia
 [Production Backends guide](https://github.com/augentic/omnia/blob/main/docs/guides/production-backends.md)).
-The omnia crates are crates.io dependencies (currently 0.36.0) declared once
+The omnia crates are crates.io dependencies (currently 0.38.0) declared once
 under `[workspace.dependencies]` in `Cargo.toml`; every `omnia-*` line moves
-together. Two guest-side layers come from
+together. Two layers come from
 [omnia-extensions](https://github.com/augentic/omnia-extensions), also from
-crates.io (0.34.0), rather than the runtime: outbound HTTP caching is opt-in
+crates.io (0.36.0), rather than the runtime: outbound HTTP caching is opt-in
 per call site through `omnia-http-cache`, a `HttpRequest` decorator that
 stores responses in the provider's `StateStore` (see `crates/common`), and
 the `entity!` macro and typed query builders over `TableStore` come from
@@ -98,7 +98,7 @@ Start a new service from the closest template.
 ## Guest packaging
 
 The root `Cargo.toml` is both the workspace and the deployable guest package
-(`name = "guest"`, `crate-type = ["cdylib"]`). Workspace members are
+(`name = "guest"`, `crate-type = ["cdylib", "rlib"]`). Workspace members are
 `crates/*` (plus `templates/guest`, the guest template as a crate, and
 `templates/check`, its gate). There is no
 `guests/` directory.
@@ -107,19 +107,19 @@ The guest:
 
 - Merges each crate's `router()` — typed HTTP routes
   (`omnia_sdk::api::http::{get, post}`, with `handle_with` for non-JSON
-  wire formats) on an `axum::Router` — and serves the whole through
-  `omnia_sdk::api::http::serve`
-- Exports messaging with `omnia_wasi_messaging::export!`, dispatching through
-  an exact-topic `omnia_sdk::api::messaging::Router` of **exact**
-  env-qualified topics each crate's `topics()` registers
-- Uses a unit `Provider` with one empty `impl` per capability trait, taking
-  the WASI-backed default methods each trait ships (`BlobStore`,
-  `Broadcast`, `Config`, `DocumentStore`, `HttpRequest`, `Identity`,
-  `Publish`, `StateStore`, `TableStore`)
-- Routes both transports through one provider-owning `Client` per request
-- Ships a native host example at `examples/runtime.rs` via `omnia::runtime!`,
-  with a default host for every imported capability (config, docstore,
-  http, identity, keyvalue, messaging, otel, sql, blobstore, websocket)
+  wire formats) on an `axum::Router` — and exports `wasi:http` via
+  `omnia_sdk::http!(router(omnia_sdk::WasiProvider))`
+- Exports `wasi:messaging` via
+  `omnia_sdk::messaging!(messaging_router(omnia_sdk::WasiProvider))`,
+  dispatching through an exact-topic `omnia_sdk::api::messaging::Router` of
+  **exact** env-qualified topics each crate's `topics()` registers
+- Uses `omnia_sdk::WasiProvider`, the zero-sized provider implementing every
+  capability trait (`BlobStore`, `Broadcast`, `Config`, `DocumentStore`,
+  `HttpRequest`, `Identity`, `Publish`, `StateStore`, `TableStore`) over its
+  WASI-backed default methods on `wasm32`
+- Routes both transports through one provider-owning `Client` per request,
+  keeping the native library dependency graph completely free of `wasmtime`
+  and `omnia-wasi-*` (enforced by `deny.toml`)
 
 ## Routes and topics
 
@@ -386,7 +386,7 @@ environment variable and connects nothing, so the rung is deterministic.
 ### Examples gate
 
 `tests/examples.rs::build` runs `cargo build --locked --examples` from the
-package root. The host in `examples/runtime.rs` is a server that never
+package root. The example host (`examples/runtime.rs`) is a server that never
 exits, so it is compiled, not run; the component rung is where its wiring is
 exercised.
 

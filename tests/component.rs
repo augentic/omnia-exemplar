@@ -81,22 +81,6 @@ fn fixture_value(raw: &[u8], index: usize) -> Vec<u8> {
     records[index]["value"].to_string().into_bytes()
 }
 
-/// The value inside a `wasi:keyvalue` entry the guest's `StateStore` wrote.
-///
-/// The guest-side store wraps every write in `omnia_wasi_keyvalue`'s
-/// `Cacheable` envelope — `{"value": [bytes], "expires_at": secs}` — so the
-/// TTL travels with the value; that type is `wasm32`-only, so the envelope
-/// is unwrapped here as JSON.
-fn cached(entry: &[u8]) -> Vec<u8> {
-    let envelope: Value = serde_json::from_slice(entry).expect("Cacheable JSON");
-    envelope["value"]
-        .as_array()
-        .expect("byte array")
-        .iter()
-        .map(|byte| u8::try_from(byte.as_u64().expect("byte")).expect("byte range"))
-        .collect()
-}
-
 /// The `wasi:http` export end to end: a request through the trigger's
 /// handler reaches the guest's router, and the guest's publish reaches the
 /// broker through the example's `wasi:messaging` host.
@@ -154,7 +138,7 @@ async fn messaging_export() {
     // into the bucket `Backends::state` reads.
     let key = "motionGtfs:occupancyStatus:32161:1347-05004-41400-2-89c4020e:20251120:11:30:00";
     let entry = backends.state(key).await.expect("the occupancy status is stored");
-    assert_eq!(cached(&entry), b"\"FEW_SEATS_AVAILABLE\"");
+    assert_eq!(entry, b"\"FEW_SEATS_AVAILABLE\"");
 
     runtime.shutdown();
 }
