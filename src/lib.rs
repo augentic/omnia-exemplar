@@ -10,7 +10,7 @@
 //! new Omnia services and the shape the guest template seeds.
 
 use common::{Capabilities, config};
-use omnia_sdk::api::{Client, messaging};
+use omnia_sdk::api::{Client, http, messaging};
 
 /// Build the HTTP router over one provider-owning [`Client`].
 ///
@@ -52,5 +52,5 @@ pub async fn topic_router<P: Capabilities>(provider: P) -> messaging::Router<P> 
     messaging::Router::new(Client::new(provider)).merge(routes)
 }
 
-omnia_sdk::export!(http: http_router(omnia_sdk::WasiProvider));
-omnia_sdk::export!(messaging: topic_router(omnia_sdk::WasiProvider));
+http::export!(http_router);
+messaging::export!(topic_router);

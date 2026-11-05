@@ -43,9 +43,9 @@ as both the workspace and the deployable package, `crate-type =
 ["cdylib", "rlib"]`, every pin under `[workspace.dependencies]`, the
 `wasm32`-excluded `omnia-test` dev-dependency (`features = ["guest"]`)
 and the `host` feature; `src/lib.rs` with `http_router` and
-`messaging_router`, provider-generic routers each composed from its list
+`topic_router`, provider-generic routers each composed from its list
 of one statement per stem and each bound over `omnia_sdk::WasiProvider`
-by its own `omnia_sdk::export!`; `tests/routes.rs` and `tests/messaging.rs`, one native rung each
+by `http::export!` and `messaging::export!`; `tests/routes.rs` and `tests/messaging.rs`, one native rung each
 that builds the composed router over a seeded
 `omnia_test::guest::Provider`, so two stems serving one route or
 consuming one topic fail there; `crates/common`, the `Capabilities`
@@ -83,7 +83,7 @@ stem's lists do not name is dead code. Its tests under
 doubles, so a route or a topic is asserted as the wire reaches it. The
 root `Cargo.toml` names the crate in its path list and its
 `[dependencies]`, and one line each in `http_router` and
-`messaging_router` in `src/lib.rs` for its `router()` and `topics()`; a topic the stem
+`topic_router` in `src/lib.rs` for its `router()` and `topics()`; a topic the stem
 publishes or consumes is one constant appended to
 `crates/common/src/topic.rs`; nothing else of the seed is edited.
 

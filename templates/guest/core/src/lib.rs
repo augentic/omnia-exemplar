@@ -7,7 +7,7 @@
 //! production routers natively under `omnia_test::guest::Provider` doubles.
 
 use common::{Capabilities, config};
-use omnia_sdk::api::{Client, messaging};
+use omnia_sdk::api::{Client, http, messaging};
 
 /// Build the HTTP router over one provider-owning [`Client`].
 ///
@@ -33,12 +33,12 @@ pub fn http_router<P: Capabilities>(provider: P) -> axum::Router {
 /// describes: `let routes = routes.merge(<stem>::topics());`. Merging panics
 /// where two stems consume one topic, so the rung under `tests/` holds the
 /// list to one consumer apiece.
-pub async fn messaging_router<P: Capabilities>(provider: P) -> messaging::Router<P> {
+pub async fn topic_router<P: Capabilities>(provider: P) -> messaging::Router<P> {
     let env = config::env(&provider).await;
     let routes = messaging::Routes::new();
     let routes = routes.map_topics(|topic| config::topic_for(&env, topic));
     messaging::Router::new(Client::new(provider)).merge(routes)
 }
 
-omnia_sdk::export!(http: http_router(omnia_sdk::WasiProvider));
-omnia_sdk::export!(messaging: messaging_router(omnia_sdk::WasiProvider));
+http::export!(http_router);
+messaging::export!(topic_router);

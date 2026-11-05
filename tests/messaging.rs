@@ -24,7 +24,7 @@ fn delivery(topic: String) -> Delivery {
 
 #[tokio::test]
 async fn registers() {
-    let router = guest::messaging_router(provider()).await;
+    let router = guest::topic_router(provider()).await;
 
     let outcome = router.handle(Delivery::default()).await;
 
@@ -33,7 +33,7 @@ async fn registers() {
 
 #[tokio::test]
 async fn an_unknown_topic_is_unhandled() {
-    let router = guest::messaging_router(provider()).await;
+    let router = guest::topic_router(provider()).await;
     let topic = config::topic_for(ENV, "nothing-here");
 
     let outcome = router.handle(delivery(topic.clone())).await;
@@ -43,7 +43,7 @@ async fn an_unknown_topic_is_unhandled() {
 
 #[tokio::test]
 async fn every_topic_is_qualified() {
-    let router = guest::messaging_router(provider()).await;
+    let router = guest::topic_router(provider()).await;
     let prefix = config::topic_for(ENV, "");
 
     for topic in router.topics() {

@@ -12,8 +12,8 @@ wiring: `router()`, an `axum::Router` binding its paths to its fns
 (`post(tally)`), and `topics()`, a `messaging::Routes` binding its topic
 suffixes to its consumers. The **guest is the workspace root package**
 (`src/lib.rs`) — one `merge` per crate in `http_router` and one in
-`messaging_router`, over a provider-owning `Client`, each bound as a WASI
-export by `omnia_sdk::export!`. Match this layout when creating a new
+`topic_router`, over a provider-owning `Client`, each bound as a WASI
+export by `http::export!` and `messaging::export!`. Match this layout when creating a new
 Omnia service: root `src/`, not a `guests/<name>/` tree.
 
 ## Relation to omnia
@@ -108,13 +108,12 @@ The guest:
   extractors, with `Bytes` for non-JSON wire formats) on an `axum::Router`
   — in `http_router`
 - Merges each crate's `topics()` — bare topic suffixes bound to consumers
-  on a `messaging::Routes` — in `messaging_router`, which qualifies every
+  on a `messaging::Routes` — in `topic_router`, which qualifies every
   topic for the deployment's environment once (`Routes::map_topics`) and
   dispatches deliveries through the exact-topic
   `omnia_sdk::api::messaging::Router`
-- Binds each as a WASI export, one `omnia_sdk::export!` per transport:
-  `export!(http: http_router(WasiProvider))` and
-  `export!(messaging: messaging_router(WasiProvider))`
+- Binds each as a WASI export: `http::export!(http_router)` and
+  `messaging::export!(topic_router)`
 - Uses `omnia_sdk::WasiProvider`, the zero-sized provider implementing every
   capability trait (`BlobStore`, `Broadcast`, `Config`, `DocumentStore`,
   `HttpRequest`, `Identity`, `Publish`, `StateStore`, `TableStore`) over its
@@ -204,7 +203,7 @@ clients stay provider-generic.
    `common::topics([..])`).
    A new stem adds one `let router = router.merge(<stem>::router());` line
    to `http_router` or one `let routes = routes.merge(<stem>::topics());`
-   line to `messaging_router` in `src/lib.rs`.
+   line to `topic_router` in `src/lib.rs`.
 6. Add fixtures under the crate's `data/` and native tests under `tests/`
    that seed an `omnia_test::guest::Provider` with the doubles the
    handler's capabilities read and drive the stem's `router()` or `topics()`.
