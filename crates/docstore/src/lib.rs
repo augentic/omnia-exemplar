@@ -22,7 +22,7 @@
 //! - `gte`/`lte` ranges — [`stop_time::ListStopTimesRequest`] time and sequence bounds
 //!
 //! Each handler is generic over `P: DocumentStore`, so the same code runs
-//! inside the WASM guest (served by [`router`]) and against the
+//! inside the WASM guest (served by [`routes`]) and against the
 //! filter-evaluating `MemoryDocs` double in the crate-level tests.
 //!
 //! [`DocumentStore`]: omnia_sdk::DocumentStore
