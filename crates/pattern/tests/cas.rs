@@ -23,7 +23,7 @@ async fn put_quota(
             .to_string(),
         ))
         .expect("request");
-    let router = pattern::router().with_state(Client::new(provider.clone()));
+    let router = pattern::routes().with_state(Client::new(provider.clone()));
     let response = router.oneshot(request).await.expect("response");
     assert_eq!(
         response.headers().get(CONTENT_TYPE).and_then(|value| value.to_str().ok()),

@@ -9,18 +9,20 @@ Unreleased
 ### Changed
 
 - **One list shape at every level, and every stem exposes both halves.**
-  The root's `http_router` and `topic_router` are the folds a stem's entry
-  uses, `common::routers([..])` and `common::topics([..])`, each list under
-  the comment that anchors it, so a slice adds a stem as it adds a part:
+  The root's `http_router` and `topic_router` and a stem's `routes` and
+  `topics` all merge their entries with `http::Routes::from([..])` and
+  `messaging::Routes::from([..])`, each list under the comment that
+  anchors it, so a slice adds a stem as it adds a part:
   one line after the anchor, which `omnia-template` names as
   `ROUTE_LIST_ANCHOR` and `TOPIC_LIST_ANCHOR` beside the manifest's two.
-  Every stem exposes `router()` and `topics()`, an empty list where it has
+  Every stem exposes `routes()` and `topics()`, an empty list where it has
   no part of that kind, so the root lists each stem once in each list and
   a stem's first route or topic is a change to the stem alone. A part's
-  and a stem's routes are an `omnia_sdk::api::http::Routes<P>`, the SDK's
-  name for an `axum::Router` over the `Client`, alongside
-  `messaging::Routes<P>`, and the root closes them into `http::Router` and
-  `messaging::Router<P>` with `with_state` and `Routes::with_client`.
+  and a stem's routes are `omnia_sdk::api::http::Routes<P>` alongside
+  `messaging::Routes<P>`, `Routes::map` qualifies the merged topics, and
+  both close into `http::Router` and `messaging::Router<P>` with
+  `with_state(Client::new(provider))`. `common::routers` and
+  `common::topics` are removed.
 - **Parameterized SQL + `common::RowExt` replaces `omnia-orm`, `acme-common`
   becomes `common`, and stem entries hold composition alone.** `omnia-orm`
   is removed: `crates/sql` and `crates/pattern/src/place.rs` execute

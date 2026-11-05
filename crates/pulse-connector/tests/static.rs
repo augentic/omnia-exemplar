@@ -22,7 +22,7 @@ async fn post(provider: Provider, body: &'static [u8]) -> Response<Body> {
         .header(CONTENT_TYPE, "text/xml")
         .body(Body::from(body))
         .expect("request");
-    let router = pulse_connector::router().with_state(Client::new(provider));
+    let router = pulse_connector::routes().with_state(Client::new(provider));
     router.oneshot(request).await.expect("response")
 }
 

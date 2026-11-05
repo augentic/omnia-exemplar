@@ -1,7 +1,7 @@
 //! Static fixture tests for the gtfs-adapter routes and topics.
 //!
 //! Fixtures under `data/` are captured Kafka records from a live system;
-//! each test takes a record's `value` and drives the stem's `router()` or
+//! each test takes a record's `value` and drives the stem's `routes()` or
 //! `topics()` natively against `omnia_test` doubles seeded with the
 //! upstream answers.
 
@@ -42,7 +42,7 @@ const TRAIN_AVL: &[u8] = include_bytes!("../data/realtime-train-avl.v1.json");
 const PASSENGER_COUNT: &[u8] = include_bytes!("../data/realtime-passenger-count.v1.json");
 
 fn topics(provider: &Provider) -> Router<Provider> {
-    gtfs_adapter::topics().with_client(Client::new(provider.clone()))
+    gtfs_adapter::topics().with_state(Client::new(provider.clone()))
 }
 
 fn delivery(topic: &str, payload: impl Into<Vec<u8>>) -> Delivery {
@@ -54,7 +54,7 @@ fn delivery(topic: &str, payload: impl Into<Vec<u8>>) -> Delivery {
 }
 
 async fn send(provider: Provider, request: Request<Body>) -> (StatusCode, Value) {
-    let router = gtfs_adapter::router().with_state(Client::new(provider));
+    let router = gtfs_adapter::routes().with_state(Client::new(provider));
     let response = router.oneshot(request).await.expect("response");
     let status = response.status();
     let bytes = to_bytes(response.into_body(), usize::MAX).await.expect("body");

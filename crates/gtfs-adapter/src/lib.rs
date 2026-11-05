@@ -21,8 +21,8 @@ use common::Capabilities;
 use omnia_sdk::api::{http, messaging};
 
 /// The stem's routes, merged onto the root router.
-pub fn router<P: Capabilities>() -> http::Routes<P> {
-    common::routers([
+pub fn routes<P: Capabilities>() -> http::Routes<P> {
+    http::Routes::from([
         // one entry per part with routes, each added at the end
         vehicle_info::routes(),
         #[cfg(feature = "god-mode")]
@@ -32,7 +32,7 @@ pub fn router<P: Capabilities>() -> http::Routes<P> {
 
 /// The stem's topics, merged onto the root messaging router.
 pub fn topics<P: Capabilities>() -> messaging::Routes<P> {
-    common::topics([
+    messaging::Routes::from([
         // one entry per part with topics, each added at the end
         motion::topics(),
         train_avl::topics(),

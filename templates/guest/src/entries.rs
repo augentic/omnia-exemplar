@@ -26,9 +26,9 @@ pub enum Role {
 
 /// The template line the `http_router` list of `src/lib.rs` follows.
 ///
-/// A stem's entry in the list is `        <stem>::router(),`, inserted
+/// A stem's entry in the list is `        <stem>::routes(),`, inserted
 /// after this line with [`insert_after`](crate::insert_after).
-pub const ROUTE_LIST_ANCHOR: &str = "        // one router() per stem, each added at the end";
+pub const ROUTE_LIST_ANCHOR: &str = "        // one routes() per stem, each added at the end";
 
 /// The template line the `topic_router` list of `src/lib.rs` follows.
 ///

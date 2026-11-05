@@ -156,7 +156,7 @@ async fn too_early() {
 #[tokio::test]
 async fn undecodable_payload() {
     let provider = Provider::default().config(MapConfig::default().with([(config::ENV, "dev")]));
-    let router = pulse_adapter::topics().with_client(Client::new(provider.clone()));
+    let router = pulse_adapter::topics().with_state(Client::new(provider.clone()));
     let delivery = Delivery {
         topic: Some(topic::PULSE.to_string()),
         payload: b"not xml".to_vec(),
@@ -173,7 +173,7 @@ async fn undecodable_payload() {
 // deployment's environment.
 #[test]
 fn topics_by_suffix() {
-    let router = pulse_adapter::topics().with_client(Client::new(Provider::default()));
+    let router = pulse_adapter::topics().with_state(Client::new(Provider::default()));
 
     assert_eq!(router.topics().collect::<Vec<_>>(), [topic::PULSE]);
 }
@@ -195,7 +195,7 @@ async fn expect_error(path: &str) {
 }
 
 async fn run(case: &Case) -> Result<(), DeliveryError> {
-    let router = pulse_adapter::topics().with_client(Client::new(case.provider.clone()));
+    let router = pulse_adapter::topics().with_state(Client::new(case.provider.clone()));
     let delivery = Delivery {
         topic: Some(topic::PULSE.to_string()),
         payload: case.input.clone(),

@@ -35,7 +35,7 @@ const SEED_CLIPPY: &str = "templates/guest/core/clippy.toml";
 const STEM_LINES: &[(&str, &str, &str)] = &[
     ("Cargo.toml", PATH_LIST_ANCHOR, "orders = { path = \"crates/orders\" }"),
     ("Cargo.toml", CRATE_LIST_ANCHOR, "orders.workspace = true"),
-    ("src/lib.rs", ROUTE_LIST_ANCHOR, "        orders::router(),"),
+    ("src/lib.rs", ROUTE_LIST_ANCHOR, "        orders::routes(),"),
     ("src/lib.rs", TOPIC_LIST_ANCHOR, "        orders::topics(),"),
     (
         "crates/common/src/topic.rs",

@@ -15,36 +15,36 @@ use omnia_sdk::api::{Client, http, messaging};
 /// Build the HTTP router over one provider-owning [`Client`].
 ///
 /// Omnia creates one component instance per request, so the router and the
-/// client are built inside each call. The list holds one `<stem>::router(),`
+/// client are built inside each call. The list holds one `<stem>::routes(),`
 /// per stem, each added at the end, in the array form a stem lists its parts
 /// in. Merging panics where two stems serve one path under one method, so
 /// the rung under `tests/` holds the list to one route apiece.
 pub fn http_router<P: Capabilities>(provider: P) -> http::Router {
-    common::routers([
-        // one router() per stem, each added at the end
-        capability::router(),
-        docstore::router(),
-        gtfs_adapter::router(),
-        pattern::router(),
-        pulse_adapter::router(),
-        pulse_connector::router(),
-        sql::router(),
-        tally_connector::router(),
+    http::Routes::from([
+        // one routes() per stem, each added at the end
+        capability::routes(),
+        docstore::routes(),
+        gtfs_adapter::routes(),
+        pattern::routes(),
+        pulse_adapter::routes(),
+        pulse_connector::routes(),
+        sql::routes(),
+        tally_connector::routes(),
     ])
     .with_state(Client::new(provider))
 }
 
 /// Build the exact-topic messaging router over one provider-owning [`Client`].
 ///
-/// Each stem names its topics by bare suffix, and `map_topics` qualifies
-/// them all for the deployment's environment, so a delivery from another
-/// environment is unhandled rather than consumed. The list holds one
-/// `<stem>::topics(),` per stem, in the form [`http_router`] describes.
-/// Merging panics where two stems consume one topic, so the rung under
-/// `tests/` holds the list to one consumer apiece.
+/// Each stem names its topics by bare suffix, and `map` qualifies them all
+/// for the deployment's environment, so a delivery from another environment
+/// is unhandled rather than consumed. The list holds one `<stem>::topics(),`
+/// per stem, in the form [`http_router`] describes. Merging panics where two
+/// stems consume one topic, so the rung under `tests/` holds the list to one
+/// consumer apiece.
 pub async fn topic_router<P: Capabilities>(provider: P) -> messaging::Router<P> {
     let env = config::env(&provider).await;
-    common::topics([
+    messaging::Routes::from([
         // one topics() per stem, each added at the end
         capability::topics(),
         docstore::topics(),
@@ -55,8 +55,8 @@ pub async fn topic_router<P: Capabilities>(provider: P) -> messaging::Router<P> 
         sql::topics(),
         tally_connector::topics(),
     ])
-    .map_topics(|topic| config::topic_for(&env, topic))
-    .with_client(Client::new(provider))
+    .map(|topic| config::topic_for(&env, topic))
+    .with_state(Client::new(provider))
 }
 
 http::export!(http_router);

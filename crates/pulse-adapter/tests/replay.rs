@@ -27,7 +27,7 @@ async fn run() {
 }
 
 async fn replay(case: Case) {
-    let router = pulse_adapter::topics().with_client(Client::new(case.provider.clone()));
+    let router = pulse_adapter::topics().with_state(Client::new(case.provider.clone()));
     let delivery = Delivery {
         topic: Some(topic::PULSE.to_string()),
         payload: case.input.clone(),

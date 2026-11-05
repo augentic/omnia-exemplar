@@ -2,7 +2,7 @@
 //!
 //! Building the router is the check: axum panics where two stems merge one
 //! path under one method. A stem's routes are driven by its own tests
-//! through its `router()`; this rung holds the merged whole.
+//! through its `routes()`; this rung holds the merged whole.
 
 use axum::body::Body;
 use axum::http::{Request, StatusCode};

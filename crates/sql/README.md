@@ -92,7 +92,7 @@ curl -s -X DELETE http://localhost:8080/examples/feeds/1
 
 ## Testing
 
-[`tests/operations.rs`](tests/operations.rs) drives `sql::router()` over
+[`tests/operations.rs`](tests/operations.rs) drives `sql::routes()` over
 `omnia_test::guest::ScriptedTables`, a responder-only `TableStore` double:
 every scenario scripts the rows the `SELECT` should see and asserts the
 recorded statements — SQL text and bound parameters — for id assignment,

@@ -38,7 +38,7 @@ async fn decode(provider: &Provider, code: &str) -> DecodeSegmentReply {
         .header(CONTENT_TYPE, "application/json")
         .body(Body::from(json!({ "code": code }).to_string()))
         .expect("request");
-    let router = pattern::router().with_state(Client::new(provider.clone()));
+    let router = pattern::routes().with_state(Client::new(provider.clone()));
     let response = router.oneshot(request).await.expect("response");
     assert_eq!(response.status(), StatusCode::OK);
     let bytes = to_bytes(response.into_body(), usize::MAX).await.expect("body");

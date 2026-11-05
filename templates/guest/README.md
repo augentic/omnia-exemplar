@@ -66,10 +66,10 @@ A stem is one crate under `crates/<stem>/`, and the fixture stem
 the shape a generated stem copies. Its
 `src/lib.rs` is the crate doc, one `pub mod <part>;` line per part, and
 the two functions the root lists compose, both written whatever parts the
-stem has: `pub fn router<P: Capabilities>() -> http::Routes<P>`,
-`common::routers([..])` over one `<part>::routes(),` entry per part
+stem has: `pub fn routes<P: Capabilities>() -> http::Routes<P>`,
+`http::Routes::from([..])` over one `<part>::routes(),` entry per part
 with routes, and `pub fn topics<P: Capabilities>() ->
-messaging::Routes<P>`, `common::topics([..])` over one
+messaging::Routes<P>`, `messaging::Routes::from([..])` over one
 `<part>::topics(),` entry per part with topics, each topic a bare suffix
 the root qualifies. Each array is a list under a comment that
 anchors it, empty for a stem with no route or no topic yet, so every
@@ -80,11 +80,11 @@ part is one module: its paths, its settings' keys, and its state keys
 as `pub(crate) const`, its handlers `pub(crate)`, and `pub(crate) fn
 routes()` and `pub(crate) fn topics()` registering them, so a part the
 stem's lists do not name is dead code. Its tests under
-`tests/<part>.rs` drive the stem's `router()` with `oneshot` and its
-`topics()` merged onto a `messaging::Router` over a `Client` of the
-doubles, so a route or a topic is asserted as the wire reaches it. The
+`tests/<part>.rs` drive the stem's `routes()` and `topics()`, each
+closed with `with_state(Client::new(provider))` over the doubles, so a
+route or a topic is asserted as the wire reaches it. The
 root `Cargo.toml` names the crate in its path list and its
-`[dependencies]`, and `src/lib.rs` lists its `router()` and `topics()`,
+`[dependencies]`, and `src/lib.rs` lists its `routes()` and `topics()`,
 one line in each of the lists of `http_router` and `topic_router`, after
 the anchors `ROUTE_LIST_ANCHOR` and `TOPIC_LIST_ANCHOR` name as
 `PATH_LIST_ANCHOR` and `CRATE_LIST_ANCHOR` name the manifest's; a topic the stem
