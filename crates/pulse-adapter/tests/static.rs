@@ -7,10 +7,13 @@ use std::ops::Sub;
 
 use chrono::{Duration, Timelike, Utc};
 use common::{config, topic};
+use omnia_sdk::api::Client;
 use omnia_sdk::api::messaging::{Delivery, DeliveryError, Router};
-use omnia_sdk::api::{Client, Metadata};
 use omnia_test::guest::{MapConfig, Provider};
-use pulse_adapter::{ChangeType, EventType, PulseMessage, TIMEZONE, pulse};
+use pulse_adapter::handler::PulseMessage;
+use pulse_adapter::motion::EventType;
+use pulse_adapter::pulse::{ChangeType, TIMEZONE};
+use pulse_adapter::stops::StopInfo;
 
 use self::fixture::{Case, Expected};
 
@@ -50,6 +53,21 @@ async fn station_arrival() {
     assert!(event.location_data.longitude.eq(&174.12345));
     assert_eq!(event.remote_data.external_id, "vehicle1");
     assert!(case.provider.storage.state("pulse:stops").is_some(), "stops table cached");
+}
+
+// A corrupted cache entry is treated as a miss, refetched from the static API,
+// and overwritten in the state store.
+#[tokio::test]
+async fn stale_cache_entry_refetched() {
+    let case = fixture::load("data/static/0001.json");
+    case.provider.storage.insert_state("pulse:stops", b"not valid json");
+
+    run(&case).await.expect("should refetch and process");
+
+    assert_eq!(case.events().len(), 2);
+    let cached = case.provider.storage.state("pulse:stops").expect("stops table rewritten");
+    let stops: Vec<StopInfo> = serde_json::from_slice(&cached).expect("valid cached stops");
+    assert!(!stops.is_empty());
 }
 
 // A train departing a mapped station: the event carries the updated stop
@@ -176,15 +194,23 @@ async fn expect_error(path: &str) {
     let Some(Expected::Failure(expected_error)) = &case.expected else {
         panic!("fixture should expect an error");
     };
-    let actual_error = run(&case).await.expect_err("should have error");
-    assert_eq!(actual_error.code(), expected_error.code());
-    assert_eq!(actual_error.description(), expected_error.description());
+    let error = run(&case).await.expect_err("should have error");
+    assert!(
+        matches!(&error, DeliveryError::Rejected(msg)
+            if msg.contains(&expected_error.code()) && msg.contains(&expected_error.description())),
+        "expected {expected_error:?}, got {error:?}"
+    );
 }
 
-async fn run(case: &Case) -> Result<(), omnia_sdk::Error> {
-    Client::new("acme", case.provider.clone())
-        .call(pulse, case.input.clone(), &Metadata::default())
-        .await
+async fn run(case: &Case) -> Result<(), DeliveryError> {
+    let router =
+        pulse_adapter::topics(Router::new(Client::new("acme", case.provider.clone())), "dev");
+    let delivery = Delivery {
+        topic: Some("dev-realtime-pulse.v1".to_string()),
+        payload: case.input.clone(),
+        ..Delivery::default()
+    };
+    router.handle(delivery).await
 }
 
 struct XmlBuilder<'a> {

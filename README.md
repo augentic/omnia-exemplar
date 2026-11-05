@@ -181,18 +181,18 @@ clients stay provider-generic.
    adapter.
 2. Create the crate under `crates/`, register it in the workspace
    `Cargo.toml` under `# The crates of this tree`.
-3. Implement the input type and a handler fn
-   (`pub async fn name<P>(input: Input, context: Context<P>) -> Result<Reply>`)
+3. Implement the `pub` input and reply types and a handler fn
+   (`pub(crate) async fn name<P>(input: Input, context: Context<P>) -> Result<Reply>`)
    with the narrowest capability bounds it needs
-   (e.g. `P: Config + Publish`), a `///` summary, and an `# Errors` section;
-   re-export it from the crate root. Read capabilities through
+   (e.g. `P: Config + Publish`). Read capabilities through
    `context.provider()`.
-4. Declare the path and any configuration keys as `const`s of the part that
-   uses them, and any new topic suffix in `common::topic`.
-5. Bind the handler in the part's `routes()` (`post(handler)`, or
-   `handle_with` for custom status codes / wire formats) or `topics()`
-   (`consume(handler)`, `consume_with`), and list the part in the stem's
-   `src/lib.rs` (`common::routers([..])`, `common::topics(router, env).parts([..])`).
+4. Declare the path and any configuration keys as `pub(crate) const`s of the
+   part that uses them, and any new topic suffix in `common::topic`.
+5. Bind the handler in the part's `pub(crate) fn routes()` (`post(handler)`,
+   or `handle_with` for custom status codes / wire formats) or
+   `pub(crate) fn topics()` (`consume(handler)`, `consume_with`), and list
+   the part in the stem's `src/lib.rs` (`common::routers([..])`,
+   `common::topics(router, env, [..])`).
    A new stem adds one `merge(<stem>::router())` line to `src/routes.rs` or
    one `<stem>::topics(router, &env)` line to `src/messaging.rs`.
 6. Add fixtures under the crate's `data/` and native tests under `tests/`
@@ -215,8 +215,10 @@ values.
 | `STATIC_API_URL` | pulse-adapter | Static GTFS API base URL |
 | `API_IDENTITY` | gtfs-adapter, pulse-adapter | Identity used to acquire access tokens for the operator APIs |
 | `GOD_MODE_ENABLED` | gtfs-adapter | Runtime switch for the god-mode override (also requires the `god-mode` build feature) |
-| `PATTERN_DECODER_URL` | pattern-examples | Decoder endpoint for the decode-through-cache example |
-| `PATTERN_CLIENT_CERT` | pattern-examples | Client certificate forwarded to the decoder as a `Client-Cert` header |
+| `PATTERN_DECODER_URL` | pattern | Decoder endpoint for the decode-through-cache example |
+| `PATTERN_CLIENT_CERT` | pattern | Client certificate forwarded to the decoder as a `Client-Cert` header |
+| `PATTERN_UPSTREAM_URL` | pattern | Upstream base URL for the bearer-token authentication example |
+| `PATTERN_UPSTREAM_IDENTITY` | pattern | Identity used to acquire access tokens for the upstream status example |
 
 `WEBSOCKET_ADDR` in `.env.example` is read by the example host, not the
 guest: it is the bind address for `WebSocketDefault` (the backend behind
@@ -420,11 +422,11 @@ The contract is enforced by the `template-check` gate, which runs
 inside the standard test suite and stand-alone:
 
 ```shell
-cargo run -p template-check   # schema, tokens, path safety, seed render, the crate's table
+cargo run -p template-check   # schema, path safety, seed pins and patches, clippy parity, the crate's table
 ```
 
 `exact` entries reference their repository-root file in place
-(`source == target`, token-free), so a green root vouches for the
+(`source == target`), so a green root vouches for the
 scaffold with no diff to maintain. The seeds give a new service the shape
 above — the root package as the component composing every stem's
 provider-generic routers, `rlib` alongside `cdylib`, the two rungs under
@@ -456,7 +458,7 @@ everything else; the generic Rust tasks are included from
 [`augentic/toolkit`](https://github.com/augentic/toolkit/blob/main/mise/rust.toml)
 by `mise.toml`, which adds only the `wasm` release build of the guest.
 `mise.toml` is itself an `exact` entry of the guest template contract, so it
-stays token-free and free of exemplar-only tasks.
+stays free of exemplar-only tasks.
 
 Clippy runs twice: natively with `--all-targets`, then for `wasm32-wasip2`
 over libs, bins and examples only (never tests or benches). The whole

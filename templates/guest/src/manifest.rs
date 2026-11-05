@@ -14,6 +14,22 @@ pub const PATH_LIST_ANCHOR: &str = "common = { path = \"crates/common\" }";
 /// The template line the root manifest's `[dependencies]` stem list follows.
 pub const CRATE_LIST_ANCHOR: &str = "tracing.workspace = true";
 
+/// Insert `line` on a new line immediately following the first occurrence of `anchor` in `text`.
+///
+/// Neither `anchor` nor `line` needs a trailing newline; returns `None` when
+/// `anchor` does not appear in `text`.
+#[must_use]
+pub fn insert_after(text: &str, anchor: &str, line: &str) -> Option<String> {
+    let (before, after) = text.split_once(anchor)?;
+    let (tail, rest) = after.split_once('\n').unwrap_or((after, ""));
+    let line = line.trim_end_matches('\n');
+    if rest.is_empty() && !after.ends_with('\n') {
+        Some(format!("{before}{anchor}{tail}\n{line}"))
+    } else {
+        Some(format!("{before}{anchor}{tail}\n{line}\n{rest}"))
+    }
+}
+
 /// The root `Cargo.toml` of one tree, held to the template around its two stem lists.
 ///
 /// The manifest is the one listed file whose fixed text matters beyond the

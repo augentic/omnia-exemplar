@@ -139,7 +139,7 @@ toml = "1.1.8"
 tower = { version = "0.5.3", default-features = false, features = ["util"] }
 tracing = "0.1.44"
 urlencoding = "2.1.3"
-uuid = { version = "1.28.0", features = ["v4"] }
+uuid = { version = "1.28.0", features = ["serde", "v4"] }
 
 omnia = "0.38.0"
 omnia-sdk = "0.38.0"

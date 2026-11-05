@@ -19,9 +19,6 @@ use std::time::Duration;
 
 use bytes::Bytes;
 use common::{config, topic};
-use gtfs_adapter::block_mgt::{API_IDENTITY, BLOCK_MGT_URL};
-use gtfs_adapter::fleet::FLEET_URL;
-use gtfs_adapter::trip::TRIP_MANAGEMENT_URL;
 use http::header::{CONTENT_TYPE, HOST};
 use http::{Request, StatusCode};
 use http_body_util::Full;
@@ -30,7 +27,6 @@ use omnia::futures::StreamExt as _;
 use omnia_test::host::{Backends, Deployment};
 use omnia_wasi_http::HttpHandler;
 use omnia_wasi_messaging::{Message, MessagingHandler};
-use pulse_adapter::stops::STATIC_API_URL;
 use serde_json::Value;
 
 include!(concat!(env!("OUT_DIR"), "/gen.rs"));
@@ -51,15 +47,15 @@ const CLOSED_UPSTREAM: &str = "http://127.0.0.1:9";
 /// `Backends::defaults()` connects nothing.
 const GUEST_CONFIG: &[(&str, &str)] = &[
     (config::ENV, "dev"),
-    (BLOCK_MGT_URL, CLOSED_UPSTREAM),
-    (FLEET_URL, CLOSED_UPSTREAM),
-    (TRIP_MANAGEMENT_URL, CLOSED_UPSTREAM),
-    (STATIC_API_URL, CLOSED_UPSTREAM),
-    (API_IDENTITY, "component-test"),
-    (pattern::decode::DECODER_URL, CLOSED_UPSTREAM),
-    (pattern::decode::CLIENT_CERT, "component-test"),
-    (pattern::identity::UPSTREAM_URL, CLOSED_UPSTREAM),
-    (pattern::identity::UPSTREAM_IDENTITY, "component-test"),
+    ("BLOCK_MGT_URL", CLOSED_UPSTREAM),
+    ("FLEET_URL", CLOSED_UPSTREAM),
+    ("TRIP_MANAGEMENT_URL", CLOSED_UPSTREAM),
+    ("STATIC_API_URL", CLOSED_UPSTREAM),
+    ("API_IDENTITY", "component-test"),
+    ("PATTERN_DECODER_URL", CLOSED_UPSTREAM),
+    ("PATTERN_CLIENT_CERT", "component-test"),
+    ("PATTERN_UPSTREAM_URL", CLOSED_UPSTREAM),
+    ("PATTERN_UPSTREAM_IDENTITY", "component-test"),
 ];
 
 /// Assemble the shipped component over fresh in-memory backends through the
@@ -105,7 +101,8 @@ async fn http_export() {
 
     // `Host` is required: the handler answers a request without an authority
     // with `400` before the guest sees it.
-    let request = Request::post(tally_connector::APC)
+    assert_eq!(gtfs_adapter::trip::TIMEZONE, pulse_adapter::pulse::TIMEZONE);
+    let request = Request::post("/api/apc")
         .header(HOST, "guest.test")
         .header(CONTENT_TYPE, "application/json")
         .body(Full::new(Bytes::from_static(TALLY_MESSAGE)))

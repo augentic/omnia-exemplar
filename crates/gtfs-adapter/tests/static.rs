@@ -11,7 +11,7 @@ use axum::body::{Body, to_bytes};
 use axum::http::{Request, StatusCode};
 use chrono::{DateTime, Utc};
 use common::{config, topic};
-use gtfs_adapter::VehicleInfoReply;
+use gtfs_adapter::vehicle_info::VehicleInfoReply;
 use omnia_sdk::api::Client;
 use omnia_sdk::api::messaging::{Delivery, DeliveryError, Router};
 use omnia_test::guest::{MatchedHttp, Provider};
@@ -27,6 +27,21 @@ const ENV: &str = "dev";
     reason = "integration test loads captured fixture JSON from disk"
 )]
 const FLEET_QUERY: &[u8] = include_bytes!("../data/fleet-query.json");
+#[expect(
+    clippy::disallowed_macros,
+    reason = "integration test loads captured fixture JSON from disk"
+)]
+const PULSE_TO_MOTION: &[u8] = include_bytes!("../data/realtime-pulse-to-motion.v1.json");
+#[expect(
+    clippy::disallowed_macros,
+    reason = "integration test loads captured fixture JSON from disk"
+)]
+const TRAIN_AVL: &[u8] = include_bytes!("../data/realtime-train-avl.v1.json");
+#[expect(
+    clippy::disallowed_macros,
+    reason = "integration test loads captured fixture JSON from disk"
+)]
+const PASSENGER_COUNT: &[u8] = include_bytes!("../data/realtime-passenger-count.v1.json");
 
 fn topics(provider: &Provider) -> Router<Provider> {
     gtfs_adapter::topics(Router::new(Client::new(OWNER, provider.clone())), ENV)
@@ -80,11 +95,7 @@ fn trip_instance(trip_id: &str) -> Value {
 
 #[tokio::test]
 async fn motion_location() {
-    #[expect(
-        clippy::disallowed_macros,
-        reason = "integration test loads captured fixture JSON from disk"
-    )]
-    let value = fixture_value(include_bytes!("../data/realtime-pulse-to-motion.v1.json"), 0);
+    let value = fixture_value(PULSE_TO_MOTION, 0);
     let provider = provider().http(
         MatchedHttp::default().on(http::Method::GET, fleet_query("EMP484"), ok(FLEET_QUERY)).on(
             http::Method::GET,
@@ -183,11 +194,7 @@ async fn train_avl_non_motion() {
         fleet_query("EM633"),
         ok(FLEET_QUERY),
     ));
-    #[expect(
-        clippy::disallowed_macros,
-        reason = "integration test loads captured fixture JSON from disk"
-    )]
-    let value = fixture_value(include_bytes!("../data/realtime-train-avl.v1.json"), 0);
+    let value = fixture_value(TRAIN_AVL, 0);
 
     topics(&provider)
         .handle(delivery(topic::TRAIN_AVL, value.to_string()))
@@ -202,11 +209,7 @@ async fn train_avl_motion() {
     let mut fleet: Value = serde_json::from_slice(FLEET_QUERY).expect("should parse fixture");
     fleet[0]["tag"] = "motion".into();
 
-    #[expect(
-        clippy::disallowed_macros,
-        reason = "integration test loads captured fixture JSON from disk"
-    )]
-    let value = fixture_value(include_bytes!("../data/realtime-train-avl.v1.json"), 0);
+    let value = fixture_value(TRAIN_AVL, 0);
     let provider = provider().http(
         MatchedHttp::default()
             .on(http::Method::GET, fleet_query("EM633"), ok(fleet.to_string()))
@@ -234,11 +237,7 @@ async fn passenger_count_occupancy() {
     let provider = provider();
     let key = "motionGtfs:occupancyStatus:32161:1347-05004-41400-2-89c4020e:20251120:11:30:00";
 
-    #[expect(
-        clippy::disallowed_macros,
-        reason = "integration test loads captured fixture JSON from disk"
-    )]
-    let value = fixture_value(include_bytes!("../data/realtime-passenger-count.v1.json"), 0);
+    let value = fixture_value(PASSENGER_COUNT, 0);
 
     topics(&provider)
         .handle(delivery(topic::PASSENGER_COUNT, value.to_string()))
@@ -349,12 +348,7 @@ async fn serial_data_outdated() {
         .handle(delivery(topic::PULSE_TO_MOTION, value.to_string()))
         .await
         .expect_err("should reject outdated message");
-    assert_eq!(
-        error,
-        DeliveryError::Rejected(
-            "code: bad_time, description: outdated serial data message".to_string()
-        )
-    );
+    assert!(matches!(&error, DeliveryError::Rejected(msg) if msg.contains("bad_time")), "{error}");
 }
 
 #[tokio::test]

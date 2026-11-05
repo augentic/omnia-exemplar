@@ -15,14 +15,9 @@ use omnia_sdk::{DocumentStore, Result, bad_request, not_found};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 
-/// Stop collection: list (GET) and create (POST).
-pub const STOPS: &str = "/examples/stops";
-
-/// One stop: get (GET), upsert (PUT), and delete (DELETE).
-pub const STOP: &str = "/examples/stops/{id}";
-
-/// Document collection holding the stops.
-pub const COLLECTION: &str = "stops";
+pub(crate) const STOPS: &str = "/examples/stops";
+pub(crate) const STOP: &str = "/examples/stops/{id}";
+pub(crate) const COLLECTION: &str = "stops";
 
 pub(crate) fn routes<P: Capabilities>() -> axum::Router<Client<P>> {
     axum::Router::new()
@@ -81,7 +76,7 @@ pub struct Stop {
 }
 
 /// Create a stop with a caller-chosen id (fails when the id exists).
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CreateStopRequest {
     /// Document id for the new stop.
     pub id: String,
@@ -90,13 +85,7 @@ pub struct CreateStopRequest {
     pub stop: Stop,
 }
 
-/// Creates a stop with a caller-chosen id.
-///
-/// # Errors
-///
-/// Returns an error when the stop cannot be serialized or the id already
-/// exists in the collection.
-pub async fn create_stop<P>(
+pub(crate) async fn create_stop<P>(
     input: CreateStopRequest, context: Context<P>,
 ) -> Result<DocumentRecord<Stop>>
 where
@@ -121,13 +110,9 @@ pub struct GetStopRequest {
     pub id: String,
 }
 
-/// Fetches one stop by id.
-///
-/// # Errors
-///
-/// Returns `not_found` when no stop has the id, or an error when the stored
-/// document cannot be deserialized.
-pub async fn get_stop<P>(input: GetStopRequest, context: Context<P>) -> Result<DocumentRecord<Stop>>
+pub(crate) async fn get_stop<P>(
+    input: GetStopRequest, context: Context<P>,
+) -> Result<DocumentRecord<Stop>>
 where
     P: DocumentStore,
 {
@@ -143,7 +128,7 @@ where
 }
 
 /// Upsert one stop by id (creates or replaces the whole document).
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UpsertStopRequest {
     /// Document id (path parameter).
     pub id: String,
@@ -152,13 +137,7 @@ pub struct UpsertStopRequest {
     pub stop: Stop,
 }
 
-/// Upserts one stop by id, creating or replacing the whole document.
-///
-/// # Errors
-///
-/// Returns an error when the stop cannot be serialized or the store rejects
-/// the write.
-pub async fn upsert_stop<P>(
+pub(crate) async fn upsert_stop<P>(
     input: UpsertStopRequest, context: Context<P>,
 ) -> Result<DocumentRecord<Stop>>
 where
@@ -184,19 +163,13 @@ pub struct DeleteStopRequest {
 }
 
 /// Confirmation of a stop deletion.
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DeleteStopReply {
     /// Id of the removed stop.
     pub id: String,
 }
 
-/// Deletes one stop by id.
-///
-/// # Errors
-///
-/// Returns `not_found` when no stop has the id, or an error when the store
-/// rejects the delete.
-pub async fn delete_stop<P>(
+pub(crate) async fn delete_stop<P>(
     input: DeleteStopRequest, context: Context<P>,
 ) -> Result<DeleteStopReply>
 where
@@ -243,7 +216,7 @@ pub struct ListStopsRequest {
 }
 
 /// One page of matching stops.
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StopsReply {
     /// Matches sorted by `stop_name` ascending.
     pub stops: Vec<DocumentRecord<Stop>>,
@@ -251,14 +224,9 @@ pub struct StopsReply {
     pub continuation: Option<String>,
 }
 
-/// Queries stops with any combination of the supported filters, sorted by
-/// name with limit/continuation pagination.
-///
-/// # Errors
-///
-/// Returns `bad_request` when `updated_on` is not a valid calendar date, or
-/// an error when the query fails or a document cannot be deserialized.
-pub async fn list_stops<P>(input: ListStopsRequest, context: Context<P>) -> Result<StopsReply>
+pub(crate) async fn list_stops<P>(
+    input: ListStopsRequest, context: Context<P>,
+) -> Result<StopsReply>
 where
     P: DocumentStore,
 {

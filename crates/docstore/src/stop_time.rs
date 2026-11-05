@@ -14,14 +14,9 @@ use serde::{Deserialize, Serialize};
 
 use crate::stop::{DocumentRecord, records};
 
-/// Stop-time collection: list (GET) and create (POST).
-pub const STOP_TIMES: &str = "/examples/stop-times";
-
-/// One stop time: get (GET).
-pub const STOP_TIME: &str = "/examples/stop-times/{id}";
-
-/// Document collection holding the stop times.
-pub const COLLECTION: &str = "stop_times";
+pub(crate) const STOP_TIMES: &str = "/examples/stop-times";
+pub(crate) const STOP_TIME: &str = "/examples/stop-times/{id}";
+pub(crate) const COLLECTION: &str = "stop_times";
 
 pub(crate) fn routes<P: Capabilities>() -> axum::Router<Client<P>> {
     axum::Router::new()
@@ -49,7 +44,7 @@ pub struct StopTime {
 }
 
 /// Create a stop time with a caller-chosen id (fails when the id exists).
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CreateStopTimeRequest {
     /// Document id for the new stop time.
     pub id: String,
@@ -58,13 +53,7 @@ pub struct CreateStopTimeRequest {
     pub stop_time: StopTime,
 }
 
-/// Creates a stop time with a caller-chosen id.
-///
-/// # Errors
-///
-/// Returns an error when the stop time cannot be serialized or the id
-/// already exists in the collection.
-pub async fn create_stop_time<P>(
+pub(crate) async fn create_stop_time<P>(
     input: CreateStopTimeRequest, context: Context<P>,
 ) -> Result<DocumentRecord<StopTime>>
 where
@@ -89,13 +78,7 @@ pub struct GetStopTimeRequest {
     pub id: String,
 }
 
-/// Fetches one stop time by id.
-///
-/// # Errors
-///
-/// Returns `not_found` when no stop time has the id, or an error when the
-/// stored document cannot be deserialized.
-pub async fn get_stop_time<P>(
+pub(crate) async fn get_stop_time<P>(
     input: GetStopTimeRequest, context: Context<P>,
 ) -> Result<DocumentRecord<StopTime>>
 where
@@ -137,7 +120,7 @@ pub struct ListStopTimesRequest {
 }
 
 /// One page of matching stop times.
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StopTimesReply {
     /// Matches sorted by `stop_sequence` ascending.
     pub stop_times: Vec<DocumentRecord<StopTime>>,
@@ -145,14 +128,7 @@ pub struct StopTimesReply {
     pub continuation: Option<String>,
 }
 
-/// Queries stop times with any combination of the supported filters, sorted
-/// by stop sequence with limit/continuation pagination.
-///
-/// # Errors
-///
-/// Returns an error when the query fails or a document cannot be
-/// deserialized.
-pub async fn list_stop_times<P>(
+pub(crate) async fn list_stop_times<P>(
     input: ListStopTimesRequest, context: Context<P>,
 ) -> Result<StopTimesReply>
 where

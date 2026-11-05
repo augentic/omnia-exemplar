@@ -15,14 +15,9 @@ use serde::{Deserialize, Serialize};
 
 use crate::stop::{DocumentRecord, records};
 
-/// Route collection: list (GET) and create (POST).
-pub const ROUTES: &str = "/examples/routes";
-
-/// One route: get (GET).
-pub const ROUTE: &str = "/examples/routes/{id}";
-
-/// Document collection holding the routes.
-pub const COLLECTION: &str = "routes";
+pub(crate) const ROUTES: &str = "/examples/routes";
+pub(crate) const ROUTE: &str = "/examples/routes/{id}";
+pub(crate) const COLLECTION: &str = "routes";
 
 pub(crate) fn routes<P: Capabilities>() -> axum::Router<Client<P>> {
     axum::Router::new()
@@ -46,7 +41,7 @@ pub struct Route {
 }
 
 /// Create a route with a caller-chosen id (fails when the id exists).
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CreateRouteRequest {
     /// Document id for the new route.
     pub id: String,
@@ -55,13 +50,7 @@ pub struct CreateRouteRequest {
     pub route: Route,
 }
 
-/// Creates a route with a caller-chosen id.
-///
-/// # Errors
-///
-/// Returns an error when the route cannot be serialized or the id already
-/// exists in the collection.
-pub async fn create_route<P>(
+pub(crate) async fn create_route<P>(
     input: CreateRouteRequest, context: Context<P>,
 ) -> Result<DocumentRecord<Route>>
 where
@@ -86,13 +75,7 @@ pub struct GetRouteRequest {
     pub id: String,
 }
 
-/// Fetches one route by id.
-///
-/// # Errors
-///
-/// Returns `not_found` when no route has the id, or an error when the stored
-/// document cannot be deserialized.
-pub async fn get_route<P>(
+pub(crate) async fn get_route<P>(
     input: GetRouteRequest, context: Context<P>,
 ) -> Result<DocumentRecord<Route>>
 where
@@ -134,7 +117,7 @@ pub struct ListRoutesRequest {
 }
 
 /// One page of matching routes.
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RoutesReply {
     /// Matches sorted by `route_short_name` ascending.
     pub routes: Vec<DocumentRecord<Route>>,
@@ -142,14 +125,9 @@ pub struct RoutesReply {
     pub continuation: Option<String>,
 }
 
-/// Queries routes with any combination of the supported filters, sorted by
-/// short name with limit/continuation pagination.
-///
-/// # Errors
-///
-/// Returns an error when the query fails or a document cannot be
-/// deserialized.
-pub async fn list_routes<P>(input: ListRoutesRequest, context: Context<P>) -> Result<RoutesReply>
+pub(crate) async fn list_routes<P>(
+    input: ListRoutesRequest, context: Context<P>,
+) -> Result<RoutesReply>
 where
     P: DocumentStore,
 {

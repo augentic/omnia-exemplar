@@ -12,21 +12,33 @@ Unreleased
   becomes `common`, and stem entries hold composition alone.** `omnia-orm`
   is removed: `crates/sql` and `crates/pattern/src/place.rs` execute
   parameterized SQL directly over `TableStore::query` and `TableStore::exec`
-  and map rows with `common::RowExt` (`get_i64`, `get_f64`, `get_str`,
-  `get_opt_str`). `crates/common` is renamed from `acme-common` to `common`,
-  shedding `fleet.rs`, `block_mgt.rs`, `TIMEZONE`, and domain config keys to
-  `gtfs-adapter` and `pulse-adapter` so `crates/common/{Cargo.toml,src/lib.rs,src/config.rs}`
-  and `tests/{routes.rs,messaging.rs}` become `exact` template entries;
-  `Capabilities` adds `+ Vault`, `crates/pattern` adds `StateStore::cas`
-  (`409 Conflict` via `QuotaError`) and `Identity::access_token` vignettes,
-  and every stem crate's `src/lib.rs` holds pure part composition with
-  router-driven tests.
+  and map rows through `TryFrom<&Row>` over `common::RowExt` (`get_i64`,
+  `get_opt_i64`, `get_f64`, `get_opt_f64`, `get_bool`, `get_opt_bool`,
+  `get_str`, `get_opt_str`). `crates/common` is renamed from
+  `acme-common` to `common`, shedding `fleet.rs`, `block_mgt.rs`,
+  `TIMEZONE`, and domain config keys to `gtfs-adapter` and `pulse-adapter`
+  so `crates/common/{Cargo.toml,src/lib.rs,src/config.rs}` and
+  `tests/{routes.rs,messaging.rs}` become `exact` template entries (`18`
+  exact entries, `schema-version: 4` with `tokens` and `values.yaml`
+  removed); `common::topics(router, env, [..])` folds a stem's topic
+  registrations in one call; `Capabilities` adds `+ Vault`;
+  `crates/pattern` adds `StateStore::cas` (`409 Conflict` via `QuotaError`
+  with a structured JSON body carrying the observed `current_version`) and
+  `Identity::access_token` vignettes; `pulse_adapter::stops` treats an
+  unreadable cached entry as a miss and refetches; every stem part keeps
+  its handlers, paths, settings, and state keys `pub(crate)` with no root
+  `pub use` re-exports and router-driven tests; the seed pins
+  `chrono-tz`, `quick-xml`, `serde_repr`, `urlencoding`, and
+  `omnia-http-cache` (held with feature parity by `template-check`);
+  `omnia_template::insert_after` inserts stem list lines after their
+  anchors; and the `orders` fixture stem proves all four generated idioms
+  (`placing`, `lookup`, `catalogue`, `dispatch`).
 - **Composition replaces registration.** A stem is one crate exposing
   `router()` and `topics(router, env)`, and the root lists compose them: one
   `router.merge(<stem>::router())` statement per stem in `src/routes.rs`,
   one `<stem>::topics(router, &env)` per stem in `src/messaging.rs`. A
   stem's entry folds its parts through two helpers of `common`,
-  `common::routers([..])` and `common::topics(router, env).parts([..])`,
+  `common::routers([..])` and `common::topics(router, env, [..])`,
   each over a list that may be empty, so the entry is laid the same by
   every slice of the stem and merges line by line. A part's paths,
   settings, and state keys are its own `pub(crate)` constants, its

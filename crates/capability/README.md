@@ -1,4 +1,4 @@
-# capability-examples
+# capability
 
 Compiling proof for the Omnia guest capabilities the transit crates do not
 otherwise exercise: `BlobStore`, `Broadcast`, `DocumentStore`, and
@@ -14,11 +14,11 @@ capability trait:
 | `document` | `DocumentStore` | `note(NoteRequest)` — upsert a JSON note and read it back |
 | `table` | `TableStore` | `reading(ReadingRequest)` — insert a reading and count the sensor's rows |
 
-The crate-level tests (`tests/`) drive every handler through
-`omnia_test::guest::Provider` doubles, and `tests/dispatch.rs` drives the
-crate's `router()`. Route constants for mounting the handlers under
-`/examples/*` live in `src/routes.rs`, and the workspace-root guest merges
-the router (there is no `guests/` tree — see the repository README).
+Each part declares its `pub(crate)` path constant (`/examples/*`), handler,
+and `routes()`; `src/lib.rs` folds them with `common::routers`, and the
+workspace-root `src/routes.rs` merges `capability::router()`.
+[`tests/operations.rs`](tests/operations.rs) drives `capability::router()`
+over `omnia_test::guest::Provider` doubles.
 
 `Broadcast::send` is client-side only — the guest connects out to the
 broadcast channel — so serving it requires no WebSocket export.

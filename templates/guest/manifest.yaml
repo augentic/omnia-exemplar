@@ -16,7 +16,7 @@
 #           body lives under `templates/guest/core/` at the target's own
 #           path, is syntax-checked, and is never diffed against the root.
 
-schema-version: 3
+schema-version: 4
 
 assemblies:
   core:

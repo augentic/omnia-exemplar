@@ -9,17 +9,17 @@
 //!
 //! Filter coverage across the three list handlers:
 //!
-//! - `eq`, `gte`, `lte`, `contains` — [`ListStopsRequest`] query params
-//! - `ne` — [`ListStopsRequest::exclude_zone`] (the direct `Ne` codepath)
-//! - `eq` + `is_not_null` — [`ListStopsRequest::accessible`]
-//! - `is_null` — [`ListStopsRequest::top_level`]
-//! - `on_date` — [`ListStopsRequest::updated_on`]
-//! - `or(contains, contains)` — [`ListRoutesRequest::q`]
-//! - `in_list` — [`ListRoutesRequest::types`]
-//! - `negate` — [`ListRoutesRequest::exclude_type`]
-//! - `negate(and(...))` — [`ListRoutesRequest::not_agency`] +
-//!   [`ListRoutesRequest::not_type`] (De Morgan negation)
-//! - `gte`/`lte` ranges — [`ListStopTimesRequest`] time and sequence bounds
+//! - `eq`, `gte`, `lte`, `contains` — [`stop::ListStopsRequest`] query params
+//! - `ne` — [`stop::ListStopsRequest::exclude_zone`] (the direct `Ne` codepath)
+//! - `eq` + `is_not_null` — [`stop::ListStopsRequest::accessible`]
+//! - `is_null` — [`stop::ListStopsRequest::top_level`]
+//! - `on_date` — [`stop::ListStopsRequest::updated_on`]
+//! - `or(contains, contains)` — [`route::ListRoutesRequest::q`]
+//! - `in_list` — [`route::ListRoutesRequest::types`]
+//! - `negate` — [`route::ListRoutesRequest::exclude_type`]
+//! - `negate(and(...))` — [`route::ListRoutesRequest::not_agency`] +
+//!   [`route::ListRoutesRequest::not_type`] (De Morgan negation)
+//! - `gte`/`lte` ranges — [`stop_time::ListStopTimesRequest`] time and sequence bounds
 //!
 //! Each handler is generic over `P: DocumentStore`, so the same code runs
 //! inside the WASM guest (served by [`router`]) and against the
@@ -33,20 +33,6 @@ pub mod stop_time;
 
 use common::Capabilities;
 use omnia_sdk::api::Client;
-
-pub use crate::route::{
-    CreateRouteRequest, GetRouteRequest, ListRoutesRequest, ROUTE, ROUTES, Route, RoutesReply,
-    create_route, get_route, list_routes,
-};
-pub use crate::stop::{
-    CreateStopRequest, DeleteStopReply, DeleteStopRequest, DocumentRecord, GetStopRequest,
-    ListStopsRequest, STOP, STOPS, Stop, StopsReply, UpsertStopRequest, create_stop, delete_stop,
-    get_stop, list_stops, upsert_stop,
-};
-pub use crate::stop_time::{
-    CreateStopTimeRequest, GetStopTimeRequest, ListStopTimesRequest, STOP_TIME, STOP_TIMES,
-    StopTime, StopTimesReply, create_stop_time, get_stop_time, list_stop_times,
-};
 
 /// The stem's routes, merged onto the root router.
 pub fn router<P: Capabilities>() -> axum::Router<Client<P>> {

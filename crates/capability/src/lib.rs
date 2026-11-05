@@ -17,12 +17,8 @@ pub mod broadcast;
 pub mod document;
 pub mod table;
 
-pub use blob::{ARCHIVE, ArchiveReply, ArchiveRequest, archive};
-pub use broadcast::{ALERT, AlertReply, AlertRequest, alert};
 use common::Capabilities;
-pub use document::{NOTE, NoteReply, NoteRequest, note};
 use omnia_sdk::api::Client;
-pub use table::{READING, ReadingReply, ReadingRequest, reading};
 
 /// The stem's routes, merged onto the root router.
 pub fn router<P: Capabilities>() -> axum::Router<Client<P>> {

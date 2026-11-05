@@ -24,14 +24,9 @@ use omnia_sdk::sql::{DataType, Row};
 use omnia_sdk::{Error, HttpError, TableStore};
 use serde::{Deserialize, Serialize};
 
-/// Place upsert (`INSERT … ON CONFLICT`).
-pub const PLACES: &str = "/examples/patterns/places";
-
-/// Nearby-place radius query (bounding box + haversine).
-pub const NEARBY: &str = "/examples/patterns/nearby";
-
-/// Named connection configured by the host.
-pub const CONNECTION: &str = "db";
+pub(crate) const PLACES: &str = "/examples/patterns/places";
+pub(crate) const NEARBY: &str = "/examples/patterns/nearby";
+pub(crate) const CONNECTION: &str = "db";
 
 /// Mean metres per degree of latitude (and of longitude at the equator).
 const METRES_PER_DEGREE: f64 = 111_320.0;
@@ -75,16 +70,13 @@ pub struct Place {
     pub lon: f64,
 }
 
-impl Place {
-    /// Map a SQL [`Row`] into a [`Place`].
-    ///
-    /// # Errors
-    ///
-    /// Returns an error when any required column is missing, null, or has an unexpected type.
-    pub fn from_row(row: &Row) -> omnia_sdk::Result<Self> {
+impl TryFrom<&Row> for Place {
+    type Error = Error;
+
+    fn try_from(row: &Row) -> Result<Self, Self::Error> {
         Ok(Self {
-            id: row.get_str("id")?.to_string(),
-            name: row.get_str("name")?.to_string(),
+            id: row.get_str("id")?.to_owned(),
+            name: row.get_str("name")?.to_owned(),
             lat: row.get_f64("lat")?,
             lon: row.get_f64("lon")?,
         })
@@ -92,7 +84,7 @@ impl Place {
 }
 
 /// Insert a place, or update it in full when the id already exists.
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UpsertPlaceRequest {
     /// Stable identifier (primary key).
     pub id: String,
@@ -105,7 +97,7 @@ pub struct UpsertPlaceRequest {
 }
 
 /// Upsert outcome.
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UpsertPlaceReply {
     /// Rows affected by the statement.
     pub affected: u32,
@@ -211,13 +203,7 @@ fn coordinate(field: &'static str, value: f64, min: f64, max: f64) -> Result<(),
     }
 }
 
-/// Inserts a place, or updates it in full when the id already exists.
-///
-/// # Errors
-///
-/// Returns [`PlaceError::InvalidCoordinate`] when a coordinate is out of
-/// range, or [`PlaceError::Storage`] when the statement cannot be executed.
-pub async fn upsert_place<P>(
+pub(crate) async fn upsert_place<P>(
     input: UpsertPlaceRequest, context: Context<P>,
 ) -> Result<UpsertPlaceReply, PlaceError>
 where
@@ -228,10 +214,10 @@ where
 
     let affected = TableStore::exec(
         context.provider(),
-        CONNECTION.to_string(),
+        CONNECTION.to_owned(),
         "INSERT INTO places (id, name, lat, lon) VALUES ($1, $2, $3, $4) \
          ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, lat = EXCLUDED.lat, lon = EXCLUDED.lon"
-            .to_string(),
+            .to_owned(),
         vec![
             DataType::Str(Some(input.id)),
             DataType::Str(Some(input.name)),
@@ -245,7 +231,7 @@ where
 }
 
 /// Find places within a radius of a point.
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NearbyPlacesRequest {
     /// Centre latitude in degrees.
     pub lat: f64,
@@ -271,13 +257,7 @@ pub struct NearbyPlacesReply {
     pub places: Vec<NearbyPlace>,
 }
 
-/// Finds places within a radius of a point, nearest first.
-///
-/// # Errors
-///
-/// Returns an error when the query fails or a row cannot be mapped to a
-/// [`Place`].
-pub async fn nearby_places<P>(
+pub(crate) async fn nearby_places<P>(
     input: NearbyPlacesRequest, context: Context<P>,
 ) -> Result<NearbyPlacesReply, Error>
 where
@@ -292,10 +272,10 @@ where
 
     let rows = TableStore::query(
         context.provider(),
-        CONNECTION.to_string(),
+        CONNECTION.to_owned(),
         "SELECT id, name, lat, lon FROM places \
          WHERE lat >= $1 AND lat <= $2 AND lon >= $3 AND lon <= $4"
-            .to_string(),
+            .to_owned(),
         vec![
             DataType::Double(Some(input.lat - lat_delta)),
             DataType::Double(Some(input.lat + lat_delta)),
@@ -305,10 +285,10 @@ where
     )
     .await?;
 
-    // Refine the box to the true radius in Rust — no GEORADIUS required.
+    // refine the box to the true radius in Rust — no GEORADIUS required
     let mut places = Vec::new();
     for row in &rows {
-        let place = Place::from_row(row)?;
+        let place = Place::try_from(row)?;
         let distance_m = haversine_m(input.lat, input.lon, place.lat, place.lon);
         if distance_m <= input.radius_m {
             places.push(NearbyPlace { place, distance_m });

@@ -5,8 +5,24 @@ use axum::http::header::CONTENT_TYPE;
 use axum::http::{Request, StatusCode};
 use omnia_sdk::api::Client;
 use omnia_test::guest::{MapConfig, Provider};
-use tally_connector::{APC, TallyMessage};
+use tally_connector::types::TallyMessage;
 use tower::ServiceExt as _;
+
+#[expect(
+    clippy::disallowed_macros,
+    reason = "integration test loads captured Tally JSON from disk"
+)]
+const TALLY_MESSAGE: &[u8] = include_bytes!("../data/tally-message.json");
+#[expect(
+    clippy::disallowed_macros,
+    reason = "integration test loads captured Tally JSON from disk"
+)]
+const TALLY_NO_DEVICE: &[u8] = include_bytes!("../data/tally-no-device.json");
+#[expect(
+    clippy::disallowed_macros,
+    reason = "integration test loads captured Tally JSON from disk"
+)]
+const TALLY_WHITESPACE: &[u8] = include_bytes!("../data/tally-whitespace.json");
 
 // `config::env` falls back to `dev` when `ENV` is unset; seeding it keeps the
 // topic assertions honest rather than leaning on the fallback.
@@ -15,7 +31,7 @@ fn provider() -> Provider {
 }
 
 async fn forward(provider: &Provider, payload: &'static [u8]) {
-    let request = Request::post(APC)
+    let request = Request::post("/api/apc")
         .header(CONTENT_TYPE, "application/json")
         .body(Body::from(payload))
         .expect("request");
@@ -29,13 +45,8 @@ async fn forward(provider: &Provider, payload: &'static [u8]) {
 #[tokio::test]
 async fn device_with_site() {
     let provider = provider();
-    #[expect(
-        clippy::disallowed_macros,
-        reason = "integration test loads captured Tally JSON from disk"
-    )]
-    let payload = include_bytes!("../data/tally-message.json");
 
-    forward(&provider, payload).await;
+    forward(&provider, TALLY_MESSAGE).await;
 
     let published = provider.publish.sent();
     assert_eq!(published.len(), 1);
@@ -43,7 +54,7 @@ async fn device_with_site() {
     let (topic, record) = &published[0];
     assert_eq!(topic, "dev-realtime-tally-apc.v2");
 
-    let message: TallyMessage = serde_json::from_slice(payload).expect("should deserialize");
+    let message: TallyMessage = serde_json::from_slice(TALLY_MESSAGE).expect("should deserialize");
 
     let expected_key = message.device.as_ref().expect("device").site.as_str();
     assert_eq!(record.headers.get("key").map(String::as_str), Some(expected_key));
@@ -55,13 +66,8 @@ async fn device_with_site() {
 #[tokio::test]
 async fn device_missing() {
     let provider = provider();
-    #[expect(
-        clippy::disallowed_macros,
-        reason = "integration test loads captured Tally JSON from disk"
-    )]
-    let payload = include_bytes!("../data/tally-no-device.json");
 
-    forward(&provider, payload).await;
+    forward(&provider, TALLY_NO_DEVICE).await;
 
     let published = provider.publish.sent();
     assert_eq!(published.len(), 1);
@@ -70,7 +76,8 @@ async fn device_missing() {
     assert_eq!(topic, "dev-realtime-tally-apc.v2");
     assert_eq!(record.headers.get("key").map(String::as_str), Some("undefined"));
 
-    let message: TallyMessage = serde_json::from_slice(payload).expect("should deserialize");
+    let message: TallyMessage =
+        serde_json::from_slice(TALLY_NO_DEVICE).expect("should deserialize");
     let expected_payload = serde_json::to_vec(&message).expect("should serialize");
     assert_eq!(record.payload, expected_payload);
 }
@@ -78,13 +85,8 @@ async fn device_missing() {
 #[tokio::test]
 async fn device_site_whitespace() {
     let provider = provider();
-    #[expect(
-        clippy::disallowed_macros,
-        reason = "integration test loads captured Tally JSON from disk"
-    )]
-    let payload = include_bytes!("../data/tally-whitespace.json");
 
-    forward(&provider, payload).await;
+    forward(&provider, TALLY_WHITESPACE).await;
 
     let published = provider.publish.sent();
     assert_eq!(published.len(), 1);
@@ -93,7 +95,8 @@ async fn device_site_whitespace() {
     assert_eq!(topic, "dev-realtime-tally-apc.v2");
     assert_eq!(record.headers.get("key").map(String::as_str), Some("  "));
 
-    let message: TallyMessage = serde_json::from_slice(payload).expect("should deserialize");
+    let message: TallyMessage =
+        serde_json::from_slice(TALLY_WHITESPACE).expect("should deserialize");
     let expected_payload = serde_json::to_vec(&message).expect("should serialize");
     assert_eq!(record.payload, expected_payload);
 }

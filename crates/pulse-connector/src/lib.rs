@@ -8,7 +8,6 @@
 pub mod handler;
 
 use common::Capabilities;
-pub use handler::*;
 use omnia_sdk::api::Client;
 
 /// The stem's routes, merged onto the root router.

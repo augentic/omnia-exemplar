@@ -6,8 +6,9 @@ mod fixture;
 use std::fs;
 
 use chrono::Utc;
-use omnia_sdk::api::{Client, Metadata};
-use pulse_adapter::{TIMEZONE, pulse};
+use omnia_sdk::api::Client;
+use omnia_sdk::api::messaging::{Delivery, DeliveryError, Router};
+use pulse_adapter::pulse::TIMEZONE;
 
 use self::fixture::{Case, Expected};
 
@@ -25,9 +26,14 @@ async fn run() {
 }
 
 async fn replay(case: Case) {
-    let result = Client::new("acme", case.provider.clone())
-        .call(pulse, case.input.clone(), &Metadata::default())
-        .await;
+    let router =
+        pulse_adapter::topics(Router::new(Client::new("acme", case.provider.clone())), "dev");
+    let delivery = Delivery {
+        topic: Some("dev-realtime-pulse.v1".to_string()),
+        payload: case.input.clone(),
+        ..Delivery::default()
+    };
+    let result = router.handle(delivery).await;
     let curr_events = case.events();
 
     match &case.expected {
@@ -52,10 +58,13 @@ async fn replay(case: Case) {
             });
         }
         Some(Expected::Failure(expected_error)) => {
-            // Was the error the one defined in the fixture?
-            let actual_error = result.expect_err("should have error");
-            assert_eq!(actual_error.code(), expected_error.code());
-            assert_eq!(actual_error.description(), expected_error.description());
+            let error = result.expect_err("should have error");
+            assert!(
+                matches!(&error, DeliveryError::Rejected(msg)
+                    if msg.contains(&expected_error.code())
+                        && msg.contains(&expected_error.description())),
+                "expected {expected_error:?}, got {error:?}"
+            );
         }
     }
 }

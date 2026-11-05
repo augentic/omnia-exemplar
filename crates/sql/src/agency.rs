@@ -15,11 +15,10 @@ use serde::{Deserialize, Serialize};
 
 use crate::schema::{self, CONNECTION};
 
-/// Agency collection: list (GET) and create (POST).
-pub const AGENCIES: &str = "/examples/agencies";
+pub(crate) const AGENCIES: &str = "/examples/agencies";
+pub(crate) const AGENCY: &str = "/examples/agencies/{id}";
 
-/// One agency: get (GET) and partial update (PATCH).
-pub const AGENCY: &str = "/examples/agencies/{id}";
+const AGENCY_COLUMNS: &str = "agency_id, name, url, timezone, created_at";
 
 pub(crate) fn routes<P: Capabilities>() -> axum::Router<Client<P>> {
     axum::Router::new()
@@ -42,51 +41,43 @@ pub struct Agency {
     pub created_at: String,
 }
 
-impl Agency {
-    /// Map a SQL [`Row`] into an [`Agency`].
-    ///
-    /// # Errors
-    ///
-    /// Returns an error when any required column is missing, null, or has an unexpected type.
-    pub fn from_row(row: &Row) -> Result<Self> {
+impl TryFrom<&Row> for Agency {
+    type Error = omnia_sdk::Error;
+
+    fn try_from(row: &Row) -> Result<Self> {
         Ok(Self {
             agency_id: row.get_i64("agency_id")?,
-            name: row.get_str("name")?.to_string(),
+            name: row.get_str("name")?.to_owned(),
             url: row.get_opt_str("url")?.map(str::to_owned),
             timezone: row.get_opt_str("timezone")?.map(str::to_owned),
-            created_at: row.get_str("created_at")?.to_string(),
+            created_at: row.get_str("created_at")?.to_owned(),
         })
     }
 }
 
-/// Fetch a single agency by id, or `None` when it does not exist.
 pub(crate) async fn fetch_agency<P: TableStore>(provider: &P, id: i64) -> Result<Option<Agency>> {
     let rows = TableStore::query(
         provider,
-        CONNECTION.to_string(),
-        "SELECT agency_id, name, url, timezone, created_at FROM agency WHERE agency_id = $1"
-            .to_string(),
+        CONNECTION.to_owned(),
+        format!("SELECT {AGENCY_COLUMNS} FROM agency WHERE agency_id = $1"),
         vec![DataType::Int64(Some(id))],
     )
     .await?;
-    rows.first().map(Agency::from_row).transpose()
+    rows.first().map(Agency::try_from).transpose()
 }
 
-/// Compute the next server-assigned agency id (max + 1).
-///
-/// A concurrent create simply fails on the primary key — acceptable for an
-/// example; production code would use a database sequence.
+// A concurrent create simply fails on the primary key — acceptable for an
+// example; production code would use a database sequence.
 async fn next_agency_id<P: TableStore>(provider: &P) -> Result<i64> {
     let rows = TableStore::query(
         provider,
-        CONNECTION.to_string(),
-        "SELECT agency_id, name, url, timezone, created_at FROM agency ORDER BY agency_id DESC LIMIT $1"
-            .to_string(),
-        vec![DataType::Uint64(Some(1))],
+        CONNECTION.to_owned(),
+        "SELECT agency_id FROM agency ORDER BY agency_id DESC LIMIT 1".to_owned(),
+        vec![],
     )
     .await?;
-    let newest = rows.first().map(Agency::from_row).transpose()?;
-    Ok(newest.map_or(1, |agency| agency.agency_id + 1))
+    let newest = rows.first().map(|row| row.get_i64("agency_id")).transpose()?;
+    Ok(newest.map_or(1, |id| id + 1))
 }
 
 /// List agencies, newest first.
@@ -97,19 +88,13 @@ pub struct ListAgenciesRequest {
 }
 
 /// Agencies sorted by creation time, newest first.
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AgenciesReply {
     /// The matching agencies.
     pub agencies: Vec<Agency>,
 }
 
-/// Lists agencies, newest first, with an optional row cap.
-///
-/// # Errors
-///
-/// Returns an error when the schema cannot be ensured, the select fails, or
-/// a row cannot be mapped to an [`Agency`].
-pub async fn list_agencies<P>(
+pub(crate) async fn list_agencies<P>(
     input: ListAgenciesRequest, context: Context<P>,
 ) -> Result<AgenciesReply>
 where
@@ -118,31 +103,21 @@ where
     let provider = context.provider();
     schema::ensure(provider).await?;
 
-    let (sql, params) = input.limit.map_or_else(
-        || {
-            (
-                "SELECT agency_id, name, url, timezone, created_at FROM agency ORDER BY created_at DESC"
-                    .to_string(),
-                vec![],
-            )
-        },
-        |limit| {
-            (
-                "SELECT agency_id, name, url, timezone, created_at FROM agency ORDER BY created_at DESC LIMIT $1"
-                    .to_string(),
-                vec![DataType::Uint64(Some(limit))],
-            )
-        },
-    );
+    let mut sql = format!("SELECT {AGENCY_COLUMNS} FROM agency ORDER BY created_at DESC");
+    let mut params = Vec::new();
+    if let Some(limit) = input.limit {
+        sql.push_str(" LIMIT $1");
+        params.push(DataType::Uint64(Some(limit)));
+    }
 
-    let rows = TableStore::query(provider, CONNECTION.to_string(), sql, params).await?;
-    let agencies = rows.iter().map(Agency::from_row).collect::<Result<Vec<_>>>()?;
+    let rows = TableStore::query(provider, CONNECTION.to_owned(), sql, params).await?;
+    let agencies = rows.iter().map(Agency::try_from).collect::<Result<Vec<_>>>()?;
 
     Ok(AgenciesReply { agencies })
 }
 
 /// Create an agency with a server-assigned id.
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CreateAgencyRequest {
     /// Display name.
     pub name: String,
@@ -153,19 +128,13 @@ pub struct CreateAgencyRequest {
 }
 
 /// The agency row after the operation.
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AgencyReply {
     /// The stored agency.
     pub agency: Agency,
 }
 
-/// Creates an agency with a server-assigned id (max + 1).
-///
-/// # Errors
-///
-/// Returns an error when the schema cannot be ensured, the id probe or the
-/// insert fails, or a probed row cannot be mapped.
-pub async fn create_agency<P>(
+pub(crate) async fn create_agency<P>(
     input: CreateAgencyRequest, context: Context<P>,
 ) -> Result<AgencyReply>
 where
@@ -184,9 +153,8 @@ where
 
     TableStore::exec(
         provider,
-        CONNECTION.to_string(),
-        "INSERT INTO agency (agency_id, name, url, timezone, created_at) VALUES ($1, $2, $3, $4, $5)"
-            .to_string(),
+        CONNECTION.to_owned(),
+        format!("INSERT INTO agency ({AGENCY_COLUMNS}) VALUES ($1, $2, $3, $4, $5)"),
         vec![
             DataType::Int64(Some(agency.agency_id)),
             DataType::Str(Some(agency.name.clone())),
@@ -207,13 +175,9 @@ pub struct GetAgencyRequest {
     pub id: i64,
 }
 
-/// Fetches one agency by id.
-///
-/// # Errors
-///
-/// Returns `not_found` when no agency has the id, or an error when the
-/// schema cannot be ensured or the fetch fails.
-pub async fn get_agency<P>(input: GetAgencyRequest, context: Context<P>) -> Result<AgencyReply>
+pub(crate) async fn get_agency<P>(
+    input: GetAgencyRequest, context: Context<P>,
+) -> Result<AgencyReply>
 where
     P: TableStore,
 {
@@ -228,7 +192,7 @@ where
 }
 
 /// Partially update an agency: only provided fields are written.
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UpdateAgencyRequest {
     /// Agency id (path parameter, delivered as a numeric string).
     #[serde(deserialize_with = "common::numeric_id")]
@@ -241,15 +205,7 @@ pub struct UpdateAgencyRequest {
     pub timezone: Option<String>,
 }
 
-/// Partially updates an agency, writing only the provided fields, and
-/// replies with the row as stored after the update.
-///
-/// # Errors
-///
-/// Returns `not_found` when no agency has the id, `bad_request` when the
-/// patch sets no fields, or an error when the schema cannot be ensured or a
-/// statement fails.
-pub async fn update_agency<P>(
+pub(crate) async fn update_agency<P>(
     input: UpdateAgencyRequest, context: Context<P>,
 ) -> Result<AgencyReply>
 where
@@ -262,7 +218,7 @@ where
         return Err(not_found!("agency {} not found", input.id));
     }
 
-    // Conditionally set only the provided fields.
+    // conditionally set only the provided fields
     let mut assignments = Vec::new();
     let mut params = Vec::new();
     for (column, value) in [("name", input.name), ("url", input.url), ("timezone", input.timezone)]
@@ -279,9 +235,9 @@ where
     params.push(DataType::Int64(Some(input.id)));
     let sql =
         format!("UPDATE agency SET {} WHERE agency_id = ${}", assignments.join(", "), params.len());
-    TableStore::exec(provider, CONNECTION.to_string(), sql, params).await?;
+    TableStore::exec(provider, CONNECTION.to_owned(), sql, params).await?;
 
-    // Fetch after update so the reply reflects exactly what was stored.
+    // fetch after update so the reply reflects what was stored
     let agency = fetch_agency(provider, input.id)
         .await?
         .ok_or_else(|| not_found!("agency {} not found after update", input.id))?;

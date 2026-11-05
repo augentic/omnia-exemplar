@@ -7,21 +7,15 @@ use omnia_sdk::api::{Client, Context};
 use omnia_sdk::{Config, Message, Publish, Result};
 use serde::{Deserialize, Serialize};
 
-use crate::TallyMessage;
+use crate::types::TallyMessage;
 
-/// Tally passenger-count (APC) ingress.
-pub const APC: &str = "/api/apc";
+pub(crate) const APC: &str = "/api/apc";
 
 pub(crate) fn routes<P: Capabilities>() -> axum::Router<Client<P>> {
     axum::Router::new().route(APC, post(tally))
 }
 
-/// Forwards a Tally APC message to the tally APC topic, keyed by device site.
-///
-/// # Errors
-///
-/// Returns an error if the message cannot be serialized or publishing fails.
-pub async fn tally<P>(input: TallyRequest, context: Context<P>) -> Result<TallyReply>
+pub(crate) async fn tally<P>(input: TallyRequest, context: Context<P>) -> Result<TallyReply>
 where
     P: Config + Publish,
 {

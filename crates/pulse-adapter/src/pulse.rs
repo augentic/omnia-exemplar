@@ -8,7 +8,7 @@ use omnia_sdk::Result;
 use serde::Deserialize;
 use serde_repr::Deserialize_repr;
 
-use crate::PulseMessageError;
+use crate::handler::PulseMessageError;
 
 /// The local timezone of the (fictional) Acme transit network.
 ///

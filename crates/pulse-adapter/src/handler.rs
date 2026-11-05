@@ -20,11 +20,11 @@ use crate::motion::{EventType, MessageData, MotionEvent, RemoteData};
 use crate::pulse::TrainUpdate;
 use crate::stops;
 
-/// Base URL of the Block Management API.
-pub const BLOCK_MGT_URL: &str = "BLOCK_MGT_URL";
+// Base URL of the Block Management API.
+pub(crate) const BLOCK_MGT_URL: &str = "BLOCK_MGT_URL";
 
-/// Identity used to acquire access tokens for the operator APIs.
-pub const API_IDENTITY: &str = "API_IDENTITY";
+// Identity used to acquire access tokens for the operator APIs.
+pub(crate) const API_IDENTITY: &str = "API_IDENTITY";
 
 /// Each Motion event is published this many times: the downstream schedule
 /// adherence process treats the repeated location event as confirmation that
@@ -113,15 +113,8 @@ impl PulseMessage {
     }
 }
 
-/// Validates a Pulse train update and publishes the resulting Motion events
-/// to the pulse-to-motion topic.
-///
-/// # Errors
-///
-/// Returns an error when the update fails validation, a provider request
-/// fails, or an event cannot be serialized or published.
 #[tracing::instrument(skip_all)]
-pub async fn pulse<P>(input: PulseMessage, context: Context<P>) -> Result<()>
+pub(crate) async fn pulse<P>(input: PulseMessage, context: Context<P>) -> Result<()>
 where
     P: Config + HttpRequest + Identity + Publish + StateStore,
 {

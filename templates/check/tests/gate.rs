@@ -88,6 +88,28 @@ fn unpinned_crate() {
 }
 
 #[test]
+fn seed_features_drifted() {
+    let replica = Replica::of_repo();
+    let seed = replica.read(SEED_MANIFEST);
+    let pin =
+        seed.lines().find(|line| line.starts_with("serde = ")).expect("the seed pins `serde`");
+    replica.write(
+        SEED_MANIFEST,
+        &seed.replace(pin, "serde = { version = \"1.0.229\", features = [\"derive\", \"rc\"] }"),
+    );
+
+    let failures = template_check::run(replica.root()).expect("contract inputs readable");
+
+    let [features, body] = failures.as_slice() else { panic!("two failures: {failures:#?}") };
+    assert_eq!(
+        features,
+        "templates/guest/core/Cargo.toml: `serde` enables [\"derive\", \"rc\"], the root pins \
+         [\"derive\"]"
+    );
+    assert!(body.ends_with("embeds a body other than its source"), "{body}");
+}
+
+#[test]
 fn patched_crate() {
     let replica = Replica::of_repo();
     let seed = replica.read(SEED_MANIFEST);
@@ -235,6 +257,16 @@ fn clippy_disallowed_paths_drifted() {
         ["templates/guest/core/clippy.toml: `disallowed-methods` lacks `std::mem::forget`, \
              which `crates/clippy.toml` bans"]
     );
+}
+
+#[test]
+fn clippy_config_unreadable() {
+    let replica = Replica::of_repo();
+    fs::remove_file(replica.root().join("crates/clippy.toml")).expect("removed");
+
+    let failures = template_check::run(replica.root()).expect("contract inputs readable");
+
+    assert_eq!(failures, ["crates/clippy.toml: clippy config unreadable"]);
 }
 
 // The files the gate reads, copied beneath a scratch root a scenario edits:

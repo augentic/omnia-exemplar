@@ -1,5 +1,5 @@
 //! Tests for the relational upsert and nearby query, driven through the
-//! handlers and the stem's router.
+//! stem's router.
 //!
 //! `ScriptedTables` answers statements, it does not evaluate them: the
 //! bounding-box `SELECT` is scripted with the candidate rows and its bound
@@ -12,12 +12,11 @@ use axum::response::IntoResponse as _;
 use http::StatusCode;
 use http::header::CONTENT_TYPE;
 use omnia_sdk::HttpError;
-use omnia_sdk::api::{Client, Metadata};
+use omnia_sdk::api::Client;
 use omnia_sdk::sql::{DataType, Field, Row};
 use omnia_test::guest::{Provider, ScriptedTables, Statement};
-use pattern::{
-    NEARBY, NearbyPlacesReply, NearbyPlacesRequest, PlaceError, UpsertPlaceRequest, nearby_places,
-    upsert_place,
+use pattern::place::{
+    NearbyPlacesReply, NearbyPlacesRequest, PlaceError, UpsertPlaceReply, UpsertPlaceRequest,
 };
 use tower::ServiceExt as _;
 
@@ -70,21 +69,40 @@ fn upserted_id(statement: &Statement) -> Option<&str> {
     }
 }
 
-async fn upsert(client: &Client<Provider>, id: &str, name: &str, lat: f64, lon: f64) {
-    let request = UpsertPlaceRequest {
+async fn send(provider: &Provider, request: Request<Body>) -> (StatusCode, Vec<u8>) {
+    let router = pattern::router().with_state(Client::new("acme", provider.clone()));
+    let response = router.oneshot(request).await.expect("response");
+    let status = response.status();
+    let bytes = to_bytes(response.into_body(), usize::MAX).await.expect("body");
+    (status, bytes.to_vec())
+}
+
+async fn upsert(provider: &Provider, id: &str, name: &str, lat: f64, lon: f64) {
+    let payload = UpsertPlaceRequest {
         id: id.to_string(),
         name: name.to_string(),
         lat,
         lon,
     };
-    let reply =
-        client.call(upsert_place, request, &Metadata::default()).await.expect("should succeed");
+    let request = Request::post("/examples/patterns/places")
+        .header(CONTENT_TYPE, "application/json")
+        .body(Body::from(serde_json::to_vec(&payload).expect("serialize")))
+        .expect("request");
+    let (status, body) = send(provider, request).await;
+    assert_eq!(status, StatusCode::OK);
+    let reply: UpsertPlaceReply = serde_json::from_slice(&body).expect("reply");
     assert_eq!(reply.affected, 1);
 }
 
-async fn nearby(client: &Client<Provider>, lat: f64, lon: f64, radius_m: f64) -> NearbyPlacesReply {
-    let request = NearbyPlacesRequest { lat, lon, radius_m };
-    client.call(nearby_places, request, &Metadata::default()).await.expect("should succeed")
+async fn nearby(provider: &Provider, lat: f64, lon: f64, radius_m: f64) -> NearbyPlacesReply {
+    let payload = NearbyPlacesRequest { lat, lon, radius_m };
+    let request = Request::get("/examples/patterns/nearby")
+        .header(CONTENT_TYPE, "application/json")
+        .body(Body::from(serde_json::to_vec(&payload).expect("serialize")))
+        .expect("request");
+    let (status, body) = send(provider, request).await;
+    assert_eq!(status, StatusCode::OK);
+    serde_json::from_slice(&body).expect("reply")
 }
 
 #[tokio::test]
@@ -94,9 +112,8 @@ async fn radius() {
         place_row("ferry", "Ferry Terminal", -36.8429, 174.7668), // ~700 m away
         place_row("cbd", "City Centre", -36.8485, 174.7633),
     ]);
-    let client = Client::new("acme", provider.clone());
 
-    let reply = nearby(&client, -36.8485, 174.7633, 2_000.0).await;
+    let reply = nearby(&provider, -36.8485, 174.7633, 2_000.0).await;
 
     let ids: Vec<&str> = reply.places.iter().map(|found| found.place.id.as_str()).collect();
     assert_eq!(ids, ["cbd", "ferry"]);
@@ -106,7 +123,7 @@ async fn radius() {
     // The box the database was asked for brackets the centre on both axes.
     let statements = provider.tables.statements();
     assert_eq!(statements.len(), 1);
-    assert_eq!(statements[0].connection, pattern::place::CONNECTION);
+    assert_eq!(statements[0].connection, "db");
     let [lat_min, lat_max, lon_min, lon_max] = bounds(&statements[0]);
     assert!(lat_min < -36.8485 && -36.8485 < lat_max);
     assert!(lon_min < 174.7633 && 174.7633 < lon_max);
@@ -121,9 +138,8 @@ async fn bounding_box() {
         // (which spans ~0.009 degrees each way) but outside the true radius.
         place_row("corner", "Corner", 0.008, 0.008),
     ]);
-    let client = Client::new("acme", provider.clone());
 
-    let reply = nearby(&client, 0.0, 0.0, 1_000.0).await;
+    let reply = nearby(&provider, 0.0, 0.0, 1_000.0).await;
 
     let ids: Vec<&str> = reply.places.iter().map(|found| found.place.id.as_str()).collect();
     assert_eq!(ids, ["near"], "haversine refinement should drop the box corner");
@@ -136,29 +152,30 @@ async fn bounding_box() {
 #[tokio::test]
 async fn upsert_out_of_range() {
     let provider = provider(vec![]);
-    let client = Client::new("acme", provider.clone());
 
-    let request = UpsertPlaceRequest {
+    let payload = UpsertPlaceRequest {
         id: "bad".to_string(),
         name: "Nowhere".to_string(),
         lat: 123.4,
         lon: 0.0,
     };
-    let error =
-        client.call(upsert_place, request, &Metadata::default()).await.expect_err("should reject");
+    let request = Request::post("/examples/patterns/places")
+        .header(CONTENT_TYPE, "application/json")
+        .body(Body::from(serde_json::to_vec(&payload).expect("serialize")))
+        .expect("request");
+    let (status, bytes) = send(&provider, request).await;
     assert!(provider.tables.statements().is_empty(), "rejected row must not reach the store");
 
     // The response the HTTP route puts on the wire via the
     // `From<PlaceError> for HttpError` conversion: omnia's `ErrorBody`
     // envelope (`error`, `message`) plus the variant's domain fields.
-    let message = error.to_string();
-    let (status, body) = wire(error).await;
     assert_eq!(status, StatusCode::BAD_REQUEST);
+    let body: serde_json::Value = serde_json::from_slice(&bytes).expect("body is JSON");
     assert_eq!(
         body,
         serde_json::json!({
             "error": "invalid_coordinate",
-            "message": message,
+            "message": "lat 123.4 is outside [-90, 90]",
             "field": "lat",
             "value": 123.4,
             "min": -90.0,
@@ -195,10 +212,9 @@ async fn wire(error: PlaceError) -> (StatusCode, serde_json::Value) {
 #[tokio::test]
 async fn conflicting_upsert() {
     let provider = provider(vec![]);
-    let client = Client::new("acme", provider.clone());
 
-    upsert(&client, "cbd", "City Centre", -36.8485, 174.7633).await;
-    upsert(&client, "cbd", "Downtown", -36.8486, 174.7634).await;
+    upsert(&provider, "cbd", "City Centre", -36.8485, 174.7633).await;
+    upsert(&provider, "cbd", "Downtown", -36.8486, 174.7634).await;
 
     // Both writes are the same conflict-updating statement on the same id,
     // so the store keeps one row and the second write wins.
@@ -214,16 +230,6 @@ async fn conflicting_upsert() {
 #[tokio::test]
 async fn nearby_body() {
     let provider = provider(vec![]);
-    let router = pattern::router().with_state(Client::new("acme", provider));
-    let request = Request::get(NEARBY)
-        .header(CONTENT_TYPE, "application/json")
-        .body(Body::from(r#"{"lat":-36.8485,"lon":174.7633,"radius_m":1000.0}"#))
-        .expect("request");
-
-    let response = router.oneshot(request).await.expect("response");
-
-    assert_eq!(response.status(), StatusCode::OK);
-    let bytes = to_bytes(response.into_body(), usize::MAX).await.expect("body");
-    let reply: NearbyPlacesReply = serde_json::from_slice(&bytes).expect("reply");
+    let reply = nearby(&provider, -36.8485, 174.7633, 1_000.0).await;
     assert!(reply.places.is_empty());
 }

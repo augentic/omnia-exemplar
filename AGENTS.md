@@ -8,7 +8,7 @@ For which crate shows which pattern, read the README's [crate map](README.md#cra
 
 These rules hold for a guest laid from `templates/guest`. Inside this repository, the template's static files are edited under `templates/guest/core/` and embedded with `include_str!` by design.
 
-- **Handler signature & stem entry**: `pub(crate) async fn name<P>(input: Input, context: Context<P>) -> omnia_sdk::Result<Output>` with narrow capability bounds on `P`; `crates/<stem>/src/lib.rs` holds only `pub mod <part>;`, `common::routers([..])`, and `common::topics(router, env).parts([..])`.
+- **Handler signature & stem entry**: `pub(crate) async fn name<P>(input: Input, context: Context<P>) -> omnia_sdk::Result<Output>` with narrow capability bounds on `P`; `crates/<stem>/src/lib.rs` holds only `pub mod <part>;`, `common::routers([..])`, and `common::topics(router, env, [..])`.
 - **Direct SQL & DocStore types**: Write parameterized SQL directly over `TableStore::query` / `TableStore::exec`. Import `omnia_sdk::sql::{DataType, Field, Row}` (plus `common::RowExt`) and `omnia_sdk::docstore::*` from `omnia-sdk`; never add `omnia-wasi-sql` or `omnia-wasi-docstore` to a stem's `Cargo.toml`.
 - **Body routes, query strings & cache-aside**: Decode a `handle_with` route with `omnia_sdk::api::http::query_input` or `body_input` (using `common::numeric_id` when a body route's path parameter is an integer), never `axum::extract::Query`, and use the 6-line `StateStore::get` / `StateStore::set` cache-aside pattern.
 - **Upstream HTTP & errors**: Build requests with `axum::body::Body` and check `!response.status().is_success()` -> `Err(bad_gateway!(..))` (`502`). Where the specification names a `400` reason code, construct `omnia_sdk::Error::BadRequest { code: "<reason>".into(), description }` directly (`bad_request!` hardcodes `code: "bad_request"`, and the wire body `{"error": "<code>", "message": ".."}` reads `code`); use a module error type for a status outside `400`/`404`/`500`/`502` (such as `409`).
@@ -24,6 +24,7 @@ clippy (`make lint`) and nightly rustfmt (`make fmt`) are the style gate; beyond
 
 - Suppress a lint with `#[expect(lint, reason = "…")]` at the smallest scope, never `#[allow]`.
 - `<module>.rs` plus `<module>/<child>.rs`; `mod.rs` only under `tests/support/`.
+- Order a module top-down. Primary `pub` entry-point fns and top-level types come first. A type's inherent `impl`, trait `impl`s, and child types follow it immediately before the next top-level item. A private helper sits immediately below its first caller, and `#[cfg(test)] mod tests` sits last.
 - A fn over a type is that type's method, not a free fn taking it as its first argument, where the type's module declares the fn or the fn is a plain lookup or predicate on the type. A constructor is an associated fn. A policy `const` sits beside the type whose method reads it. Values several fns thread through every call become one struct whose methods they are. A fn stays free when it is pure over primitives and iterators, or when it is one module's rule applied to another module's type.
 
 Comments follow the conventions `std`, `serde`, and `tokio` converge on: docs state the observable contract for the crate's user, never the body's mechanics.

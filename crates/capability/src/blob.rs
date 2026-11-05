@@ -6,8 +6,7 @@ use omnia_sdk::api::{Client, Context};
 use omnia_sdk::{BlobStore, Result};
 use serde::{Deserialize, Serialize};
 
-/// Blobstore archive ingress.
-pub const ARCHIVE: &str = "/examples/archive";
+pub(crate) const ARCHIVE: &str = "/examples/archive";
 
 pub(crate) fn routes<P: Capabilities>() -> axum::Router<Client<P>> {
     axum::Router::new().route(ARCHIVE, post(archive))
@@ -31,13 +30,7 @@ pub struct ArchiveReply {
     pub size: u64,
 }
 
-/// Archives the payload as an object, creating the container if needed, and
-/// reports the stored size.
-///
-/// # Errors
-///
-/// Returns an error when any blobstore operation fails.
-pub async fn archive<P>(input: ArchiveRequest, context: Context<P>) -> Result<ArchiveReply>
+pub(crate) async fn archive<P>(input: ArchiveRequest, context: Context<P>) -> Result<ArchiveReply>
 where
     P: BlobStore,
 {

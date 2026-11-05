@@ -8,8 +8,7 @@ use omnia_sdk::docstore::Document;
 use omnia_sdk::{DocumentStore, Result};
 use serde::{Deserialize, Serialize};
 
-/// Document-store note upsert.
-pub const NOTE: &str = "/examples/note";
+pub(crate) const NOTE: &str = "/examples/note";
 
 pub(crate) fn routes<P: Capabilities>() -> axum::Router<Client<P>> {
     axum::Router::new().route(NOTE, post(note))
@@ -33,14 +32,7 @@ pub struct NoteReply {
     pub size: usize,
 }
 
-/// Upserts the note as a JSON document and reads it back to report the
-/// stored size.
-///
-/// # Errors
-///
-/// Returns an error when the body cannot be serialized, a document-store
-/// operation fails, or the note is missing after the upsert.
-pub async fn note<P>(input: NoteRequest, context: Context<P>) -> Result<NoteReply>
+pub(crate) async fn note<P>(input: NoteRequest, context: Context<P>) -> Result<NoteReply>
 where
     P: DocumentStore,
 {

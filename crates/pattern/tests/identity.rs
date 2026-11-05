@@ -8,7 +8,7 @@ use http::header::AUTHORIZATION;
 use http::{Method, Response};
 use omnia_sdk::api::Client;
 use omnia_test::guest::{FixedIdentity, MapConfig, MatchedHttp, Provider};
-use pattern::{UPSTREAM_IDENTITY, UPSTREAM_URL, UpstreamStatusReply};
+use pattern::identity::UpstreamStatusReply;
 use serde_json::{Value, json};
 use tower::ServiceExt as _;
 
@@ -18,10 +18,10 @@ const UPSTREAM_BASE: &str = "https://upstream.test";
 async fn forwards_bearer_token() {
     let payload = json!({ "resource": "lines", "status": "healthy" }).to_string();
     let provider = Provider::default()
-        .config(
-            MapConfig::default()
-                .with([(UPSTREAM_URL, UPSTREAM_BASE), (UPSTREAM_IDENTITY, "transit-api")]),
-        )
+        .config(MapConfig::default().with([
+            ("PATTERN_UPSTREAM_URL", UPSTREAM_BASE),
+            ("PATTERN_UPSTREAM_IDENTITY", "transit-api"),
+        ]))
         .identity(FixedIdentity::new("token-abc-123"))
         .http(MatchedHttp::default().on(
             Method::GET,
@@ -56,10 +56,10 @@ async fn forwards_bearer_token() {
 #[tokio::test]
 async fn upstream_failure_is_bad_gateway() {
     let provider = Provider::default()
-        .config(
-            MapConfig::default()
-                .with([(UPSTREAM_URL, UPSTREAM_BASE), (UPSTREAM_IDENTITY, "transit-api")]),
-        )
+        .config(MapConfig::default().with([
+            ("PATTERN_UPSTREAM_URL", UPSTREAM_BASE),
+            ("PATTERN_UPSTREAM_IDENTITY", "transit-api"),
+        ]))
         .identity(FixedIdentity::new("token-abc-123"))
         .http(
             MatchedHttp::default().on(

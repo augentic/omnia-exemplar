@@ -11,8 +11,8 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tracing::warn;
 
-/// Base URL of the Trip Management API.
-pub const TRIP_MANAGEMENT_URL: &str = "TRIP_MANAGEMENT_URL";
+// Base URL of the Trip Management API.
+pub(crate) const TRIP_MANAGEMENT_URL: &str = "TRIP_MANAGEMENT_URL";
 
 /// The local timezone of the (fictional) Acme transit network.
 ///
@@ -22,14 +22,7 @@ pub const TRIP_MANAGEMENT_URL: &str = "TRIP_MANAGEMENT_URL";
 /// IANA zone here (`Pacific/Auckland`) and must not copy UTC-as-local.
 pub const TIMEZONE: Tz = chrono_tz::UTC;
 
-/// Retrieves the trip instance that matches the exact `trip_id`, `service_date`, and
-/// `start_time` combination.
-///
-/// # Errors
-///
-/// Returns an error when the Trip Management API request fails or the response payload cannot
-/// be deserialized.
-pub async fn get_instance<P>(
+pub(crate) async fn get_instance<P>(
     trip_id: &str, service_date: &str, start_time: &str, provider: &P,
 ) -> Result<Option<TripInstance>>
 where
@@ -57,12 +50,7 @@ where
     Ok(None)
 }
 
-/// Retrieves the closest trip instance to the supplied `event_timestamp`.
-///
-/// # Errors
-///
-/// Returns an error when Trip Management lookups fail or the payload cannot be decoded.
-pub async fn get_nearest<P>(
+pub(crate) async fn get_nearest<P>(
     trip_id: &str, event_timestamp: i64, provider: &P,
 ) -> Result<Option<TripInstance>>
 where

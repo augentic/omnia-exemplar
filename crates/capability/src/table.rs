@@ -7,8 +7,7 @@ use omnia_sdk::sql::DataType;
 use omnia_sdk::{Result, TableStore};
 use serde::{Deserialize, Serialize};
 
-/// Table-store sensor reading.
-pub const READING: &str = "/examples/reading";
+pub(crate) const READING: &str = "/examples/reading";
 
 pub(crate) fn routes<P: Capabilities>() -> axum::Router<Client<P>> {
     axum::Router::new().route(READING, post(reading))
@@ -43,12 +42,7 @@ pub struct ReadingReply {
     pub rows: usize,
 }
 
-/// Inserts the reading and counts the rows now stored for the sensor.
-///
-/// # Errors
-///
-/// Returns an error when the insert or the follow-up query fails.
-pub async fn reading<P>(input: ReadingRequest, context: Context<P>) -> Result<ReadingReply>
+pub(crate) async fn reading<P>(input: ReadingRequest, context: Context<P>) -> Result<ReadingReply>
 where
     P: TableStore,
 {

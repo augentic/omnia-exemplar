@@ -16,16 +16,11 @@ use serde::{Deserialize, Serialize};
 use crate::agency::fetch_agency;
 use crate::schema::{self, CONNECTION};
 
-/// Feeds of one agency: list (GET) and create (POST).
-pub const AGENCY_FEEDS: &str = "/examples/agencies/{agency_id}/feeds";
+pub(crate) const AGENCY_FEEDS: &str = "/examples/agencies/{agency_id}/feeds";
+pub(crate) const FEEDS: &str = "/examples/feeds";
+pub(crate) const FEED: &str = "/examples/feeds/{id}";
 
-/// All feeds joined with their agency details (GET).
-pub const FEEDS: &str = "/examples/feeds";
-
-/// One feed: delete (DELETE).
-pub const FEED: &str = "/examples/feeds/{id}";
-
-/// Default page size for the joined feed listing.
+const FEED_COLUMNS: &str = "feed_id, agency_id, description, created_at";
 const DEFAULT_LIMIT: u64 = 100;
 
 pub(crate) fn routes<P: Capabilities>() -> axum::Router<Client<P>> {
@@ -48,18 +43,15 @@ pub struct Feed {
     pub created_at: String,
 }
 
-impl Feed {
-    /// Map a SQL [`Row`] into a [`Feed`].
-    ///
-    /// # Errors
-    ///
-    /// Returns an error when any required column is missing, null, or has an unexpected type.
-    pub fn from_row(row: &Row) -> Result<Self> {
+impl TryFrom<&Row> for Feed {
+    type Error = omnia_sdk::Error;
+
+    fn try_from(row: &Row) -> Result<Self> {
         Ok(Self {
             feed_id: row.get_i64("feed_id")?,
             agency_id: row.get_i64("agency_id")?,
-            description: row.get_str("description")?.to_string(),
-            created_at: row.get_str("created_at")?.to_string(),
+            description: row.get_str("description")?.to_owned(),
+            created_at: row.get_str("created_at")?.to_owned(),
         })
     }
 }
@@ -83,37 +75,32 @@ pub struct FeedWithAgency {
     pub agency_timezone: Option<String>,
 }
 
-impl FeedWithAgency {
-    /// Map a joined SQL [`Row`] into a [`FeedWithAgency`].
-    ///
-    /// # Errors
-    ///
-    /// Returns an error when any required column is missing, null, or has an unexpected type.
-    pub fn from_row(row: &Row) -> Result<Self> {
+impl TryFrom<&Row> for FeedWithAgency {
+    type Error = omnia_sdk::Error;
+
+    fn try_from(row: &Row) -> Result<Self> {
         Ok(Self {
             feed_id: row.get_i64("feed_id")?,
             agency_id: row.get_i64("agency_id")?,
-            description: row.get_str("description")?.to_string(),
-            created_at: row.get_str("created_at")?.to_string(),
-            agency_name: row.get_str("agency_name")?.to_string(),
+            description: row.get_str("description")?.to_owned(),
+            created_at: row.get_str("created_at")?.to_owned(),
+            agency_name: row.get_str("agency_name")?.to_owned(),
             agency_url: row.get_opt_str("agency_url")?.map(str::to_owned),
             agency_timezone: row.get_opt_str("agency_timezone")?.map(str::to_owned),
         })
     }
 }
 
-/// Compute the next server-assigned feed id (max + 1).
 async fn next_feed_id<P: TableStore>(provider: &P) -> Result<i64> {
     let rows = TableStore::query(
         provider,
-        CONNECTION.to_string(),
-        "SELECT feed_id, agency_id, description, created_at FROM feed ORDER BY feed_id DESC LIMIT $1"
-            .to_string(),
-        vec![DataType::Uint64(Some(1))],
+        CONNECTION.to_owned(),
+        "SELECT feed_id FROM feed ORDER BY feed_id DESC LIMIT 1".to_owned(),
+        vec![],
     )
     .await?;
-    let newest = rows.first().map(Feed::from_row).transpose()?;
-    Ok(newest.map_or(1, |feed| feed.feed_id + 1))
+    let newest = rows.first().map(|row| row.get_i64("feed_id")).transpose()?;
+    Ok(newest.map_or(1, |id| id + 1))
 }
 
 /// List the feeds of one agency, newest first.
@@ -124,19 +111,13 @@ pub struct ListAgencyFeedsRequest {
 }
 
 /// Feeds sorted by creation time, newest first.
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FeedsReply {
     /// The matching feeds.
     pub feeds: Vec<Feed>,
 }
 
-/// Lists the feeds of one agency, newest first.
-///
-/// # Errors
-///
-/// Returns an error when the schema cannot be ensured, the select fails, or
-/// a row cannot be mapped to a [`Feed`].
-pub async fn list_agency_feeds<P>(
+pub(crate) async fn list_agency_feeds<P>(
     input: ListAgencyFeedsRequest, context: Context<P>,
 ) -> Result<FeedsReply>
 where
@@ -147,19 +128,18 @@ where
 
     let rows = TableStore::query(
         provider,
-        CONNECTION.to_string(),
-        "SELECT feed_id, agency_id, description, created_at FROM feed WHERE agency_id = $1 ORDER BY created_at DESC"
-            .to_string(),
+        CONNECTION.to_owned(),
+        format!("SELECT {FEED_COLUMNS} FROM feed WHERE agency_id = $1 ORDER BY created_at DESC"),
         vec![DataType::Int64(Some(input.agency_id))],
     )
     .await?;
-    let feeds = rows.iter().map(Feed::from_row).collect::<Result<Vec<_>>>()?;
+    let feeds = rows.iter().map(Feed::try_from).collect::<Result<Vec<_>>>()?;
 
     Ok(FeedsReply { feeds })
 }
 
 /// Create a feed for an existing agency, with a server-assigned id.
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CreateFeedRequest {
     /// Owning agency id (path parameter, delivered as a numeric string).
     #[serde(deserialize_with = "common::numeric_id")]
@@ -169,28 +149,22 @@ pub struct CreateFeedRequest {
 }
 
 /// The feed row after the operation.
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FeedReply {
     /// The stored feed.
     pub feed: Feed,
 }
 
-/// Creates a feed for an existing agency, with a server-assigned id (max + 1).
-///
-/// # Errors
-///
-/// Returns `not_found` when the owning agency does not exist, or an error
-/// when the schema cannot be ensured, the id probe or the insert fails, or
-/// a probed row cannot be mapped.
-pub async fn create_feed<P>(input: CreateFeedRequest, context: Context<P>) -> Result<FeedReply>
+pub(crate) async fn create_feed<P>(
+    input: CreateFeedRequest, context: Context<P>,
+) -> Result<FeedReply>
 where
     P: TableStore,
 {
     let provider = context.provider();
     schema::ensure(provider).await?;
 
-    // Referential check: a feed for a missing agency is a 404, not an
-    // orphaned row.
+    // referential check: a feed for a missing agency is a 404, not an orphaned row
     if fetch_agency(provider, input.agency_id).await?.is_none() {
         return Err(not_found!("agency {} not found", input.agency_id));
     }
@@ -204,9 +178,8 @@ where
 
     TableStore::exec(
         provider,
-        CONNECTION.to_string(),
-        "INSERT INTO feed (feed_id, agency_id, description, created_at) VALUES ($1, $2, $3, $4)"
-            .to_string(),
+        CONNECTION.to_owned(),
+        format!("INSERT INTO feed ({FEED_COLUMNS}) VALUES ($1, $2, $3, $4)"),
         vec![
             DataType::Int64(Some(feed.feed_id)),
             DataType::Int64(Some(feed.agency_id)),
@@ -227,19 +200,13 @@ pub struct ListAllFeedsRequest {
 }
 
 /// Joined feed + agency rows, newest feed first.
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FeedsWithAgencyReply {
     /// The matching feeds with their agency columns.
     pub feeds: Vec<FeedWithAgency>,
 }
 
-/// Lists all feeds joined with their agency details, newest feed first.
-///
-/// # Errors
-///
-/// Returns an error when the schema cannot be ensured, the joined select
-/// fails, or a row cannot be mapped to a [`FeedWithAgency`].
-pub async fn list_all_feeds<P>(
+pub(crate) async fn list_all_feeds<P>(
     input: ListAllFeedsRequest, context: Context<P>,
 ) -> Result<FeedsWithAgencyReply>
 where
@@ -250,16 +217,16 @@ where
 
     let rows = TableStore::query(
         provider,
-        CONNECTION.to_string(),
+        CONNECTION.to_owned(),
         "SELECT feed.feed_id, feed.agency_id, feed.description, feed.created_at, \
          agency.name AS agency_name, agency.url AS agency_url, agency.timezone AS agency_timezone \
          FROM feed LEFT JOIN agency ON feed.agency_id = agency.agency_id \
          ORDER BY feed.created_at DESC LIMIT $1"
-            .to_string(),
+            .to_owned(),
         vec![DataType::Uint64(Some(input.limit.unwrap_or(DEFAULT_LIMIT)))],
     )
     .await?;
-    let feeds = rows.iter().map(FeedWithAgency::from_row).collect::<Result<Vec<_>>>()?;
+    let feeds = rows.iter().map(FeedWithAgency::try_from).collect::<Result<Vec<_>>>()?;
 
     Ok(FeedsWithAgencyReply { feeds })
 }
@@ -272,19 +239,13 @@ pub struct DeleteFeedRequest {
 }
 
 /// Confirmation of a feed deletion.
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DeleteFeedReply {
     /// Id of the removed feed.
     pub feed_id: i64,
 }
 
-/// Deletes one feed by id.
-///
-/// # Errors
-///
-/// Returns `not_found` when the delete affects zero rows, or an error when
-/// the schema cannot be ensured or the delete fails.
-pub async fn delete_feed<P>(
+pub(crate) async fn delete_feed<P>(
     input: DeleteFeedRequest, context: Context<P>,
 ) -> Result<DeleteFeedReply>
 where
@@ -295,8 +256,8 @@ where
 
     let affected = TableStore::exec(
         provider,
-        CONNECTION.to_string(),
-        "DELETE FROM feed WHERE feed_id = $1".to_string(),
+        CONNECTION.to_owned(),
+        "DELETE FROM feed WHERE feed_id = $1".to_owned(),
         vec![DataType::Int64(Some(input.id))],
     )
     .await?;

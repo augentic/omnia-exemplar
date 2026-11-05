@@ -9,11 +9,12 @@ use uuid::Uuid;
 
 use crate::block_mgt::{self, BlockInstance};
 use crate::fleet::{self, Vehicle};
+use crate::motion::{EventType, MotionMessage};
+use crate::state_keys;
 use crate::trip::{
     self, DeadReckoningMessage, FeedEntity, Position, PositionDr, TIMEZONE, TripDescriptor,
     TripInstance, VehicleDescriptor, VehicleDr, VehiclePosition,
 };
-use crate::{EventType, MotionMessage, state_keys};
 
 const TTL_TRIP_TRAIN: Duration = Duration::seconds(3 * 60 * 60);
 const TTL_SIGN_ON: Duration = Duration::seconds(24 * 60 * 60);
@@ -22,20 +23,11 @@ const fn duration_secs(duration: Duration) -> u64 {
     duration.num_seconds().unsigned_abs()
 }
 
-/// Outbound location payload derived from a Motion event.
 pub enum Location {
-    /// A GTFS-realtime vehicle position entity.
     VehiclePosition(FeedEntity),
-    /// A dead-reckoning odometer estimate.
     DeadReckoning(DeadReckoningMessage),
 }
 
-/// Processes a Motion location payload and emits outbound messages when applicable.
-///
-/// # Errors
-///
-/// Returns an error when the incoming payload cannot be parsed or when domain logic
-/// encounters an unrecoverable condition.
 pub async fn process<P>(message: &MotionMessage, provider: &P) -> Result<Option<Location>>
 where
     P: Config + HttpRequest + Identity + StateStore,

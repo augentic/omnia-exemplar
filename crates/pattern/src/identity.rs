@@ -15,14 +15,13 @@ use omnia_sdk::api::{Client, Context};
 use omnia_sdk::{Config, HttpRequest, Identity, Result, bad_gateway};
 use serde::{Deserialize, Serialize};
 
-/// Upstream status check route.
-pub const UPSTREAM_STATUS: &str = "/examples/patterns/upstream/{resource}";
+pub(crate) const UPSTREAM_STATUS: &str = "/examples/patterns/upstream/{resource}";
 
-/// Config key naming the upstream service base URL.
-pub const UPSTREAM_URL: &str = "PATTERN_UPSTREAM_URL";
+// Config key naming the upstream service base URL.
+pub(crate) const UPSTREAM_URL: &str = "PATTERN_UPSTREAM_URL";
 
-/// Config key naming the identity whose access token authenticates upstream requests.
-pub const UPSTREAM_IDENTITY: &str = "PATTERN_UPSTREAM_IDENTITY";
+// Config key naming the identity whose access token authenticates upstream requests.
+pub(crate) const UPSTREAM_IDENTITY: &str = "PATTERN_UPSTREAM_IDENTITY";
 
 pub(crate) fn routes<P: Capabilities>() -> axum::Router<Client<P>> {
     axum::Router::new().route(UPSTREAM_STATUS, get(fetch_upstream_status))
@@ -44,16 +43,7 @@ pub struct UpstreamStatusReply {
     pub status: String,
 }
 
-/// Reads the upstream URL and identity name from [`Config`], acquires a
-/// bearer token from [`Identity::access_token`], and fetches the upstream
-/// resource status.
-///
-/// # Errors
-///
-/// Returns an error when configuration or token acquisition fails, the
-/// upstream request fails or returns a non-success status (`502`), or the
-/// response body cannot be deserialized.
-pub async fn fetch_upstream_status<P>(
+pub(crate) async fn fetch_upstream_status<P>(
     input: UpstreamStatusRequest, context: Context<P>,
 ) -> Result<UpstreamStatusReply>
 where

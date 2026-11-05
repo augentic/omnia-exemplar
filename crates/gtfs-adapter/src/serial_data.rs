@@ -4,8 +4,9 @@ use anyhow::Context as _;
 use chrono::Utc;
 use omnia_sdk::{Config, HttpRequest, Result, StateStore, bad_request};
 
+use crate::motion::{DecodedSerialData, MotionError, MotionMessage};
+use crate::state_keys;
 use crate::trip::{self, TripInstance};
-use crate::{DecodedSerialData, MotionError, MotionMessage, state_keys};
 
 const TTL_TRIP_SERIAL_SECS: u64 = 4 * 60 * 60;
 const TTL_SIGN_ON_SECS: u64 = 24 * 60 * 60;
@@ -13,12 +14,6 @@ const TTL_SERIAL_TIMESTAMP_SECS: u64 = 24 * 60 * 60;
 
 const SERIAL_DATA_THRESHOLD: i64 = 900;
 
-/// Processes Motion serial data events, updating allocations and state.
-///
-/// # Errors
-///
-/// Returns an error when the message lacks required fields, has an invalid or
-/// outdated timestamp, or a state/upstream call fails.
 pub async fn process<P>(message: &MotionMessage, provider: &P) -> Result<()>
 where
     P: Config + HttpRequest + StateStore,

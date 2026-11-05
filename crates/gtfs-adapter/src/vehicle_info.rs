@@ -12,8 +12,7 @@ use crate::trip::TripInstance;
 
 const PROCESS_ID: u32 = 0;
 
-/// Vehicle info lookup route.
-pub const VEHICLE_INFO: &str = "/info/{vehicle_id}";
+pub(crate) const VEHICLE_INFO: &str = "/info/{vehicle_id}";
 
 pub(crate) fn routes<P: Capabilities>() -> axum::Router<Client<P>> {
     axum::Router::new().route(VEHICLE_INFO, get(vehicle_info))
@@ -46,14 +45,8 @@ pub struct VehicleInfoReply {
     pub fleet_info: Option<Vehicle>,
 }
 
-/// Assembles a vehicle's current trip, sign-on time, and fleet record.
-///
-/// # Errors
-///
-/// Returns an error when stored state cannot be read or parsed, or the fleet
-/// lookup fails.
 #[tracing::instrument(skip_all)]
-pub async fn vehicle_info<P>(
+pub(crate) async fn vehicle_info<P>(
     input: VehicleInfoRequest, context: Context<P>,
 ) -> Result<VehicleInfoReply>
 where

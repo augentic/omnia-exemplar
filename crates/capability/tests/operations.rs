@@ -4,11 +4,10 @@
 use axum::body::{Body, to_bytes};
 use axum::http::header::CONTENT_TYPE;
 use axum::http::{Request, StatusCode};
-use capability::table::sql;
-use capability::{
-    ALERT, ARCHIVE, AlertRequest, ArchiveReply, ArchiveRequest, NOTE, NoteReply, NoteRequest,
-    READING, ReadingReply, ReadingRequest,
-};
+use capability::blob::{ArchiveReply, ArchiveRequest};
+use capability::broadcast::AlertRequest;
+use capability::document::{NoteReply, NoteRequest};
+use capability::table::{ReadingReply, ReadingRequest, sql};
 use omnia_sdk::DocumentStore as _;
 use omnia_sdk::api::Client;
 use omnia_sdk::sql::{DataType, Field, Row};
@@ -40,7 +39,7 @@ async fn archive_object() {
         payload: r#"{"total":42}"#.to_string(),
     };
 
-    let reply: ArchiveReply = post(&provider, ARCHIVE, &request).await;
+    let reply: ArchiveReply = post(&provider, "/examples/archive", &request).await;
 
     assert_eq!(reply.size, 12);
     assert_eq!(
@@ -58,7 +57,7 @@ async fn broadcast_alert() {
         sockets: Some(vec!["socket-1".to_string()]),
     };
 
-    let reply: String = post(&provider, ALERT, &request).await;
+    let reply: String = post(&provider, "/examples/alert", &request).await;
 
     assert_eq!(reply, "OK");
     assert_eq!(
@@ -80,7 +79,7 @@ async fn upsert_note() {
         body: serde_json::json!({ "text": "hello" }),
     };
 
-    let reply: NoteReply = post(&provider, NOTE, &request).await;
+    let reply: NoteReply = post(&provider, "/examples/note", &request).await;
 
     let stored = provider.docs.get("notes", "note-1").await.expect("get").expect("stored");
     assert_eq!(reply.size, stored.data.len());
@@ -116,7 +115,7 @@ async fn record_reading() {
         sensor: "temp-1".to_string(),
         value: 22.0,
     };
-    let reply: ReadingReply = post(&provider, READING, &request).await;
+    let reply: ReadingReply = post(&provider, "/examples/reading", &request).await;
 
     assert_eq!(reply.affected, 1);
     assert_eq!(reply.rows, 2);

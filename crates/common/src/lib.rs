@@ -70,34 +70,20 @@ where
 /// A part's topics: a registration on the messaging router under an environment.
 pub type Topics<P> = fn(messaging::Router<P>, &str) -> messaging::Router<P>;
 
-/// The messaging router and the environment a stem registers its parts' topics under.
+/// Register the topics of a stem's parts on `router` under `env`, in order.
 ///
-/// Answered by [`topics`]; [`parts`](Self::parts) finishes the registration.
+/// A stem's `topics` is `common::topics(router, env, [..])` over its parts'
+/// `topics`, one entry per part, so a stem with no topic yet registers none
+/// and answers the router as it came. Registering panics where two parts
+/// consume one topic.
 #[must_use]
-pub struct Registering<'env, P: Send + Sync + 'static> {
-    router: messaging::Router<P>,
-    env: &'env str,
-}
-
-/// Begin registering a stem's topics on `router` under `env`.
-///
-/// A stem's `topics` is `common::topics(router, env).parts([..])` over its
-/// parts' `topics`, one entry per part, so a stem with no topic yet
-/// registers none and answers the router as it came.
-pub const fn topics<P: Send + Sync + 'static>(
-    router: messaging::Router<P>, env: &str,
-) -> Registering<'_, P> {
-    Registering { router, env }
-}
-
-impl<P: Send + Sync + 'static> Registering<'_, P> {
-    /// Register each part's topics, in order, and answer the router.
-    ///
-    /// Registering panics where two parts consume one topic.
-    #[must_use]
-    pub fn parts<const N: usize>(self, parts: [Topics<P>; N]) -> messaging::Router<P> {
-        parts.into_iter().fold(self.router, |router, part| part(router, self.env))
-    }
+pub fn topics<P, const N: usize>(
+    router: messaging::Router<P>, env: &str, parts: [Topics<P>; N],
+) -> messaging::Router<P>
+where
+    P: Send + Sync + 'static,
+{
+    parts.into_iter().fold(router, |router, part| part(router, env))
 }
 
 /// Typed column reads over an [`omnia_sdk::sql::Row`], so a handler never matches on [`DataType`] by hand.
@@ -107,21 +93,57 @@ pub trait RowExt {
     /// # Errors
     ///
     /// Returns an [`omnia_sdk::Error`] when `column` is missing, null, or not an integer.
-    fn get_i64(&self, column: &str) -> Result<i64>;
+    fn get_i64(&self, column: &str) -> Result<i64> {
+        self.get_opt_i64(column)?.ok_or_else(|| server_error!("column `{column}` is null"))
+    }
+
+    /// Read an optional 64-bit integer column.
+    ///
+    /// # Errors
+    ///
+    /// Returns an [`omnia_sdk::Error`] when `column` is missing or not an integer.
+    fn get_opt_i64(&self, column: &str) -> Result<Option<i64>>;
 
     /// Read a required 64-bit floating-point column.
     ///
     /// # Errors
     ///
     /// Returns an [`omnia_sdk::Error`] when `column` is missing, null, or not a float.
-    fn get_f64(&self, column: &str) -> Result<f64>;
+    fn get_f64(&self, column: &str) -> Result<f64> {
+        self.get_opt_f64(column)?.ok_or_else(|| server_error!("column `{column}` is null"))
+    }
+
+    /// Read an optional 64-bit floating-point column.
+    ///
+    /// # Errors
+    ///
+    /// Returns an [`omnia_sdk::Error`] when `column` is missing or not a float.
+    fn get_opt_f64(&self, column: &str) -> Result<Option<f64>>;
+
+    /// Read a required boolean column.
+    ///
+    /// # Errors
+    ///
+    /// Returns an [`omnia_sdk::Error`] when `column` is missing, null, or not a boolean.
+    fn get_bool(&self, column: &str) -> Result<bool> {
+        self.get_opt_bool(column)?.ok_or_else(|| server_error!("column `{column}` is null"))
+    }
+
+    /// Read an optional boolean column.
+    ///
+    /// # Errors
+    ///
+    /// Returns an [`omnia_sdk::Error`] when `column` is missing or not a boolean.
+    fn get_opt_bool(&self, column: &str) -> Result<Option<bool>>;
 
     /// Read a required string column.
     ///
     /// # Errors
     ///
     /// Returns an [`omnia_sdk::Error`] when `column` is missing, null, or not a string.
-    fn get_str(&self, column: &str) -> Result<&str>;
+    fn get_str(&self, column: &str) -> Result<&str> {
+        self.get_opt_str(column)?.ok_or_else(|| server_error!("column `{column}` is null"))
+    }
 
     /// Read an optional string column.
     ///
@@ -132,39 +154,40 @@ pub trait RowExt {
 }
 
 impl RowExt for Row {
-    fn get_i64(&self, column: &str) -> Result<i64> {
+    fn get_opt_i64(&self, column: &str) -> Result<Option<i64>> {
         match field(self, column)? {
-            DataType::Int64(Some(value)) => Ok(*value),
-            DataType::Int32(Some(value)) => Ok(i64::from(*value)),
-            DataType::Int64(None) | DataType::Int32(None) => {
-                Err(server_error!("column `{column}` is null"))
-            }
+            DataType::Int64(value) => Ok(*value),
+            DataType::Int32(value) => Ok((*value).map(i64::from)),
+            DataType::Uint32(value) => Ok((*value).map(i64::from)),
+            DataType::Uint64(value) => (*value)
+                .map(i64::try_from)
+                .transpose()
+                .map_err(|err| server_error!("column `{column}` overflows i64: {err}")),
             other => Err(server_error!("column `{column}` is not an integer: {other:?}")),
         }
     }
 
-    fn get_f64(&self, column: &str) -> Result<f64> {
+    fn get_opt_f64(&self, column: &str) -> Result<Option<f64>> {
         match field(self, column)? {
-            DataType::Double(Some(value)) => Ok(*value),
-            DataType::Float(Some(value)) => Ok(f64::from(*value)),
-            DataType::Double(None) | DataType::Float(None) => {
-                Err(server_error!("column `{column}` is null"))
-            }
+            DataType::Double(value) => Ok(*value),
+            DataType::Float(value) => Ok((*value).map(f64::from)),
             other => Err(server_error!("column `{column}` is not a float: {other:?}")),
         }
     }
 
-    fn get_str(&self, column: &str) -> Result<&str> {
+    fn get_opt_bool(&self, column: &str) -> Result<Option<bool>> {
         match field(self, column)? {
-            DataType::Str(Some(value)) => Ok(value.as_str()),
-            DataType::Str(None) => Err(server_error!("column `{column}` is null")),
-            other => Err(server_error!("column `{column}` is not a string: {other:?}")),
+            DataType::Boolean(value) => Ok(*value),
+            other => Err(server_error!("column `{column}` is not a boolean: {other:?}")),
         }
     }
 
     fn get_opt_str(&self, column: &str) -> Result<Option<&str>> {
         match field(self, column)? {
-            DataType::Str(value) => Ok(value.as_deref()),
+            DataType::Str(value)
+            | DataType::Date(value)
+            | DataType::Time(value)
+            | DataType::Timestamp(value) => Ok(value.as_deref()),
             other => Err(server_error!("column `{column}` is not a string: {other:?}")),
         }
     }

@@ -15,8 +15,7 @@ use omnia_sdk::api::{Client, Context, DecodeError};
 use omnia_sdk::{Config, HttpError, Message, Publish};
 use serde::{Deserialize, Serialize};
 
-/// Pulse SOAP/XML position ingress.
-pub const PULSE_XML: &str = "/inbound/xml";
+pub(crate) const PULSE_XML: &str = "/inbound/xml";
 
 /// The SOAP fault envelope answering requests that cannot be parsed or
 /// fail validation.
@@ -62,15 +61,7 @@ fn encode_pulse(reply: &PulseReply) -> Response {
     }
 }
 
-/// Validates an incoming Pulse SOAP envelope and forwards the embedded train
-/// update to the pulse-adapter topic.
-///
-/// # Errors
-///
-/// Returns a SOAP [`Fault`]: `400 Bad Request` when the envelope cannot be
-/// parsed or carries no train update, `500 Internal Server Error` when
-/// publishing fails.
-pub async fn pulse<P>(input: PulseXml, context: Context<P>) -> Result<PulseReply, Fault>
+pub(crate) async fn pulse<P>(input: PulseXml, context: Context<P>) -> Result<PulseReply, Fault>
 where
     P: Config + Publish,
 {

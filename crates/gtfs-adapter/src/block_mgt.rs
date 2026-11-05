@@ -8,23 +8,15 @@ use omnia_http_cache::HttpCache;
 use omnia_sdk::{Config, HttpRequest, Identity, Result, StateStore, bad_gateway};
 use serde::{Deserialize, Serialize};
 
-/// Base URL of the Block Management API.
-pub const BLOCK_MGT_URL: &str = "BLOCK_MGT_URL";
+// Base URL of the Block Management API.
+pub(crate) const BLOCK_MGT_URL: &str = "BLOCK_MGT_URL";
 
-/// Identity used to acquire access tokens for the operator APIs.
-pub const API_IDENTITY: &str = "API_IDENTITY";
+// Identity used to acquire access tokens for the operator APIs.
+pub(crate) const API_IDENTITY: &str = "API_IDENTITY";
 
-/// Retrieves the cached block allocation for a specific vehicle.
-///
-/// Responses are cached for twenty seconds through the provider's
-/// [`StateStore`] under the quoted, namespaced etag
-/// `"allocation:<vehicle_id>"`.
-///
-/// # Errors
-///
-/// Returns an error when the block management API request fails, returns a
-/// non-success status, or the response cannot be deserialized.
-pub async fn cached_allocation<P>(
+// Responses are cached for twenty seconds through the provider's
+// `StateStore` under the quoted, namespaced etag `"allocation:<vehicle_id>"`.
+pub(crate) async fn cached_allocation<P>(
     vehicle_id: &str, timestamp: i64, provider: &P,
 ) -> Result<Option<BlockInstance>>
 where

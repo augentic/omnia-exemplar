@@ -18,15 +18,10 @@ pub(crate) fn topics<P: Capabilities>(
     router.route(config::topic_for(env, topic::PASSENGER_COUNT), consume(passenger_count))
 }
 
-/// Stores the occupancy status for a vehicle on a trip, or clears it when
-/// the message carries no status.
-///
-/// # Errors
-///
-/// Returns an error when the status cannot be serialized or the state store
-/// request fails.
 #[tracing::instrument(skip_all)]
-pub async fn passenger_count<P>(input: PassengerCountMessage, context: Context<P>) -> Result<()>
+pub(crate) async fn passenger_count<P>(
+    input: PassengerCountMessage, context: Context<P>,
+) -> Result<()>
 where
     P: StateStore,
 {

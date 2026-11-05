@@ -17,9 +17,13 @@ tower.workspace = true
 
 # One line per crate the stem's files use, each added at the end.
 [dependencies]
+anyhow.workspace = true
 axum.workspace = true
 common.workspace = true
+http.workspace = true
 omnia-sdk.workspace = true
+quick-xml.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+thiserror.workspace = true
 tracing.workspace = true

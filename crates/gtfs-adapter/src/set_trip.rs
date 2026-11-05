@@ -9,8 +9,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::god_mode;
 
-/// God-mode trip override route.
-pub const SET_TRIP: &str = "/god-mode/set-trip/{vehicle_id}/{trip_id}";
+pub(crate) const SET_TRIP: &str = "/god-mode/set-trip/{vehicle_id}/{trip_id}";
 
 pub(crate) fn routes<P: Capabilities>() -> axum::Router<Client<P>> {
     axum::Router::new().route(SET_TRIP, post(set_trip))
@@ -35,14 +34,8 @@ pub struct SetTripReply {
     pub process: u32,
 }
 
-/// Forces a vehicle onto a specific trip while god mode is enabled.
-///
-/// # Errors
-///
-/// Returns a bad request error when god mode is not enabled, or an error
-/// when the override cannot be stored.
 #[tracing::instrument(skip_all)]
-pub async fn set_trip<P>(input: SetTripRequest, context: Context<P>) -> Result<SetTripReply>
+pub(crate) async fn set_trip<P>(input: SetTripRequest, context: Context<P>) -> Result<SetTripReply>
 where
     P: Config + StateStore,
 {

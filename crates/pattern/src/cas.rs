@@ -6,24 +6,20 @@
 //! QuotaError>` and maps [`CasError::Conflict`] to [`StatusCode::CONFLICT`]
 //! in its [`From<QuotaError> for HttpError`] implementation.
 
-use anyhow::Context as _;
 use common::Capabilities;
-use http::StatusCode;
+use http::{HeaderValue, StatusCode};
 use omnia_sdk::api::http::put;
 use omnia_sdk::api::{Client, Context};
 use omnia_sdk::{CasError, HttpError, StateStore, not_found, server_error};
 use serde::{Deserialize, Serialize};
 
-/// Optimistic-concurrency quota update route.
-pub const QUOTA: &str = "/examples/patterns/quotas/{tenant}";
+pub(crate) const QUOTA: &str = "/examples/patterns/quotas/{tenant}";
 
 pub(crate) fn routes<P: Capabilities>() -> axum::Router<Client<P>> {
     axum::Router::new().route(QUOTA, put(update_quota))
 }
 
-/// State-store key for a tenant's quota record.
-#[must_use]
-pub fn quota_key(tenant: &str) -> String {
+pub(crate) fn quota_key(tenant: &str) -> String {
     format!("pattern:quota:{tenant}")
 }
 
@@ -53,32 +49,49 @@ pub struct UpdateQuotaRequest {
 #[derive(Debug, thiserror::Error)]
 pub enum QuotaError {
     /// Another writer modified the record since `expected_version` was read.
-    #[error("quota for `{0}` changed concurrently")]
-    Conflict(String),
+    #[error("quota for `{tenant}` changed concurrently (current version: {current_version:?})")]
+    Conflict {
+        /// Tenant whose quota conflicted.
+        tenant: String,
+        /// Version currently stored, when the store returned one.
+        current_version: Option<u64>,
+    },
     /// The host or a precondition failed.
     #[error(transparent)]
     Host(#[from] omnia_sdk::Error),
 }
 
+impl From<anyhow::Error> for QuotaError {
+    fn from(error: anyhow::Error) -> Self {
+        Self::Host(error.into())
+    }
+}
+
 impl From<QuotaError> for HttpError {
     fn from(error: QuotaError) -> Self {
         match error {
-            QuotaError::Conflict(_) => Self::new(StatusCode::CONFLICT, error.to_string()),
+            QuotaError::Conflict {
+                ref tenant,
+                current_version,
+            } => {
+                let body = serde_json::json!({
+                    "error": "conflict",
+                    "message": error.to_string(),
+                    "tenant": tenant,
+                    "current_version": current_version,
+                });
+                Self::with_body(
+                    StatusCode::CONFLICT,
+                    HeaderValue::from_static("application/json"),
+                    body.to_string().into_bytes(),
+                )
+            }
             QuotaError::Host(inner) => inner.into(),
         }
     }
 }
 
-/// Atomically updates a tenant's quota when `expected_version` matches the
-/// stored version, or creates version `1` when `expected_version` is `0`.
-///
-/// # Errors
-///
-/// Returns [`QuotaError::Conflict`] (`409 Conflict`) when the stored version
-/// differs or a concurrent write wins the compare-and-swap, `not_found` when
-/// `expected_version > 0` and no record exists, or [`QuotaError::Host`] when
-/// storage or serialization fails.
-pub async fn update_quota<P>(
+pub(crate) async fn update_quota<P>(
     input: UpdateQuotaRequest, context: Context<P>,
 ) -> Result<QuotaRecord, QuotaError>
 where
@@ -86,7 +99,7 @@ where
 {
     let provider = context.provider();
     let key = quota_key(&input.tenant);
-    let current = StateStore::get(provider, &key).await.map_err(omnia_sdk::Error::from)?;
+    let current = StateStore::get(provider, &key).await?;
 
     let expected_bytes = match (&current, input.expected_version) {
         (None, 0) => None,
@@ -95,10 +108,12 @@ where
         }
         (Some(bytes), expected) => {
             let record: QuotaRecord = serde_json::from_slice(bytes)
-                .context("parsing stored quota")
-                .map_err(omnia_sdk::Error::from)?;
+                .map_err(|err| server_error!("parsing stored quota: {err}"))?;
             if record.version != expected {
-                return Err(QuotaError::Conflict(input.tenant));
+                return Err(QuotaError::Conflict {
+                    tenant: input.tenant,
+                    current_version: Some(record.version),
+                });
             }
             Some(bytes.as_slice())
         }
@@ -110,11 +125,20 @@ where
         limit: input.limit,
     };
     let next_bytes =
-        serde_json::to_vec(&next).context("serializing quota").map_err(omnia_sdk::Error::from)?;
+        serde_json::to_vec(&next).map_err(|err| server_error!("serializing quota: {err}"))?;
 
     match StateStore::cas(provider, &key, expected_bytes, &next_bytes).await {
         Ok(()) => Ok(next),
-        Err(CasError::Conflict(_)) => Err(QuotaError::Conflict(input.tenant)),
+        Err(CasError::Conflict(observed)) => {
+            let current_version = observed
+                .as_deref()
+                .and_then(|bytes| serde_json::from_slice::<QuotaRecord>(bytes).ok())
+                .map(|record| record.version);
+            Err(QuotaError::Conflict {
+                tenant: input.tenant,
+                current_version,
+            })
+        }
         Err(CasError::Store(err)) => Err(server_error!("{err}").into()),
     }
 }

@@ -4,9 +4,7 @@
 use bytes::Bytes;
 use chrono::{DateTime, Utc};
 use common::config;
-use gtfs_adapter::block_mgt::{API_IDENTITY, BLOCK_MGT_URL};
-use gtfs_adapter::fleet::{FLEET_URL, Identifier};
-use gtfs_adapter::trip::TRIP_MANAGEMENT_URL;
+use gtfs_adapter::fleet::Identifier;
 use http::Response;
 use omnia_test::guest::{FixedIdentity, MapConfig, Provider};
 
@@ -19,10 +17,10 @@ pub fn provider() -> Provider {
     Provider::default()
         .config(MapConfig::default().with([
             (config::ENV, "dev"),
-            (BLOCK_MGT_URL, BLOCK_MGT_BASE),
-            (FLEET_URL, FLEET_BASE),
-            (TRIP_MANAGEMENT_URL, TRIP_MANAGEMENT_BASE),
-            (API_IDENTITY, "test-identity"),
+            ("BLOCK_MGT_URL", BLOCK_MGT_BASE),
+            ("FLEET_URL", FLEET_BASE),
+            ("TRIP_MANAGEMENT_URL", TRIP_MANAGEMENT_BASE),
+            ("API_IDENTITY", "test-identity"),
         ]))
         .identity(FixedIdentity::new("mock_access_token"))
 }

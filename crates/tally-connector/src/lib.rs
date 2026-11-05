@@ -7,9 +7,7 @@ pub mod handler;
 pub mod types;
 
 use common::Capabilities;
-pub use handler::*;
 use omnia_sdk::api::Client;
-pub use types::*;
 
 /// The stem's routes, merged onto the root router.
 pub fn router<P: Capabilities>() -> axum::Router<Client<P>> {

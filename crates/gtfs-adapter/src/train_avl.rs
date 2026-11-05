@@ -21,15 +21,8 @@ pub(crate) fn topics<P: Capabilities>(
 #[serde(transparent)]
 pub struct TrainAvlMessage(pub MotionMessage);
 
-/// Processes a train AVL message, forwarding it to the Motion handler only
-/// when the vehicle's fleet record is tagged `motion`.
-///
-/// # Errors
-///
-/// Returns an error when the fleet lookup fails or the forwarded Motion
-/// message cannot be processed.
 #[tracing::instrument(skip_all)]
-pub async fn train_avl<P>(input: TrainAvlMessage, context: Context<P>) -> Result<()>
+pub(crate) async fn train_avl<P>(input: TrainAvlMessage, context: Context<P>) -> Result<()>
 where
     P: Config + HttpRequest + Identity + Publish + StateStore,
 {

@@ -17,7 +17,7 @@ use std::collections::BTreeSet;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use omnia_template::{CRATE_LIST_ANCHOR, ENTRIES, PATH_LIST_ANCHOR};
+use omnia_template::{CRATE_LIST_ANCHOR, ENTRIES, PATH_LIST_ANCHOR, insert_after};
 use serde::Deserialize;
 
 const MANIFEST: &str = "templates/guest/manifest.yaml";
@@ -30,22 +30,22 @@ const SEED_CLIPPY: &str = "templates/guest/core/clippy.toml";
 // the anchor the layout names, or at the end of a list file that names
 // none. The stem's own files are written whole from `STEM`.
 const STEM_LINES: &[(&str, &str, &str)] = &[
-    ("Cargo.toml", PATH_LIST_ANCHOR, "\norders = { path = \"crates/orders\" }"),
-    ("Cargo.toml", CRATE_LIST_ANCHOR, "\norders.workspace = true"),
+    ("Cargo.toml", PATH_LIST_ANCHOR, "orders = { path = \"crates/orders\" }"),
+    ("Cargo.toml", CRATE_LIST_ANCHOR, "orders.workspace = true"),
     (
         "src/routes.rs",
-        "    let router = axum::Router::new();\n",
-        "    let router = router.merge(orders::router());\n",
+        "    let router = axum::Router::new();",
+        "    let router = router.merge(orders::router());",
     ),
     (
         "src/messaging.rs",
-        "    let router = messaging::Router::new(Client::new(OWNER, provider));\n",
-        "    let router = orders::topics(router, &env);\n",
+        "    let router = messaging::Router::new(Client::new(OWNER, provider));",
+        "    let router = orders::topics(router, &env);",
     ),
     (
         "crates/common/src/topic.rs",
         "",
-        "\n/// An order was placed.\npub const ORDER_PLACED: &str = \"order-placed\";\n",
+        "\n/// An order was placed.\npub const ORDER_PLACED: &str = \"order-placed\";\n/// An order was dispatched.\npub const ORDER_DISPATCHED: &str = \"order-dispatched\";\n",
     ),
 ];
 
@@ -123,9 +123,9 @@ pub fn run(root: &Path) -> Result<Vec<String>, String> {
     let mut failures = Vec::new();
 
     let manifest: Manifest = parse_yaml(&root.join(MANIFEST))?;
-    if manifest.schema_version != 3 {
+    if manifest.schema_version != 4 {
         failures.push(format!(
-            "manifest: unsupported schema-version {} (expected 3)",
+            "manifest: unsupported schema-version {} (expected 4)",
             manifest.schema_version
         ));
     }
@@ -192,9 +192,16 @@ fn check_crate(root: &Path, manifest: &Manifest, failures: &mut Vec<String>) {
 // `disallowed-types`, and `disallowed-macros`, ignoring `allow-invalid`
 // and `reason`.
 fn check_clippy(root: &Path, failures: &mut Vec<String>) {
-    let read_toml = |rel: &str| -> Option<toml::Value> {
-        let text = fs::read_to_string(root.join(rel)).ok()?;
-        toml::from_str(&text).ok()
+    let mut read_toml = |rel: &str| -> Option<toml::Value> {
+        let Ok(text) = fs::read_to_string(root.join(rel)) else {
+            failures.push(format!("{rel}: clippy config unreadable"));
+            return None;
+        };
+        let Ok(value) = toml::from_str(&text) else {
+            failures.push(format!("{rel}: clippy config invalid"));
+            return None;
+        };
+        Some(value)
     };
     let (Some(crates), Some(seed)) = (read_toml(CRATES_CLIPPY), read_toml(SEED_CLIPPY)) else {
         return;
@@ -347,7 +354,8 @@ fn seed_dependency_failures(workspace: &toml::Value, seed: &toml::Value) -> Vec<
         let key = |key: &str| table.and_then(|table| table.get(key));
         let inherits = key("workspace").and_then(toml::Value::as_bool) == Some(true);
         let path = key("path").and_then(toml::Value::as_str);
-        let pinned = pins.and_then(|pins| pins.get(&name)).and_then(version);
+        let root_spec = pins.and_then(|pins| pins.get(&name));
+        let pinned = root_spec.and_then(version);
         match (inherits, path, version(spec)) {
             (true, None, None) => {}
             (false, Some(path), None) if is_unsafe(path) => {
@@ -358,12 +366,25 @@ fn seed_dependency_failures(workspace: &toml::Value, seed: &toml::Value) -> Vec<
                     failures.push(format!("`{name}` is a path, the root pins {pinned:?}"));
                 }
             }
-            (false, None, Some(actual)) => match pinned {
-                Some(expected) if expected == actual => {}
-                Some(expected) => {
+            (false, None, Some(actual)) => match (root_spec, pinned) {
+                (Some(root_spec), Some(expected)) if expected == actual => {
+                    let include_default = default_features(spec) && !default_features(root_spec);
+                    let seed_features = features(spec, include_default);
+                    let root_features = features(root_spec, include_default);
+                    if !seed_features.is_subset(&root_features) {
+                        let seed_list: Vec<&str> = seed_features.into_iter().collect();
+                        let root_list: Vec<&str> = root_features.into_iter().collect();
+                        failures.push(format!(
+                            "`{name}` enables {seed_list:?}, the root pins {root_list:?}"
+                        ));
+                    }
+                }
+                (_, Some(expected)) => {
                     failures.push(format!("`{name}` pins {actual:?}, the root pins {expected:?}"));
                 }
-                None => failures.push(format!("`{name}` is not a pin of the root workspace")),
+                (_, None) => {
+                    failures.push(format!("`{name}` is not a pin of the root workspace"));
+                }
             },
             _ => failures.push(format!(
                 "`{name}` is none of an inherited pin, a path in the tree, or a version"
@@ -479,6 +500,28 @@ fn version(spec: &toml::Value) -> Option<String> {
     }
 }
 
+fn default_features(spec: &toml::Value) -> bool {
+    spec.as_table()
+        .and_then(|table| table.get("default-features"))
+        .and_then(toml::Value::as_bool)
+        .unwrap_or(true)
+}
+
+fn features(spec: &toml::Value, include_default: bool) -> BTreeSet<&str> {
+    let mut set: BTreeSet<&str> = spec
+        .as_table()
+        .and_then(|table| table.get("features"))
+        .and_then(toml::Value::as_array)
+        .into_iter()
+        .flatten()
+        .filter_map(toml::Value::as_str)
+        .collect();
+    if include_default && default_features(spec) {
+        set.insert("default");
+    }
+    set
+}
+
 /// Write every manifest entry under `dest`: the project a consumer build
 /// starts from.
 ///
@@ -533,10 +576,8 @@ pub fn stem(root: &Path, dest: &Path) -> Result<(), String> {
         let appended = if anchor.is_empty() {
             format!("{text}{line}")
         } else {
-            let (before, after) = text
-                .split_once(anchor)
-                .ok_or_else(|| format!("{path}: the list lacks its anchor {anchor:?}"))?;
-            format!("{before}{anchor}{line}{after}")
+            insert_after(&text, anchor, line)
+                .ok_or_else(|| format!("{path}: the list lacks its anchor {anchor:?}"))?
         };
         fs::write(&file, appended).map_err(|err| format!("{}: {err}", file.display()))?;
     }

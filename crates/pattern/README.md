@@ -12,7 +12,10 @@ each handler here composes several:
 | `place` | `TableStore` + `common::RowExt` | `upsert_place` — parameterized `INSERT … ON CONFLICT` upsert, rejecting bad coordinates with a structured JSON error body (`PlaceError`) |
 | `place` | `TableStore` + `common::RowExt` | `nearby_places` — bounding-box `SELECT` refined by haversine |
 
-The crate's `router()` serves these under `/examples/patterns/*`.
+The crate's `router()` serves these under `/examples/patterns/*`. The routes
+are pedagogical: they exist to instantiate the composed default WASM
+capability implementations, deliberately apart from the transit crates'
+paths.
 
 ## Decode-through-cache
 
@@ -27,13 +30,19 @@ The crate's `router()` serves these under `/examples/patterns/*`.
 4. `StateStore::set` — write the decoded segment back with a TTL so the
    next lookup short-circuits.
 
+Two things to copy: expensive lookups go *through* the cache rather than
+being populated by a separate process, and credential material stays in
+`Config` and travels as ordinary request data — outbound HTTP stays generic
+and no TLS-specific capability is needed.
+
 ## Optimistic concurrency (`StateStore::cas`)
 
 `UpdateQuotaRequest` reads the current record from `StateStore::get`, checks
 `expected_version`, and writes the next revision with `StateStore::cas`.
 When a concurrent writer modifies the entry (or the version does not match),
-`QuotaError::Conflict` converts to `HttpError::new(StatusCode::CONFLICT, ..)`
-(`409 Conflict`).
+`QuotaError::Conflict` converts to a `409 Conflict` `HttpError::with_body`
+carrying the `tenant` and the observed `current_version` so the caller can
+retry without a separate read.
 
 ## Upstream bearer-token authentication (`Identity::access_token`)
 
@@ -46,19 +55,60 @@ call, turning non-2xx upstream responses into `bad_gateway!` (`502`).
 ## Relational geo queries — no `GEORADIUS`
 
 `StateStore` is a key-value cache, not a geospatial index. When a service
-needs "what is within this radius?", model the rows relationally:
+needs "what is within this radius?", do not reach for a geo extension bolted
+onto the KV store; model the rows relationally and let the database do what
+it is good at:
 
 1. Over-approximate the radius with a degree bounding box — four plain,
    indexable comparisons in a parameterized `SELECT`.
-2. Map rows with `common::RowExt` (`get_str`, `get_f64`) and refine the
-   survivors with a haversine check in Rust.
+2. Map rows with `Place::try_from` over `common::RowExt` (`get_str`,
+   `get_f64`) and refine the survivors with a haversine check in Rust.
 
 `UpsertPlaceRequest` writes the rows with a parameterized
-`INSERT INTO places ... ON CONFLICT (id) DO UPDATE SET ...` statement.
+`INSERT INTO places ... ON CONFLICT (id) DO UPDATE SET ...` statement;
+`NearbyPlacesRequest` runs the query. Workloads that outgrow this pattern
+want a real geospatial backend (e.g. PostGIS behind its own handler), not a
+richer `StateStore`.
 
 ## Extending the framework's JSON error envelope
 
-`upsert_place` returns `Result<UpsertPlaceReply, PlaceError>` and implements
-`From<PlaceError> for HttpError` using `HttpError::with_body` to serialize a
-superset of `omnia_sdk::api::ErrorBody` (`error`, `message`, plus the
-variant's domain fields).
+Handler failures never pass through a route's success encoder: the
+handler's error type converts to `HttpError`, and that conversion alone
+decides the wire shape. The default `omnia_sdk::Error` renders as
+`omnia_sdk::api::ErrorBody` — an `application/json` body with two fields,
+`error` (the code discriminant) and `message` (the description) — with no
+room for domain data or status codes outside `400`, `404`, `500`, and `502`.
+
+`upsert_place` and `update_quota` demonstrate the structured alternative.
+Each handler returns its own error type (`Result<UpsertPlaceReply,
+PlaceError>`, `Result<QuotaRecord, QuotaError>`), and its `From<…> for
+HttpError` implementation serializes a superset of `ErrorBody` with
+`HttpError::with_body`: `error` is the discriminant, `Display` supplies
+`message`, and the variant's domain fields ride alongside, so a client that
+only knows the framework envelope still parses the rejection, and one that
+knows the route reads the extra fields:
+
+```json
+{ "error": "invalid_coordinate", "message": "lat 123.4 is outside [-90, 90]", "field": "lat", "value": 123.4, "min": -90.0, "max": 90.0 }
+{ "error": "conflict", "message": "quota for `metro` changed concurrently (current version: Some(2))", "tenant": "metro", "current_version": 2 }
+```
+
+Two things to note:
+
+- This works with the **default** `post` / `put` codecs — custom error
+  bodies come from the error type's `HttpError` conversion, not from a
+  `handle_with` custom codec.
+- Decode failures (malformed request JSON) are converted upstream of the
+  handler and answer with the framework's own `ErrorBody` — a 400 with
+  `"error": "invalid_request"`; the structured body covers failures raised
+  by the handler itself.
+
+## Spy mock tests
+
+The crate-level tests (`tests/`) drive every route through `pattern::router()`
+over a mock provider that *records* outbound HTTP requests and SQL statements
+as well as answering them. Tests assert on the request shape — method, path,
+and the `Client-Cert` or `Authorization` header — and on the exact number of
+calls, which is how the cache tests prove a hit never reaches HTTP. Recording
+in the capability mock is the cheapest way to verify *what left the guest*
+without a real network.

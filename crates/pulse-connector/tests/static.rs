@@ -5,10 +5,12 @@ use axum::http::header::CONTENT_TYPE;
 use axum::http::{Request, Response, StatusCode};
 use omnia_sdk::api::Client;
 use omnia_test::guest::{MapConfig, Provider};
-use pulse_connector::{PULSE_XML, PulseRequest};
+use pulse_connector::handler::PulseRequest;
 use tower::ServiceExt as _;
 
 const OWNER: &str = "acme";
+#[expect(clippy::disallowed_macros, reason = "integration test loads captured SOAP XML from disk")]
+const RECEIVE_MESSAGE: &[u8] = include_bytes!("../data/receive-message.xml");
 
 // `config::env` falls back to `dev` when `ENV` is unset; seeding it keeps the
 // topic assertions honest rather than leaning on the fallback.
@@ -17,7 +19,7 @@ fn provider() -> Provider {
 }
 
 async fn post(provider: Provider, body: &'static [u8]) -> Response<Body> {
-    let request = Request::post(PULSE_XML)
+    let request = Request::post("/inbound/xml")
         .header(CONTENT_TYPE, "text/xml")
         .body(Body::from(body))
         .expect("request");
@@ -33,15 +35,10 @@ fn content_type(response: &Response<Body>) -> &str {
 async fn train_update() {
     let provider = provider();
 
-    #[expect(
-        clippy::disallowed_macros,
-        reason = "integration test loads captured SOAP XML from disk"
-    )]
-    let xml = include_bytes!("../data/receive-message.xml");
-    let request = PulseRequest::from_xml(xml).expect("should deserialize");
+    let request = PulseRequest::from_xml(RECEIVE_MESSAGE).expect("should deserialize");
     let expected_payload = request.body.receive_message.axml_message;
 
-    let response = post(provider.clone(), xml).await;
+    let response = post(provider.clone(), RECEIVE_MESSAGE).await;
 
     // the connector acknowledges in the vendor's XML shape
     assert_eq!(response.status(), StatusCode::OK);

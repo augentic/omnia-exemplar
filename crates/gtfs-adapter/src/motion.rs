@@ -44,15 +44,8 @@ impl From<MotionError> for Error {
     }
 }
 
-/// Processes a Motion AVL message, publishing a GTFS-realtime vehicle
-/// position or dead-reckoning event when applicable.
-///
-/// # Errors
-///
-/// Returns an error when the payload cannot be processed or a provider
-/// request fails.
 #[tracing::instrument(skip_all)]
-pub async fn motion<P>(input: MotionMessage, context: Context<P>) -> Result<()>
+pub(crate) async fn motion<P>(input: MotionMessage, context: Context<P>) -> Result<()>
 where
     P: Config + HttpRequest + Identity + Publish + StateStore,
 {

@@ -10,8 +10,7 @@ use omnia_sdk::api::{Client, Context};
 use omnia_sdk::{Broadcast, Result};
 use serde::{Deserialize, Serialize};
 
-/// WebSocket broadcast alert.
-pub const ALERT: &str = "/examples/alert";
+pub(crate) const ALERT: &str = "/examples/alert";
 
 pub(crate) fn routes<P: Capabilities>() -> axum::Router<Client<P>> {
     axum::Router::new().route(ALERT, post(alert))
@@ -33,13 +32,7 @@ pub struct AlertRequest {
 #[serde(transparent)]
 pub struct AlertReply(pub &'static str);
 
-/// Broadcasts the alert to the channel, optionally restricted to the given
-/// socket ids.
-///
-/// # Errors
-///
-/// Returns an error when the broadcast fails.
-pub async fn alert<P>(input: AlertRequest, context: Context<P>) -> Result<AlertReply>
+pub(crate) async fn alert<P>(input: AlertRequest, context: Context<P>) -> Result<AlertReply>
 where
     P: Broadcast,
 {

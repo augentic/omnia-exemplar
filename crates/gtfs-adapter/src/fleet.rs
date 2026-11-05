@@ -11,19 +11,12 @@ use omnia_http_cache::HttpCache;
 use omnia_sdk::{Config, HttpRequest, Identity, Result, StateStore, bad_gateway};
 use serde::{Deserialize, Serialize};
 
-/// Base URL of the Fleet API.
-pub const FLEET_URL: &str = "FLEET_URL";
+// Base URL of the Fleet API.
+pub(crate) const FLEET_URL: &str = "FLEET_URL";
 
-/// Retrieves a vehicle (train) by label.
-///
-/// Responses are cached for five minutes through the provider's
-/// [`StateStore`] under the quoted, namespaced etag `"fleet:<query>"`.
-///
-/// # Errors
-///
-/// Returns an error when the fleet API request fails, returns a non-success
-/// status, or the response cannot be deserialized.
-pub async fn vehicle<P>(vehicle_id: &str, provider: &P) -> Result<Option<Vehicle>>
+// Responses are cached for five minutes through the provider's `StateStore`
+// under the quoted, namespaced etag `"fleet:<query>"`.
+pub(crate) async fn vehicle<P>(vehicle_id: &str, provider: &P) -> Result<Option<Vehicle>>
 where
     P: Config + HttpRequest + Identity + StateStore,
 {

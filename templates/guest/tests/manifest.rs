@@ -2,7 +2,7 @@
 
 mod support;
 
-use omnia_template::{Error, Manifest, PATH_LIST_ANCHOR};
+use omnia_template::{CRATE_LIST_ANCHOR, Error, Manifest, PATH_LIST_ANCHOR, insert_after};
 
 use self::support::Scratch;
 
@@ -17,8 +17,8 @@ fn template() -> &'static str {
 
 // The template's manifest with the `orders` stem's line in each list.
 fn with_orders() -> String {
-    let anchor = format!("{PATH_LIST_ANCHOR}\n");
-    template().replace(&anchor, &format!("{anchor}{PATH_LINE}")) + CRATE_LINE
+    let with_path = insert_after(template(), PATH_LIST_ANCHOR, PATH_LINE).expect("path anchor");
+    insert_after(&with_path, CRATE_LIST_ANCHOR, CRATE_LINE).expect("crate anchor")
 }
 
 #[test]

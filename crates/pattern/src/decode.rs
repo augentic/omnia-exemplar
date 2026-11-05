@@ -17,25 +17,22 @@ use omnia_sdk::api::{Client, Context};
 use omnia_sdk::{Config, HttpRequest, Result, StateStore, bad_gateway};
 use serde::{Deserialize, Serialize};
 
-/// Decode-through-cache ingress.
-pub const DECODE: &str = "/examples/patterns/decode";
+pub(crate) const DECODE: &str = "/examples/patterns/decode";
 
-/// Config key naming the decoder endpoint URL.
-pub const DECODER_URL: &str = "PATTERN_DECODER_URL";
+// Config key naming the decoder endpoint URL.
+pub(crate) const DECODER_URL: &str = "PATTERN_DECODER_URL";
 
-/// Config key holding the client certificate forwarded to the decoder.
-pub const CLIENT_CERT: &str = "PATTERN_CLIENT_CERT";
+// Config key holding the client certificate forwarded to the decoder.
+pub(crate) const CLIENT_CERT: &str = "PATTERN_CLIENT_CERT";
 
-/// Cache lifetime for decoded segments, in seconds.
-pub const SEGMENT_TTL_SECS: u64 = 24 * 60 * 60;
+// Cache lifetime for decoded segments, in seconds.
+pub(crate) const SEGMENT_TTL_SECS: u64 = 24 * 60 * 60;
 
 pub(crate) fn routes<P: Capabilities>() -> axum::Router<Client<P>> {
     axum::Router::new().route(DECODE, post(decode_segment))
 }
 
-/// State-store key for a decoded segment.
-#[must_use]
-pub fn segment_key(code: &str) -> String {
+pub(crate) fn segment_key(code: &str) -> String {
     format!("pattern:segment:{code}")
 }
 
@@ -49,14 +46,14 @@ pub struct Segment {
 }
 
 /// Decode a segment code, consulting the cache first.
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DecodeSegmentRequest {
     /// Opaque code understood by the decoder service.
     pub code: String,
 }
 
 /// Decoded segment plus where it came from.
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DecodeSegmentReply {
     /// Whether the segment was served from the cache.
     pub cached: bool,
@@ -64,15 +61,7 @@ pub struct DecodeSegmentReply {
     pub segment: Segment,
 }
 
-/// Decodes a segment code, serving from the cache when possible and
-/// otherwise calling the decoder and writing the result back with a TTL.
-///
-/// # Errors
-///
-/// Returns an error when the cache or config cannot be read, the decoder
-/// request fails or answers with a non-success status, or a payload cannot
-/// be (de)serialized.
-pub async fn decode_segment<P>(
+pub(crate) async fn decode_segment<P>(
     input: DecodeSegmentRequest, context: Context<P>,
 ) -> Result<DecodeSegmentReply>
 where
