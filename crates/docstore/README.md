@@ -23,12 +23,12 @@ cargo run --example runtime -- run target/wasm32-wasip2/release/guest.wasm
 
 | Route | Methods | Handler |
 | --- | --- | --- |
-| `/examples/stops` | GET, POST | `list_stops(ListStopsRequest)`, `create_stop(CreateStopRequest)` |
-| `/examples/stops/{id}` | GET, PUT, DELETE | `get_stop(GetStopRequest)`, `upsert_stop(UpsertStopRequest)`, `delete_stop(DeleteStopRequest)` |
-| `/examples/routes` | GET, POST | `list_routes(ListRoutesRequest)`, `create_route(CreateRouteRequest)` |
-| `/examples/routes/{id}` | GET | `get_route(GetRouteRequest)` |
-| `/examples/stop-times` | GET, POST | `list_stop_times(ListStopTimesRequest)`, `create_stop_time(CreateStopTimeRequest)` |
-| `/examples/stop-times/{id}` | GET | `get_stop_time(GetStopTimeRequest)` |
+| `/examples/stops` | GET, POST | `list_stops(Query<ListStopsRequest>)`, `create_stop(Json<CreateStopRequest>)` |
+| `/examples/stops/{id}` | GET, PUT, DELETE | `get_stop(Path<String>)`, `upsert_stop(Path<String>, Json<Stop>)`, `delete_stop(Path<String>)` |
+| `/examples/routes` | GET, POST | `list_routes(Query<ListRoutesRequest>)`, `create_route(Json<CreateRouteRequest>)` |
+| `/examples/routes/{id}` | GET | `get_route(Path<String>)` |
+| `/examples/stop-times` | GET, POST | `list_stop_times(Query<ListStopTimesRequest>)`, `create_stop_time(Json<CreateStopTimeRequest>)` |
+| `/examples/stop-times/{id}` | GET | `get_stop_time(Path<String>)` |
 
 Replies flatten the document alongside its id:
 `{"id": "stop-001", "stop_name": "...", ...}`.

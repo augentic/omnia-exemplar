@@ -86,8 +86,8 @@ async fn malformed_envelope() {
     let provider = provider();
 
     // parsing happens inside the handler, so even an unparseable body is
-    // answered with the vendor's SOAP fault rather than the framework's JSON
-    // `invalid_request` 400
+    // answered with the vendor's SOAP fault rather than an extractor's
+    // plain-text 400
     let response = post(provider.clone(), b"not xml at all").await;
 
     assert_eq!(response.status(), StatusCode::BAD_REQUEST);

@@ -27,11 +27,11 @@ cargo run --example runtime -- run target/wasm32-wasip2/release/guest.wasm
 
 | Route | Methods | Handler |
 | --- | --- | --- |
-| `/examples/agencies` | GET, POST | `list_agencies(ListAgenciesRequest)`, `create_agency(CreateAgencyRequest)` |
-| `/examples/agencies/{id}` | GET, PATCH | `get_agency(GetAgencyRequest)`, `update_agency(UpdateAgencyRequest)` |
-| `/examples/agencies/{agency_id}/feeds` | GET, POST | `list_agency_feeds(ListAgencyFeedsRequest)`, `create_feed(CreateFeedRequest)` |
-| `/examples/feeds` | GET | `list_all_feeds(ListAllFeedsRequest)` |
-| `/examples/feeds/{id}` | DELETE | `delete_feed(DeleteFeedRequest)` |
+| `/examples/agencies` | GET, POST | `list_agencies(Query<ListAgenciesRequest>)`, `create_agency(Json<CreateAgencyRequest>)` |
+| `/examples/agencies/{id}` | GET, PATCH | `get_agency(Path<i64>)`, `update_agency(Path<i64>, Json<UpdateAgencyRequest>)` |
+| `/examples/agencies/{agency_id}/feeds` | GET, POST | `list_agency_feeds(Path<i64>)`, `create_feed(Path<i64>, Json<CreateFeedRequest>)` |
+| `/examples/feeds` | GET | `list_all_feeds(Query<ListAllFeedsRequest>)` |
+| `/examples/feeds/{id}` | DELETE | `delete_feed(Path<i64>)` |
 
 ### Agencies
 

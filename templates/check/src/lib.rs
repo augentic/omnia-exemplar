@@ -33,12 +33,12 @@ const STEM_LINES: &[(&str, &str, &str)] = &[
     ("Cargo.toml", PATH_LIST_ANCHOR, "orders = { path = \"crates/orders\" }"),
     ("Cargo.toml", CRATE_LIST_ANCHOR, "orders.workspace = true"),
     (
-        "src/routes.rs",
+        "src/lib.rs",
         "    let router = axum::Router::new();",
         "    let router = router.merge(orders::router());",
     ),
     (
-        "src/messaging.rs",
+        "src/lib.rs",
         "    let router = messaging::Router::new(Client::new(OWNER, provider));",
         "    let router = orders::topics(router, &env);",
     ),

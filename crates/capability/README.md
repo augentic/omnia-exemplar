@@ -4,7 +4,7 @@ Compiling proof for the Omnia guest capabilities the transit crates do not
 otherwise exercise: `BlobStore`, `Broadcast`, `DocumentStore`, and
 `TableStore`.
 
-Each module carries one small, deliberately domain-free `Handler` over its
+Each module carries one small, deliberately domain-free handler over its
 capability trait:
 
 | Module | Capability | Handler |
@@ -16,7 +16,7 @@ capability trait:
 
 Each part declares its `pub(crate)` path constant (`/examples/*`), handler,
 and `routes()`; `src/lib.rs` folds them with `common::routers`, and the
-workspace-root `src/routes.rs` merges `capability::router()`.
+workspace-root [`router`](../../src/lib.rs) merges `capability::router()`.
 [`tests/operations.rs`](tests/operations.rs) drives `capability::router()`
 over `omnia_test::guest::Provider` doubles.
 

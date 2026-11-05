@@ -9,17 +9,17 @@
 //!
 //! The upsert also demonstrates a structured wire error: [`PlaceError`]
 //! replaces `omnia_sdk::Error` as the handler's error type, and its
-//! [`HttpError`] conversion serializes it as an `application/json` body
-//! that is a superset of the framework's `omnia_sdk::api::ErrorBody`
+//! [`IntoResponse`] implementation serializes it as an `application/json`
+//! body that is a superset of the framework's `omnia_sdk::api::ErrorBody`
 //! envelope — the fixed `error` / `message` pair every omnia transport
 //! emits, plus the variant's own domain fields.
 
 use axum::Json;
 use axum::response::{IntoResponse, Response};
+use axum::routing::{get, post};
 use common::{Capabilities, RowExt as _};
 use http::{HeaderValue, StatusCode};
-use omnia_sdk::api::http::{MethodFilter, RawRequest, handle_with, post};
-use omnia_sdk::api::{Client, Context, DecodeError};
+use omnia_sdk::api::{Client, Context};
 use omnia_sdk::sql::{DataType, Row};
 use omnia_sdk::{Error, HttpError, TableStore};
 use serde::{Deserialize, Serialize};
@@ -32,29 +32,7 @@ pub(crate) const CONNECTION: &str = "db";
 const METRES_PER_DEGREE: f64 = 111_320.0;
 
 pub(crate) fn routes<P: Capabilities>() -> axum::Router<Client<P>> {
-    axum::Router::new().route(PLACES, post(upsert_place)).route(
-        NEARBY,
-        handle_with(
-            MethodFilter::GET,
-            nearby_places,
-            |raw: RawRequest<'_>| decode_nearby(raw.body),
-            encode_nearby,
-        ),
-    )
-}
-
-// Demonstration only: this does exactly what the built-in `post` codec does,
-// and exists because the route is a GET. A route with an ordinary JSON body
-// uses `post(handler)` and no codec of its own.
-fn decode_nearby(body: &[u8]) -> Result<NearbyPlacesRequest, DecodeError> {
-    serde_json::from_slice(body)
-        .map_err(|error| DecodeError::new(format!("malformed JSON body: {error}")))
-}
-
-// `handle_with` requires both halves of the codec; this is the default
-// JSON encoding.
-fn encode_nearby(reply: NearbyPlacesReply) -> Response {
-    Json(reply).into_response()
+    axum::Router::new().route(PLACES, post(upsert_place)).route(NEARBY, get(nearby_places))
 }
 
 /// A named point of interest.
@@ -108,8 +86,8 @@ pub struct UpsertPlaceReply {
 /// The exemplar for structured error responses: instead of flattening
 /// failures into `omnia_sdk::Error`, whose body is the fixed two-field
 /// `omnia_sdk::api::ErrorBody` (`error`, `message`), the handler keeps its
-/// own error type with domain fields, and the [`HttpError`] conversion below
-/// puts the JSON on the wire. The serde `tag` is `ErrorBody`'s `error`
+/// own error type with domain fields, and the [`IntoResponse`] implementation
+/// below puts the JSON on the wire. The serde `tag` is `ErrorBody`'s `error`
 /// discriminant, `Display` supplies its `message`, and every other field is
 /// domain data — so a client that only knows the framework envelope still
 /// parses the body, and one that knows the route reads the extra fields.
@@ -157,26 +135,26 @@ struct Body<'a> {
     error: &'a PlaceError, // `error` tag + domain fields
 }
 
-/// Encode the error as an `application/json` response body.
-///
-/// This conversion is what the HTTP route uses on the error path: handler
-/// errors bypass the route's success encoder, so the wire shape of an error
-/// lives here. `HttpError::with_body` carries the preformatted bytes and
-/// content type to the response unchanged.
-impl From<PlaceError> for HttpError {
-    fn from(error: PlaceError) -> Self {
+// A non-finite coordinate is the only unserializable field; the body then
+// degrades to the plain-text form.
+impl IntoResponse for PlaceError {
+    fn into_response(self) -> Response {
         let body = Body {
-            message: error.to_string(),
-            error: &error,
+            message: self.to_string(),
+            error: &self,
         };
-        serde_json::to_vec(&body).map_or_else(
-            // Unreachable in practice (a non-finite coordinate is the only
-            // unserializable field); degrade to the plain-text form.
-            |_| Self::new(error.status(), error.to_string()),
-            |body| {
-                Self::with_body(error.status(), HeaderValue::from_static("application/json"), body)
-            },
-        )
+        serde_json::to_vec(&body)
+            .map_or_else(
+                |_| HttpError::new(self.status(), self.to_string()),
+                |body| {
+                    HttpError::with_body(
+                        self.status(),
+                        HeaderValue::from_static("application/json"),
+                        body,
+                    )
+                },
+            )
+            .into_response()
     }
 }
 
@@ -204,10 +182,10 @@ fn coordinate(field: &'static str, value: f64, min: f64, max: f64) -> Result<(),
 }
 
 pub(crate) async fn upsert_place<P>(
-    input: UpsertPlaceRequest, context: Context<P>,
-) -> Result<UpsertPlaceReply, PlaceError>
+    context: Context<P>, Json(input): Json<UpsertPlaceRequest>,
+) -> Result<Json<UpsertPlaceReply>, PlaceError>
 where
-    P: TableStore,
+    P: TableStore + 'static,
 {
     coordinate("lat", input.lat, -90.0, 90.0)?;
     coordinate("lon", input.lon, -180.0, 180.0)?;
@@ -227,7 +205,7 @@ where
     )
     .await?;
 
-    Ok(UpsertPlaceReply { affected })
+    Ok(Json(UpsertPlaceReply { affected }))
 }
 
 /// Find places within a radius of a point.
@@ -257,11 +235,12 @@ pub struct NearbyPlacesReply {
     pub places: Vec<NearbyPlace>,
 }
 
+// A GET with a JSON body: axum's `Json` extractor reads it under any method.
 pub(crate) async fn nearby_places<P>(
-    input: NearbyPlacesRequest, context: Context<P>,
-) -> Result<NearbyPlacesReply, Error>
+    context: Context<P>, Json(input): Json<NearbyPlacesRequest>,
+) -> Result<Json<NearbyPlacesReply>, Error>
 where
-    P: TableStore,
+    P: TableStore + 'static,
 {
     // A degree bounding box over-approximates the radius: cheap for the
     // database (plain comparisons, indexable), refined exactly below.
@@ -296,7 +275,7 @@ where
     }
     places.sort_by(|a, b| a.distance_m.total_cmp(&b.distance_m));
 
-    Ok(NearbyPlacesReply { places })
+    Ok(Json(NearbyPlacesReply { places }))
 }
 
 /// Great-circle distance in metres between two WGS-84 points.

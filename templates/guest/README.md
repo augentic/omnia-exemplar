@@ -45,14 +45,14 @@ as both the workspace and the deployable package, `crate-type =
 and the `host` feature; `src/lib.rs` with `omnia_sdk::http!` and
 `omnia_sdk::messaging!` over `omnia_sdk::WasiProvider` and the
 provider-generic routers composed by
-the lists `src/routes.rs` and `src/messaging.rs`, one statement per
+the route and topic lists in `src/lib.rs`, one statement per
 stem; `tests/routes.rs` and `tests/messaging.rs`, one native rung each
 that builds the composed router over a seeded
 `omnia_test::guest::Provider`, so two stems serving one route or
 consuming one topic fail there; `crates/common`, the `Capabilities`
 bound a stem's routers take, the topic table a publisher and its
 consumer agree on, the environment helpers, and typed SQL column reads
-(`RowExt`, `numeric_id`); and
+(`RowExt`); and
 `examples/runtime.rs`, the local host behind `host`. Its shared
 dependency pins and patches must match the root workspace's, and
 `templates/check/tests/scaffold.rs` renders the whole manifest into
@@ -83,8 +83,8 @@ a part the stem's lists do not name is dead code. Its tests under
 `topics()` through a `messaging::Router` over a `Client` of the
 doubles, so a route or a topic is asserted as the wire reaches it. The
 root `Cargo.toml` names the crate in its path list and its
-`[dependencies]`, `src/routes.rs` merges its `router()`,
-`src/messaging.rs` registers its `topics()`, and a topic the stem
+`[dependencies]`, and one line each in `router` and `messaging_router` in
+`src/lib.rs` for its `router()` and `topics()`; a topic the stem
 publishes or consumes is one constant appended to
 `crates/common/src/topic.rs`; nothing else of the seed is edited.
 

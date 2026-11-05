@@ -9,10 +9,11 @@
 //! capability is needed.
 
 use anyhow::Context as _;
+use axum::Json;
 use axum::body::Body;
+use axum::routing::post;
 use common::Capabilities;
 use http::Method;
-use omnia_sdk::api::http::post;
 use omnia_sdk::api::{Client, Context};
 use omnia_sdk::{Config, HttpRequest, Result, StateStore, bad_gateway};
 use serde::{Deserialize, Serialize};
@@ -62,10 +63,10 @@ pub struct DecodeSegmentReply {
 }
 
 pub(crate) async fn decode_segment<P>(
-    input: DecodeSegmentRequest, context: Context<P>,
-) -> Result<DecodeSegmentReply>
+    context: Context<P>, Json(input): Json<DecodeSegmentRequest>,
+) -> Result<Json<DecodeSegmentReply>>
 where
-    P: Config + HttpRequest + StateStore,
+    P: Config + HttpRequest + StateStore + 'static,
 {
     let provider = context.provider();
     let key = segment_key(&input.code);
@@ -73,10 +74,10 @@ where
     // Cache hit: no config read, no outbound request.
     if let Some(bytes) = StateStore::get(provider, &key).await? {
         let segment = serde_json::from_slice(&bytes).context("parsing cached segment")?;
-        return Ok(DecodeSegmentReply {
+        return Ok(Json(DecodeSegmentReply {
             cached: true,
             segment,
-        });
+        }));
     }
 
     // Cache miss: endpoint and credential material both come from
@@ -107,8 +108,8 @@ where
     let bytes = serde_json::to_vec(&segment).context("serializing segment for cache")?;
     StateStore::set(provider, &key, &bytes, Some(SEGMENT_TTL_SECS)).await?;
 
-    Ok(DecodeSegmentReply {
+    Ok(Json(DecodeSegmentReply {
         cached: false,
         segment,
-    })
+    }))
 }

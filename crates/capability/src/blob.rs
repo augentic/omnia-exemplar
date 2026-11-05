@@ -1,7 +1,8 @@
 //! Blobstore example: archive a payload and report its stored size.
 
+use axum::Json;
+use axum::routing::post;
 use common::Capabilities;
-use omnia_sdk::api::http::post;
 use omnia_sdk::api::{Client, Context};
 use omnia_sdk::{BlobStore, Result};
 use serde::{Deserialize, Serialize};
@@ -30,9 +31,11 @@ pub struct ArchiveReply {
     pub size: u64,
 }
 
-pub(crate) async fn archive<P>(input: ArchiveRequest, context: Context<P>) -> Result<ArchiveReply>
+pub(crate) async fn archive<P>(
+    context: Context<P>, Json(input): Json<ArchiveRequest>,
+) -> Result<Json<ArchiveReply>>
 where
-    P: BlobStore,
+    P: BlobStore + 'static,
 {
     let provider = context.provider();
 
@@ -42,5 +45,5 @@ where
     BlobStore::put(provider, &input.container, &input.name, input.payload.as_bytes()).await?;
 
     let info = BlobStore::object_info(provider, &input.container, &input.name).await?;
-    Ok(ArchiveReply { size: info.size })
+    Ok(Json(ArchiveReply { size: info.size }))
 }

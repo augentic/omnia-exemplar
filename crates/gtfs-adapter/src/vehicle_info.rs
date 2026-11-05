@@ -1,7 +1,9 @@
 //! Vehicle information lookup.
 
+use axum::Json;
+use axum::extract::Path;
+use axum::routing::get;
 use common::Capabilities;
-use omnia_sdk::api::http::get;
 use omnia_sdk::api::{Client, Context};
 use omnia_sdk::{Config, HttpRequest, Identity, Result, StateStore};
 use serde::{Deserialize, Serialize};
@@ -16,13 +18,6 @@ pub(crate) const VEHICLE_INFO: &str = "/info/{vehicle_id}";
 
 pub(crate) fn routes<P: Capabilities>() -> axum::Router<Client<P>> {
     axum::Router::new().route(VEHICLE_INFO, get(vehicle_info))
-}
-
-/// Request for a vehicle's current trip and fleet information.
-#[derive(Debug, Clone, Deserialize)]
-pub struct VehicleInfoRequest {
-    /// The vehicle to look up.
-    pub vehicle_id: String,
 }
 
 /// A vehicle's current trip and fleet information.
@@ -47,13 +42,12 @@ pub struct VehicleInfoReply {
 
 #[tracing::instrument(skip_all)]
 pub(crate) async fn vehicle_info<P>(
-    input: VehicleInfoRequest, context: Context<P>,
-) -> Result<VehicleInfoReply>
+    context: Context<P>, Path(vehicle_id): Path<String>,
+) -> Result<Json<VehicleInfoReply>>
 where
-    P: Config + HttpRequest + Identity + StateStore,
+    P: Config + HttpRequest + Identity + StateStore + 'static,
 {
     let provider = context.provider();
-    let vehicle_id = input.vehicle_id;
 
     let trip_key = state_keys::trip(&vehicle_id);
     let trip_info = if let Some(bytes) = StateStore::get(provider, &trip_key).await? {
@@ -69,11 +63,11 @@ where
 
     let fleet_info = fleet::vehicle(&vehicle_id, provider).await?;
 
-    Ok(VehicleInfoReply {
+    Ok(Json(VehicleInfoReply {
         pid: PROCESS_ID,
         vehicle_id,
         sign_on_time,
         trip_info,
         fleet_info,
-    })
+    }))
 }

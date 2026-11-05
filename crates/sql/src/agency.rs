@@ -5,9 +5,11 @@
 //! provided fields are written, and a fetch-after-update reply so the
 //! caller sees exactly what was stored.
 
+use axum::Json;
+use axum::extract::{Path, Query};
+use axum::routing::get;
 use chrono::Utc;
 use common::{Capabilities, RowExt as _};
-use omnia_sdk::api::http::{get, patch, post};
 use omnia_sdk::api::{Client, Context};
 use omnia_sdk::sql::{DataType, Row};
 use omnia_sdk::{Result, TableStore, bad_request, not_found};
@@ -22,8 +24,8 @@ const AGENCY_COLUMNS: &str = "agency_id, name, url, timezone, created_at";
 
 pub(crate) fn routes<P: Capabilities>() -> axum::Router<Client<P>> {
     axum::Router::new()
-        .route(AGENCIES, get(list_agencies).merge(post(create_agency)))
-        .route(AGENCY, get(get_agency).merge(patch(update_agency)))
+        .route(AGENCIES, get(list_agencies).post(create_agency))
+        .route(AGENCY, get(get_agency).patch(update_agency))
 }
 
 /// A transit agency.
@@ -95,10 +97,10 @@ pub struct AgenciesReply {
 }
 
 pub(crate) async fn list_agencies<P>(
-    input: ListAgenciesRequest, context: Context<P>,
-) -> Result<AgenciesReply>
+    context: Context<P>, Query(input): Query<ListAgenciesRequest>,
+) -> Result<Json<AgenciesReply>>
 where
-    P: TableStore,
+    P: TableStore + 'static,
 {
     let provider = context.provider();
     schema::ensure(provider).await?;
@@ -113,7 +115,7 @@ where
     let rows = TableStore::query(provider, CONNECTION.to_owned(), sql, params).await?;
     let agencies = rows.iter().map(Agency::try_from).collect::<Result<Vec<_>>>()?;
 
-    Ok(AgenciesReply { agencies })
+    Ok(Json(AgenciesReply { agencies }))
 }
 
 /// Create an agency with a server-assigned id.
@@ -135,10 +137,10 @@ pub struct AgencyReply {
 }
 
 pub(crate) async fn create_agency<P>(
-    input: CreateAgencyRequest, context: Context<P>,
-) -> Result<AgencyReply>
+    context: Context<P>, Json(input): Json<CreateAgencyRequest>,
+) -> Result<Json<AgencyReply>>
 where
-    P: TableStore,
+    P: TableStore + 'static,
 {
     let provider = context.provider();
     schema::ensure(provider).await?;
@@ -165,38 +167,27 @@ where
     )
     .await?;
 
-    Ok(AgencyReply { agency })
-}
-
-/// Fetch one agency by id.
-#[derive(Debug, Clone, Deserialize)]
-pub struct GetAgencyRequest {
-    /// Agency id (path parameter).
-    pub id: i64,
+    Ok(Json(AgencyReply { agency }))
 }
 
 pub(crate) async fn get_agency<P>(
-    input: GetAgencyRequest, context: Context<P>,
-) -> Result<AgencyReply>
+    context: Context<P>, Path(id): Path<i64>,
+) -> Result<Json<AgencyReply>>
 where
-    P: TableStore,
+    P: TableStore + 'static,
 {
     let provider = context.provider();
     schema::ensure(provider).await?;
 
-    let agency = fetch_agency(provider, input.id)
-        .await?
-        .ok_or_else(|| not_found!("agency {} not found", input.id))?;
+    let agency =
+        fetch_agency(provider, id).await?.ok_or_else(|| not_found!("agency {id} not found"))?;
 
-    Ok(AgencyReply { agency })
+    Ok(Json(AgencyReply { agency }))
 }
 
 /// Partially update an agency: only provided fields are written.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UpdateAgencyRequest {
-    /// Agency id (path parameter, delivered as a numeric string).
-    #[serde(deserialize_with = "common::numeric_id")]
-    pub id: i64,
     /// Replacement display name.
     pub name: Option<String>,
     /// Replacement homepage URL.
@@ -206,16 +197,16 @@ pub struct UpdateAgencyRequest {
 }
 
 pub(crate) async fn update_agency<P>(
-    input: UpdateAgencyRequest, context: Context<P>,
-) -> Result<AgencyReply>
+    context: Context<P>, Path(id): Path<i64>, Json(input): Json<UpdateAgencyRequest>,
+) -> Result<Json<AgencyReply>>
 where
-    P: TableStore,
+    P: TableStore + 'static,
 {
     let provider = context.provider();
     schema::ensure(provider).await?;
 
-    if fetch_agency(provider, input.id).await?.is_none() {
-        return Err(not_found!("agency {} not found", input.id));
+    if fetch_agency(provider, id).await?.is_none() {
+        return Err(not_found!("agency {id} not found"));
     }
 
     // conditionally set only the provided fields
@@ -232,15 +223,15 @@ where
         return Err(bad_request!("update sets no columns"));
     }
 
-    params.push(DataType::Int64(Some(input.id)));
+    params.push(DataType::Int64(Some(id)));
     let sql =
         format!("UPDATE agency SET {} WHERE agency_id = ${}", assignments.join(", "), params.len());
     TableStore::exec(provider, CONNECTION.to_owned(), sql, params).await?;
 
     // fetch after update so the reply reflects what was stored
-    let agency = fetch_agency(provider, input.id)
+    let agency = fetch_agency(provider, id)
         .await?
-        .ok_or_else(|| not_found!("agency {} not found after update", input.id))?;
+        .ok_or_else(|| not_found!("agency {id} not found after update"))?;
 
-    Ok(AgencyReply { agency })
+    Ok(Json(AgencyReply { agency }))
 }

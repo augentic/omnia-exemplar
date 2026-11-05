@@ -1,0 +1,19 @@
+# Builds this tree against the sibling `omnia` checkout. Cargo prefers a
+# `[patch]` set here over the git patches in `Cargo.toml`, and resolves the
+# paths against this file's parent directory, so the template scaffold
+# rendered under `target/` builds against the same checkout. Remove the file
+# to build against the git patches again.
+[patch.crates-io]
+omnia = { path = "../omnia/crates/omnia" }
+omnia-sdk = { path = "../omnia/crates/sdk" }
+omnia-test = { path = "../omnia/crates/test" }
+omnia-wasi-blobstore = { path = "../omnia/crates/wasi-blobstore" }
+omnia-wasi-config = { path = "../omnia/crates/wasi-config" }
+omnia-wasi-docstore = { path = "../omnia/crates/wasi-docstore" }
+omnia-wasi-http = { path = "../omnia/crates/wasi-http" }
+omnia-wasi-identity = { path = "../omnia/crates/wasi-identity" }
+omnia-wasi-keyvalue = { path = "../omnia/crates/wasi-keyvalue" }
+omnia-wasi-messaging = { path = "../omnia/crates/wasi-messaging" }
+omnia-wasi-otel = { path = "../omnia/crates/wasi-otel" }
+omnia-wasi-sql = { path = "../omnia/crates/wasi-sql" }
+omnia-wasi-websocket = { path = "../omnia/crates/wasi-websocket" }

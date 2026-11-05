@@ -1,8 +1,10 @@
 //! God-mode trip override.
 
 use anyhow::Context as _;
+use axum::Json;
+use axum::extract::Path;
+use axum::routing::post;
 use common::Capabilities;
-use omnia_sdk::api::http::post;
 use omnia_sdk::api::{Client, Context};
 use omnia_sdk::{Config, Result, StateStore, bad_request};
 use serde::{Deserialize, Serialize};
@@ -15,7 +17,7 @@ pub(crate) fn routes<P: Capabilities>() -> axum::Router<Client<P>> {
     axum::Router::new().route(SET_TRIP, post(set_trip))
 }
 
-/// Request to force a vehicle onto a specific trip.
+/// Request to force a vehicle onto a specific trip: the route's two path parameters.
 #[derive(Debug, Clone, Deserialize)]
 pub struct SetTripRequest {
     /// The vehicle to override.
@@ -35,9 +37,11 @@ pub struct SetTripReply {
 }
 
 #[tracing::instrument(skip_all)]
-pub(crate) async fn set_trip<P>(input: SetTripRequest, context: Context<P>) -> Result<SetTripReply>
+pub(crate) async fn set_trip<P>(
+    context: Context<P>, Path(input): Path<SetTripRequest>,
+) -> Result<Json<SetTripReply>>
 where
-    P: Config + StateStore,
+    P: Config + StateStore + 'static,
 {
     let provider = context.provider();
 
@@ -48,8 +52,8 @@ where
     god_mode::set_vehicle_to_trip(provider, input.vehicle_id, input.trip_id)
         .await
         .context("setting vehicle to trip")?;
-    Ok(SetTripReply {
+    Ok(Json(SetTripReply {
         message: "Ok".to_string(),
         process: 0,
-    })
+    }))
 }

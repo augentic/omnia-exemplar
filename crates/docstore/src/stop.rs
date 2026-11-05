@@ -7,8 +7,10 @@
 //! date) — sorted by name with limit/continuation pagination.
 
 use anyhow::Context as _;
+use axum::Json;
+use axum::extract::{Path, Query};
+use axum::routing::get;
 use common::Capabilities;
-use omnia_sdk::api::http::{delete, get, post, put};
 use omnia_sdk::api::{Client, Context};
 use omnia_sdk::docstore::{Document, Filter, QueryOptions, SortField};
 use omnia_sdk::{DocumentStore, Result, bad_request, not_found};
@@ -21,8 +23,8 @@ pub(crate) const COLLECTION: &str = "stops";
 
 pub(crate) fn routes<P: Capabilities>() -> axum::Router<Client<P>> {
     axum::Router::new()
-        .route(STOPS, get(list_stops).merge(post(create_stop)))
-        .route(STOP, get(get_stop).merge(put(upsert_stop)).merge(delete(delete_stop)))
+        .route(STOPS, get(list_stops).post(create_stop))
+        .route(STOP, get(get_stop).put(upsert_stop).delete(delete_stop))
 }
 
 /// A stored document paired with its id, flattened onto the wire.
@@ -86,10 +88,10 @@ pub struct CreateStopRequest {
 }
 
 pub(crate) async fn create_stop<P>(
-    input: CreateStopRequest, context: Context<P>,
-) -> Result<DocumentRecord<Stop>>
+    context: Context<P>, Json(input): Json<CreateStopRequest>,
+) -> Result<Json<DocumentRecord<Stop>>>
 where
-    P: DocumentStore,
+    P: DocumentStore + 'static,
 {
     let document = Document {
         id: input.id.clone(),
@@ -97,69 +99,43 @@ where
     };
     DocumentStore::insert(context.provider(), COLLECTION, &document).await?;
 
-    Ok(DocumentRecord {
+    Ok(Json(DocumentRecord {
         id: input.id,
         document: input.stop,
-    })
-}
-
-/// Fetch one stop by id.
-#[derive(Debug, Clone, Deserialize)]
-pub struct GetStopRequest {
-    /// Document id (path parameter).
-    pub id: String,
+    }))
 }
 
 pub(crate) async fn get_stop<P>(
-    input: GetStopRequest, context: Context<P>,
-) -> Result<DocumentRecord<Stop>>
+    context: Context<P>, Path(id): Path<String>,
+) -> Result<Json<DocumentRecord<Stop>>>
 where
-    P: DocumentStore,
+    P: DocumentStore + 'static,
 {
-    let document = DocumentStore::get(context.provider(), COLLECTION, &input.id)
+    let document = DocumentStore::get(context.provider(), COLLECTION, &id)
         .await?
-        .ok_or_else(|| not_found!("stop {} not found", input.id))?;
+        .ok_or_else(|| not_found!("stop {id} not found"))?;
     let stop = serde_json::from_slice(&document.data).context("deserializing stop")?;
 
-    Ok(DocumentRecord {
+    Ok(Json(DocumentRecord {
         id: document.id,
         document: stop,
-    })
+    }))
 }
 
-/// Upsert one stop by id (creates or replaces the whole document).
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct UpsertStopRequest {
-    /// Document id (path parameter).
-    pub id: String,
-    /// The replacement stop record from the JSON body.
-    #[serde(flatten)]
-    pub stop: Stop,
-}
-
+// Creates or replaces the whole document under the path's id.
 pub(crate) async fn upsert_stop<P>(
-    input: UpsertStopRequest, context: Context<P>,
-) -> Result<DocumentRecord<Stop>>
+    context: Context<P>, Path(id): Path<String>, Json(stop): Json<Stop>,
+) -> Result<Json<DocumentRecord<Stop>>>
 where
-    P: DocumentStore,
+    P: DocumentStore + 'static,
 {
     let document = Document {
-        id: input.id.clone(),
-        data: serde_json::to_vec(&input.stop).context("serializing stop")?,
+        id: id.clone(),
+        data: serde_json::to_vec(&stop).context("serializing stop")?,
     };
     DocumentStore::put(context.provider(), COLLECTION, &document).await?;
 
-    Ok(DocumentRecord {
-        id: input.id,
-        document: input.stop,
-    })
-}
-
-/// Delete one stop by id.
-#[derive(Debug, Clone, Deserialize)]
-pub struct DeleteStopRequest {
-    /// Document id (path parameter).
-    pub id: String,
+    Ok(Json(DocumentRecord { id, document: stop }))
 }
 
 /// Confirmation of a stop deletion.
@@ -170,17 +146,17 @@ pub struct DeleteStopReply {
 }
 
 pub(crate) async fn delete_stop<P>(
-    input: DeleteStopRequest, context: Context<P>,
-) -> Result<DeleteStopReply>
+    context: Context<P>, Path(id): Path<String>,
+) -> Result<Json<DeleteStopReply>>
 where
-    P: DocumentStore,
+    P: DocumentStore + 'static,
 {
-    let removed = DocumentStore::delete(context.provider(), COLLECTION, &input.id).await?;
+    let removed = DocumentStore::delete(context.provider(), COLLECTION, &id).await?;
     if !removed {
-        return Err(not_found!("stop {} not found", input.id));
+        return Err(not_found!("stop {id} not found"));
     }
 
-    Ok(DeleteStopReply { id: input.id })
+    Ok(Json(DeleteStopReply { id }))
 }
 
 /// Query stops with any combination of the supported filters.
@@ -225,10 +201,10 @@ pub struct StopsReply {
 }
 
 pub(crate) async fn list_stops<P>(
-    input: ListStopsRequest, context: Context<P>,
-) -> Result<StopsReply>
+    context: Context<P>, Query(input): Query<ListStopsRequest>,
+) -> Result<Json<StopsReply>>
 where
-    P: DocumentStore,
+    P: DocumentStore + 'static,
 {
     let mut filters = Vec::new();
 
@@ -284,8 +260,8 @@ where
     )
     .await?;
 
-    Ok(StopsReply {
+    Ok(Json(StopsReply {
         stops: records(&result.documents)?,
         continuation: result.continuation,
-    })
+    }))
 }

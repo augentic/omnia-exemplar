@@ -1,7 +1,8 @@
 //! Table-store example: record a sensor reading and count the sensor's rows.
 
+use axum::Json;
+use axum::routing::post;
 use common::Capabilities;
-use omnia_sdk::api::http::post;
 use omnia_sdk::api::{Client, Context};
 use omnia_sdk::sql::DataType;
 use omnia_sdk::{Result, TableStore};
@@ -42,9 +43,11 @@ pub struct ReadingReply {
     pub rows: usize,
 }
 
-pub(crate) async fn reading<P>(input: ReadingRequest, context: Context<P>) -> Result<ReadingReply>
+pub(crate) async fn reading<P>(
+    context: Context<P>, Json(input): Json<ReadingRequest>,
+) -> Result<Json<ReadingReply>>
 where
-    P: TableStore,
+    P: TableStore + 'static,
 {
     let provider = context.provider();
 
@@ -64,8 +67,8 @@ where
     )
     .await?;
 
-    Ok(ReadingReply {
+    Ok(Json(ReadingReply {
         affected,
         rows: rows.len(),
-    })
+    }))
 }

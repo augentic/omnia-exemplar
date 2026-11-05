@@ -1,8 +1,9 @@
 //! Tally APC connector handler.
 
 use anyhow::Context as _;
+use axum::Json;
+use axum::routing::post;
 use common::{Capabilities, config, topic};
-use omnia_sdk::api::http::post;
 use omnia_sdk::api::{Client, Context};
 use omnia_sdk::{Config, Message, Publish, Result};
 use serde::{Deserialize, Serialize};
@@ -15,9 +16,11 @@ pub(crate) fn routes<P: Capabilities>() -> axum::Router<Client<P>> {
     axum::Router::new().route(APC, post(tally))
 }
 
-pub(crate) async fn tally<P>(input: TallyRequest, context: Context<P>) -> Result<TallyReply>
+pub(crate) async fn tally<P>(
+    context: Context<P>, Json(input): Json<TallyRequest>,
+) -> Result<Json<TallyReply>>
 where
-    P: Config + Publish,
+    P: Config + Publish + 'static,
 {
     let provider = context.provider();
     let message = &input.message;
@@ -32,7 +35,7 @@ where
 
     Publish::send(provider, &topic, &msg).await?;
 
-    Ok(TallyReply("OK"))
+    Ok(Json(TallyReply("OK")))
 }
 
 /// Tally request

@@ -1,8 +1,9 @@
 //! Document-store example: upsert a JSON note and read it back.
 
 use anyhow::Context as _;
+use axum::Json;
+use axum::routing::post;
 use common::Capabilities;
-use omnia_sdk::api::http::post;
 use omnia_sdk::api::{Client, Context};
 use omnia_sdk::docstore::Document;
 use omnia_sdk::{DocumentStore, Result};
@@ -32,9 +33,11 @@ pub struct NoteReply {
     pub size: usize,
 }
 
-pub(crate) async fn note<P>(input: NoteRequest, context: Context<P>) -> Result<NoteReply>
+pub(crate) async fn note<P>(
+    context: Context<P>, Json(input): Json<NoteRequest>,
+) -> Result<Json<NoteReply>>
 where
-    P: DocumentStore,
+    P: DocumentStore + 'static,
 {
     let provider = context.provider();
 
@@ -47,7 +50,7 @@ where
     let stored = DocumentStore::get(provider, &input.store, &input.id)
         .await?
         .context("note missing after upsert")?;
-    Ok(NoteReply {
+    Ok(Json(NoteReply {
         size: stored.data.len(),
-    })
+    }))
 }

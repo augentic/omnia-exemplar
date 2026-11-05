@@ -11,7 +11,6 @@ use axum::http::Request;
 use axum::response::IntoResponse as _;
 use http::StatusCode;
 use http::header::CONTENT_TYPE;
-use omnia_sdk::HttpError;
 use omnia_sdk::api::Client;
 use omnia_sdk::sql::{DataType, Field, Row};
 use omnia_test::guest::{Provider, ScriptedTables, Statement};
@@ -166,9 +165,9 @@ async fn upsert_out_of_range() {
     let (status, bytes) = send(&provider, request).await;
     assert!(provider.tables.statements().is_empty(), "rejected row must not reach the store");
 
-    // The response the HTTP route puts on the wire via the
-    // `From<PlaceError> for HttpError` conversion: omnia's `ErrorBody`
-    // envelope (`error`, `message`) plus the variant's domain fields.
+    // The response the HTTP route puts on the wire via `PlaceError`'s
+    // `IntoResponse`: omnia's `ErrorBody` envelope (`error`, `message`) plus
+    // the variant's domain fields.
     assert_eq!(status, StatusCode::BAD_REQUEST);
     let body: serde_json::Value = serde_json::from_slice(&bytes).expect("body is JSON");
     assert_eq!(
@@ -199,7 +198,7 @@ async fn storage_error_body() {
 
 /// Render the error as the HTTP route would and decode its JSON body.
 async fn wire(error: PlaceError) -> (StatusCode, serde_json::Value) {
-    let response = HttpError::from(error).into_response();
+    let response = error.into_response();
     assert_eq!(
         response.headers().get(CONTENT_TYPE).and_then(|value| value.to_str().ok()),
         Some("application/json")

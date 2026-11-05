@@ -2,51 +2,24 @@
 //! and `409 Conflict` when its state is locked.
 
 use axum::Json;
+use axum::extract::Path;
 use axum::response::{IntoResponse, Response};
+use axum::routing::get;
 use common::Capabilities;
-use http::{HeaderValue, StatusCode};
-use omnia_sdk::api::http::{MethodFilter, RawRequest, handle_with};
-use omnia_sdk::api::{Client, Context, DecodeError};
-use omnia_sdk::{HttpError, StateStore, not_found, server_error};
+use http::StatusCode;
+use omnia_sdk::api::{Client, Context};
+use omnia_sdk::{StateStore, not_found, server_error};
 use serde::{Deserialize, Serialize};
 
 // The paths the part serves.
 pub(crate) const ORDER: &str = "/orders/{id}";
 
 pub(crate) fn routes<P: Capabilities>() -> axum::Router<Client<P>> {
-    axum::Router::new().route(
-        ORDER,
-        handle_with(
-            MethodFilter::GET,
-            lookup,
-            |raw: RawRequest<'_>| decode_lookup(raw.path_params),
-            encode_lookup,
-        ),
-    )
+    axum::Router::new().route(ORDER, get(lookup))
 }
 
 pub(crate) fn order_key(id: &str) -> String {
     format!("orders/order/{id}")
-}
-
-fn decode_lookup(params: &[(String, String)]) -> Result<LookupOrder, DecodeError> {
-    let id = params
-        .iter()
-        .find_map(|(key, value)| (key == "id").then(|| value.clone()))
-        .ok_or_else(|| DecodeError::new("missing `id` path parameter"))?;
-    Ok(LookupOrder { id })
-}
-
-fn encode_lookup(reply: OrderStatus) -> Response {
-    let status = if reply.settled { StatusCode::OK } else { StatusCode::ACCEPTED };
-    (status, Json(reply)).into_response()
-}
-
-/// Request for an order's current status.
-#[derive(Debug, Clone, Deserialize)]
-pub struct LookupOrder {
-    /// Order identifier (path parameter).
-    pub id: String,
 }
 
 /// Stored state of an order.
@@ -78,40 +51,38 @@ impl From<anyhow::Error> for LookupError {
     }
 }
 
-impl From<LookupError> for HttpError {
-    fn from(error: LookupError) -> Self {
-        match error {
-            LookupError::Conflict(ref id) => {
+impl IntoResponse for LookupError {
+    fn into_response(self) -> Response {
+        match self {
+            Self::Conflict(ref id) => {
                 let body = serde_json::json!({
                     "error": "conflict",
-                    "message": error.to_string(),
+                    "message": self.to_string(),
                     "id": id,
                 });
-                Self::with_body(
-                    StatusCode::CONFLICT,
-                    HeaderValue::from_static("application/json"),
-                    body.to_string().into_bytes(),
-                )
+                (StatusCode::CONFLICT, Json(body)).into_response()
             }
-            LookupError::Host(inner) => inner.into(),
+            Self::Host(inner) => inner.into_response(),
         }
     }
 }
 
+// `202 Accepted` while the order is still settling.
 pub(crate) async fn lookup<P>(
-    input: LookupOrder, context: Context<P>,
-) -> Result<OrderStatus, LookupError>
+    context: Context<P>, Path(id): Path<String>,
+) -> Result<(StatusCode, Json<OrderStatus>), LookupError>
 where
-    P: StateStore,
+    P: StateStore + 'static,
 {
-    let key = order_key(&input.id);
+    let key = order_key(&id);
     let bytes = StateStore::get(context.provider(), &key)
         .await?
-        .ok_or_else(|| not_found!("order `{}` not found", input.id))?;
+        .ok_or_else(|| not_found!("order `{id}` not found"))?;
     let status: OrderStatus =
         serde_json::from_slice(&bytes).map_err(|err| server_error!("order record: {err}"))?;
     if status.locked {
-        return Err(LookupError::Conflict(input.id));
+        return Err(LookupError::Conflict(id));
     }
-    Ok(status)
+    let code = if status.settled { StatusCode::OK } else { StatusCode::ACCEPTED };
+    Ok((code, Json(status)))
 }

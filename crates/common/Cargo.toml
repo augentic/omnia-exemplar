@@ -11,5 +11,4 @@ workspace = true
 
 [dependencies]
 omnia-sdk.workspace = true
-serde.workspace = true
 tracing.workspace = true

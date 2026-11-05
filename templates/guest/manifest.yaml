@@ -28,12 +28,6 @@ assemblies:
       - source: templates/guest/core/src/lib.rs
         target: src/lib.rs
         proof: seed
-      - source: templates/guest/core/src/routes.rs
-        target: src/routes.rs
-        proof: seed
-      - source: templates/guest/core/src/messaging.rs
-        target: src/messaging.rs
-        proof: seed
       - source: tests/routes.rs
         target: tests/routes.rs
         proof: exact

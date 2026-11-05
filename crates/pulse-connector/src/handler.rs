@@ -6,12 +6,13 @@
 use std::fmt::{self, Display};
 
 use anyhow::Context as _;
+use axum::body::Bytes;
 use axum::http::header::CONTENT_TYPE;
 use axum::response::{IntoResponse, Response};
+use axum::routing::post;
 use common::{Capabilities, config, topic};
 use http::{HeaderValue, StatusCode};
-use omnia_sdk::api::http::{MethodFilter, RawRequest, handle_with};
-use omnia_sdk::api::{Client, Context, DecodeError};
+use omnia_sdk::api::{Client, Context};
 use omnia_sdk::{Config, HttpError, Message, Publish};
 use serde::{Deserialize, Serialize};
 
@@ -35,35 +36,15 @@ const SERVER_FAULT: Fault = Fault {
 };
 
 pub(crate) fn routes<P: Capabilities>() -> axum::Router<Client<P>> {
-    axum::Router::new().route(
-        PULSE_XML,
-        handle_with(
-            MethodFilter::POST,
-            pulse,
-            |raw: RawRequest<'_>| decode_pulse(raw.body),
-            |reply| encode_pulse(&reply),
-        ),
-    )
+    axum::Router::new().route(PULSE_XML, post(pulse))
 }
 
-// The handler parses the SOAP envelope itself so a malformed body is
-// answered with the vendor's XML `<Fault>`; a decoder that failed here would
-// reach the client as the framework's JSON `invalid_request` 400.
-#[expect(clippy::unnecessary_wraps, reason = "the route codec requires a fallible decoder")]
-fn decode_pulse(body: &[u8]) -> Result<PulseXml, DecodeError> {
-    Ok(PulseXml(body.to_vec()))
-}
-
-fn encode_pulse(reply: &PulseReply) -> Response {
-    match reply.to_xml() {
-        Ok(xml) => ([(CONTENT_TYPE, "text/xml")], xml).into_response(),
-        Err(error) => HttpError::from(error).into_response(),
-    }
-}
-
-pub(crate) async fn pulse<P>(input: PulseXml, context: Context<P>) -> Result<PulseReply, Fault>
+// The handler takes the raw body and parses the SOAP envelope itself, so a
+// malformed body is answered with the vendor's XML `<Fault>` rather than an
+// extractor's rejection.
+pub(crate) async fn pulse<P>(context: Context<P>, body: Bytes) -> Result<PulseReply, Fault>
 where
-    P: Config + Publish,
+    P: Config + Publish + 'static,
 {
     let provider = context.provider();
 
@@ -72,7 +53,7 @@ where
     // a vendor-protocol accommodation, not a general error-handling pattern
     // — prefer plain structured errors (see the domain error enums) unless
     // a wire protocol dictates otherwise.
-    let request = PulseRequest::from_xml(&input.0).map_err(|error| {
+    let request = PulseRequest::from_xml(&body).map_err(|error| {
         tracing::debug!("rejecting unparseable Pulse envelope: {error:#}");
         BAD_REQUEST_FAULT
     })?;
@@ -93,14 +74,6 @@ where
 
     Ok(PulseReply("OK"))
 }
-
-/// The raw XML body of an incoming Pulse request.
-///
-/// The HTTP route passes the body through undecoded: parsing happens inside
-/// the handler so that a malformed envelope is answered with the vendor's
-/// SOAP [`Fault`] rather than the framework's JSON `invalid_request` 400.
-#[derive(Debug, Clone)]
-pub struct PulseXml(pub Vec<u8>);
 
 impl PulseRequest {
     /// Deserialize a Pulse SOAP envelope from raw XML.
@@ -137,10 +110,19 @@ pub struct ReceiveMessage {
     pub axml_message: String,
 }
 
-/// Pulse SOAP Response
+/// Pulse SOAP Response, answered as a `text/xml` body.
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename = "Return")]
 pub struct PulseReply(pub &'static str);
+
+impl IntoResponse for PulseReply {
+    fn into_response(self) -> Response {
+        match self.to_xml() {
+            Ok(xml) => ([(CONTENT_TYPE, "text/xml")], xml).into_response(),
+            Err(error) => HttpError::from(error).into_response(),
+        }
+    }
+}
 
 impl PulseReply {
     /// Serialize the reply into an XML body.
@@ -156,7 +138,7 @@ impl PulseReply {
 
 /// Pulse SOAP fault envelope returned on error.
 ///
-/// The handler's error type: its [`HttpError`] conversion below decides the
+/// The handler's error type: its [`IntoResponse`] implementation decides the
 /// wire shape of rejections, so faults reach the client as `text/xml` with
 /// the HTTP status the envelope itself carries.
 #[derive(Debug, Clone, Serialize)]
@@ -175,21 +157,19 @@ impl Display for Fault {
 
 impl std::error::Error for Fault {}
 
-/// Encode the fault as the vendor's `text/xml` response body.
-///
-/// Handler errors bypass the route's success encoder, so this conversion
-/// alone decides the wire shape: [`HttpError::with_body`] carries the
-/// pre-rendered envelope and content type to the response unchanged.
-impl From<Fault> for HttpError {
-    fn from(fault: Fault) -> Self {
+// Serializing this static envelope never fails in practice; the fallback is
+// the plain-text form.
+impl IntoResponse for Fault {
+    fn into_response(self) -> Response {
         let status =
-            StatusCode::from_u16(fault.status_code).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR);
-        quick_xml::se::to_string(&fault).map_or_else(
-            // Unreachable in practice for this static envelope; degrade to
-            // the plain-text form.
-            |_| Self::new(status, fault.response.message),
-            |xml| Self::with_body(status, HeaderValue::from_static("text/xml"), xml.into_bytes()),
-        )
+            StatusCode::from_u16(self.status_code).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR);
+        match quick_xml::se::to_string(&self) {
+            Ok(xml) => {
+                HttpError::with_body(status, HeaderValue::from_static("text/xml"), xml.into_bytes())
+            }
+            Err(_) => HttpError::new(status, self.response.message),
+        }
+        .into_response()
     }
 }
 
@@ -239,7 +219,7 @@ mod tests {
     /// status matches the envelope's own status code.
     #[tokio::test]
     async fn fault_into_response() {
-        let response = HttpError::from(BAD_REQUEST_FAULT).into_response();
+        let response = BAD_REQUEST_FAULT.into_response();
 
         assert_eq!(response.status(), StatusCode::BAD_REQUEST);
         assert_eq!(

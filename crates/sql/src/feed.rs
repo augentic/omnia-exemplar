@@ -5,9 +5,11 @@
 //! (a feed for a missing agency is rejected) and `DELETE` with 404 on zero
 //! rows affected.
 
+use axum::Json;
+use axum::extract::{Path, Query};
+use axum::routing::{delete, get};
 use chrono::Utc;
 use common::{Capabilities, RowExt as _};
-use omnia_sdk::api::http::{delete, get, post};
 use omnia_sdk::api::{Client, Context};
 use omnia_sdk::sql::{DataType, Row};
 use omnia_sdk::{Result, TableStore, not_found};
@@ -25,7 +27,7 @@ const DEFAULT_LIMIT: u64 = 100;
 
 pub(crate) fn routes<P: Capabilities>() -> axum::Router<Client<P>> {
     axum::Router::new()
-        .route(AGENCY_FEEDS, get(list_agency_feeds).merge(post(create_feed)))
+        .route(AGENCY_FEEDS, get(list_agency_feeds).post(create_feed))
         .route(FEEDS, get(list_all_feeds))
         .route(FEED, delete(delete_feed))
 }
@@ -103,13 +105,6 @@ async fn next_feed_id<P: TableStore>(provider: &P) -> Result<i64> {
     Ok(newest.map_or(1, |id| id + 1))
 }
 
-/// List the feeds of one agency, newest first.
-#[derive(Debug, Clone, Deserialize)]
-pub struct ListAgencyFeedsRequest {
-    /// Owning agency id (path parameter).
-    pub agency_id: i64,
-}
-
 /// Feeds sorted by creation time, newest first.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FeedsReply {
@@ -118,10 +113,10 @@ pub struct FeedsReply {
 }
 
 pub(crate) async fn list_agency_feeds<P>(
-    input: ListAgencyFeedsRequest, context: Context<P>,
-) -> Result<FeedsReply>
+    context: Context<P>, Path(agency_id): Path<i64>,
+) -> Result<Json<FeedsReply>>
 where
-    P: TableStore,
+    P: TableStore + 'static,
 {
     let provider = context.provider();
     schema::ensure(provider).await?;
@@ -130,20 +125,17 @@ where
         provider,
         CONNECTION.to_owned(),
         format!("SELECT {FEED_COLUMNS} FROM feed WHERE agency_id = $1 ORDER BY created_at DESC"),
-        vec![DataType::Int64(Some(input.agency_id))],
+        vec![DataType::Int64(Some(agency_id))],
     )
     .await?;
     let feeds = rows.iter().map(Feed::try_from).collect::<Result<Vec<_>>>()?;
 
-    Ok(FeedsReply { feeds })
+    Ok(Json(FeedsReply { feeds }))
 }
 
 /// Create a feed for an existing agency, with a server-assigned id.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CreateFeedRequest {
-    /// Owning agency id (path parameter, delivered as a numeric string).
-    #[serde(deserialize_with = "common::numeric_id")]
-    pub agency_id: i64,
     /// Human description of the feed contents.
     pub description: String,
 }
@@ -156,22 +148,22 @@ pub struct FeedReply {
 }
 
 pub(crate) async fn create_feed<P>(
-    input: CreateFeedRequest, context: Context<P>,
-) -> Result<FeedReply>
+    context: Context<P>, Path(agency_id): Path<i64>, Json(input): Json<CreateFeedRequest>,
+) -> Result<Json<FeedReply>>
 where
-    P: TableStore,
+    P: TableStore + 'static,
 {
     let provider = context.provider();
     schema::ensure(provider).await?;
 
     // referential check: a feed for a missing agency is a 404, not an orphaned row
-    if fetch_agency(provider, input.agency_id).await?.is_none() {
-        return Err(not_found!("agency {} not found", input.agency_id));
+    if fetch_agency(provider, agency_id).await?.is_none() {
+        return Err(not_found!("agency {agency_id} not found"));
     }
 
     let feed = Feed {
         feed_id: next_feed_id(provider).await?,
-        agency_id: input.agency_id,
+        agency_id,
         description: input.description,
         created_at: Utc::now().format("%Y-%m-%d %H:%M:%S").to_string(),
     };
@@ -189,7 +181,7 @@ where
     )
     .await?;
 
-    Ok(FeedReply { feed })
+    Ok(Json(FeedReply { feed }))
 }
 
 /// List all feeds joined with their agency details.
@@ -207,10 +199,10 @@ pub struct FeedsWithAgencyReply {
 }
 
 pub(crate) async fn list_all_feeds<P>(
-    input: ListAllFeedsRequest, context: Context<P>,
-) -> Result<FeedsWithAgencyReply>
+    context: Context<P>, Query(input): Query<ListAllFeedsRequest>,
+) -> Result<Json<FeedsWithAgencyReply>>
 where
-    P: TableStore,
+    P: TableStore + 'static,
 {
     let provider = context.provider();
     schema::ensure(provider).await?;
@@ -228,14 +220,7 @@ where
     .await?;
     let feeds = rows.iter().map(FeedWithAgency::try_from).collect::<Result<Vec<_>>>()?;
 
-    Ok(FeedsWithAgencyReply { feeds })
-}
-
-/// Delete one feed by id.
-#[derive(Debug, Clone, Deserialize)]
-pub struct DeleteFeedRequest {
-    /// Feed id (path parameter).
-    pub id: i64,
+    Ok(Json(FeedsWithAgencyReply { feeds }))
 }
 
 /// Confirmation of a feed deletion.
@@ -246,10 +231,10 @@ pub struct DeleteFeedReply {
 }
 
 pub(crate) async fn delete_feed<P>(
-    input: DeleteFeedRequest, context: Context<P>,
-) -> Result<DeleteFeedReply>
+    context: Context<P>, Path(id): Path<i64>,
+) -> Result<Json<DeleteFeedReply>>
 where
-    P: TableStore,
+    P: TableStore + 'static,
 {
     let provider = context.provider();
     schema::ensure(provider).await?;
@@ -258,12 +243,12 @@ where
         provider,
         CONNECTION.to_owned(),
         "DELETE FROM feed WHERE feed_id = $1".to_owned(),
-        vec![DataType::Int64(Some(input.id))],
+        vec![DataType::Int64(Some(id))],
     )
     .await?;
     if affected == 0 {
-        return Err(not_found!("feed {} not found", input.id));
+        return Err(not_found!("feed {id} not found"));
     }
 
-    Ok(DeleteFeedReply { feed_id: input.id })
+    Ok(Json(DeleteFeedReply { feed_id: id }))
 }

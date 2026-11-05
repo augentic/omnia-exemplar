@@ -37,16 +37,17 @@ and no TLS-specific capability is needed.
 
 ## Optimistic concurrency (`StateStore::cas`)
 
-`UpdateQuotaRequest` reads the current record from `StateStore::get`, checks
+`update_quota` (`PUT /examples/patterns/quotas/{tenant}` with an
+`UpdateQuotaRequest` body) reads the current record from `StateStore::get`, checks
 `expected_version`, and writes the next revision with `StateStore::cas`.
 When a concurrent writer modifies the entry (or the version does not match),
-`QuotaError::Conflict` converts to a `409 Conflict` `HttpError::with_body`
-carrying the `tenant` and the observed `current_version` so the caller can
+`QuotaError::Conflict` answers `409 Conflict` through `QuotaError`'s
+`IntoResponse`, carrying the `tenant` and the observed `current_version` so the caller can
 retry without a separate read.
 
 ## Upstream bearer-token authentication (`Identity::access_token`)
 
-`UpstreamStatusRequest` reads the identity name (`PATTERN_UPSTREAM_IDENTITY`)
+`fetch_upstream_status` reads the identity name (`PATTERN_UPSTREAM_IDENTITY`)
 and base URL (`PATTERN_UPSTREAM_URL`) from `Config::get`, calls
 `Identity::access_token(provider, identity)` to obtain the bearer token, and
 sends `Authorization: Bearer <token>` on the outbound `HttpRequest::fetch`
@@ -72,18 +73,17 @@ richer `StateStore`.
 
 ## Extending the framework's JSON error envelope
 
-Handler failures never pass through a route's success encoder: the
-handler's error type converts to `HttpError`, and that conversion alone
-decides the wire shape. The default `omnia_sdk::Error` renders as
+A handler's error type implements `IntoResponse`, and that implementation
+alone decides the wire shape. The default `omnia_sdk::Error` renders as
 `omnia_sdk::api::ErrorBody` — an `application/json` body with two fields,
 `error` (the code discriminant) and `message` (the description) — with no
 room for domain data or status codes outside `400`, `404`, `500`, and `502`.
 
 `upsert_place` and `update_quota` demonstrate the structured alternative.
-Each handler returns its own error type (`Result<UpsertPlaceReply,
-PlaceError>`, `Result<QuotaRecord, QuotaError>`), and its `From<…> for
-HttpError` implementation serializes a superset of `ErrorBody` with
-`HttpError::with_body`: `error` is the discriminant, `Display` supplies
+Each handler returns its own error type (`Result<Json<UpsertPlaceReply>,
+PlaceError>`, `Result<Json<QuotaRecord>, QuotaError>`), and its
+`IntoResponse` serializes a superset of `ErrorBody` as `application/json`:
+`error` is the discriminant, `Display` supplies
 `message`, and the variant's domain fields ride alongside, so a client that
 only knows the framework envelope still parses the rejection, and one that
 knows the route reads the extra fields:
@@ -95,13 +95,13 @@ knows the route reads the extra fields:
 
 Two things to note:
 
-- This works with the **default** `post` / `put` codecs — custom error
-  bodies come from the error type's `HttpError` conversion, not from a
-  `handle_with` custom codec.
-- Decode failures (malformed request JSON) are converted upstream of the
-  handler and answer with the framework's own `ErrorBody` — a 400 with
-  `"error": "invalid_request"`; the structured body covers failures raised
-  by the handler itself.
+- Nothing route-side changes: the handler is bound with the same
+  `post` / `put` as one answering `omnia_sdk::Error`, and the custom body
+  comes from the error type alone.
+- Extractor rejections (a malformed JSON body, a missing `Content-Type`)
+  are answered by axum before the handler runs, as plain-text `400`,
+  `415`, or `422`; the structured body covers failures raised by the
+  handler itself.
 
 ## Spy mock tests
 

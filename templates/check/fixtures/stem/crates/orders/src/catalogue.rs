@@ -1,8 +1,10 @@
 //! Listing the catalogue from the relational store with a cache-aside entry
 //! in [`StateStore`].
 
+use axum::Json;
+use axum::extract::Query;
+use axum::routing::get;
 use common::{Capabilities, RowExt as _};
-use omnia_sdk::api::http::get;
 use omnia_sdk::api::{Client, Context};
 use omnia_sdk::sql::{DataType, Row};
 use omnia_sdk::{Result, StateStore, TableStore, server_error};
@@ -60,10 +62,10 @@ pub struct CatalogueReply {
 }
 
 pub(crate) async fn list_catalogue<P>(
-    input: ListCatalogue, context: Context<P>,
-) -> Result<CatalogueReply>
+    context: Context<P>, Query(input): Query<ListCatalogue>,
+) -> Result<Json<CatalogueReply>>
 where
-    P: StateStore + TableStore,
+    P: StateStore + TableStore + 'static,
 {
     let provider = context.provider();
     let min_cents = input.min_cents.unwrap_or(0);
@@ -72,7 +74,7 @@ where
         && let Some(bytes) = StateStore::get(provider, CATALOGUE_KEY).await?
         && let Ok(items) = serde_json::from_slice::<Vec<CatalogueItem>>(&bytes)
     {
-        return Ok(CatalogueReply { items });
+        return Ok(Json(CatalogueReply { items }));
     }
 
     let rows = TableStore::query(
@@ -89,5 +91,5 @@ where
         StateStore::set(provider, CATALOGUE_KEY, &bytes, Some(CATALOGUE_TTL_SECS)).await?;
     }
 
-    Ok(CatalogueReply { items })
+    Ok(Json(CatalogueReply { items }))
 }

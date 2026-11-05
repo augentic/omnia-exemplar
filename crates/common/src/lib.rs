@@ -200,37 +200,3 @@ fn field<'a>(row: &'a Row, column: &str) -> Result<&'a DataType> {
         .map(|field| &field.value)
         .ok_or_else(|| server_error!("row lacks column `{column}`"))
 }
-
-/// An integer id that arrives as a JSON number or as a path parameter's string (`"42"`).
-///
-/// # Errors
-///
-/// Returns a deserialization error when the value is neither an integer nor a numeric string.
-pub fn numeric_id<'de, D>(deserializer: D) -> std::result::Result<i64, D::Error>
-where
-    D: serde::Deserializer<'de>,
-{
-    struct IdVisitor;
-
-    impl serde::de::Visitor<'_> for IdVisitor {
-        type Value = i64;
-
-        fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-            formatter.write_str("an integer id, as a number or a numeric string")
-        }
-
-        fn visit_i64<E: serde::de::Error>(self, v: i64) -> std::result::Result<i64, E> {
-            Ok(v)
-        }
-
-        fn visit_u64<E: serde::de::Error>(self, v: u64) -> std::result::Result<i64, E> {
-            i64::try_from(v).map_err(E::custom)
-        }
-
-        fn visit_str<E: serde::de::Error>(self, v: &str) -> std::result::Result<i64, E> {
-            v.parse().map_err(E::custom)
-        }
-    }
-
-    deserializer.deserialize_any(IdVisitor)
-}

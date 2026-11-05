@@ -5,14 +5,14 @@ services. It models a fictional transit operator ("Acme") that consolidates
 realtime vehicle data processing into a WASM guest: SOAP/XML position feeds,
 passenger counting, and GTFS realtime adaptation.
 
-Domain logic lives under `crates/*` as plain
-`pub async fn name<P>(input, Context<P>)` handlers (each is a `Handler<P>`
-by omnia's blanket impl), and each crate exposes its wiring: `router()`, an
-`axum::Router` binding its paths to its fns (`post(tally)`), and
-`topics(router, env)`, registering its consumers on the exact-topic
-messaging router. The **guest is the workspace root package**
-(`src/lib.rs`) — one `merge` per crate in `src/routes.rs`, one
-registration per crate in `src/messaging.rs`, over a provider-owning
+Domain logic lives under `crates/*` as plain axum handlers
+(`pub async fn name<P>(Context<P>, Json<Input>)`) and messaging handlers
+(`pub async fn name<P>(Input, Context<P>)`), and each crate exposes its
+wiring: `router()`, an `axum::Router` binding its paths to its fns
+(`post(tally)`), and `topics(router, env)`, registering its consumers on
+the exact-topic messaging router. The **guest is the workspace root package**
+(`src/lib.rs`) — one `merge` per crate and one topic registration per
+crate in [`router`] and [`messaging_router`], over a provider-owning
 `Client`. Match this layout when creating a new Omnia service: root
 `src/`, not a `guests/<name>/` tree.
 
@@ -103,9 +103,10 @@ The root `Cargo.toml` is both the workspace and the deployable guest package
 
 The guest:
 
-- Merges each crate's `router()` — typed HTTP routes
-  (`omnia_sdk::api::http::{get, post}`, with `handle_with` for non-JSON
-  wire formats) on an `axum::Router` — and exports `wasi:http` via
+- Merges each crate's `router()` — plain axum routes
+  (`axum::routing::{get, post}` over `Path`, `Query`, and `Json`
+  extractors, with `Bytes` for non-JSON wire formats) on an `axum::Router`
+  — and exports `wasi:http` via
   `omnia_sdk::http!(router(omnia_sdk::WasiProvider))`
 - Exports `wasi:messaging` via
   `omnia_sdk::messaging!(messaging_router(omnia_sdk::WasiProvider))`,
@@ -156,7 +157,7 @@ consumer is out of scope for the exemplar.
 
 | Crate | Role |
 | --- | --- |
-| `crates/common` | The `Capabilities` bound every stem's routers take, `routers` / `topics` composition folds, `config::ENV` and topic qualification helpers, the topic table (`common::topic`), and `RowExt` + `numeric_id` |
+| `crates/common` | The `Capabilities` bound every stem's routers take, `routers` / `topics` composition folds, `config::ENV` and topic qualification helpers, the topic table (`common::topic`), and `RowExt` |
 | `crates/pulse-connector` | HTTP ingress for the vendor "Pulse" SOAP/XML position feed; republishes to messaging |
 | `crates/pulse-adapter` | Converts Pulse train updates into Motion location events |
 | `crates/tally-connector` | HTTP ingress for the vendor "Tally" passenger-count feed |
@@ -181,20 +182,25 @@ clients stay provider-generic.
    adapter.
 2. Create the crate under `crates/`, register it in the workspace
    `Cargo.toml` under `# The crates of this tree`.
-3. Implement the `pub` input and reply types and a handler fn
-   (`pub(crate) async fn name<P>(input: Input, context: Context<P>) -> Result<Reply>`)
-   with the narrowest capability bounds it needs
-   (e.g. `P: Config + Publish`). Read capabilities through
-   `context.provider()`.
+3. Implement the `pub` input and reply types and a handler fn with the
+   narrowest capability bounds it needs (e.g. `P: Config + Publish + 'static`).
+   An HTTP handler is a plain axum handler taking `Context<P>` as an
+   extractor alongside axum's own
+   (`pub(crate) async fn name<P>(context: Context<P>, Json(input): Json<Input>) -> Result<Json<Reply>>`);
+   a messaging handler takes its decoded input first
+   (`pub(crate) async fn name<P>(input: Input, context: Context<P>) -> Result<Reply>`).
+   Read capabilities through `context.provider()`.
 4. Declare the path and any configuration keys as `pub(crate) const`s of the
    part that uses them, and any new topic suffix in `common::topic`.
-5. Bind the handler in the part's `pub(crate) fn routes()` (`post(handler)`,
-   or `handle_with` for custom status codes / wire formats) or
+5. Bind the handler in the part's `pub(crate) fn routes()`
+   (`axum::routing::post(handler)`; a custom status code or wire format is
+   an `IntoResponse` on the reply or error type) or
    `pub(crate) fn topics()` (`consume(handler)`, `consume_with`), and list
    the part in the stem's `src/lib.rs` (`common::routers([..])`,
    `common::topics(router, env, [..])`).
-   A new stem adds one `merge(<stem>::router())` line to `src/routes.rs` or
-   one `<stem>::topics(router, &env)` line to `src/messaging.rs`.
+   A new stem adds one `merge(<stem>::router())` line to [`router`] or
+   one `<stem>::topics(router, &env)` line to [`messaging_router`] in
+   `src/lib.rs`.
 6. Add fixtures under the crate's `data/` and native tests under `tests/`
    that seed an `omnia_test::guest::Provider` with the doubles the
    handler's capabilities read and drive the stem's `router()` or `topics()`.
@@ -236,10 +242,11 @@ state.
 
 Patterns worth copying into new services:
 
-- Handler fns (`async fn(Input, Context<P>)`) behind capability traits,
+- Handler fns behind capability traits (plain axum handlers taking
+  `Context<P>` for HTTP, `async fn(Input, Context<P>)` for messaging),
   each crate binding its own to its paths and topics in `router()` and
   `topics()`, with the guest as a thin composing layer at the **workspace
-  root** (`src/routes.rs`, `src/messaging.rs`), one line per crate.
+  root** (`src/lib.rs`), one line per crate in each router fn.
 - One topic table (`common::topic`) a producer and its consumer both
   name, so they agree by construction.
 - Per-part config keys read through `Config::get` at use, with `common::config`
@@ -254,7 +261,7 @@ Patterns worth copying into new services:
   (`pattern::decode`, `pulse_adapter::stops`).
 - Optimistic concurrency (`StateStore::cas`): versioned state updates map
   `CasError::Conflict` to `409 Conflict` through a module error type's
-  `From<…> for HttpError` conversion (`pattern::cas`).
+  `IntoResponse` (`pattern::cas`).
 - Upstream bearer-token authentication (`Identity::access_token`): resolve
   the identity name from `Config::get`, acquire a token via
   `Identity::access_token`, and send `Authorization: Bearer <token>` on
@@ -274,9 +281,9 @@ Patterns worth copying into new services:
   `common::RowExt`, refined by haversine in Rust — never a geospatial
   extension bolted onto the KV state store (`pattern::place`).
 - Structured JSON error bodies: the handler owns its error type and its
-  `From<…> for HttpError` conversion serializes it as `application/json`
-  via `HttpError::with_body`, extending the framework's fixed two-field
-  `ErrorBody` envelope (`error`, `message`) with the variant's domain
+  `IntoResponse` serializes it as `application/json`, extending the
+  framework's fixed two-field `ErrorBody` envelope (`error`, `message`)
+  with the variant's domain
   fields — `{"error": "invalid_coordinate", "message": …, "field": …,
   "value": …, "min": …, "max": …}` (`pattern::place::PlaceError`).
 
@@ -290,7 +297,8 @@ Acme domain quirks that are **not** general patterns:
   `god-mode` cargo feature and the `GOD_MODE_ENABLED` config key. Not part of
   a production pipeline.
 - **SOAP fault as the handler error** — `pulse-connector` rejects requests
-  with a pre-rendered XML `<Fault>` (`HttpError::with_body`, `text/xml`)
+  with a pre-rendered XML `<Fault>` (its `IntoResponse` puts the XML on
+  the wire as `text/xml`)
   because the vendor protocol demands it, and parses the envelope inside the
   handler so even malformed bodies get the fault. Prefer plain structured
   errors unless a wire protocol dictates otherwise.

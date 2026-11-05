@@ -4,8 +4,9 @@
 //! broadcast channel — so serving this handler requires no WebSocket
 //! export.
 
+use axum::Json;
+use axum::routing::post;
 use common::Capabilities;
-use omnia_sdk::api::http::post;
 use omnia_sdk::api::{Client, Context};
 use omnia_sdk::{Broadcast, Result};
 use serde::{Deserialize, Serialize};
@@ -32,11 +33,13 @@ pub struct AlertRequest {
 #[serde(transparent)]
 pub struct AlertReply(pub &'static str);
 
-pub(crate) async fn alert<P>(input: AlertRequest, context: Context<P>) -> Result<AlertReply>
+pub(crate) async fn alert<P>(
+    context: Context<P>, Json(input): Json<AlertRequest>,
+) -> Result<Json<AlertReply>>
 where
-    P: Broadcast,
+    P: Broadcast + 'static,
 {
     Broadcast::send(context.provider(), &input.channel, input.message.as_bytes(), input.sockets)
         .await?;
-    Ok(AlertReply("OK"))
+    Ok(Json(AlertReply("OK")))
 }

@@ -83,8 +83,8 @@ macro_rules! seed {
 ///
 /// - the root package `guest` is the component, exporting WASI HTTP and
 ///   WASI Messaging over one provider and building both routers from the
-///   two lists `src/routes.rs` and `src/messaging.rs`, one statement per
-///   stem, each built natively by a rung under `tests/`;
+///   the route and topic lists in `src/lib.rs`, one statement per stem,
+///   each built natively by a rung under `tests/`;
 /// - `crates/common` holds the capability bound, the topic table, and the
 ///   environment helpers every stem shares;
 /// - `examples/runtime.rs` is the local host behind the `host` feature;
@@ -118,9 +118,7 @@ pub static ENTRIES: &[Entry] = &[
     exact!("mise.toml", Role::Static),
     exact!("rust-toolchain.toml", Role::Static),
     exact!("rustfmt.toml", Role::Static),
-    seed!("src/lib.rs", Role::Static),
-    seed!("src/messaging.rs", Role::Listed),
-    seed!("src/routes.rs", Role::Listed),
+    seed!("src/lib.rs", Role::Listed),
     exact!("supply-chain/README.md", Role::Static),
     seed!("supply-chain/audits.toml", Role::Static),
     seed!("supply-chain/config.toml", Role::Static),

@@ -1,7 +1,8 @@
 //! Placing an order within the deployment's line limit, and hearing it confirmed.
 
+use axum::Json;
+use axum::routing::post;
 use common::{Capabilities, config, topic};
-use omnia_sdk::api::http::post;
 use omnia_sdk::api::{Client, Context, messaging};
 use omnia_sdk::{Config, Message, Publish, Result, StateStore, bad_request, server_error};
 use serde::{Deserialize, Serialize};
@@ -39,9 +40,11 @@ pub struct Placed {
     pub lines: usize,
 }
 
-pub(crate) async fn place<P>(input: PlaceOrder, context: Context<P>) -> Result<Placed>
+pub(crate) async fn place<P>(
+    context: Context<P>, Json(input): Json<PlaceOrder>,
+) -> Result<Json<Placed>>
 where
-    P: Config + Publish,
+    P: Config + Publish + 'static,
 {
     let provider = context.provider();
     let limit: usize = Config::get(provider, ORDERS_LIMIT)
@@ -61,7 +64,7 @@ where
     let payload = serde_json::to_vec(&placed).map_err(|error| server_error!("{error}"))?;
     let topic = config::topic(provider, topic::ORDER_PLACED).await;
     Publish::send(provider, &topic, &Message::new(&payload)).await?;
-    Ok(placed)
+    Ok(Json(placed))
 }
 
 pub(crate) async fn on_placed<P>(input: Placed, context: Context<P>) -> Result<()>
