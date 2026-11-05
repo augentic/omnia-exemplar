@@ -83,8 +83,9 @@ macro_rules! seed {
 ///
 /// - the root package `guest` is the component, exporting WASI HTTP and
 ///   WASI Messaging over one provider and building both routers from the
-///   the route and topic lists in `src/lib.rs`, one statement per stem,
-///   each built natively by a rung under `tests/`;
+///   route and topic lists in `src/lib.rs`, one statement per stem, each
+///   built natively by a rung under `tests/`; the file is listed, so the
+///   rungs rather than the hold pin its routers;
 /// - `crates/common` holds the capability bound, the topic table, and the
 ///   environment helpers every stem shares;
 /// - `examples/runtime.rs` is the local host behind the `host` feature;

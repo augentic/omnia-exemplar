@@ -10,8 +10,6 @@
 use common::{Capabilities, config};
 use omnia_sdk::api::{Client, messaging};
 
-use crate::OWNER;
-
 /// The tenant that owns this deployment.
 pub const OWNER: &str = "guest";
 
