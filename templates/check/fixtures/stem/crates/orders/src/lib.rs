@@ -20,12 +20,11 @@ pub fn router<P: Capabilities>() -> axum::Router<Client<P>> {
     ])
 }
 
-/// The stem's topics, registered on the root messaging router under `env`.
-#[must_use]
-pub fn topics<P: Capabilities>(router: messaging::Router<P>, env: &str) -> messaging::Router<P> {
-    common::topics(router, env, [
+/// The stem's topics, merged onto the root messaging router.
+pub fn topics<P: Capabilities>() -> messaging::Routes<P> {
+    common::topics([
         // one entry per part with topics, each added at the end
-        dispatch::topics,
-        placing::topics,
+        dispatch::topics(),
+        placing::topics(),
     ])
 }

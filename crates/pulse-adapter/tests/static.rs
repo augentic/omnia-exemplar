@@ -156,9 +156,9 @@ async fn too_early() {
 #[tokio::test]
 async fn undecodable_payload() {
     let provider = Provider::default().config(MapConfig::default().with([(config::ENV, "dev")]));
-    let router = pulse_adapter::topics(Router::new(Client::new("acme", provider.clone())), "dev");
+    let router = Router::new(Client::new(provider.clone())).merge(pulse_adapter::topics());
     let delivery = Delivery {
-        topic: Some("dev-realtime-pulse.v1".to_string()),
+        topic: Some(topic::PULSE.to_string()),
         payload: b"not xml".to_vec(),
         ..Delivery::default()
     };
@@ -169,21 +169,13 @@ async fn undecodable_payload() {
     assert!(provider.publish.sent().is_empty());
 }
 
-#[tokio::test]
-async fn other_environment() {
-    let provider = Provider::default().config(MapConfig::default().with([(config::ENV, "dev")]));
-    let router = pulse_adapter::topics(Router::new(Client::new("acme", provider.clone())), "dev");
-    let wrong_topic = config::topic_for("prod", topic::PULSE);
-    let delivery = Delivery {
-        topic: Some(wrong_topic.clone()),
-        payload: XmlBuilder::new().xml().into_bytes(),
-        ..Delivery::default()
-    };
+// The stem's topics are bare suffixes; the root qualifies them for the
+// deployment's environment.
+#[test]
+fn topics_by_suffix() {
+    let router = Router::new(Client::new(Provider::default())).merge(pulse_adapter::topics());
 
-    let error = router.handle(delivery).await.expect_err("wrong env");
-
-    assert_eq!(error, DeliveryError::UnhandledTopic(wrong_topic));
-    assert!(provider.publish.sent().is_empty());
+    assert_eq!(router.topics().collect::<Vec<_>>(), [topic::PULSE]);
 }
 
 // Run a fixture that is expected to fail and compare the error with the
@@ -203,10 +195,9 @@ async fn expect_error(path: &str) {
 }
 
 async fn run(case: &Case) -> Result<(), DeliveryError> {
-    let router =
-        pulse_adapter::topics(Router::new(Client::new("acme", case.provider.clone())), "dev");
+    let router = Router::new(Client::new(case.provider.clone())).merge(pulse_adapter::topics());
     let delivery = Delivery {
-        topic: Some("dev-realtime-pulse.v1".to_string()),
+        topic: Some(topic::PULSE.to_string()),
         payload: case.input.clone(),
         ..Delivery::default()
     };

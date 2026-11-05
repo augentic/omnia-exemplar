@@ -2,8 +2,7 @@
 
 use chrono::{DateTime, Utc};
 use common::{Capabilities, config, topic};
-use omnia_sdk::api::Context;
-use omnia_sdk::api::messaging::{self, consume};
+use omnia_sdk::api::{Context, messaging};
 use omnia_sdk::{
     Config, Error, HttpRequest, Identity, Message, Publish, Result, StateStore, bad_request,
 };
@@ -13,10 +12,8 @@ use thiserror::Error;
 use crate::location::Location;
 use crate::{location, serial_data};
 
-pub(crate) fn topics<P: Capabilities>(
-    router: messaging::Router<P>, env: &str,
-) -> messaging::Router<P> {
-    router.route(config::topic_for(env, topic::PULSE_TO_MOTION), consume(motion))
+pub(crate) fn topics<P: Capabilities>() -> messaging::Routes<P> {
+    messaging::Routes::new().route(topic::PULSE_TO_MOTION, motion)
 }
 
 /// Errors raised while validating an inbound Motion message.

@@ -6,6 +6,7 @@ mod fixture;
 use std::fs;
 
 use chrono::Utc;
+use common::topic;
 use omnia_sdk::api::Client;
 use omnia_sdk::api::messaging::{Delivery, DeliveryError, Router};
 use pulse_adapter::pulse::TIMEZONE;
@@ -26,10 +27,9 @@ async fn run() {
 }
 
 async fn replay(case: Case) {
-    let router =
-        pulse_adapter::topics(Router::new(Client::new("acme", case.provider.clone())), "dev");
+    let router = Router::new(Client::new(case.provider.clone())).merge(pulse_adapter::topics());
     let delivery = Delivery {
-        topic: Some("dev-realtime-pulse.v1".to_string()),
+        topic: Some(topic::PULSE.to_string()),
         payload: case.input.clone(),
         ..Delivery::default()
     };

@@ -1,4 +1,4 @@
-//! Consuming XML dispatch notices through `consume_with`.
+//! Consuming XML dispatch notices through `route_with`.
 
 use omnia_sdk::api::Client;
 use omnia_sdk::api::messaging::{Delivery, DeliveryError, Router};
@@ -7,9 +7,9 @@ use omnia_test::guest::Provider;
 #[tokio::test]
 async fn records_carrier_from_xml() {
     let provider = Provider::default();
-    let router = orders::topics(Router::new(Client::new("test", provider.clone())), "test");
+    let router = Router::new(Client::new(provider.clone())).merge(orders::topics());
     let delivery = Delivery {
-        topic: Some("test-order-dispatched".to_string()),
+        topic: Some("order-dispatched".to_string()),
         payload: b"<Dispatched><id>ord-7</id><carrier>NZP</carrier></Dispatched>".to_vec(),
         ..Delivery::default()
     };
@@ -25,9 +25,9 @@ async fn records_carrier_from_xml() {
 #[tokio::test]
 async fn rejects_malformed_xml() {
     let provider = Provider::default();
-    let router = orders::topics(Router::new(Client::new("test", provider.clone())), "test");
+    let router = Router::new(Client::new(provider.clone())).merge(orders::topics());
     let delivery = Delivery {
-        topic: Some("test-order-dispatched".to_string()),
+        topic: Some("order-dispatched".to_string()),
         payload: b"<Dispatched><unclosed>".to_vec(),
         ..Delivery::default()
     };

@@ -11,9 +11,9 @@ use axum::http::header::CONTENT_TYPE;
 use axum::response::{IntoResponse, Response};
 use axum::routing::post;
 use common::{Capabilities, config, topic};
-use http::{HeaderValue, StatusCode};
+use http::StatusCode;
 use omnia_sdk::api::{Client, Context};
-use omnia_sdk::{Config, HttpError, Message, Publish};
+use omnia_sdk::{Config, Error, Message, Publish};
 use serde::{Deserialize, Serialize};
 
 pub(crate) const PULSE_XML: &str = "/inbound/xml";
@@ -119,7 +119,7 @@ impl IntoResponse for PulseReply {
     fn into_response(self) -> Response {
         match self.to_xml() {
             Ok(xml) => ([(CONTENT_TYPE, "text/xml")], xml).into_response(),
-            Err(error) => HttpError::from(error).into_response(),
+            Err(error) => Error::from(error).into_response(),
         }
     }
 }
@@ -164,12 +164,9 @@ impl IntoResponse for Fault {
         let status =
             StatusCode::from_u16(self.status_code).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR);
         match quick_xml::se::to_string(&self) {
-            Ok(xml) => {
-                HttpError::with_body(status, HeaderValue::from_static("text/xml"), xml.into_bytes())
-            }
-            Err(_) => HttpError::new(status, self.response.message),
+            Ok(xml) => (status, [(CONTENT_TYPE, "text/xml")], xml).into_response(),
+            Err(_) => (status, self.response.message).into_response(),
         }
-        .into_response()
     }
 }
 
@@ -183,7 +180,7 @@ pub struct FaultMessage {
 
 #[cfg(test)]
 mod tests {
-    use http::header::CONTENT_TYPE;
+    use http::HeaderValue;
 
     use super::*;
 

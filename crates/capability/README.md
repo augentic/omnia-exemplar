@@ -16,7 +16,7 @@ capability trait:
 
 Each part declares its `pub(crate)` path constant (`/examples/*`), handler,
 and `routes()`; `src/lib.rs` folds them with `common::routers`, and the
-workspace-root [`router`](../../src/lib.rs) merges `capability::router()`.
+workspace-root [`http_router`](../../src/lib.rs) merges `capability::router()`.
 [`tests/operations.rs`](tests/operations.rs) drives `capability::router()`
 over `omnia_test::guest::Provider` doubles.
 

@@ -18,10 +18,10 @@ use axum::Json;
 use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
 use common::{Capabilities, RowExt as _};
-use http::{HeaderValue, StatusCode};
+use http::StatusCode;
 use omnia_sdk::api::{Client, Context};
 use omnia_sdk::sql::{DataType, Row};
-use omnia_sdk::{Error, HttpError, TableStore};
+use omnia_sdk::{Error, TableStore};
 use serde::{Deserialize, Serialize};
 
 pub(crate) const PLACES: &str = "/examples/patterns/places";
@@ -135,26 +135,13 @@ struct Body<'a> {
     error: &'a PlaceError, // `error` tag + domain fields
 }
 
-// A non-finite coordinate is the only unserializable field; the body then
-// degrades to the plain-text form.
 impl IntoResponse for PlaceError {
     fn into_response(self) -> Response {
         let body = Body {
             message: self.to_string(),
             error: &self,
         };
-        serde_json::to_vec(&body)
-            .map_or_else(
-                |_| HttpError::new(self.status(), self.to_string()),
-                |body| {
-                    HttpError::with_body(
-                        self.status(),
-                        HeaderValue::from_static("application/json"),
-                        body,
-                    )
-                },
-            )
-            .into_response()
+        (self.status(), Json(body)).into_response()
     }
 }
 

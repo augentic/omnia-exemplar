@@ -2,7 +2,7 @@
 //!
 //! Fixtures under `data/` are captured Kafka records from a live system;
 //! each test takes a record's `value` and drives the stem's `router()` or
-//! `topics(..)` natively against `omnia_test` doubles seeded with the
+//! `topics()` natively against `omnia_test` doubles seeded with the
 //! upstream answers.
 
 mod support;
@@ -10,7 +10,7 @@ mod support;
 use axum::body::{Body, to_bytes};
 use axum::http::{Request, StatusCode};
 use chrono::{DateTime, Utc};
-use common::{config, topic};
+use common::topic;
 use gtfs_adapter::vehicle_info::VehicleInfoReply;
 use omnia_sdk::api::Client;
 use omnia_sdk::api::messaging::{Delivery, DeliveryError, Router};
@@ -20,8 +20,6 @@ use tower::ServiceExt as _;
 
 use self::support::{allocation_query, fleet_query, ok, provider, trip_instances};
 
-const OWNER: &str = "acme";
-const ENV: &str = "dev";
 #[expect(
     clippy::disallowed_macros,
     reason = "integration test loads captured fixture JSON from disk"
@@ -44,19 +42,19 @@ const TRAIN_AVL: &[u8] = include_bytes!("../data/realtime-train-avl.v1.json");
 const PASSENGER_COUNT: &[u8] = include_bytes!("../data/realtime-passenger-count.v1.json");
 
 fn topics(provider: &Provider) -> Router<Provider> {
-    gtfs_adapter::topics(Router::new(Client::new(OWNER, provider.clone())), ENV)
+    Router::new(Client::new(provider.clone())).merge(gtfs_adapter::topics())
 }
 
-fn delivery(suffix: &str, payload: impl Into<Vec<u8>>) -> Delivery {
+fn delivery(topic: &str, payload: impl Into<Vec<u8>>) -> Delivery {
     Delivery {
-        topic: Some(config::topic_for(ENV, suffix)),
+        topic: Some(topic.to_string()),
         payload: payload.into(),
         ..Delivery::default()
     }
 }
 
 async fn send(provider: Provider, request: Request<Body>) -> (StatusCode, Value) {
-    let router = gtfs_adapter::router().with_state(Client::new(OWNER, provider));
+    let router = gtfs_adapter::router().with_state(Client::new(provider));
     let response = router.oneshot(request).await.expect("response");
     let status = response.status();
     let bytes = to_bytes(response.into_body(), usize::MAX).await.expect("body");
@@ -376,18 +374,14 @@ async fn vehicle_info_state() {
     assert_eq!(reply.fleet_info.expect("fleet info").id, "59144");
 }
 
-#[tokio::test]
-async fn other_environment() {
-    let provider = provider();
-    let topic = config::topic_for("prod", topic::PASSENGER_COUNT);
-    let delivery = Delivery {
-        topic: Some(topic.clone()),
-        payload: b"{}".to_vec(),
-        ..Delivery::default()
-    };
+// The stem's topics are bare suffixes; the root qualifies them for the
+// deployment's environment.
+#[test]
+fn topics_by_suffix() {
+    let router = topics(&provider());
 
-    let error = topics(&provider).handle(delivery).await.expect_err("wrong env");
-
-    assert_eq!(error, DeliveryError::UnhandledTopic(topic));
-    assert!(provider.storage.is_empty());
+    assert_eq!(
+        router.topics().collect::<Vec<_>>(),
+        [topic::PASSENGER_COUNT, topic::PULSE_TO_MOTION, topic::TRAIN_AVL,]
+    );
 }

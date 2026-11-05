@@ -5,6 +5,10 @@
 //! publisher and its consumer agree on, the configuration helpers that
 //! qualify a topic for the deployment's environment, and typed SQL column
 //! reads.
+//!
+//! A stem's `router()` and `topics()` are the two halves of one contract:
+//! each is stateless and keyed by the bare path or topic suffix, and the
+//! root merges every stem's half onto one router over one [`Client`].
 
 pub mod config;
 pub mod topic;
@@ -55,11 +59,13 @@ impl<P> Capabilities for P where
 {
 }
 
-/// Merge the routers of a stem's parts onto one router.
+/// Merge the routes of a stem's parts onto one router.
 ///
-/// A stem's `router` is this fold over its parts' `routes()`, one entry per
-/// part, so a stem with no route yet is the fold over none. Merging panics
-/// where two parts serve one path under one method.
+/// A stem's `router` is this fold over its parts' `routes()`, so a stem with
+/// no route yet is the fold over none. The parts are an array rather than a
+/// method chain so each sits on its own line, and a part added to the stem
+/// is one line appended to the list. Merging panics where two parts serve
+/// one path under one method.
 pub fn routers<P, const N: usize>(parts: [Router<Client<P>>; N]) -> Router<Client<P>>
 where
     P: Send + Sync + 'static,
@@ -67,23 +73,18 @@ where
     parts.into_iter().fold(Router::new(), Router::merge)
 }
 
-/// A part's topics: a registration on the messaging router under an environment.
-pub type Topics<P> = fn(messaging::Router<P>, &str) -> messaging::Router<P>;
-
-/// Register the topics of a stem's parts on `router` under `env`, in order.
+/// Merge the topics of a stem's parts onto one set of routes.
 ///
-/// A stem's `topics` is `common::topics(router, env, [..])` over its parts'
-/// `topics`, one entry per part, so a stem with no topic yet registers none
-/// and answers the router as it came. Registering panics where two parts
-/// consume one topic.
-#[must_use]
-pub fn topics<P, const N: usize>(
-    router: messaging::Router<P>, env: &str, parts: [Topics<P>; N],
-) -> messaging::Router<P>
+/// A stem's `topics` is this fold over its parts' `topics()`, in the same
+/// array form as [`routers`], so a stem with no topic yet is the fold over
+/// none. Every topic is a bare suffix from [`topic`]; the root qualifies
+/// them for the deployment's environment in one pass. Merging panics where
+/// two parts consume one topic.
+pub fn topics<P, const N: usize>(parts: [messaging::Routes<P>; N]) -> messaging::Routes<P>
 where
     P: Send + Sync + 'static,
 {
-    parts.into_iter().fold(router, |router, part| part(router, env))
+    parts.into_iter().fold(messaging::Routes::new(), messaging::Routes::merge)
 }
 
 /// Typed column reads over an [`omnia_sdk::sql::Row`], so a handler never matches on [`DataType`] by hand.

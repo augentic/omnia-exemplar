@@ -12,7 +12,7 @@ use tower::ServiceExt as _;
 
 async fn get_order(provider: &Provider, id: &str) -> (StatusCode, Value) {
     let request = Request::get(format!("/orders/{id}")).body(Body::empty()).expect("request");
-    let router = orders::router().with_state(Client::new("test", provider.clone()));
+    let router = orders::router().with_state(Client::new(provider.clone()));
     let response = router.oneshot(request).await.expect("response");
     assert_eq!(
         response.headers().get(CONTENT_TYPE).and_then(|value| value.to_str().ok()),

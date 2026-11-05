@@ -1,18 +1,13 @@
 //! Recording XML dispatch notices from the warehouse stream.
 
-use common::{Capabilities, config, topic};
-use omnia_sdk::api::messaging::{self, Delivery, consume_with};
+use common::{Capabilities, topic};
+use omnia_sdk::api::messaging::{self, Delivery};
 use omnia_sdk::api::{Context, DecodeError};
 use omnia_sdk::{Result, StateStore, bad_request};
 use serde::{Deserialize, Serialize};
 
-pub(crate) fn topics<P: Capabilities>(
-    router: messaging::Router<P>, env: &str,
-) -> messaging::Router<P> {
-    router.route(
-        config::topic_for(env, topic::ORDER_DISPATCHED),
-        consume_with(on_dispatched, decode_dispatch_xml),
-    )
+pub(crate) fn topics<P: Capabilities>() -> messaging::Routes<P> {
+    messaging::Routes::new().route_with(topic::ORDER_DISPATCHED, on_dispatched, decode_dispatch_xml)
 }
 
 pub(crate) fn dispatched_key(id: &str) -> String {

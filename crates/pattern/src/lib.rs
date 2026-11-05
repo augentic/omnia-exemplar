@@ -9,8 +9,8 @@
 //!   back through [`StateStore`] with a TTL.
 //! - [`cas::UpdateQuotaRequest`] — optimistic concurrency: [`StateStore::cas`]
 //!   with [`cas::QuotaError::Conflict`] answering `409 Conflict` through its
-//!   [`HttpError`] conversion.
-//! - [`identity::UpstreamStatusRequest`] — bearer-token authentication: [`Config::get`]
+//!   own [`IntoResponse`] implementation.
+//! - [`identity::UpstreamStatusReply`] — bearer-token authentication: [`Config::get`]
 //!   for the identity name and endpoint URL → [`Identity::access_token`] →
 //!   [`HttpRequest::fetch`] with `Authorization: Bearer <token>`.
 //! - [`place::UpsertPlaceRequest`] — relational upsert through [`TableStore`] using
@@ -19,16 +19,16 @@
 //!   over [`common::RowExt`] refined by a haversine check, replacing the
 //!   "geospatial index bolted onto a KV store" anti-pattern.
 //! - [`place::PlaceError`] — a structured JSON error body: the upsert handler owns
-//!   its error type, and the [`HttpError`] conversion serializes it as
+//!   its error type, and its [`IntoResponse`] implementation serializes it as
 //!   `application/json` extending the framework's fixed `error` / `message`
 //!   `ErrorBody` envelope with the variant's domain fields.
 //!
 //! [`Config`]: omnia_sdk::Config
 //! [`Config::get`]: omnia_sdk::Config::get
-//! [`HttpError`]: omnia_sdk::HttpError
 //! [`HttpRequest`]: omnia_sdk::HttpRequest
 //! [`HttpRequest::fetch`]: omnia_sdk::HttpRequest::fetch
 //! [`Identity::access_token`]: omnia_sdk::Identity::access_token
+//! [`IntoResponse`]: axum::response::IntoResponse
 //! [`StateStore`]: omnia_sdk::StateStore
 //! [`StateStore::cas`]: omnia_sdk::StateStore::cas
 //! [`TableStore`]: omnia_sdk::TableStore

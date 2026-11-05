@@ -31,7 +31,7 @@ async fn forwards_bearer_token() {
 
     let request =
         Request::get("/examples/patterns/upstream/lines").body(Body::empty()).expect("request");
-    let router = pattern::router().with_state(Client::new("acme", provider.clone()));
+    let router = pattern::router().with_state(Client::new(provider.clone()));
     let response = router.oneshot(request).await.expect("response");
 
     assert_eq!(response.status(), StatusCode::OK);
@@ -74,7 +74,7 @@ async fn upstream_failure_is_bad_gateway() {
 
     let request =
         Request::get("/examples/patterns/upstream/lines").body(Body::empty()).expect("request");
-    let router = pattern::router().with_state(Client::new("acme", provider));
+    let router = pattern::router().with_state(Client::new(provider));
     let response = router.oneshot(request).await.expect("response");
 
     assert_eq!(response.status(), StatusCode::BAD_GATEWAY);

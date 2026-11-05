@@ -31,7 +31,7 @@ fn item_row(sku: &str, cents: i64, in_stock: bool) -> Row {
 
 async fn get_catalogue(provider: &Provider) -> CatalogueReply {
     let request = Request::get("/catalogue").body(Body::empty()).expect("request");
-    let router = orders::router().with_state(Client::new("test", provider.clone()));
+    let router = orders::router().with_state(Client::new(provider.clone()));
     let response = router.oneshot(request).await.expect("response");
     assert_eq!(response.status(), StatusCode::OK);
     let bytes = to_bytes(response.into_body(), usize::MAX).await.expect("body");

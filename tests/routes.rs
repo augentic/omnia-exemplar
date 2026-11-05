@@ -16,14 +16,14 @@ fn provider() -> Provider {
 
 #[test]
 fn merges() {
-    let _ = guest::router(provider());
+    let _ = guest::http_router(provider());
 }
 
 #[tokio::test]
 async fn an_unknown_path_is_not_found() {
     let request = Request::get("/nothing-here").body(Body::empty()).expect("request");
 
-    let response = guest::router(provider()).oneshot(request).await.expect("response");
+    let response = guest::http_router(provider()).oneshot(request).await.expect("response");
 
     assert_eq!(response.status(), StatusCode::NOT_FOUND);
 }

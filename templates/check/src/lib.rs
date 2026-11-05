@@ -39,8 +39,8 @@ const STEM_LINES: &[(&str, &str, &str)] = &[
     ),
     (
         "src/lib.rs",
-        "    let router = messaging::Router::new(Client::new(OWNER, provider));",
-        "    let router = orders::topics(router, &env);",
+        "    let routes = messaging::Routes::new();",
+        "    let routes = routes.merge(orders::topics());",
     ),
     (
         "crates/common/src/topic.rs",

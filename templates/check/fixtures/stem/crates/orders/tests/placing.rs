@@ -21,7 +21,7 @@ async fn place(provider: &Provider, body: &'static str) -> (StatusCode, Vec<u8>)
         .header(CONTENT_TYPE, "application/json")
         .body(Body::from(body))
         .expect("request");
-    let router = orders::router().with_state(Client::new("test", provider.clone()));
+    let router = orders::router().with_state(Client::new(provider.clone()));
     let response = router.oneshot(request).await.expect("response");
     let status = response.status();
     let body = to_bytes(response.into_body(), usize::MAX).await.expect("body");
@@ -57,11 +57,11 @@ async fn refused_past_the_limit() {
 #[tokio::test]
 async fn placements_counted() {
     let provider = provider();
-    let router = orders::topics(Router::new(Client::new("test", provider.clone())), "test");
+    let router = Router::new(Client::new(provider.clone())).merge(orders::topics());
 
     for lines in [1, 2] {
         let delivery = Delivery {
-            topic: Some("test-order-placed".to_string()),
+            topic: Some("order-placed".to_string()),
             payload: serde_json::to_vec(&Placed { lines }).expect("a placement"),
             ..Delivery::default()
         };

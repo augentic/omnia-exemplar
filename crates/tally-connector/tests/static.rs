@@ -35,7 +35,7 @@ async fn forward(provider: &Provider, payload: &'static [u8]) {
         .header(CONTENT_TYPE, "application/json")
         .body(Body::from(payload))
         .expect("request");
-    let router = tally_connector::router().with_state(Client::new("acme", provider.clone()));
+    let router = tally_connector::router().with_state(Client::new(provider.clone()));
     let response = router.oneshot(request).await.expect("response");
     assert_eq!(response.status(), StatusCode::OK);
     let body = to_bytes(response.into_body(), usize::MAX).await.expect("body");

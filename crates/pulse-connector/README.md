@@ -11,7 +11,8 @@ Rejections are returned as a pre-rendered SOAP fault because the vendor
 protocol requires an XML fault envelope — a vendor accommodation, not a
 general error-handling pattern. The handler's error type is the `Fault`
 envelope itself, and its `IntoResponse` puts the serialized XML on the
-wire via `HttpError::with_body` (`text/xml`, HTTP status from the fault).
+wire as axum's `(status, [(CONTENT_TYPE, "text/xml")], xml)` tuple, the
+HTTP status read from the fault.
 The handler takes the body as raw `Bytes` and parses it itself, so parse
 failures are also answered with the fault envelope — an extractor
 rejecting the body would reach the client as axum's plain-text 400

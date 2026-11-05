@@ -2,7 +2,7 @@
 //!
 //! Building the router is the check: it panics where two stems consume one
 //! topic. A stem's topics are driven by its own tests through its
-//! `topics()`; this rung holds the registered whole.
+//! `topics()`; this rung holds the merged whole, qualified for `ENV`.
 
 use common::config;
 use omnia_sdk::api::messaging::{Delivery, DeliveryError};
@@ -39,4 +39,14 @@ async fn an_unknown_topic_is_unhandled() {
     let outcome = router.handle(delivery(topic.clone())).await;
 
     assert_eq!(outcome, Err(DeliveryError::UnhandledTopic(topic)));
+}
+
+#[tokio::test]
+async fn every_topic_is_qualified() {
+    let router = guest::messaging_router(provider()).await;
+    let prefix = config::topic_for(ENV, "");
+
+    for topic in router.topics() {
+        assert!(topic.starts_with(&prefix), "`{topic}` is not qualified for `{ENV}`");
+    }
 }

@@ -20,10 +20,8 @@ pub(crate) fn routes<P: Capabilities>() -> axum::Router<Client<P>> {
     axum::Router::new().route(ORDERS, post(place))
 }
 
-pub(crate) fn topics<P: Capabilities>(
-    router: messaging::Router<P>, env: &str,
-) -> messaging::Router<P> {
-    router.route(config::topic_for(env, topic::ORDER_PLACED), messaging::consume(on_placed))
+pub(crate) fn topics<P: Capabilities>() -> messaging::Routes<P> {
+    messaging::Routes::new().route(topic::ORDER_PLACED, on_placed)
 }
 
 /// An order to place.

@@ -8,7 +8,6 @@ use omnia_test::guest::{MapConfig, Provider};
 use pulse_connector::handler::PulseRequest;
 use tower::ServiceExt as _;
 
-const OWNER: &str = "acme";
 #[expect(clippy::disallowed_macros, reason = "integration test loads captured SOAP XML from disk")]
 const RECEIVE_MESSAGE: &[u8] = include_bytes!("../data/receive-message.xml");
 
@@ -23,7 +22,7 @@ async fn post(provider: Provider, body: &'static [u8]) -> Response<Body> {
         .header(CONTENT_TYPE, "text/xml")
         .body(Body::from(body))
         .expect("request");
-    let router = pulse_connector::router().with_state(Client::new(OWNER, provider));
+    let router = pulse_connector::router().with_state(Client::new(provider));
     router.oneshot(request).await.expect("response")
 }
 

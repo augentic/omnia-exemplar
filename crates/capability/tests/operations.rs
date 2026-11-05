@@ -23,7 +23,7 @@ async fn post<I: Serialize + Sync, O: DeserializeOwned>(
         .header(CONTENT_TYPE, "application/json")
         .body(Body::from(serde_json::to_vec(input).expect("serialize")))
         .expect("request");
-    let router = capability::router().with_state(Client::new("acme", provider.clone()));
+    let router = capability::router().with_state(Client::new(provider.clone()));
     let response = router.oneshot(request).await.expect("response");
     assert_eq!(response.status(), StatusCode::OK);
     let bytes = to_bytes(response.into_body(), usize::MAX).await.expect("body");

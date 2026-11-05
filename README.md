@@ -9,12 +9,12 @@ Domain logic lives under `crates/*` as plain axum handlers
 (`pub async fn name<P>(Context<P>, Json<Input>)`) and messaging handlers
 (`pub async fn name<P>(Input, Context<P>)`), and each crate exposes its
 wiring: `router()`, an `axum::Router` binding its paths to its fns
-(`post(tally)`), and `topics(router, env)`, registering its consumers on
-the exact-topic messaging router. The **guest is the workspace root package**
-(`src/lib.rs`) — one `merge` per crate and one topic registration per
-crate in [`router`] and [`messaging_router`], over a provider-owning
-`Client`. Match this layout when creating a new Omnia service: root
-`src/`, not a `guests/<name>/` tree.
+(`post(tally)`), and `topics()`, a `messaging::Routes` binding its topic
+suffixes to its consumers. The **guest is the workspace root package**
+(`src/lib.rs`) — one `merge` per crate in `http_router` and one in
+`messaging_router`, over a provider-owning `Client`, each bound as a WASI
+export by `omnia_sdk::export!`. Match this layout when creating a new
+Omnia service: root `src/`, not a `guests/<name>/` tree.
 
 ## Relation to omnia
 
@@ -106,12 +106,15 @@ The guest:
 - Merges each crate's `router()` — plain axum routes
   (`axum::routing::{get, post}` over `Path`, `Query`, and `Json`
   extractors, with `Bytes` for non-JSON wire formats) on an `axum::Router`
-  — and exports `wasi:http` via
-  `omnia_sdk::http!(router(omnia_sdk::WasiProvider))`
-- Exports `wasi:messaging` via
-  `omnia_sdk::messaging!(messaging_router(omnia_sdk::WasiProvider))`,
-  dispatching through an exact-topic `omnia_sdk::api::messaging::Router` of
-  **exact** env-qualified topics each crate's `topics()` registers
+  — in `http_router`
+- Merges each crate's `topics()` — bare topic suffixes bound to consumers
+  on a `messaging::Routes` — in `messaging_router`, which qualifies every
+  topic for the deployment's environment once (`Routes::map_topics`) and
+  dispatches deliveries through the exact-topic
+  `omnia_sdk::api::messaging::Router`
+- Binds each as a WASI export, one `omnia_sdk::export!` per transport:
+  `export!(http: http_router(WasiProvider))` and
+  `export!(messaging: messaging_router(WasiProvider))`
 - Uses `omnia_sdk::WasiProvider`, the zero-sized provider implementing every
   capability trait (`BlobStore`, `Broadcast`, `Config`, `DocumentStore`,
   `HttpRequest`, `Identity`, `Publish`, `StateStore`, `TableStore`) over its
@@ -195,12 +198,13 @@ clients stay provider-generic.
 5. Bind the handler in the part's `pub(crate) fn routes()`
    (`axum::routing::post(handler)`; a custom status code or wire format is
    an `IntoResponse` on the reply or error type) or
-   `pub(crate) fn topics()` (`consume(handler)`, `consume_with`), and list
-   the part in the stem's `src/lib.rs` (`common::routers([..])`,
-   `common::topics(router, env, [..])`).
-   A new stem adds one `merge(<stem>::router())` line to [`router`] or
-   one `<stem>::topics(router, &env)` line to [`messaging_router`] in
-   `src/lib.rs`.
+   `pub(crate) fn topics()` (`Routes::new().route(topic::X, handler)`, or
+   `route_with(topic::X, handler, decode)` for a non-JSON payload), and
+   list the part in the stem's `src/lib.rs` (`common::routers([..])`,
+   `common::topics([..])`).
+   A new stem adds one `let router = router.merge(<stem>::router());` line
+   to `http_router` or one `let routes = routes.merge(<stem>::topics());`
+   line to `messaging_router` in `src/lib.rs`.
 6. Add fixtures under the crate's `data/` and native tests under `tests/`
    that seed an `omnia_test::guest::Provider` with the doubles the
    handler's capabilities read and drive the stem's `router()` or `topics()`.

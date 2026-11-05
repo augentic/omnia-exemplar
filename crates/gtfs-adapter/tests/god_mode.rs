@@ -15,10 +15,8 @@ use tower::ServiceExt as _;
 
 use self::support::provider;
 
-const OWNER: &str = "acme";
-
 async fn send(provider: Provider, request: Request<Body>) -> (StatusCode, Value) {
-    let router = gtfs_adapter::router().with_state(Client::new(OWNER, provider));
+    let router = gtfs_adapter::router().with_state(Client::new(provider));
     let response = router.oneshot(request).await.expect("response");
     let status = response.status();
     let bytes = to_bytes(response.into_body(), usize::MAX).await.expect("body");

@@ -13,8 +13,6 @@ use sql::agency::{AgenciesReply, AgencyReply};
 use sql::feed::{DeleteFeedReply, FeedReply, FeedsReply, FeedsWithAgencyReply};
 use tower::ServiceExt as _;
 
-const OWNER: &str = "acme";
-
 fn field_int(name: &str, value: i64) -> Field {
     Field {
         name: name.to_string(),
@@ -118,7 +116,7 @@ async fn send(
         None => builder.body(Body::empty()),
     }
     .expect("request");
-    let router = sql::router().with_state(Client::new(OWNER, provider.clone()));
+    let router = sql::router().with_state(Client::new(provider.clone()));
     let response = router.oneshot(request).await.expect("response");
     let status = response.status();
     let bytes = to_bytes(response.into_body(), usize::MAX).await.expect("body");
