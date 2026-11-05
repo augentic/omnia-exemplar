@@ -24,6 +24,18 @@ pub enum Role {
     Listed,
 }
 
+/// The template line the `http_router` list of `src/lib.rs` follows.
+///
+/// A stem's entry in the list is `        <stem>::router(),`, inserted
+/// after this line with [`insert_after`](crate::insert_after).
+pub const ROUTE_LIST_ANCHOR: &str = "        // one router() per stem, each added at the end";
+
+/// The template line the `topic_router` list of `src/lib.rs` follows.
+///
+/// A stem's entry in the list is `        <stem>::topics(),`, inserted
+/// after this line with [`insert_after`](crate::insert_after).
+pub const TOPIC_LIST_ANCHOR: &str = "        // one topics() per stem, each added at the end";
+
 /// One entry of the manifest: where its body is read from, where it goes, its proof, and its role.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Entry {
@@ -83,9 +95,10 @@ macro_rules! seed {
 ///
 /// - the root package `guest` is the component, exporting WASI HTTP and
 ///   WASI Messaging over one provider and building both routers from the
-///   route and topic lists in `src/lib.rs`, one statement per stem, each
-///   built natively by a rung under `tests/`; the file is listed, so the
-///   rungs rather than the hold pin its routers;
+///   route and topic lists in `src/lib.rs`, one entry per stem after
+///   [`ROUTE_LIST_ANCHOR`] and [`TOPIC_LIST_ANCHOR`], each built natively
+///   by a rung under `tests/`; the file is listed, so the rungs rather
+///   than the hold pin its routers;
 /// - `crates/common` holds the capability bound, the topic table, and the
 ///   environment helpers every stem shares;
 /// - `examples/runtime.rs` is the local host behind the `host` feature;

@@ -18,10 +18,11 @@ pub mod trip;
 pub mod vehicle_info;
 
 use common::Capabilities;
-use omnia_sdk::api::{Client, messaging};
+use omnia_sdk::api::http::Router;
+use omnia_sdk::api::messaging;
 
 /// The stem's routes, merged onto the root router.
-pub fn router<P: Capabilities>() -> axum::Router<Client<P>> {
+pub fn router<P: Capabilities>() -> Router<P> {
     common::routers([
         // one entry per part with routes, each added at the end
         vehicle_info::routes(),

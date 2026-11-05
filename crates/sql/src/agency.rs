@@ -10,7 +10,8 @@ use axum::extract::{Path, Query};
 use axum::routing::get;
 use chrono::Utc;
 use common::{Capabilities, RowExt as _};
-use omnia_sdk::api::{Client, Context};
+use omnia_sdk::api::Context;
+use omnia_sdk::api::http::Router;
 use omnia_sdk::sql::{DataType, Row};
 use omnia_sdk::{Result, TableStore, bad_request, not_found};
 use serde::{Deserialize, Serialize};
@@ -22,8 +23,8 @@ pub(crate) const AGENCY: &str = "/examples/agencies/{id}";
 
 const AGENCY_COLUMNS: &str = "agency_id, name, url, timezone, created_at";
 
-pub(crate) fn routes<P: Capabilities>() -> axum::Router<Client<P>> {
-    axum::Router::new()
+pub(crate) fn routes<P: Capabilities>() -> Router<P> {
+    Router::new()
         .route(AGENCIES, get(list_agencies).post(create_agency))
         .route(AGENCY, get(get_agency).patch(update_agency))
 }

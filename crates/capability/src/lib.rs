@@ -17,15 +17,23 @@ pub mod document;
 pub mod table;
 
 use common::Capabilities;
-use omnia_sdk::api::Client;
+use omnia_sdk::api::http::Router;
+use omnia_sdk::api::messaging;
 
 /// The stem's routes, merged onto the root router.
-pub fn router<P: Capabilities>() -> axum::Router<Client<P>> {
+pub fn router<P: Capabilities>() -> Router<P> {
     common::routers([
         // one entry per part with routes, each added at the end
         blob::routes(),
         broadcast::routes(),
         document::routes(),
         table::routes(),
+    ])
+}
+
+/// The stem's topics, merged onto the root messaging router.
+pub fn topics<P: Capabilities>() -> messaging::Routes<P> {
+    common::topics([
+        // one entry per part with topics, each added at the end
     ])
 }

@@ -8,7 +8,7 @@ use std::ops::Sub;
 use chrono::{Duration, Timelike, Utc};
 use common::{config, topic};
 use omnia_sdk::api::Client;
-use omnia_sdk::api::messaging::{Delivery, DeliveryError, Router};
+use omnia_sdk::api::messaging::{Delivery, DeliveryError};
 use omnia_test::guest::{MapConfig, Provider};
 use pulse_adapter::handler::PulseMessage;
 use pulse_adapter::motion::EventType;
@@ -156,7 +156,7 @@ async fn too_early() {
 #[tokio::test]
 async fn undecodable_payload() {
     let provider = Provider::default().config(MapConfig::default().with([(config::ENV, "dev")]));
-    let router = Router::new(Client::new(provider.clone())).merge(pulse_adapter::topics());
+    let router = pulse_adapter::topics().with_client(Client::new(provider.clone()));
     let delivery = Delivery {
         topic: Some(topic::PULSE.to_string()),
         payload: b"not xml".to_vec(),
@@ -173,7 +173,7 @@ async fn undecodable_payload() {
 // deployment's environment.
 #[test]
 fn topics_by_suffix() {
-    let router = Router::new(Client::new(Provider::default())).merge(pulse_adapter::topics());
+    let router = pulse_adapter::topics().with_client(Client::new(Provider::default()));
 
     assert_eq!(router.topics().collect::<Vec<_>>(), [topic::PULSE]);
 }
@@ -195,7 +195,7 @@ async fn expect_error(path: &str) {
 }
 
 async fn run(case: &Case) -> Result<(), DeliveryError> {
-    let router = Router::new(Client::new(case.provider.clone())).merge(pulse_adapter::topics());
+    let router = pulse_adapter::topics().with_client(Client::new(case.provider.clone()));
     let delivery = Delivery {
         topic: Some(topic::PULSE.to_string()),
         payload: case.input.clone(),

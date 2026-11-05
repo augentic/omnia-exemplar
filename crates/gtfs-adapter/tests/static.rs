@@ -42,7 +42,7 @@ const TRAIN_AVL: &[u8] = include_bytes!("../data/realtime-train-avl.v1.json");
 const PASSENGER_COUNT: &[u8] = include_bytes!("../data/realtime-passenger-count.v1.json");
 
 fn topics(provider: &Provider) -> Router<Provider> {
-    Router::new(Client::new(provider.clone())).merge(gtfs_adapter::topics())
+    gtfs_adapter::topics().with_client(Client::new(provider.clone()))
 }
 
 fn delivery(topic: &str, payload: impl Into<Vec<u8>>) -> Delivery {

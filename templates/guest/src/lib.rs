@@ -12,9 +12,10 @@
 //! A tree is scaffolded with [`scaffold`] and held with [`drift`] and [`restore`]:
 //! every [`Static`](Role::Static) file byte for byte, while a
 //! [`Listed`](Role::Listed) file, which holds a list a slice appends its
-//! lines to, is left to its consumer. The root `Cargo.toml` is the one
-//! listed file held outside its lists, through [`Manifest`], since the
-//! text around them is the pins every crate of the tree resolves under.
+//! lines to after the anchor the crate names for it, is left to its
+//! consumer. The root `Cargo.toml` is the one listed file held outside its
+//! lists, through [`Manifest`], since the text around them is the pins
+//! every crate of the tree resolves under.
 //!
 //! The crate is consumed from a checkout of this repository, pinned to a
 //! commit, and is never packaged: an exact body is read from two
@@ -25,7 +26,7 @@ mod hold;
 mod manifest;
 mod tree;
 
-pub use self::entries::{ENTRIES, Entry, Proof, Role, entry};
+pub use self::entries::{ENTRIES, Entry, Proof, ROUTE_LIST_ANCHOR, Role, TOPIC_LIST_ANCHOR, entry};
 pub use self::hold::{Drift, Drifted, Error};
 pub use self::manifest::{CRATE_LIST_ANCHOR, Manifest, PATH_LIST_ANCHOR, insert_after};
 pub use self::tree::{drift, restore, scaffold};

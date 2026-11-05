@@ -7,14 +7,15 @@
 //! reads.
 //!
 //! A stem's `router()` and `topics()` are the two halves of one contract:
-//! each is stateless and keyed by the bare path or topic suffix, and the
-//! root merges every stem's half onto one router over one [`Client`].
+//! each is stateless and keyed by the bare path or topic suffix, a stem
+//! exposes both whatever parts it has, and the root merges every stem's
+//! halves onto one router apiece over one [`Client`](omnia_sdk::api::Client).
 
 pub mod config;
 pub mod topic;
 
-use omnia_sdk::api::{Client, messaging};
-use omnia_sdk::axum::Router;
+use omnia_sdk::api::http::Router;
+use omnia_sdk::api::messaging;
 use omnia_sdk::sql::{DataType, Field, Row};
 use omnia_sdk::{
     BlobStore, Broadcast, Config, DocumentStore, HttpRequest, Identity, Publish, Result,
@@ -59,27 +60,28 @@ impl<P> Capabilities for P where
 {
 }
 
-/// Merge the routes of a stem's parts onto one router.
+/// Merge a list of routers onto one.
 ///
-/// A stem's `router` is this fold over its parts' `routes()`, so a stem with
-/// no route yet is the fold over none. The parts are an array rather than a
-/// method chain so each sits on its own line, and a part added to the stem
-/// is one line appended to the list. Merging panics where two parts serve
-/// one path under one method.
-pub fn routers<P, const N: usize>(parts: [Router<Client<P>>; N]) -> Router<Client<P>>
+/// A stem's `router` is this fold over its parts' `routes()`, and the root's
+/// `http_router` the same fold over its stems' `router()`, so a list with
+/// nothing in it yet is the fold over none. The list is an array rather than
+/// a method chain so each entry sits on its own line under the comment that
+/// anchors it, and an entry added is one line appended. Merging panics where
+/// two entries serve one path under one method.
+pub fn routers<P, const N: usize>(parts: [Router<P>; N]) -> Router<P>
 where
     P: Send + Sync + 'static,
 {
     parts.into_iter().fold(Router::new(), Router::merge)
 }
 
-/// Merge the topics of a stem's parts onto one set of routes.
+/// Merge a list of topic routes onto one.
 ///
-/// A stem's `topics` is this fold over its parts' `topics()`, in the same
-/// array form as [`routers`], so a stem with no topic yet is the fold over
-/// none. Every topic is a bare suffix from [`topic`]; the root qualifies
-/// them for the deployment's environment in one pass. Merging panics where
-/// two parts consume one topic.
+/// A stem's `topics` is this fold over its parts' `topics()`, and the root's
+/// `topic_router` the same fold over its stems' `topics()`, in the array
+/// form of [`routers`]. Every topic is a bare suffix from [`topic`]; the
+/// root qualifies them for the deployment's environment in one pass.
+/// Merging panics where two entries consume one topic.
 pub fn topics<P, const N: usize>(parts: [messaging::Routes<P>; N]) -> messaging::Routes<P>
 where
     P: Send + Sync + 'static,

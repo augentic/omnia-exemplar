@@ -44,7 +44,8 @@ as both the workspace and the deployable package, `crate-type =
 `wasm32`-excluded `omnia-test` dev-dependency (`features = ["guest"]`)
 and the `host` feature; `src/lib.rs` with `http_router` and
 `topic_router`, provider-generic routers each composed from its list
-of one statement per stem and each bound over `omnia_sdk::WasiProvider`
+of one entry per stem, after the anchor `ROUTE_LIST_ANCHOR` or
+`TOPIC_LIST_ANCHOR` names, and each bound over `omnia_sdk::WasiProvider`
 by `http::export!` and `messaging::export!`; `tests/routes.rs` and `tests/messaging.rs`, one native rung each
 that builds the composed router over a seeded
 `omnia_test::guest::Provider`, so two stems serving one route or
@@ -64,16 +65,17 @@ A stem is one crate under `crates/<stem>/`, and the fixture stem
 `orders` (`placing`, `lookup`, `catalogue`, `dispatch`) is its proof and
 the shape a generated stem copies. Its
 `src/lib.rs` is the crate doc, one `pub mod <part>;` line per part, and
-the two functions the root lists compose, written whichever parts the stem
-has: `pub fn router<P: Capabilities>() -> axum::Router<Client<P>>`,
-`common::routers([..])` over one `<part>::routes(),` entry per part
-with routes, and `pub fn topics<P: Capabilities>() ->
-messaging::Routes<P>`, `common::topics([..])` over one
+the two functions the root lists compose, both written whatever parts the
+stem has: `pub fn router<P: Capabilities>() -> Router<P>` over
+`omnia_sdk::api::http::Router`, `common::routers([..])` over one
+`<part>::routes(),` entry per part with routes, and `pub fn topics<P:
+Capabilities>() -> messaging::Routes<P>`, `common::topics([..])` over one
 `<part>::topics(),` entry per part with topics, each topic a bare suffix
 the root qualifies. Each array is a list under a comment that
 anchors it, empty for a stem with no route or no topic yet, so every
 line of the entry outside its three lists is the same whichever slice
-writes it and two slices writing one stem at once merge line by line. A
+writes it, two slices writing one stem at once merge line by line, and
+the root lists every stem once in each of its lists. A
 part is one module: its paths, its settings' keys, and its state keys
 as `pub(crate) const`, its handlers `pub(crate)`, and `pub(crate) fn
 routes()` and `pub(crate) fn topics()` registering them, so a part the
@@ -82,8 +84,10 @@ stem's lists do not name is dead code. Its tests under
 `topics()` merged onto a `messaging::Router` over a `Client` of the
 doubles, so a route or a topic is asserted as the wire reaches it. The
 root `Cargo.toml` names the crate in its path list and its
-`[dependencies]`, and one line each in `http_router` and
-`topic_router` in `src/lib.rs` for its `router()` and `topics()`; a topic the stem
+`[dependencies]`, and `src/lib.rs` lists its `router()` and `topics()`,
+one line in each of the lists of `http_router` and `topic_router`, after
+the anchors `ROUTE_LIST_ANCHOR` and `TOPIC_LIST_ANCHOR` name as
+`PATH_LIST_ANCHOR` and `CRATE_LIST_ANCHOR` name the manifest's; a topic the stem
 publishes or consumes is one constant appended to
 `crates/common/src/topic.rs`; nothing else of the seed is edited.
 

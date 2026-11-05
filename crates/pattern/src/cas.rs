@@ -12,14 +12,15 @@ use axum::response::{IntoResponse, Response};
 use axum::routing::put;
 use common::Capabilities;
 use http::StatusCode;
-use omnia_sdk::api::{Client, Context};
+use omnia_sdk::api::Context;
+use omnia_sdk::api::http::Router;
 use omnia_sdk::{CasError, StateStore, not_found, server_error};
 use serde::{Deserialize, Serialize};
 
 pub(crate) const QUOTA: &str = "/examples/patterns/quotas/{tenant}";
 
-pub(crate) fn routes<P: Capabilities>() -> axum::Router<Client<P>> {
-    axum::Router::new().route(QUOTA, put(update_quota))
+pub(crate) fn routes<P: Capabilities>() -> Router<P> {
+    Router::new().route(QUOTA, put(update_quota))
 }
 
 pub(crate) fn quota_key(tenant: &str) -> String {

@@ -201,9 +201,9 @@ clients stay provider-generic.
    `route_with(topic::X, handler, decode)` for a non-JSON payload), and
    list the part in the stem's `src/lib.rs` (`common::routers([..])`,
    `common::topics([..])`).
-   A new stem adds one `let router = router.merge(<stem>::router());` line
-   to `http_router` or one `let routes = routes.merge(<stem>::topics());`
-   line to `topic_router` in `src/lib.rs`.
+   A new stem adds its `<stem>::router(),` line to the list in `http_router`
+   and its `<stem>::topics(),` line to the list in `topic_router` in
+   `src/lib.rs`, each after the comment that anchors the list.
 6. Add fixtures under the crate's `data/` and native tests under `tests/`
    that seed an `omnia_test::guest::Provider` with the doubles the
    handler's capabilities read and drive the stem's `router()` or `topics()`.

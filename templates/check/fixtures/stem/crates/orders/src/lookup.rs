@@ -7,15 +7,16 @@ use axum::response::{IntoResponse, Response};
 use axum::routing::get;
 use common::Capabilities;
 use http::StatusCode;
-use omnia_sdk::api::{Client, Context};
+use omnia_sdk::api::Context;
+use omnia_sdk::api::http::Router;
 use omnia_sdk::{StateStore, not_found, server_error};
 use serde::{Deserialize, Serialize};
 
 // The paths the part serves.
 pub(crate) const ORDER: &str = "/orders/{id}";
 
-pub(crate) fn routes<P: Capabilities>() -> axum::Router<Client<P>> {
-    axum::Router::new().route(ORDER, get(lookup))
+pub(crate) fn routes<P: Capabilities>() -> Router<P> {
+    Router::new().route(ORDER, get(lookup))
 }
 
 pub(crate) fn order_key(id: &str) -> String {

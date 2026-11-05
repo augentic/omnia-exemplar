@@ -1,11 +1,9 @@
-# Builds this tree against the sibling `omnia` checkout. Cargo prefers a
-# `[patch]` set here over the git patches in `Cargo.toml`, and resolves the
-# paths against this file's parent directory, so the template scaffold
-# rendered under `target/` builds against the same checkout. While the file
-# stands, `Cargo.lock` records the omnia crates without a source, and a
-# checkout without the sibling (CI among them) cannot resolve them. Remove
-# the file and run any unlocked cargo command to re-lock onto the git
-# patches.
+# Resolves the path patches in `Cargo.toml` from this directory (not from a
+# manifest under `target/`), so the template scaffold rendered under
+# `target/` builds against the same sibling checkouts as the workspace root.
+# Comment out this table to rely on the manifest patches alone (fine at the
+# repository root; the scaffold needs this file). Swap the manifest patches
+# back to git and run any unlocked cargo command before CI.
 [patch.crates-io]
 omnia = { path = "../omnia/crates/omnia" }
 omnia-sdk = { path = "../omnia/crates/sdk" }

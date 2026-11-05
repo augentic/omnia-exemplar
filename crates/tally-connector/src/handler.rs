@@ -4,7 +4,8 @@ use anyhow::Context as _;
 use axum::Json;
 use axum::routing::post;
 use common::{Capabilities, config, topic};
-use omnia_sdk::api::{Client, Context};
+use omnia_sdk::api::Context;
+use omnia_sdk::api::http::Router;
 use omnia_sdk::{Config, Message, Publish, Result};
 use serde::{Deserialize, Serialize};
 
@@ -12,8 +13,8 @@ use crate::types::TallyMessage;
 
 pub(crate) const APC: &str = "/api/apc";
 
-pub(crate) fn routes<P: Capabilities>() -> axum::Router<Client<P>> {
-    axum::Router::new().route(APC, post(tally))
+pub(crate) fn routes<P: Capabilities>() -> Router<P> {
+    Router::new().route(APC, post(tally))
 }
 
 pub(crate) async fn tally<P>(

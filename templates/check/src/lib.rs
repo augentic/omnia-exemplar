@@ -17,7 +17,10 @@ use std::collections::BTreeSet;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use omnia_template::{CRATE_LIST_ANCHOR, ENTRIES, PATH_LIST_ANCHOR, insert_after};
+use omnia_template::{
+    CRATE_LIST_ANCHOR, ENTRIES, PATH_LIST_ANCHOR, ROUTE_LIST_ANCHOR, TOPIC_LIST_ANCHOR,
+    insert_after,
+};
 use serde::Deserialize;
 
 const MANIFEST: &str = "templates/guest/manifest.yaml";
@@ -27,21 +30,13 @@ const CRATES_CLIPPY: &str = "crates/clippy.toml";
 const SEED_CLIPPY: &str = "templates/guest/core/clippy.toml";
 
 // What a slice appends for the fixture stem: its line in each list, after
-// the anchor the layout names, or at the end of a list file that names
+// the anchor the template names, or at the end of a list file that names
 // none. The stem's own files are written whole from `STEM`.
 const STEM_LINES: &[(&str, &str, &str)] = &[
     ("Cargo.toml", PATH_LIST_ANCHOR, "orders = { path = \"crates/orders\" }"),
     ("Cargo.toml", CRATE_LIST_ANCHOR, "orders.workspace = true"),
-    (
-        "src/lib.rs",
-        "    let router = axum::Router::new();",
-        "    let router = router.merge(orders::router());",
-    ),
-    (
-        "src/lib.rs",
-        "    let routes = messaging::Routes::new();",
-        "    let routes = routes.merge(orders::topics());",
-    ),
+    ("src/lib.rs", ROUTE_LIST_ANCHOR, "        orders::router(),"),
+    ("src/lib.rs", TOPIC_LIST_ANCHOR, "        orders::topics(),"),
     (
         "crates/common/src/topic.rs",
         "",

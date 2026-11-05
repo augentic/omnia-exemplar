@@ -6,7 +6,7 @@ use axum::http::{Request, StatusCode};
 use common::config;
 use omnia_sdk::StateStore;
 use omnia_sdk::api::Client;
-use omnia_sdk::api::messaging::{Delivery, Router};
+use omnia_sdk::api::messaging::Delivery;
 use omnia_test::guest::{MapConfig, Provider};
 use orders::placing::Placed;
 use tower::ServiceExt as _;
@@ -57,7 +57,7 @@ async fn refused_past_the_limit() {
 #[tokio::test]
 async fn placements_counted() {
     let provider = provider();
-    let router = Router::new(Client::new(provider.clone())).merge(orders::topics());
+    let router = orders::topics().with_client(Client::new(provider.clone()));
 
     for lines in [1, 2] {
         let delivery = Delivery {

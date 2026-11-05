@@ -8,6 +8,19 @@ Unreleased
 
 ### Changed
 
+- **One list shape at every level, and every stem exposes both halves.**
+  The root's `http_router` and `topic_router` are the folds a stem's entry
+  uses, `common::routers([..])` and `common::topics([..])`, each list under
+  the comment that anchors it, so a slice adds a stem as it adds a part:
+  one line after the anchor, which `omnia-template` names as
+  `ROUTE_LIST_ANCHOR` and `TOPIC_LIST_ANCHOR` beside the manifest's two.
+  Every stem exposes `router()` and `topics()`, an empty list where it has
+  no part of that kind, so the root lists each stem once in each list and
+  a stem's first route or topic is a change to the stem alone. A part's
+  and a stem's routes are an `omnia_sdk::api::http::Router<P>`, the SDK's
+  name for an `axum::Router` over the `Client`, and the root closes its
+  merged topics with `Routes::with_client` as it closes its routes with
+  `with_state`.
 - **Parameterized SQL + `common::RowExt` replaces `omnia-orm`, `acme-common`
   becomes `common`, and stem entries hold composition alone.** `omnia-orm`
   is removed: `crates/sql` and `crates/pattern/src/place.rs` execute

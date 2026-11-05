@@ -7,14 +7,15 @@
 use axum::Json;
 use axum::routing::post;
 use common::Capabilities;
-use omnia_sdk::api::{Client, Context};
+use omnia_sdk::api::Context;
+use omnia_sdk::api::http::Router;
 use omnia_sdk::{Broadcast, Result};
 use serde::{Deserialize, Serialize};
 
 pub(crate) const ALERT: &str = "/examples/alert";
 
-pub(crate) fn routes<P: Capabilities>() -> axum::Router<Client<P>> {
-    axum::Router::new().route(ALERT, post(alert))
+pub(crate) fn routes<P: Capabilities>() -> Router<P> {
+    Router::new().route(ALERT, post(alert))
 }
 
 /// Broadcast an alert to a channel.
