@@ -2,10 +2,9 @@
 //! driven through the stem's router.
 
 use axum::body::{Body, to_bytes};
-use axum::http::{Request, StatusCode};
+use axum::http::header::AUTHORIZATION;
+use axum::http::{Method, Request, Response, StatusCode};
 use bytes::Bytes;
-use http::header::AUTHORIZATION;
-use http::{Method, Response};
 use omnia_sdk::api::Client;
 use omnia_test::guest::{FixedIdentity, MapConfig, MatchedHttp, Provider};
 use pattern::identity::UpstreamStatusReply;

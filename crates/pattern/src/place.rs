@@ -15,12 +15,11 @@
 //! emits, plus the variant's own domain fields.
 
 use axum::Json;
+use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
 use common::{Capabilities, RowExt as _};
-use http::StatusCode;
-use omnia_sdk::api::Context;
-use omnia_sdk::api::http::Router;
+use omnia_sdk::api::{Context, http};
 use omnia_sdk::sql::{DataType, Row};
 use omnia_sdk::{Error, TableStore};
 use serde::{Deserialize, Serialize};
@@ -32,8 +31,8 @@ pub(crate) const CONNECTION: &str = "db";
 /// Mean metres per degree of latitude (and of longitude at the equator).
 const METRES_PER_DEGREE: f64 = 111_320.0;
 
-pub(crate) fn routes<P: Capabilities>() -> Router<P> {
-    Router::new().route(PLACES, post(upsert_place)).route(NEARBY, get(nearby_places))
+pub(crate) fn routes<P: Capabilities>() -> http::Routes<P> {
+    http::Routes::new().route(PLACES, post(upsert_place)).route(NEARBY, get(nearby_places))
 }
 
 /// A named point of interest.

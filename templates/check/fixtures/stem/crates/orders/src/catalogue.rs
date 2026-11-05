@@ -5,8 +5,7 @@ use axum::Json;
 use axum::extract::Query;
 use axum::routing::get;
 use common::{Capabilities, RowExt as _};
-use omnia_sdk::api::Context;
-use omnia_sdk::api::http::Router;
+use omnia_sdk::api::{Context, http};
 use omnia_sdk::sql::{DataType, Row};
 use omnia_sdk::{Result, StateStore, TableStore, server_error};
 use serde::{Deserialize, Serialize};
@@ -21,8 +20,8 @@ pub(crate) const CONNECTION: &str = "db";
 pub(crate) const CATALOGUE_KEY: &str = "orders/catalogue";
 const CATALOGUE_TTL_SECS: u64 = 60;
 
-pub(crate) fn routes<P: Capabilities>() -> Router<P> {
-    Router::new().route(CATALOGUE, get(list_catalogue))
+pub(crate) fn routes<P: Capabilities>() -> http::Routes<P> {
+    http::Routes::new().route(CATALOGUE, get(list_catalogue))
 }
 
 /// Optional filter on the catalogue listing.

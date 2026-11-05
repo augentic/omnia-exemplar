@@ -7,10 +7,9 @@
 //! handler issued.
 
 use axum::body::{Body, to_bytes};
-use axum::http::Request;
+use axum::http::header::CONTENT_TYPE;
+use axum::http::{Request, StatusCode};
 use axum::response::IntoResponse as _;
-use http::StatusCode;
-use http::header::CONTENT_TYPE;
 use omnia_sdk::api::Client;
 use omnia_sdk::sql::{DataType, Field, Row};
 use omnia_test::guest::{Provider, ScriptedTables, Statement};

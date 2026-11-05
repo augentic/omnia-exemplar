@@ -66,10 +66,10 @@ A stem is one crate under `crates/<stem>/`, and the fixture stem
 the shape a generated stem copies. Its
 `src/lib.rs` is the crate doc, one `pub mod <part>;` line per part, and
 the two functions the root lists compose, both written whatever parts the
-stem has: `pub fn router<P: Capabilities>() -> Router<P>` over
-`omnia_sdk::api::http::Router`, `common::routers([..])` over one
-`<part>::routes(),` entry per part with routes, and `pub fn topics<P:
-Capabilities>() -> messaging::Routes<P>`, `common::topics([..])` over one
+stem has: `pub fn router<P: Capabilities>() -> http::Routes<P>`,
+`common::routers([..])` over one `<part>::routes(),` entry per part
+with routes, and `pub fn topics<P: Capabilities>() ->
+messaging::Routes<P>`, `common::topics([..])` over one
 `<part>::topics(),` entry per part with topics, each topic a bare suffix
 the root qualifies. Each array is a list under a comment that
 anchors it, empty for a stem with no route or no topic yet, so every

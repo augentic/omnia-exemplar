@@ -3,9 +3,8 @@
 
 use axum::body::{Body, to_bytes};
 use axum::http::header::CONTENT_TYPE;
-use axum::http::{Request, StatusCode};
+use axum::http::{HeaderValue, Method, Request, Response, StatusCode};
 use bytes::Bytes;
-use http::{Method, Response};
 use omnia_sdk::api::Client;
 use omnia_test::guest::{MapConfig, MatchedHttp, Provider};
 use pattern::decode::{DecodeSegmentReply, Segment};
@@ -63,7 +62,7 @@ async fn miss() {
     assert_eq!(requests[0].method, Method::POST);
     assert_eq!(requests[0].uri.path(), "/decode");
     assert_eq!(
-        requests[0].headers.get("Client-Cert").map(http::HeaderValue::as_bytes),
+        requests[0].headers.get("Client-Cert").map(HeaderValue::as_bytes),
         Some(b"test-client-cert".as_slice())
     );
 

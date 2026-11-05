@@ -18,3 +18,4 @@ omnia-wasi-messaging = { path = "../omnia/crates/wasi-messaging" }
 omnia-wasi-otel = { path = "../omnia/crates/wasi-otel" }
 omnia-wasi-sql = { path = "../omnia/crates/wasi-sql" }
 omnia-wasi-websocket = { path = "../omnia/crates/wasi-websocket" }
+omnia-http-cache = { path = "../omnia-extensions/crates/http-cache" }

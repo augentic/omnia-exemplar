@@ -8,11 +8,10 @@ pub mod pulse;
 pub mod stops;
 
 use common::Capabilities;
-use omnia_sdk::api::http::Router;
-use omnia_sdk::api::messaging;
+use omnia_sdk::api::{http, messaging};
 
 /// The stem's routes, merged onto the root router.
-pub fn router<P: Capabilities>() -> Router<P> {
+pub fn router<P: Capabilities>() -> http::Routes<P> {
     common::routers([
         // one entry per part with routes, each added at the end
     ])

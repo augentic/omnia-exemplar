@@ -17,10 +17,10 @@ Unreleased
   Every stem exposes `router()` and `topics()`, an empty list where it has
   no part of that kind, so the root lists each stem once in each list and
   a stem's first route or topic is a change to the stem alone. A part's
-  and a stem's routes are an `omnia_sdk::api::http::Router<P>`, the SDK's
-  name for an `axum::Router` over the `Client`, and the root closes its
-  merged topics with `Routes::with_client` as it closes its routes with
-  `with_state`.
+  and a stem's routes are an `omnia_sdk::api::http::Routes<P>`, the SDK's
+  name for an `axum::Router` over the `Client`, alongside
+  `messaging::Routes<P>`, and the root closes them into `http::Router` and
+  `messaging::Router<P>` with `with_state` and `Routes::with_client`.
 - **Parameterized SQL + `common::RowExt` replaces `omnia-orm`, `acme-common`
   becomes `common`, and stem entries hold composition alone.** `omnia-orm`
   is removed: `crates/sql` and `crates/pattern/src/place.rs` execute

@@ -11,11 +11,10 @@
 use anyhow::Context as _;
 use axum::Json;
 use axum::body::Body;
+use axum::http::{Method, Request};
 use axum::routing::post;
 use common::Capabilities;
-use http::Method;
-use omnia_sdk::api::Context;
-use omnia_sdk::api::http::Router;
+use omnia_sdk::api::{Context, http};
 use omnia_sdk::{Config, HttpRequest, Result, StateStore, bad_gateway};
 use serde::{Deserialize, Serialize};
 
@@ -30,8 +29,8 @@ pub(crate) const CLIENT_CERT: &str = "PATTERN_CLIENT_CERT";
 // Cache lifetime for decoded segments, in seconds.
 pub(crate) const SEGMENT_TTL_SECS: u64 = 24 * 60 * 60;
 
-pub(crate) fn routes<P: Capabilities>() -> Router<P> {
-    Router::new().route(DECODE, post(decode_segment))
+pub(crate) fn routes<P: Capabilities>() -> http::Routes<P> {
+    http::Routes::new().route(DECODE, post(decode_segment))
 }
 
 pub(crate) fn segment_key(code: &str) -> String {
@@ -89,7 +88,7 @@ where
 
     let body = serde_json::to_vec(&serde_json::json!({ "code": input.code }))
         .context("serializing decode request")?;
-    let request = http::Request::builder()
+    let request = Request::builder()
         .method(Method::POST)
         .uri(url)
         .header("Content-Type", "application/json")

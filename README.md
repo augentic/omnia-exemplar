@@ -8,13 +8,15 @@ passenger counting, and GTFS realtime adaptation.
 Domain logic lives under `crates/*` as plain axum handlers
 (`pub async fn name<P>(Context<P>, Json<Input>)`) and messaging handlers
 (`pub async fn name<P>(Input, Context<P>)`), and each crate exposes its
-wiring: `router()`, an `axum::Router` binding its paths to its fns
+wiring: `router()`, an `http::Routes` binding its paths to its fns
 (`post(tally)`), and `topics()`, a `messaging::Routes` binding its topic
 suffixes to its consumers. The **guest is the workspace root package**
-(`src/lib.rs`) — one `merge` per crate in `http_router` and one in
-`topic_router`, over a provider-owning `Client`, each bound as a WASI
-export by `http::export!` and `messaging::export!`. Match this layout when creating a new
-Omnia service: root `src/`, not a `guests/<name>/` tree.
+(`src/lib.rs`) — one `<stem>::router(),` entry per crate in `http_router`
+and one `<stem>::topics(),` entry in `topic_router`, folded by
+`common::routers` and `common::topics` over a provider-owning `Client`,
+each bound as a WASI export by `http::export!` and `messaging::export!`.
+Match this layout when creating a new Omnia service: root `src/`, not a
+`guests/<name>/` tree.
 
 ## Relation to omnia
 
@@ -105,7 +107,7 @@ The guest:
 
 - Merges each crate's `router()` — plain axum routes
   (`axum::routing::{get, post}` over `Path`, `Query`, and `Json`
-  extractors, with `Bytes` for non-JSON wire formats) on an `axum::Router`
+  extractors, with `Bytes` for non-JSON wire formats) on an `http::Routes`
   — in `http_router`
 - Merges each crate's `topics()` — bare topic suffixes bound to consumers
   on a `messaging::Routes` — in `topic_router`, which qualifies every
@@ -195,9 +197,9 @@ clients stay provider-generic.
 4. Declare the path and any configuration keys as `pub(crate) const`s of the
    part that uses them, and any new topic suffix in `common::topic`.
 5. Bind the handler in the part's `pub(crate) fn routes()`
-   (`axum::routing::post(handler)`; a custom status code or wire format is
-   an `IntoResponse` on the reply or error type) or
-   `pub(crate) fn topics()` (`Routes::new().route(topic::X, handler)`, or
+   (`http::Routes::new().route(PATH, post(handler))`; a custom status code
+   or wire format is an `IntoResponse` on the reply or error type) or
+   `pub(crate) fn topics()` (`messaging::Routes::new().route(topic::X, handler)`, or
    `route_with(topic::X, handler, decode)` for a non-JSON payload), and
    list the part in the stem's `src/lib.rs` (`common::routers([..])`,
    `common::topics([..])`).

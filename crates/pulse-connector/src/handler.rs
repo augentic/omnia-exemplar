@@ -7,13 +7,12 @@ use std::fmt::{self, Display};
 
 use anyhow::Context as _;
 use axum::body::Bytes;
+use axum::http::StatusCode;
 use axum::http::header::CONTENT_TYPE;
 use axum::response::{IntoResponse, Response};
 use axum::routing::post;
 use common::{Capabilities, config, topic};
-use http::StatusCode;
-use omnia_sdk::api::Context;
-use omnia_sdk::api::http::Router;
+use omnia_sdk::api::{Context, http};
 use omnia_sdk::{Config, Error, Message, Publish};
 use serde::{Deserialize, Serialize};
 
@@ -36,8 +35,8 @@ const SERVER_FAULT: Fault = Fault {
     },
 };
 
-pub(crate) fn routes<P: Capabilities>() -> Router<P> {
-    Router::new().route(PULSE_XML, post(pulse))
+pub(crate) fn routes<P: Capabilities>() -> http::Routes<P> {
+    http::Routes::new().route(PULSE_XML, post(pulse))
 }
 
 // The handler takes the raw body and parses the SOAP envelope itself, so a
@@ -181,7 +180,7 @@ pub struct FaultMessage {
 
 #[cfg(test)]
 mod tests {
-    use http::HeaderValue;
+    use axum::http::HeaderValue;
 
     use super::*;
 

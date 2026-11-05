@@ -20,7 +20,6 @@ tower.workspace = true
 anyhow.workspace = true
 axum.workspace = true
 common.workspace = true
-http.workspace = true
 omnia-sdk.workspace = true
 quick-xml.workspace = true
 serde.workspace = true

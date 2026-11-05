@@ -19,7 +19,7 @@ use omnia_sdk::api::{Client, http, messaging};
 /// per stem, each added at the end, in the array form a stem lists its parts
 /// in. Merging panics where two stems serve one path under one method, so
 /// the rung under `tests/` holds the list to one route apiece.
-pub fn http_router<P: Capabilities>(provider: P) -> axum::Router {
+pub fn http_router<P: Capabilities>(provider: P) -> http::Router {
     common::routers([
         // one router() per stem, each added at the end
         capability::router(),

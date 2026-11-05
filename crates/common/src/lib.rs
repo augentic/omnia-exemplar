@@ -14,8 +14,7 @@
 pub mod config;
 pub mod topic;
 
-use omnia_sdk::api::http::Router;
-use omnia_sdk::api::messaging;
+use omnia_sdk::api::{http, messaging};
 use omnia_sdk::sql::{DataType, Field, Row};
 use omnia_sdk::{
     BlobStore, Broadcast, Config, DocumentStore, HttpRequest, Identity, Publish, Result,
@@ -68,11 +67,11 @@ impl<P> Capabilities for P where
 /// a method chain so each entry sits on its own line under the comment that
 /// anchors it, and an entry added is one line appended. Merging panics where
 /// two entries serve one path under one method.
-pub fn routers<P, const N: usize>(parts: [Router<P>; N]) -> Router<P>
+pub fn routers<P, const N: usize>(parts: [http::Routes<P>; N]) -> http::Routes<P>
 where
     P: Send + Sync + 'static,
 {
-    parts.into_iter().fold(Router::new(), Router::merge)
+    parts.into_iter().reduce(http::Routes::merge).unwrap_or_default()
 }
 
 /// Merge a list of topic routes onto one.
@@ -86,7 +85,7 @@ pub fn topics<P, const N: usize>(parts: [messaging::Routes<P>; N]) -> messaging:
 where
     P: Send + Sync + 'static,
 {
-    parts.into_iter().fold(messaging::Routes::new(), messaging::Routes::merge)
+    parts.into_iter().reduce(messaging::Routes::merge).unwrap_or_default()
 }
 
 /// Typed column reads over an [`omnia_sdk::sql::Row`], so a handler never matches on [`DataType`] by hand.

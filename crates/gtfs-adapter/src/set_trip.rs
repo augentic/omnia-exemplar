@@ -5,8 +5,7 @@ use axum::Json;
 use axum::extract::Path;
 use axum::routing::post;
 use common::Capabilities;
-use omnia_sdk::api::Context;
-use omnia_sdk::api::http::Router;
+use omnia_sdk::api::{Context, http};
 use omnia_sdk::{Config, Result, StateStore, bad_request};
 use serde::{Deserialize, Serialize};
 
@@ -14,8 +13,8 @@ use crate::god_mode;
 
 pub(crate) const SET_TRIP: &str = "/god-mode/set-trip/{vehicle_id}/{trip_id}";
 
-pub(crate) fn routes<P: Capabilities>() -> Router<P> {
-    Router::new().route(SET_TRIP, post(set_trip))
+pub(crate) fn routes<P: Capabilities>() -> http::Routes<P> {
+    http::Routes::new().route(SET_TRIP, post(set_trip))
 }
 
 /// Request to force a vehicle onto a specific trip: the route's two path parameters.
