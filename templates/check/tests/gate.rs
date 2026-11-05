@@ -91,21 +91,53 @@ fn unpinned_crate() {
 fn patched_crate() {
     let replica = Replica::of_repo();
     let seed = replica.read(SEED_MANIFEST);
-    replica.write(
-        SEED_MANIFEST,
-        &format!(
-            "{seed}\n[patch.crates-io]\nomnia-sdk = {{ git = \"https://github.com/augentic/omnia\" }}\n"
-        ),
-    );
+    let patched = if seed.contains("[patch.crates-io]\n") {
+        seed.replacen(
+            "[patch.crates-io]\n",
+            "[patch.crates-io]\ntokio = { git = \"https://github.com/tokio-rs/tokio\" }\n",
+            1,
+        )
+    } else {
+        format!(
+            "{seed}\n[patch.crates-io]\ntokio = {{ git = \"https://github.com/tokio-rs/tokio\" }}\n"
+        )
+    };
+    replica.write(SEED_MANIFEST, &patched);
 
     let failures = template_check::run(replica.root()).expect("contract inputs readable");
 
     let [patch, body] = failures.as_slice() else { panic!("two failures: {failures:#?}") };
     assert_eq!(
         patch,
-        "templates/guest/core/Cargo.toml: `[patch]` retargets crates behind the pins"
+        "templates/guest/core/Cargo.toml: `[patch.crates-io]` retargets `tokio` behind the pins"
     );
     assert!(body.ends_with("embeds a body other than its source"), "{body}");
+}
+
+#[test]
+fn uncarried_root_patch() {
+    let replica = Replica::of_repo();
+    let root = replica.read("Cargo.toml");
+    let patched = if root.contains("[patch.crates-io]\n") {
+        root.replacen(
+            "[patch.crates-io]\n",
+            "[patch.crates-io]\ntokio = { git = \"https://github.com/tokio-rs/tokio\" }\n",
+            1,
+        )
+    } else {
+        format!(
+            "{root}\n[patch.crates-io]\ntokio = {{ git = \"https://github.com/tokio-rs/tokio\" }}\n"
+        )
+    };
+    replica.write("Cargo.toml", &patched);
+
+    let failures = template_check::run(replica.root()).expect("contract inputs readable");
+
+    assert_eq!(
+        failures,
+        ["templates/guest/core/Cargo.toml: `tokio` is patched in the root workspace \
+             (`[patch.crates-io]`), not in the seed"]
+    );
 }
 
 #[test]

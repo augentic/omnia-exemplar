@@ -337,18 +337,17 @@ fn check_seed_versions(root: &Path, source: &str, rendered: &str, failures: &mut
 //
 // Beside its shape a dependency sets feature keys alone. The admitted keys
 // are a closed list, so `package`, `git`, `registry`, `branch`, `rev`, and
-// `tag` each fail whatever the version reads, as do a `[patch]` or
-// `[replace]` table.
+// `tag` each fail whatever the version reads, as does a `[replace]` table.
+// A `[patch]` table is held to the root workspace's for the crates the seed
+// pins.
 fn seed_dependency_failures(workspace: &toml::Value, seed: &toml::Value) -> Vec<String> {
     const SHAPE_KEYS: [&str; 3] = ["workspace", "path", "version"];
     const FEATURE_KEYS: [&str; 3] = ["features", "default-features", "optional"];
     let pins = workspace.get("workspace").and_then(|w| w.get("dependencies"));
-    let mut failures = Vec::new();
+    let mut failures = seed_patch_failures(workspace, seed);
 
-    for table in ["patch", "replace"] {
-        if seed.get(table).is_some() {
-            failures.push(format!("`[{table}]` retargets crates behind the pins"));
-        }
+    if seed.get("replace").is_some() {
+        failures.push("`[replace]` retargets crates behind the pins".to_string());
     }
 
     for (name, spec) in dependency_tables(seed) {
@@ -386,6 +385,72 @@ fn seed_dependency_failures(workspace: &toml::Value, seed: &toml::Value) -> Vec<
             )),
         }
     }
+    failures
+}
+
+// Holds a seed's `[patch]` table to the root workspace's for the crates the
+// seed pins: a member manifest carries none, and the workspace manifest
+// patches a crate if and only if the seed pins it and the root patches it
+// the same way.
+fn seed_patch_failures(workspace: &toml::Value, seed: &toml::Value) -> Vec<String> {
+    if seed.get("workspace").is_none() {
+        if seed.get("patch").is_some() {
+            return vec!["`[patch]` retargets crates behind the pins".to_string()];
+        }
+        return Vec::new();
+    }
+
+    let seed_pins =
+        seed.get("workspace").and_then(|w| w.get("dependencies")).and_then(toml::Value::as_table);
+    let root_patches = workspace.get("patch").and_then(toml::Value::as_table);
+    let seed_patches = seed.get("patch").and_then(toml::Value::as_table);
+    let mut failures = Vec::new();
+
+    for (registry, entries) in seed_patches.into_iter().flatten() {
+        let Some(seed_entries) = entries.as_table() else {
+            failures.push(format!("`[patch.{registry}]` is not a table"));
+            continue;
+        };
+        let root_entries =
+            root_patches.and_then(|p| p.get(registry)).and_then(toml::Value::as_table);
+        for (name, actual) in seed_entries {
+            if !seed_pins.is_some_and(|pins| pins.contains_key(name)) {
+                failures.push(format!(
+                    "`[patch.{registry}]` patches `{name}`, which is not a pin of the seed \
+                     workspace"
+                ));
+                continue;
+            }
+            match root_entries.and_then(|r| r.get(name)) {
+                None => failures
+                    .push(format!("`[patch.{registry}]` retargets `{name}` behind the pins")),
+                Some(expected) if actual != expected => failures.push(format!(
+                    "`[patch.{registry}]` patches `{name}` as {actual}, the root patches it as \
+                     {expected}"
+                )),
+                Some(_) => {}
+            }
+        }
+    }
+
+    for (registry, entries) in root_patches.into_iter().flatten() {
+        let Some(root_entries) = entries.as_table() else {
+            continue;
+        };
+        let seed_entries =
+            seed_patches.and_then(|p| p.get(registry)).and_then(toml::Value::as_table);
+        for name in root_entries.keys() {
+            if seed_pins.is_some_and(|pins| pins.contains_key(name))
+                && seed_entries.and_then(|s| s.get(name)).is_none()
+            {
+                failures.push(format!(
+                    "`{name}` is patched in the root workspace (`[patch.{registry}]`), not in the \
+                     seed"
+                ));
+            }
+        }
+    }
+
     failures
 }
 
@@ -455,46 +520,6 @@ pub fn scaffold(root: &Path, dest: &Path) -> Result<(), String> {
         fs::write(&target, render(&body, &values))
             .map_err(|err| format!("{}: {err}", target.display()))?;
     }
-    Ok(())
-}
-
-/// Append the root workspace `[patch]` tables when the exemplar retargets
-/// pins the seed never carries.
-///
-/// Relative `path` entries are made absolute against `root`.
-///
-/// # Errors
-///
-/// Returns `Err` when the root or scaffold manifest cannot be read, parsed,
-/// or written.
-pub fn carry_patches(root: &Path, dest: &Path) -> Result<(), String> {
-    let text = fs::read_to_string(root.join("Cargo.toml"))
-        .map_err(|err| format!("{}: {err}", root.join("Cargo.toml").display()))?;
-    let mut manifest: toml::Value =
-        toml::from_str(&text).map_err(|err| format!("root manifest: {err}"))?;
-    let Some(patch) = manifest.get_mut("patch") else {
-        return Ok(());
-    };
-    for registry in patch.as_table_mut().into_iter().flat_map(toml::Table::iter_mut) {
-        for spec in registry.1.as_table_mut().into_iter().flat_map(toml::Table::iter_mut) {
-            if let Some(path) = spec.1.get("path").and_then(toml::Value::as_str) {
-                let absolute = root.join(path).display().to_string();
-                spec.1["path"] = toml::Value::String(absolute);
-            }
-        }
-    }
-
-    let mut block = toml::Table::new();
-    block.insert("patch".to_string(), patch.clone());
-    let block = toml::to_string(&block).map_err(|err| format!("patch block: {err}"))?;
-
-    let manifest_path = dest.join("Cargo.toml");
-    let mut seeded = fs::read_to_string(&manifest_path)
-        .map_err(|err| format!("{}: {err}", manifest_path.display()))?;
-    seeded.push('\n');
-    seeded.push_str(&block);
-    fs::write(&manifest_path, seeded)
-        .map_err(|err| format!("{}: {err}", manifest_path.display()))?;
     Ok(())
 }
 

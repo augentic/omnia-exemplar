@@ -2,10 +2,9 @@
 //! checks a build is held to, bare and with one stem written in, with no
 //! hand edits.
 //!
-//! The scaffold builds against the same omnia the exemplar does: when the
-//! root workspace retargets pins with `[patch]`, that block is carried over;
-//! the root lockfile seeds the scaffold's, so every dependency resolves to
-//! the exemplar's exact revision. The native checks share the
+//! The scaffold builds against the same omnia the exemplar does: the root
+//! lockfile seeds the scaffold's, so every dependency resolves to the
+//! exemplar's exact revision. The native checks share the
 //! exemplar's target directory so dependencies compile once; both packages
 //! are `guest`, so the `libguest` the exemplar uplifts to `target/debug` is
 //! the scaffold's after a run, which nothing reads. The component is built
@@ -36,7 +35,6 @@ fn rendered_scaffold() {
     }
 
     template_check::scaffold(&root, &dest).expect("scaffold renders");
-    template_check::carry_patches(&root, &dest).expect("root patches carried");
     fs::copy(root.join("Cargo.lock"), dest.join("Cargo.lock")).expect("lockfile seeded");
     checks(&dest, &target_dir);
 
