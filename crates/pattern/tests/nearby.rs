@@ -1,20 +1,25 @@
-//! Tests for the relational upsert and nearby query, driven exactly as the
-//! guest invokes them.
+//! Tests for the relational upsert and nearby query, driven through the
+//! handlers and the stem's router.
 //!
 //! `ScriptedTables` answers statements, it does not evaluate them: the
 //! bounding-box `SELECT` is scripted with the candidate rows and its bound
 //! parameters asserted, and the upserts are asserted as the statements the
 //! handler issued.
 
+use axum::body::{Body, to_bytes};
+use axum::http::Request;
 use axum::response::IntoResponse as _;
 use http::StatusCode;
 use http::header::CONTENT_TYPE;
-use http_body_util::BodyExt as _;
 use omnia_sdk::HttpError;
 use omnia_sdk::api::{Client, Metadata};
 use omnia_sdk::sql::{DataType, Field, Row};
 use omnia_test::guest::{Provider, ScriptedTables, Statement};
-use pattern::{NearbyPlacesRequest, PlaceError, UpsertPlaceRequest, nearby_places, upsert_place};
+use pattern::{
+    NEARBY, NearbyPlacesReply, NearbyPlacesRequest, PlaceError, UpsertPlaceRequest, nearby_places,
+    upsert_place,
+};
+use tower::ServiceExt as _;
 
 /// A `places` row as the nearby query maps it.
 fn place_row(id: &str, name: &str, lat: f64, lon: f64) -> Row {
@@ -77,9 +82,7 @@ async fn upsert(client: &Client<Provider>, id: &str, name: &str, lat: f64, lon: 
     assert_eq!(reply.affected, 1);
 }
 
-async fn nearby(
-    client: &Client<Provider>, lat: f64, lon: f64, radius_m: f64,
-) -> pattern::NearbyPlacesReply {
+async fn nearby(client: &Client<Provider>, lat: f64, lon: f64, radius_m: f64) -> NearbyPlacesReply {
     let request = NearbyPlacesRequest { lat, lon, radius_m };
     client.call(nearby_places, request, &Metadata::default()).await.expect("should succeed")
 }
@@ -185,7 +188,7 @@ async fn wire(error: PlaceError) -> (StatusCode, serde_json::Value) {
         Some("application/json")
     );
     let status = response.status();
-    let bytes = response.into_body().collect().await.expect("body collects").to_bytes();
+    let bytes = to_bytes(response.into_body(), usize::MAX).await.expect("body collects");
     (status, serde_json::from_slice(&bytes).expect("body is JSON"))
 }
 
@@ -206,4 +209,21 @@ async fn conflicting_upsert() {
     assert_eq!(upserted_id(&statements[0]), Some("cbd"));
     assert_eq!(upserted_id(&statements[1]), Some("cbd"));
     assert!(matches!(&statements[1].params[1], DataType::Str(Some(name)) if name == "Downtown"));
+}
+
+#[tokio::test]
+async fn nearby_body() {
+    let provider = provider(vec![]);
+    let router = pattern::router().with_state(Client::new("acme", provider));
+    let request = Request::get(NEARBY)
+        .header(CONTENT_TYPE, "application/json")
+        .body(Body::from(r#"{"lat":-36.8485,"lon":174.7633,"radius_m":1000.0}"#))
+        .expect("request");
+
+    let response = router.oneshot(request).await.expect("response");
+
+    assert_eq!(response.status(), StatusCode::OK);
+    let bytes = to_bytes(response.into_body(), usize::MAX).await.expect("body");
+    let reply: NearbyPlacesReply = serde_json::from_slice(&bytes).expect("reply");
+    assert!(reply.places.is_empty());
 }

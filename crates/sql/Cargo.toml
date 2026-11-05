@@ -1,6 +1,6 @@
 [package]
 name = "sql"
-description = "Rich wasi-sql showcase: agency/feed schema exercising the guest ORM builders, a multi-column JOIN entity, and server-assigned ids"
+description = "Rich wasi-sql showcase: agency/feed schema exercising parameterized SQL, a multi-column JOIN, and server-assigned ids"
 readme = "README.md"
 publish = false
 authors.workspace = true
@@ -19,10 +19,10 @@ workspace = true
 crate-type = ["lib"]
 
 [dependencies]
-axum.workspace = true
 anyhow.workspace = true
+axum.workspace = true
 chrono.workspace = true
-omnia-orm.workspace = true
+common.workspace = true
 omnia-sdk.workspace = true
 serde.workspace = true
 

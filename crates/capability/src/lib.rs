@@ -5,9 +5,6 @@
 //! and [`TableStore`]. Each module carries one small, deliberately
 //! domain-free [`Handler`] over its capability trait; the crate-level
 //! tests drive every handler through `omnia_test::guest::Provider` doubles.
-//! Route constants for mounting the handlers under `/examples/*` live in
-//! [`routes`], and [`router`] serves all four for the workspace-root guest
-//! to merge.
 //!
 //! [`Handler`]: omnia_sdk::api::Handler
 //! [`BlobStore`]: omnia_sdk::BlobStore
@@ -18,25 +15,22 @@
 pub mod blob;
 pub mod broadcast;
 pub mod document;
-pub mod routes;
 pub mod table;
 
-pub use blob::{ArchiveReply, ArchiveRequest, archive};
-pub use broadcast::{AlertReply, AlertRequest, alert};
-pub use document::{NoteReply, NoteRequest, note};
+pub use blob::{ARCHIVE, ArchiveReply, ArchiveRequest, archive};
+pub use broadcast::{ALERT, AlertReply, AlertRequest, alert};
+use common::Capabilities;
+pub use document::{NOTE, NoteReply, NoteRequest, note};
 use omnia_sdk::api::Client;
-use omnia_sdk::api::http::post;
-use omnia_sdk::{BlobStore, Broadcast, DocumentStore, TableStore};
-pub use table::{ReadingReply, ReadingRequest, reading};
+pub use table::{READING, ReadingReply, ReadingRequest, reading};
 
-/// The crate's routes, merged onto the guest's router: one body-JSON POST per handler.
-pub fn router<P>() -> axum::Router<Client<P>>
-where
-    P: BlobStore + Broadcast + DocumentStore + TableStore + Send + Sync + 'static,
-{
-    axum::Router::new()
-        .route(routes::ARCHIVE, post(archive))
-        .route(routes::ALERT, post(alert))
-        .route(routes::NOTE, post(note))
-        .route(routes::READING, post(reading))
+/// The stem's routes, merged onto the root router.
+pub fn router<P: Capabilities>() -> axum::Router<Client<P>> {
+    common::routers([
+        // one entry per part with routes, each added at the end
+        blob::routes(),
+        broadcast::routes(),
+        document::routes(),
+        table::routes(),
+    ])
 }

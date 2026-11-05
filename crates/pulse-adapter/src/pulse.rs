@@ -2,13 +2,21 @@
 
 use std::fmt::{Display, Formatter};
 
-use acme_common::TIMEZONE;
 use chrono::{NaiveDate, Utc};
+use chrono_tz::Tz;
 use omnia_sdk::Result;
 use serde::Deserialize;
 use serde_repr::Deserialize_repr;
 
 use crate::PulseMessageError;
+
+/// The local timezone of the (fictional) Acme transit network.
+///
+/// All schedule arithmetic (service dates, seconds-since-midnight offsets)
+/// is performed in this zone. Acme deliberately runs on UTC to keep the
+/// exemplar's fixtures reproducible — a real operator would set its actual
+/// IANA zone here (`Pacific/Auckland`) and must not copy UTC-as-local.
+pub const TIMEZONE: Tz = chrono_tz::UTC;
 
 const MAX_DELAY_SECS: i64 = 60;
 const MIN_DELAY_SECS: i64 = -30;

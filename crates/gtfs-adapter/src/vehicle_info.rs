@@ -1,14 +1,23 @@
 //! Vehicle information lookup.
 
-use acme_common::fleet::{self, Vehicle};
-use omnia_sdk::api::Context;
+use common::Capabilities;
+use omnia_sdk::api::http::get;
+use omnia_sdk::api::{Client, Context};
 use omnia_sdk::{Config, HttpRequest, Identity, Result, StateStore};
 use serde::{Deserialize, Serialize};
 
+use crate::fleet::{self, Vehicle};
 use crate::state_keys;
 use crate::trip::TripInstance;
 
 const PROCESS_ID: u32 = 0;
+
+/// Vehicle info lookup route.
+pub const VEHICLE_INFO: &str = "/info/{vehicle_id}";
+
+pub(crate) fn routes<P: Capabilities>() -> axum::Router<Client<P>> {
+    axum::Router::new().route(VEHICLE_INFO, get(vehicle_info))
+}
 
 /// Request for a vehicle's current trip and fleet information.
 #[derive(Debug, Clone, Deserialize)]
@@ -18,7 +27,7 @@ pub struct VehicleInfoRequest {
 }
 
 /// A vehicle's current trip and fleet information.
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct VehicleInfoReply {
     /// Always `0`. Retained solely so the reply shape matches the legacy

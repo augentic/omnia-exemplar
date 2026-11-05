@@ -2,13 +2,21 @@
 //!
 //! This module stores occupancy status for a given vehicle and trip.
 
+use common::{Capabilities, config, topic};
 use omnia_sdk::api::Context;
+use omnia_sdk::api::messaging::{self, consume};
 use omnia_sdk::{Result, StateStore};
 use serde::{Deserialize, Serialize};
 
 use crate::state_keys;
 
 const OCCUPANCY_STATUS_TTL: u64 = 3 * 60 * 60; // 3 hours
+
+pub(crate) fn topics<P: Capabilities>(
+    router: messaging::Router<P>, env: &str,
+) -> messaging::Router<P> {
+    router.route(config::topic_for(env, topic::PASSENGER_COUNT), consume(passenger_count))
+}
 
 /// Stores the occupancy status for a vehicle on a trip, or clears it when
 /// the message carries no status.

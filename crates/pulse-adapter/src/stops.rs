@@ -1,10 +1,15 @@
 //! Station-to-stop mapping and stop location lookups.
 
-use anyhow::{Context, Result, anyhow};
-use bytes::Bytes;
-use http_body_util::Empty;
-use omnia_sdk::{Config, HttpRequest};
+use anyhow::Context as _;
+use axum::body::Body;
+use omnia_sdk::{Config, HttpRequest, Result, StateStore, bad_gateway, server_error};
 use serde::{Deserialize, Serialize};
+
+/// Base URL of the static GTFS API.
+pub const STATIC_API_URL: &str = "STATIC_API_URL";
+
+const STOPS_CACHE_KEY: &str = "pulse:stops";
+const STOPS_TTL_SECS: u64 = 300;
 
 /// Stop information from GTFS
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
@@ -17,11 +22,15 @@ pub struct StopInfo {
     pub stop_lon: f64,
 }
 
-pub async fn stop_info<P>(
-    _owner: &str, provider: &P, station: u32, is_arrival: bool,
-) -> Result<Option<StopInfo>>
+/// Look up stop coordinates for a Pulse station code, caching the stop table in [`StateStore`].
+///
+/// # Errors
+///
+/// Returns an error when the static GTFS API fails, returns a non-success
+/// status, cannot be deserialized, or lacks the mapped stop code.
+pub async fn stop_info<P>(provider: &P, station: u32, is_arrival: bool) -> Result<Option<StopInfo>>
 where
-    P: Config + HttpRequest,
+    P: Config + HttpRequest + StateStore,
 {
     if !ACTIVE_STATIONS.contains(&station) {
         return Ok(None);
@@ -32,21 +41,10 @@ where
         return Ok(None);
     };
 
-    let static_api_url = Config::get(provider, acme_common::config::STATIC_API_URL)
-        .await
-        .context("getting `STATIC_API_URL`")?;
-    let request = http::Request::builder()
-        .uri(format!("{static_api_url}/gtfs/stops?fields=stop_code,stop_lon,stop_lat"))
-        .body(Empty::<Bytes>::new())
-        .context("building stops request")?;
-    let response = HttpRequest::fetch(provider, request).await.context("fetching stops")?;
-
-    let bytes = response.into_body();
-    let stops: Vec<StopInfo> =
-        serde_json::from_slice(&bytes).context("deserializing stops response")?;
+    let stops = cached_stops(provider).await?;
 
     let Some(mut stop_info) = stops.into_iter().find(|stop| stop.stop_code == stop_code) else {
-        return Err(anyhow!("stop info not found for stop code {stop_code}"));
+        return Err(server_error!("stop info not found for stop code {stop_code}"));
     };
 
     if !is_arrival {
@@ -54,6 +52,35 @@ where
     }
 
     Ok(Some(stop_info))
+}
+
+async fn cached_stops<P>(provider: &P) -> Result<Vec<StopInfo>>
+where
+    P: Config + HttpRequest + StateStore,
+{
+    if let Some(bytes) = StateStore::get(provider, STOPS_CACHE_KEY).await? {
+        return serde_json::from_slice(&bytes)
+            .map_err(|error| server_error!("cached stops: {error}"));
+    }
+
+    let static_api_url =
+        Config::get(provider, STATIC_API_URL).await.context("getting `STATIC_API_URL`")?;
+    let request = http::Request::builder()
+        .uri(format!("{static_api_url}/gtfs/stops?fields=stop_code,stop_lon,stop_lat"))
+        .body(Body::empty())
+        .context("building stops request")?;
+    let response = HttpRequest::fetch(provider, request).await.context("fetching stops")?;
+    if !response.status().is_success() {
+        return Err(bad_gateway!("Static GTFS API returned {}", response.status()));
+    }
+
+    let bytes = response.into_body();
+    let stops: Vec<StopInfo> =
+        serde_json::from_slice(&bytes).context("deserializing stops response")?;
+    let cached =
+        serde_json::to_vec(&stops).map_err(|error| server_error!("stops cache: {error}"))?;
+    StateStore::set(provider, STOPS_CACHE_KEY, &cached, Some(STOPS_TTL_SECS)).await?;
+    Ok(stops)
 }
 
 const ACTIVE_STATIONS: &[u32] = &[0, 19, 40];

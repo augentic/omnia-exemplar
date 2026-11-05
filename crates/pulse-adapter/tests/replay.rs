@@ -5,16 +5,19 @@ mod fixture;
 
 use std::fs;
 
-use acme_common::TIMEZONE;
 use chrono::Utc;
 use omnia_sdk::api::{Client, Metadata};
-use pulse_adapter::pulse;
+use pulse_adapter::{TIMEZONE, pulse};
 
 use self::fixture::{Case, Expected};
 
 // Load each test case. For each, present the input to the adapter and compare
 // the output expected.
 #[tokio::test]
+#[expect(
+    clippy::disallowed_methods,
+    reason = "integration test enumerates captured replay fixtures from disk"
+)]
 async fn run() {
     for entry in fs::read_dir("data/replay").expect("should read directory") {
         replay(fixture::load(entry.expect("should read entry").path())).await;
@@ -35,8 +38,6 @@ async fn replay(case: Case) {
         Some(Expected::Success(expected_events)) => {
             assert_eq!(curr_events.len(), expected_events.len());
             expected_events.iter().zip(curr_events).for_each(|(published, mut actual)| {
-                // add 5 seconds to the actual message timestamp the adapter sleeps 5 seconds
-                // before output the first round
                 let now = Utc::now().with_timezone(&TIMEZONE);
                 let diff = now.timestamp() - actual.message_data.timestamp.timestamp();
                 assert!(diff.abs() < 3, "expected vs actual too great: {diff}");

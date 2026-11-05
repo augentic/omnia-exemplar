@@ -9,12 +9,16 @@
 //! capability is needed.
 
 use anyhow::Context as _;
-use bytes::Bytes;
+use axum::body::Body;
+use common::Capabilities;
 use http::Method;
-use http_body_util::Full;
-use omnia_sdk::api::Context;
+use omnia_sdk::api::http::post;
+use omnia_sdk::api::{Client, Context};
 use omnia_sdk::{Config, HttpRequest, Result, StateStore, bad_gateway};
 use serde::{Deserialize, Serialize};
+
+/// Decode-through-cache ingress.
+pub const DECODE: &str = "/examples/patterns/decode";
 
 /// Config key naming the decoder endpoint URL.
 pub const DECODER_URL: &str = "PATTERN_DECODER_URL";
@@ -24,6 +28,10 @@ pub const CLIENT_CERT: &str = "PATTERN_CLIENT_CERT";
 
 /// Cache lifetime for decoded segments, in seconds.
 pub const SEGMENT_TTL_SECS: u64 = 24 * 60 * 60;
+
+pub(crate) fn routes<P: Capabilities>() -> axum::Router<Client<P>> {
+    axum::Router::new().route(DECODE, post(decode_segment))
+}
 
 /// State-store key for a decoded segment.
 #[must_use]
@@ -95,7 +103,7 @@ where
         .uri(url)
         .header("Content-Type", "application/json")
         .header("Client-Cert", cert)
-        .body(Full::new(Bytes::from(body)))
+        .body(Body::from(body))
         .context("building decode request")?;
 
     let response = HttpRequest::fetch(provider, request).await?;

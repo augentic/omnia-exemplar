@@ -1,4 +1,4 @@
-#![allow(missing_docs, reason = "integration tests, not a published API")]
+//! Integration tests for the agency and feed SQL handlers.
 
 use omnia_sdk::api::{Client, Metadata};
 use omnia_sdk::sql::{DataType, Field, Row};
@@ -104,12 +104,12 @@ fn agency_request(name: &str) -> CreateAgencyRequest {
     }
 }
 
-// Probes for the newest id: `ORDER BY "<table>"."<pk>" DESC LIMIT 1`.
+// Probes for the newest id: `ORDER BY <pk> DESC LIMIT $1`.
 fn is_max_id_probe(table: &str, sql: &str, params: &[DataType]) -> bool {
-    sql.contains(&format!("ORDER BY \"{table}\".\"{table}_id\" DESC")) && is_uint(params, 0, 1)
+    sql.contains(&format!("ORDER BY {table}_id DESC")) && is_uint(params, 0, 1)
 }
 
-const AGENCY_FILTER: &str = "(\"agency\".\"agency_id\") = ($1)";
+const AGENCY_FILTER: &str = "WHERE agency_id = $1";
 
 /// Creating an agency into an empty table, then into one that already holds
 /// rows. The probe SQL is the same in both, so each table state is its own
@@ -120,7 +120,7 @@ async fn create_agency_empty_and_populated_table() {
     let empty = client(
         tables()
             .on_query(|sql, params| is_max_id_probe("agency", sql, params), vec![])
-            .on_exec(|sql, _| sql.starts_with("INSERT INTO \"agency\""), 1),
+            .on_exec(|sql, _| sql.starts_with("INSERT INTO agency"), 1),
     );
 
     let reply = empty
@@ -136,7 +136,7 @@ async fn create_agency_empty_and_populated_table() {
                 |sql, params| is_max_id_probe("agency", sql, params),
                 vec![agency_row(41, "Metro")],
             )
-            .on_exec(|sql, _| sql.starts_with("INSERT INTO \"agency\""), 1),
+            .on_exec(|sql, _| sql.starts_with("INSERT INTO agency"), 1),
     );
 
     let reply = populated
@@ -154,7 +154,7 @@ async fn create_agency_empty_and_populated_table() {
     };
     assert!(probe.sql.starts_with("SELECT"));
     for column in ["agency_id", "name", "url", "timezone", "created_at"] {
-        assert!(insert.sql.contains(&format!("\"{column}\"")), "insert should name {column}");
+        assert!(insert.sql.contains(column), "insert should name {column}");
     }
     assert!(insert.sql.contains("VALUES ($1, $2, $3, $4, $5)"), "insert should be parameterized");
     assert_eq!(int_param(&insert.params, 0), Some(42));
@@ -165,7 +165,7 @@ async fn create_agency_empty_and_populated_table() {
 #[tokio::test]
 async fn list_agencies_default_and_limited() {
     let client = client(tables().on_query(
-        |sql, _| sql.contains("ORDER BY \"agency\".\"created_at\" DESC"),
+        |sql, _| sql.contains("ORDER BY created_at DESC"),
         vec![agency_row(2, "Metro"), agency_row(1, "Ritchies")],
     ));
 
@@ -188,7 +188,7 @@ async fn list_agencies_default_and_limited() {
     let request = ListAgenciesRequest { limit: Some(1) };
     client.call(list_agencies, request, &Metadata::default()).await.expect("list should succeed");
     let limited = statements(&client).pop().expect("a select ran");
-    assert!(limited.sql.contains("LIMIT"));
+    assert!(limited.sql.contains("LIMIT $1"));
     assert!(is_uint(&limited.params, 0, 1), "{:?}", limited.params);
 }
 
@@ -229,7 +229,7 @@ async fn update_agency_partial() {
                 |sql, _| sql.contains(AGENCY_FILTER),
                 vec![agency_row(1, "Ritchies Transport")],
             )
-            .on_exec(|sql, _| sql.starts_with("UPDATE \"agency\" SET "), 1),
+            .on_exec(|sql, _| sql.starts_with("UPDATE agency SET "), 1),
     );
 
     let request = UpdateAgencyRequest {
@@ -251,12 +251,9 @@ async fn update_agency_partial() {
         panic!("expected fetch, update, fetch");
     };
     assert_eq!(before.sql, after.sql);
-    assert!(update.sql.contains("SET \"name\" = $1"), "update should set only the name");
-    assert!(!update.sql.contains("\"timezone\""), "update should not touch unset columns");
-    assert!(
-        update.sql.contains("WHERE (\"agency\".\"agency_id\") = ($2)"),
-        "update should filter by id"
-    );
+    assert!(update.sql.contains("SET name = $1"), "update should set only the name");
+    assert!(!update.sql.contains("timezone"), "update should not touch unset columns");
+    assert!(update.sql.contains("WHERE agency_id = $2"), "update should filter by id");
     assert!(matches!(&update.params[0], DataType::Str(Some(name)) if name == "Ritchies Transport"));
     assert_eq!(int_param(&update.params, 1), Some(1));
 }
@@ -269,7 +266,7 @@ async fn update_agency_empty() {
             .on_query(|sql, _| sql.contains(AGENCY_FILTER), vec![]),
     );
 
-    // An empty patch is a bad request from the builder's guard, before any write.
+    // An empty patch is a bad request before any write.
     let request = UpdateAgencyRequest {
         id: 1,
         name: None,
@@ -326,7 +323,7 @@ async fn create_feed_for_existing_agency() {
                 |sql, params| is_max_id_probe("feed", sql, params),
                 vec![feed_row(1, 1, "Bus routes and schedules")],
             )
-            .on_exec(|sql, _| sql.starts_with("INSERT INTO \"feed\""), 1),
+            .on_exec(|sql, _| sql.starts_with("INSERT INTO feed"), 1),
     );
 
     let request = CreateFeedRequest {
@@ -348,7 +345,7 @@ async fn create_feed_for_existing_agency() {
 
 #[tokio::test]
 async fn feeds_by_agency() {
-    const FEED_FILTER: &str = "(\"feed\".\"agency_id\") = ($1)";
+    const FEED_FILTER: &str = "FROM feed WHERE agency_id = $1";
     let client = client(tables().on_query(
         |sql, params| sql.contains(FEED_FILTER) && int_param(params, 0) == Some(1),
         vec![feed_row(2, 1, "Ferry timetables"), feed_row(1, 1, "Bus routes and schedules")],
@@ -366,13 +363,13 @@ async fn feeds_by_agency() {
     let [list] = issued.as_slice() else {
         panic!("expected one select");
     };
-    assert!(list.sql.contains("ORDER BY \"feed\".\"created_at\" DESC"), "{}", list.sql);
+    assert!(list.sql.contains("ORDER BY created_at DESC"), "{}", list.sql);
 }
 
 #[tokio::test]
 async fn all_feeds() {
     let client = client(tables().on_query(
-        |sql, _| sql.contains("LEFT JOIN \"agency\""),
+        |sql, _| sql.contains("LEFT JOIN agency"),
         vec![
             joined_row(2, "Ferry timetables", "Ritchies"),
             joined_row(1, "Bus routes", "Ritchies"),
@@ -398,29 +395,27 @@ async fn all_feeds() {
         panic!("expected one select");
     };
     assert!(
-        list.sql.contains(
-            "LEFT JOIN \"agency\" ON (\"feed\".\"agency_id\") = (\"agency\".\"agency_id\")"
-        ),
+        list.sql.contains("LEFT JOIN agency ON feed.agency_id = agency.agency_id"),
         "{}",
         list.sql
     );
-    assert!(list.sql.contains("\"agency\".\"name\" AS \"agency_name\""), "{}", list.sql);
-    assert!(list.sql.contains("ORDER BY \"feed\".\"created_at\" DESC"), "{}", list.sql);
+    assert!(list.sql.contains("agency.name AS agency_name"), "{}", list.sql);
+    assert!(list.sql.contains("ORDER BY feed.created_at DESC"), "{}", list.sql);
     assert!(is_uint(&list.params, 0, 100), "default limit should be bound: {:?}", list.params);
 }
 
 #[tokio::test]
 async fn delete_feed_missing() {
-    const FEED_ID_FILTER: &str = "(\"feed\".\"feed_id\") = ($1)";
+    const FEED_ID_FILTER: &str = "WHERE feed_id = $1";
     let client = client(
         tables()
             .on_exec(
                 |sql, params| {
-                    sql.starts_with("DELETE FROM \"feed\"") && int_param(params, 0) == Some(1)
+                    sql.starts_with("DELETE FROM feed") && int_param(params, 0) == Some(1)
                 },
                 1,
             )
-            .on_exec(|sql, _| sql.starts_with("DELETE FROM \"feed\""), 0),
+            .on_exec(|sql, _| sql.starts_with("DELETE FROM feed"), 0),
     );
 
     let request = DeleteFeedRequest { id: 1 };

@@ -1,6 +1,6 @@
 //! The topic list: every crate's topics registered on one messaging router, one statement per crate.
 
-use acme_common::{Capabilities, config};
+use common::{Capabilities, config};
 use omnia_sdk::api::{Client, messaging};
 
 use crate::OWNER;

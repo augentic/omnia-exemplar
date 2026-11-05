@@ -1,8 +1,12 @@
-//! Static tests for the Tally APC connector.
+//! Static tests for the Tally APC connector driven through its router.
 
-use omnia_sdk::api::{Client, Metadata};
+use axum::body::{Body, to_bytes};
+use axum::http::header::CONTENT_TYPE;
+use axum::http::{Request, StatusCode};
+use omnia_sdk::api::Client;
 use omnia_test::guest::{MapConfig, Provider};
-use tally_connector::{TallyMessage, TallyRequest, tally};
+use tally_connector::{APC, TallyMessage};
+use tower::ServiceExt as _;
 
 // `config::env` falls back to `dev` when `ENV` is unset; seeding it keeps the
 // topic assertions honest rather than leaning on the fallback.
@@ -10,17 +14,25 @@ fn provider() -> Provider {
     Provider::default().config(MapConfig::default().with([("ENV", "dev")]))
 }
 
-async fn forward(provider: &Provider, payload: &[u8]) {
-    let request: TallyRequest = serde_json::from_slice(payload).expect("should deserialize");
-    Client::new("acme", provider.clone())
-        .call(tally, request, &Metadata::default())
-        .await
-        .expect("should succeed");
+async fn forward(provider: &Provider, payload: &'static [u8]) {
+    let request = Request::post(APC)
+        .header(CONTENT_TYPE, "application/json")
+        .body(Body::from(payload))
+        .expect("request");
+    let router = tally_connector::router().with_state(Client::new("acme", provider.clone()));
+    let response = router.oneshot(request).await.expect("response");
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = to_bytes(response.into_body(), usize::MAX).await.expect("body");
+    assert_eq!(body.as_ref(), br#""OK""#);
 }
 
 #[tokio::test]
 async fn device_with_site() {
     let provider = provider();
+    #[expect(
+        clippy::disallowed_macros,
+        reason = "integration test loads captured Tally JSON from disk"
+    )]
     let payload = include_bytes!("../data/tally-message.json");
 
     forward(&provider, payload).await;
@@ -43,6 +55,10 @@ async fn device_with_site() {
 #[tokio::test]
 async fn device_missing() {
     let provider = provider();
+    #[expect(
+        clippy::disallowed_macros,
+        reason = "integration test loads captured Tally JSON from disk"
+    )]
     let payload = include_bytes!("../data/tally-no-device.json");
 
     forward(&provider, payload).await;
@@ -62,6 +78,10 @@ async fn device_missing() {
 #[tokio::test]
 async fn device_site_whitespace() {
     let provider = provider();
+    #[expect(
+        clippy::disallowed_macros,
+        reason = "integration test loads captured Tally JSON from disk"
+    )]
     let payload = include_bytes!("../data/tally-whitespace.json");
 
     forward(&provider, payload).await;

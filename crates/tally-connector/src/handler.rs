@@ -1,12 +1,20 @@
 //! Tally APC connector handler.
 
-use acme_common::{config, topic};
 use anyhow::Context as _;
-use omnia_sdk::api::Context;
+use common::{Capabilities, config, topic};
+use omnia_sdk::api::http::post;
+use omnia_sdk::api::{Client, Context};
 use omnia_sdk::{Config, Message, Publish, Result};
 use serde::{Deserialize, Serialize};
 
 use crate::TallyMessage;
+
+/// Tally passenger-count (APC) ingress.
+pub const APC: &str = "/api/apc";
+
+pub(crate) fn routes<P: Capabilities>() -> axum::Router<Client<P>> {
+    axum::Router::new().route(APC, post(tally))
+}
 
 /// Forwards a Tally APC message to the tally APC topic, keyed by device site.
 ///

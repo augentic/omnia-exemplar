@@ -1,13 +1,22 @@
 //! Document-store example: upsert a JSON note and read it back.
 
 use anyhow::Context as _;
-use omnia_sdk::api::Context;
+use common::Capabilities;
+use omnia_sdk::api::http::post;
+use omnia_sdk::api::{Client, Context};
 use omnia_sdk::docstore::Document;
 use omnia_sdk::{DocumentStore, Result};
 use serde::{Deserialize, Serialize};
 
+/// Document-store note upsert.
+pub const NOTE: &str = "/examples/note";
+
+pub(crate) fn routes<P: Capabilities>() -> axum::Router<Client<P>> {
+    axum::Router::new().route(NOTE, post(note))
+}
+
 /// Upsert a JSON note document.
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct NoteRequest {
     /// Document collection.
     pub store: String,
@@ -18,7 +27,7 @@ pub struct NoteRequest {
 }
 
 /// Note state after the upsert.
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct NoteReply {
     /// Stored payload size in bytes, read back from the store.
     pub size: usize,

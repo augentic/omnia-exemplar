@@ -1,13 +1,48 @@
 //! Motion AVL message processing.
 
-use acme_common::{config, topic};
 use chrono::{DateTime, Utc};
+use common::{Capabilities, config, topic};
 use omnia_sdk::api::Context;
-use omnia_sdk::{Config, HttpRequest, Identity, Message, Publish, Result, StateStore, bad_request};
+use omnia_sdk::api::messaging::{self, consume};
+use omnia_sdk::{
+    Config, Error, HttpRequest, Identity, Message, Publish, Result, StateStore, bad_request,
+};
 use serde::{Deserialize, Serialize};
+use thiserror::Error;
 
 use crate::location::Location;
 use crate::{location, serial_data};
+
+pub(crate) fn topics<P: Capabilities>(
+    router: messaging::Router<P>, env: &str,
+) -> messaging::Router<P> {
+    router.route(config::topic_for(env, topic::PULSE_TO_MOTION), consume(motion))
+}
+
+/// Errors raised while validating an inbound Motion message.
+#[derive(Error, Debug)]
+pub enum MotionError {
+    /// The message timestamp is invalid (too old or future-dated).
+    #[error("{0}")]
+    BadTime(String),
+}
+
+impl MotionError {
+    fn code(&self) -> String {
+        match self {
+            Self::BadTime(_) => "bad_time".to_string(),
+        }
+    }
+}
+
+impl From<MotionError> for Error {
+    fn from(err: MotionError) -> Self {
+        Self::BadRequest {
+            code: err.code(),
+            description: err.to_string(),
+        }
+    }
+}
 
 /// Processes a Motion AVL message, publishing a GTFS-realtime vehicle
 /// position or dead-reckoning event when applicable.

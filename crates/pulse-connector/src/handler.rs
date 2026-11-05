@@ -5,12 +5,18 @@
 
 use std::fmt::{self, Display};
 
-use acme_common::{config, topic};
 use anyhow::Context as _;
+use axum::http::header::CONTENT_TYPE;
+use axum::response::{IntoResponse, Response};
+use common::{Capabilities, config, topic};
 use http::{HeaderValue, StatusCode};
-use omnia_sdk::api::Context;
+use omnia_sdk::api::http::{MethodFilter, RawRequest, handle_with};
+use omnia_sdk::api::{Client, Context, DecodeError};
 use omnia_sdk::{Config, HttpError, Message, Publish};
 use serde::{Deserialize, Serialize};
+
+/// Pulse SOAP/XML position ingress.
+pub const PULSE_XML: &str = "/inbound/xml";
 
 /// The SOAP fault envelope answering requests that cannot be parsed or
 /// fail validation.
@@ -28,6 +34,33 @@ const SERVER_FAULT: Fault = Fault {
         message: "Internal Server Error",
     },
 };
+
+pub(crate) fn routes<P: Capabilities>() -> axum::Router<Client<P>> {
+    axum::Router::new().route(
+        PULSE_XML,
+        handle_with(
+            MethodFilter::POST,
+            pulse,
+            |raw: RawRequest<'_>| decode_pulse(raw.body),
+            |reply| encode_pulse(&reply),
+        ),
+    )
+}
+
+// The handler parses the SOAP envelope itself so a malformed body is
+// answered with the vendor's XML `<Fault>`; a decoder that failed here would
+// reach the client as the framework's JSON `invalid_request` 400.
+#[expect(clippy::unnecessary_wraps, reason = "the route codec requires a fallible decoder")]
+fn decode_pulse(body: &[u8]) -> Result<PulseXml, DecodeError> {
+    Ok(PulseXml(body.to_vec()))
+}
+
+fn encode_pulse(reply: &PulseReply) -> Response {
+    match reply.to_xml() {
+        Ok(xml) => ([(CONTENT_TYPE, "text/xml")], xml).into_response(),
+        Err(error) => HttpError::from(error).into_response(),
+    }
+}
 
 /// Validates an incoming Pulse SOAP envelope and forwards the embedded train
 /// update to the pulse-adapter topic.
@@ -179,13 +212,13 @@ pub struct FaultMessage {
 
 #[cfg(test)]
 mod tests {
-    use axum::response::IntoResponse as _;
     use http::header::CONTENT_TYPE;
 
     use super::*;
 
     #[test]
     fn deserialize_soap() {
+        #[expect(clippy::disallowed_macros, reason = "unit test loads captured SOAP XML from disk")]
         let xml = include_str!("../data/receive-message.xml");
         let envelope = PulseRequest::from_xml(xml.as_bytes()).expect("should deserialize");
 

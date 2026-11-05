@@ -32,7 +32,7 @@ fn table() {
     }
     let exact = ENTRIES.iter().filter(|entry| entry.proof == Proof::Exact).count();
     let listed = ENTRIES.iter().filter(|entry| entry.role == Role::Listed).count();
-    assert_eq!(exact, 13, "the exact entries are the repository's tooling");
+    assert_eq!(exact, 18, "the exact entries are the repository's tooling");
     assert_eq!(listed, 4, "the listed entries are the four lists a slice appends to");
     assert!(
         ENTRIES

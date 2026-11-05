@@ -1,4 +1,4 @@
-#![allow(missing_docs, reason = "integration tests, not a published API")]
+//! Integration tests for the docstore collections and filters.
 
 use docstore::{
     CreateRouteRequest, CreateStopRequest, CreateStopTimeRequest, DeleteStopRequest,

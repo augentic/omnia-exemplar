@@ -8,6 +8,19 @@ Unreleased
 
 ### Changed
 
+- **Parameterized SQL + `common::RowExt` replaces `omnia-orm`, `acme-common`
+  becomes `common`, and stem entries hold composition alone.** `omnia-orm`
+  is removed: `crates/sql` and `crates/pattern/src/place.rs` execute
+  parameterized SQL directly over `TableStore::query` and `TableStore::exec`
+  and map rows with `common::RowExt` (`get_i64`, `get_f64`, `get_str`,
+  `get_opt_str`). `crates/common` is renamed from `acme-common` to `common`,
+  shedding `fleet.rs`, `block_mgt.rs`, `TIMEZONE`, and domain config keys to
+  `gtfs-adapter` and `pulse-adapter` so `crates/common/{Cargo.toml,src/lib.rs,src/config.rs}`
+  and `tests/{routes.rs,messaging.rs}` become `exact` template entries;
+  `Capabilities` adds `+ Vault`, `crates/pattern` adds `StateStore::cas`
+  (`409 Conflict` via `QuotaError`) and `Identity::access_token` vignettes,
+  and every stem crate's `src/lib.rs` holds pure part composition with
+  router-driven tests.
 - **Composition replaces registration.** A stem is one crate exposing
   `router()` and `topics(router, env)`, and the root lists compose them: one
   `router.merge(<stem>::router())` statement per stem in `src/routes.rs`,

@@ -4,19 +4,13 @@
   "title": "Omnia guest template manifest",
   "description": "Validates `templates/guest/manifest.yaml`: the single source of truth for the Omnia base-repo scaffold source-to-target mappings, owned by omnia-exemplar. The `omnia-template` crate beside it embeds the same map for the Emery omnia target adapter to compile in, and the `template-check` gate holds the two equal.",
   "type": "object",
-  "required": ["schema-version", "tokens", "assemblies"],
+  "required": ["schema-version", "assemblies"],
   "additionalProperties": false,
   "properties": {
     "schema-version": {
       "type": "integer",
       "const": 3,
       "description": "Manifest schema version. Bump on breaking wire changes."
-    },
-    "tokens": {
-      "type": "object",
-      "description": "The closed set of `<UPPER_SNAKE>` tokens template sources may carry, with a one-line description each.",
-      "propertyNames": { "pattern": "^[A-Z][A-Z0-9_]*$" },
-      "additionalProperties": { "type": "string", "minLength": 1 }
     },
     "assemblies": {
       "type": "object",
@@ -63,7 +57,7 @@
         "proof": {
           "type": "string",
           "enum": ["exact", "seed"],
-          "description": "`exact`: token-free repository-root file, referenced in place (source == target). `seed`: project-start baseline; rendered with values.yaml and syntax-checked only."
+          "description": "`exact`: repository-root file referenced in place (source == target). `seed`: project-start baseline under `templates/guest/core/`, syntax-checked."
         }
       }
     }

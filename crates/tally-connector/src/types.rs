@@ -46,7 +46,7 @@ pub struct TallyMessage {
     pub wpt: Option<Waypoint>,
 }
 
-#[allow(
+#[expect(
     clippy::cast_sign_loss,
     clippy::cast_possible_truncation,
     reason = "hardware speeds are non-negative and fit the wire range"

@@ -15,21 +15,25 @@
 //! pipeline state.
 
 /// Key for the vehicle's current trip instance.
+#[must_use]
 pub fn trip(vehicle_id: &str) -> String {
     format!("motionGtfs:trip:vehicle:{vehicle_id}")
 }
 
 /// Key for the vehicle's sign-on timestamp.
+#[must_use]
 pub fn sign_on(vehicle_id: &str) -> String {
     format!("motionGtfs:vehicle:signOn:{vehicle_id}")
 }
 
 /// Key for the newest serial data timestamp seen for the vehicle.
+#[must_use]
 pub fn serial_timestamp(vehicle_id: &str) -> String {
     format!("motionGtfs:serialTimestamp:{vehicle_id}")
 }
 
 /// Key for the occupancy status of a vehicle on a specific trip.
+#[must_use]
 pub fn occupancy_status(
     vehicle_id: &str, trip_id: &str, start_date: &str, start_time: &str,
 ) -> String {

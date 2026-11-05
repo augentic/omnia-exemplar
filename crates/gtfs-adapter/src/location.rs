@@ -1,8 +1,5 @@
 //! Location event processing.
 
-use acme_common::TIMEZONE;
-use acme_common::block_mgt::{self, BlockInstance};
-use acme_common::fleet::{self, Vehicle};
 use anyhow::Context as _;
 use chrono::{Duration, NaiveDate, TimeZone};
 use chrono_tz::Tz;
@@ -10,9 +7,11 @@ use omnia_sdk::{Config, HttpRequest, Identity, Result, StateStore};
 use serde::de::DeserializeOwned;
 use uuid::Uuid;
 
+use crate::block_mgt::{self, BlockInstance};
+use crate::fleet::{self, Vehicle};
 use crate::trip::{
-    self, DeadReckoningMessage, FeedEntity, Position, PositionDr, TripDescriptor, TripInstance,
-    VehicleDescriptor, VehicleDr, VehiclePosition,
+    self, DeadReckoningMessage, FeedEntity, Position, PositionDr, TIMEZONE, TripDescriptor,
+    TripInstance, VehicleDescriptor, VehicleDr, VehiclePosition,
 };
 use crate::{EventType, MotionMessage, state_keys};
 
@@ -23,8 +22,11 @@ const fn duration_secs(duration: Duration) -> u64 {
     duration.num_seconds().unsigned_abs()
 }
 
+/// Outbound location payload derived from a Motion event.
 pub enum Location {
+    /// A GTFS-realtime vehicle position entity.
     VehiclePosition(FeedEntity),
+    /// A dead-reckoning odometer estimate.
     DeadReckoning(DeadReckoningMessage),
 }
 

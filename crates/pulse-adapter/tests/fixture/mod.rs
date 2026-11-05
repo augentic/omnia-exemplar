@@ -9,17 +9,15 @@
 //! because the capture format is this service's, not omnia's, and
 //! `augentic/test` is retired for this repository.
 
-#![allow(dead_code, reason = "each test binary uses a subset of the loader")]
-
-use std::fs::File;
 use std::path::Path;
 
-use acme_common::{TIMEZONE, config};
 use bytes::Bytes;
 use chrono::{Duration, Timelike, Utc};
+use common::config;
 use http::{Method, Response};
 use omnia_test::guest::{FixedIdentity, MapConfig, MatchedHttp, Provider};
-use pulse_adapter::{MotionEvent, PulseMessage};
+use pulse_adapter::stops::STATIC_API_URL;
+use pulse_adapter::{API_IDENTITY, BLOCK_MGT_URL, MotionEvent, PulseMessage, TIMEZONE};
 use serde::Deserialize;
 use serde_json::Value;
 
@@ -121,8 +119,12 @@ impl Case {
 /// # Panics
 ///
 /// Panics when the file is missing, malformed, or has no input.
+#[expect(
+    clippy::disallowed_types,
+    reason = "integration test helper reads captured JSON fixtures from disk"
+)]
 pub fn load(path: impl AsRef<Path>) -> Case {
-    let file = File::open(path.as_ref()).expect("should open fixture");
+    let file = std::fs::File::open(path.as_ref()).expect("should open fixture");
     let def: TestDef = serde_json::from_reader(file).expect("should deserialize fixture");
     prepare(def)
 }
@@ -154,9 +156,9 @@ pub fn prepare(def: TestDef) -> Case {
     let provider = Provider::default()
         .config(MapConfig::default().with([
             (config::ENV, "dev"),
-            (config::STATIC_API_URL, BASE_URL),
-            (config::BLOCK_MGT_URL, BASE_URL),
-            (config::API_IDENTITY, "block-mgt"),
+            (STATIC_API_URL, BASE_URL),
+            (BLOCK_MGT_URL, BASE_URL),
+            (API_IDENTITY, "block-mgt"),
         ]))
         .http(http)
         .identity(FixedIdentity::new("test-token"));
@@ -182,7 +184,7 @@ fn shift_time(mut message: PulseMessage, delay: i32) -> PulseMessage {
     let event = Utc::now().with_timezone(&TIMEZONE) - Duration::seconds(i64::from(delay));
     message.train_update.created_date = event.date_naive();
 
-    #[allow(clippy::cast_possible_wrap, reason = "seconds since midnight fit an i32")]
+    #[expect(clippy::cast_possible_wrap, reason = "seconds since midnight fit an i32")]
     let adjusted_secs = event.num_seconds_from_midnight() as i32;
 
     if change.has_departed {

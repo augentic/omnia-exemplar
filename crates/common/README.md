@@ -1,45 +1,9 @@
-# Acme Common
+# Common
 
-Shared logic for the (fictional) Acme transit domain:
+What every stem in an Omnia guest shares (`crates/common`):
 
-- `config` — the configuration key catalog plus `env()` / `topic()` helpers
-  with a single documented resolution policy.
-- `topic` — the messaging topic table a publishing crate and its consumer
-  both name, so the two agree on the surface by construction.
-- `Capabilities` — the bound every crate's `router()` and `topics()` take.
-- `block_mgt` / `fleet` — clients for the Block Management and Fleet APIs,
-  retrieving vehicle allocations and vehicle metadata respectively.
-
-The API clients are written against the `omnia-sdk` capability traits
-(`Config`, `HttpRequest`, `Identity`, `StateStore`) so the same code runs
-inside the WASM guest and against native `omnia_test::guest::Provider`
-doubles in tests.
-
-## Caching
-
-Omnia's guest-side HTTP client does not cache. The two hot lookups —
-`fleet::vehicle` (five minutes) and `block_mgt::cached_allocation` (twenty
-seconds) — opt in explicitly by wrapping the provider in
-`omnia_http_cache::HttpCache` (from
-[omnia-extensions](https://github.com/augentic/omnia-extensions)), which
-stores responses through the provider's own `StateStore`:
-
-```rust,ignore
-let response = HttpCache::new(provider, provider).fetch(request).await?;
-```
-
-The request carries `Cache-Control: max-age=<secs>` for the TTL and
-`If-None-Match` for the cache key. `HttpCache` requires a **quoted strong
-etag** and refuses bare tokens before any request leaves, and the etag is
-used verbatim as the `StateStore` key, so both clients namespace it to keep
-the entry out of the guest's own state:
-
-| Client | Etag |
-| --- | --- |
-| `fleet::vehicle` | `"fleet:<query>"` |
-| `block_mgt::cached_allocation` | `"allocation:<vehicle_id>"` |
-
-The other `block_mgt` functions are uncached and call `HttpRequest::fetch`
-directly. Natively, `omnia_test::guest::Provider` supplies a `Memory`
-`StateStore`, and `MatchedHttp` matches on method, URL and body — not
-headers — so the wrapper is transparent to the handler rung.
+- `Capabilities` — the trait bound over all ten `omnia-sdk` capabilities (`BlobStore`, `Broadcast`, `Config`, `DocumentStore`, `HttpRequest`, `Identity`, `Publish`, `StateStore`, `TableStore`, `Vault`) that every stem's `router()` and `topics()` take.
+- `routers([..])` and `topics(router, env).parts([..])` — the two folds a stem's `src/lib.rs` uses to compose its parts' routes and topic consumers.
+- `config` — `ENV` plus `env()`, `topic()`, and `topic_for()` for qualifying topic suffixes by deployment environment. Every domain configuration key belongs in the stem part that reads it.
+- `topic` — the messaging topic table a publishing stem and its consumer both name, so the two agree on the surface by construction.
+- `RowExt` and `numeric_id` — typed column reads over `omnia_sdk::sql::Row` (`get_i64`, `get_f64`, `get_str`, `get_opt_str`) and serde deserialization for integer ids that arrive either as JSON numbers or path-parameter strings.

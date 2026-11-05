@@ -6,15 +6,29 @@
 //! (agency + type exclusion — De Morgan negation).
 
 use anyhow::Context as _;
-use omnia_sdk::api::Context;
+use common::Capabilities;
+use omnia_sdk::api::http::{get, post};
+use omnia_sdk::api::{Client, Context};
 use omnia_sdk::docstore::{Document, Filter, QueryOptions, ScalarValue, SortField};
 use omnia_sdk::{DocumentStore, Result, not_found};
 use serde::{Deserialize, Serialize};
 
-use crate::{DocumentRecord, records};
+use crate::stop::{DocumentRecord, records};
+
+/// Route collection: list (GET) and create (POST).
+pub const ROUTES: &str = "/examples/routes";
+
+/// One route: get (GET).
+pub const ROUTE: &str = "/examples/routes/{id}";
 
 /// Document collection holding the routes.
 pub const COLLECTION: &str = "routes";
+
+pub(crate) fn routes<P: Capabilities>() -> axum::Router<Client<P>> {
+    axum::Router::new()
+        .route(ROUTES, get(list_routes).merge(post(create_route)))
+        .route(ROUTE, get(get_route))
+}
 
 /// A GTFS-like route stored as one JSON document.
 #[derive(Debug, Clone, Serialize, Deserialize)]

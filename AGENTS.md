@@ -2,6 +2,18 @@
 
 The reference guest for [omnia](https://github.com/augentic/omnia) services, and the source of the guest template under `templates/guest`. [README.md](README.md) is the guide: the [architecture](README.md#architecture), the [crate map](README.md#crate-map), [how to add a handler](README.md#adding-a-new-handler), [what to copy and what not to](README.md#copy-this-not-that), the [testing rungs](README.md#testing), the [guest template contract](README.md#guest-template-contract), and the [development loop](README.md#development). The rules below are the organisation's shared conventions; where the README is more specific, it governs.
 
+## A generated guest
+
+For which crate shows which pattern, read the README's [crate map](README.md#crate-map) and [Copy this, not that](README.md#copy-this-not-that).
+
+These rules hold for a guest laid from `templates/guest`. Inside this repository, the template's static files are edited under `templates/guest/core/` and embedded with `include_str!` by design.
+
+- **Handler signature & stem entry**: `pub(crate) async fn name<P>(input: Input, context: Context<P>) -> omnia_sdk::Result<Output>` with narrow capability bounds on `P`; `crates/<stem>/src/lib.rs` holds only `pub mod <part>;`, `common::routers([..])`, and `common::topics(router, env).parts([..])`.
+- **Direct SQL & DocStore types**: Write parameterized SQL directly over `TableStore::query` / `TableStore::exec`. Import `omnia_sdk::sql::{DataType, Field, Row}` (plus `common::RowExt`) and `omnia_sdk::docstore::*` from `omnia-sdk`; never add `omnia-wasi-sql` or `omnia-wasi-docstore` to a stem's `Cargo.toml`.
+- **Body routes, query strings & cache-aside**: Decode a `handle_with` route with `omnia_sdk::api::http::query_input` or `body_input` (using `common::numeric_id` when a body route's path parameter is an integer), never `axum::extract::Query`, and use the 6-line `StateStore::get` / `StateStore::set` cache-aside pattern.
+- **Upstream HTTP & errors**: Build requests with `axum::body::Body` and check `!response.status().is_success()` -> `Err(bad_gateway!(..))` (`502`). Where the specification names a `400` reason code, construct `omnia_sdk::Error::BadRequest { code: "<reason>".into(), description }` directly (`bad_request!` hardcodes `code: "bad_request"`, and the wire body `{"error": "<code>", "message": ".."}` reads `code`); use a module error type for a status outside `400`/`404`/`500`/`502` (such as `409`).
+- **Template hold (`omnia-template`) & host boundary (`clippy.toml`)**: Never edit `Role::Static` files (`crates/common/src/config.rs` and `tests/routes.rs` included — declare per-part settings locally). `std::env`, `std::fs`, `std::net`, `std::thread`, `std::time::{SystemTime, Instant}`, `tokio::spawn`, `tokio::time`, `OnceLock`/`LazyLock`, and `include_str!` are `forbid`den; use `chrono::Utc::now()` for wall-clock timestamps and `uuid::Uuid::new_v4()` for ids.
+
 ## Git
 
 Never `git commit`, `git push`, open or close a pull request, or delete a branch — in this repository or in any sibling checkout — unless the maintainer lifts this for the session, explicitly and for named work. Leave every change uncommitted in the working tree; the maintainer reviews and commits. No plan or to-do list carries a commit, push, or PR step, and an instruction to complete every step does not override this.

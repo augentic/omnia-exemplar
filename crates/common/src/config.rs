@@ -1,40 +1,20 @@
-//! Configuration keys and helpers.
+//! The deployment environment and the helpers that qualify a topic for it.
 //!
-//! Every configuration key read by the exemplar is declared here so there is
-//! a single catalog of what a deployment must provide. The guest
-//! `.env.example` files carry sample values for each key.
+//! Every other configuration key is a stem's own, declared beside the
+//! handler that reads it through [`Config::get`].
 
 use omnia_sdk::Config;
 
-/// Deployment environment (e.g. `dev`, `prod`). Prefixes every messaging
-/// topic — see [`topic`].
+/// Deployment environment (`dev`, `prod`). Prefixes every messaging topic;
+/// see [`topic`].
 pub const ENV: &str = "ENV";
-
-/// Base URL of the Block Management API.
-pub const BLOCK_MGT_URL: &str = "BLOCK_MGT_URL";
-
-/// Identity used to acquire access tokens for the operator APIs.
-pub const API_IDENTITY: &str = "API_IDENTITY";
-
-/// Base URL of the static GTFS API.
-pub const STATIC_API_URL: &str = "STATIC_API_URL";
-
-/// Base URL of the Fleet API.
-pub const FLEET_URL: &str = "FLEET_URL";
-
-/// Base URL of the Trip Management API.
-pub const TRIP_MANAGEMENT_URL: &str = "TRIP_MANAGEMENT_URL";
-
-/// Enables the god-mode trip override handler. Off unless set to a truthy
-/// value (`1`, `true`, `yes`, `on`).
-pub const GOD_MODE_ENABLED: &str = "GOD_MODE_ENABLED";
 
 /// Resolve the deployment environment.
 ///
-/// Falls back to `dev` — with a warning — when [`ENV`] is not configured, so
-/// the exemplar remains runnable out of the box. Real deployments should
-/// always set `ENV` explicitly; the warning makes a missing key visible
-/// instead of silently mis-prefixing every topic.
+/// Falls back to `dev`, with a warning, when [`ENV`] is not configured, so
+/// the guest runs out of the box; a deployment sets `ENV` explicitly, and the
+/// warning makes a missing key visible instead of silently mis-prefixing
+/// every topic.
 pub async fn env(provider: &impl Config) -> String {
     match Config::get(provider, ENV).await {
         Ok(env) => env,
@@ -46,8 +26,8 @@ pub async fn env(provider: &impl Config) -> String {
 }
 
 /// Build a fully-qualified messaging topic from an environment-agnostic
-/// suffix (see [`crate::topic`]), e.g. `realtime-pulse.v1` becomes
-/// `dev-realtime-pulse.v1`.
+/// suffix (see [`crate::topic`]): `realtime-orders.v1` becomes
+/// `dev-realtime-orders.v1`.
 pub async fn topic(provider: &impl Config, suffix: &str) -> String {
     topic_for(&env(provider).await, suffix)
 }

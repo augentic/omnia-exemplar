@@ -27,5 +27,5 @@ mod tree;
 
 pub use self::entries::{ENTRIES, Entry, Proof, Role, entry};
 pub use self::hold::{Drift, Drifted, Error};
-pub use self::manifest::Manifest;
+pub use self::manifest::{CRATE_LIST_ANCHOR, Manifest, PATH_LIST_ANCHOR};
 pub use self::tree::{drift, restore, scaffold};

@@ -1,8 +1,12 @@
-//! Static tests for the Pulse SOAP/XML connector.
+//! Static tests for the Pulse SOAP/XML connector driven through its router.
 
-use omnia_sdk::api::{Client, Metadata};
+use axum::body::{Body, to_bytes};
+use axum::http::header::CONTENT_TYPE;
+use axum::http::{Request, Response, StatusCode};
+use omnia_sdk::api::Client;
 use omnia_test::guest::{MapConfig, Provider};
-use pulse_connector::{PulseRequest, PulseXml, pulse};
+use pulse_connector::{PULSE_XML, PulseRequest};
+use tower::ServiceExt as _;
 
 const OWNER: &str = "acme";
 
@@ -12,22 +16,38 @@ fn provider() -> Provider {
     Provider::default().config(MapConfig::default().with([("ENV", "dev")]))
 }
 
+async fn post(provider: Provider, body: &'static [u8]) -> Response<Body> {
+    let request = Request::post(PULSE_XML)
+        .header(CONTENT_TYPE, "text/xml")
+        .body(Body::from(body))
+        .expect("request");
+    let router = pulse_connector::router().with_state(Client::new(OWNER, provider));
+    router.oneshot(request).await.expect("response")
+}
+
+fn content_type(response: &Response<Body>) -> &str {
+    response.headers().get(CONTENT_TYPE).and_then(|value| value.to_str().ok()).unwrap_or_default()
+}
+
 #[tokio::test]
 async fn train_update() {
     let provider = provider();
 
+    #[expect(
+        clippy::disallowed_macros,
+        reason = "integration test loads captured SOAP XML from disk"
+    )]
     let xml = include_bytes!("../data/receive-message.xml");
     let request = PulseRequest::from_xml(xml).expect("should deserialize");
     let expected_payload = request.body.receive_message.axml_message;
 
-    let reply = Client::new(OWNER, provider.clone())
-        .call(pulse, PulseXml(xml.to_vec()), &Metadata::default())
-        .await
-        .expect("should succeed");
+    let response = post(provider.clone(), xml).await;
 
     // the connector acknowledges in the vendor's XML shape
-    let reply_xml = reply.to_xml().expect("should serialize");
-    assert_eq!(reply_xml, b"<Return>OK</Return>");
+    assert_eq!(response.status(), StatusCode::OK);
+    assert!(content_type(&response).starts_with("text/xml"), "{:?}", content_type(&response));
+    let reply_xml = to_bytes(response.into_body(), usize::MAX).await.expect("body");
+    assert_eq!(reply_xml.as_ref(), b"<Return>OK</Return>");
 
     // the embedded train update is forwarded verbatim
     let published = provider.publish.sent();
@@ -51,15 +71,15 @@ async fn without_train_update() {
           </soap:Body>
         </soap:Envelope>"#;
 
-    let error = Client::new(OWNER, provider.clone())
-        .call(pulse, PulseXml(xml.to_vec()), &Metadata::default())
-        .await
-        .expect_err("should reject a message without a train update");
+    let response = post(provider.clone(), xml).await;
 
     // the rejection is the vendor's SOAP fault envelope
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    assert!(content_type(&response).starts_with("text/xml"), "{:?}", content_type(&response));
+    let body = to_bytes(response.into_body(), usize::MAX).await.expect("body");
     assert_eq!(
-        error.to_string(),
-        "<Fault><StatusCode>400</StatusCode><Response><Message>Bad Request</Message></Response></Fault>"
+        body.as_ref(),
+        b"<Fault><StatusCode>400</StatusCode><Response><Message>Bad Request</Message></Response></Fault>"
     );
     assert!(provider.publish.sent().is_empty());
 }
@@ -71,11 +91,11 @@ async fn malformed_envelope() {
     // parsing happens inside the handler, so even an unparseable body is
     // answered with the vendor's SOAP fault rather than the framework's JSON
     // `invalid_request` 400
-    let error = Client::new(OWNER, provider.clone())
-        .call(pulse, PulseXml(b"not xml at all".to_vec()), &Metadata::default())
-        .await
-        .expect_err("should reject a malformed envelope");
+    let response = post(provider.clone(), b"not xml at all").await;
 
-    assert!(error.to_string().contains("<Fault>"));
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    assert!(content_type(&response).starts_with("text/xml"), "{:?}", content_type(&response));
+    let body = to_bytes(response.into_body(), usize::MAX).await.expect("body");
+    assert!(String::from_utf8_lossy(&body).contains("<Fault>"));
     assert!(provider.publish.sent().is_empty());
 }

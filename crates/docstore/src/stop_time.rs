@@ -5,15 +5,29 @@
 //! sorted by sequence.
 
 use anyhow::Context as _;
-use omnia_sdk::api::Context;
+use common::Capabilities;
+use omnia_sdk::api::http::{get, post};
+use omnia_sdk::api::{Client, Context};
 use omnia_sdk::docstore::{Document, Filter, QueryOptions, SortField};
 use omnia_sdk::{DocumentStore, Result, not_found};
 use serde::{Deserialize, Serialize};
 
-use crate::{DocumentRecord, records};
+use crate::stop::{DocumentRecord, records};
+
+/// Stop-time collection: list (GET) and create (POST).
+pub const STOP_TIMES: &str = "/examples/stop-times";
+
+/// One stop time: get (GET).
+pub const STOP_TIME: &str = "/examples/stop-times/{id}";
 
 /// Document collection holding the stop times.
 pub const COLLECTION: &str = "stop_times";
+
+pub(crate) fn routes<P: Capabilities>() -> axum::Router<Client<P>> {
+    axum::Router::new()
+        .route(STOP_TIMES, get(list_stop_times).merge(post(create_stop_time)))
+        .route(STOP_TIME, get(get_stop_time))
+}
 
 /// A GTFS-like stop time stored as one JSON document.
 #[derive(Debug, Clone, Serialize, Deserialize)]

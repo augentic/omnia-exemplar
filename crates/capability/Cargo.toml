@@ -19,8 +19,9 @@ workspace = true
 crate-type = ["lib"]
 
 [dependencies]
-axum.workspace = true
 anyhow.workspace = true
+axum.workspace = true
+common.workspace = true
 omnia-sdk.workspace = true
 serde.workspace = true
 serde_json.workspace = true

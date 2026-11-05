@@ -88,6 +88,9 @@ allowed-duplicate-crates = [
 disallowed-methods = [
   { path = "std::env::args", reason = "Omnia command routing owns argv" },
   { path = "std::env::args_os", reason = "Omnia command routing owns argv" },
+  { path = "std::env::var", reason = "a setting is read through `Config::get` at use, under a key the crate declares" },
+  { path = "std::env::var_os", reason = "a setting is read through `Config::get` at use, under a key the crate declares" },
+  { path = "std::env::vars", reason = "a setting is read through `Config::get` at use, under a key the crate declares" },
   { path = "std::env::current_dir", reason = "guests use explicit named preopens" },
   { path = "std::env::set_current_dir", reason = "guests use explicit named preopens" },
   { path = "std::env::current_exe", reason = "guests have no host executable path" },
@@ -95,10 +98,10 @@ disallowed-methods = [
 
   { path = "std::path::absolute", reason = "guest paths are anchored to named preopens" },
 
-  { path = "std::time::SystemTime::now", reason = "wall-clock time is a host capability" },
-  { path = "std::time::Instant::now", reason = "monotonic time is a host capability" },
-  { path = "std::time::SystemTime::elapsed", reason = "elapsed reads the wall clock internally" },
-  { path = "std::time::Instant::elapsed", reason = "elapsed reads the monotonic clock internally" },
+  { path = "std::time::SystemTime::now", reason = "a timestamp is `chrono::Utc::now()`, serialised as RFC 3339" },
+  { path = "std::time::Instant::now", reason = "a duration is the difference of two `chrono::Utc::now()` readings; the host owns every deadline" },
+  { path = "std::time::SystemTime::elapsed", reason = "a duration is the difference of two `chrono::Utc::now()` readings; the host owns every deadline" },
+  { path = "std::time::Instant::elapsed", reason = "a duration is the difference of two `chrono::Utc::now()` readings; the host owns every deadline" },
   { path = "std::process::exit", reason = "guest exits flow through the typed command contract" },
   { path = "std::process::abort", reason = "guest failures return typed errors" },
   { path = "std::thread::spawn", reason = "guests do not own host threads" },
@@ -108,6 +111,18 @@ disallowed-methods = [
   { path = "std::thread::park_timeout", reason = "blocking waits stall the guest executor" },
   { path = "std::thread::available_parallelism", reason = "host parallelism is not a guest capability" },
   { path = "std::net::ToSocketAddrs::to_socket_addrs", reason = "network access uses linked host interfaces" },
+  { path = "std::fs::read", reason = "a file is a blob through `BlobStore` or a document through `DocumentStore`" },
+  { path = "std::fs::read_to_string", reason = "a file is a blob through `BlobStore` or a document through `DocumentStore`" },
+  { path = "std::fs::write", reason = "a file is a blob through `BlobStore` or a document through `DocumentStore`" },
+  { path = "std::fs::remove_file", reason = "a file is a blob through `BlobStore` or a document through `DocumentStore`" },
+  { path = "std::fs::create_dir_all", reason = "a file is a blob through `BlobStore` or a document through `DocumentStore`" },
+  { path = "std::fs::read_dir", reason = "a file is a blob through `BlobStore` or a document through `DocumentStore`" },
+  { path = "tokio::spawn", reason = "the host drives every handler; nothing runs beside one", allow-invalid = true },
+  { path = "tokio::task::spawn", reason = "the host drives every handler; nothing runs beside one", allow-invalid = true },
+  { path = "tokio::task::spawn_blocking", reason = "the host drives every handler; nothing runs beside one", allow-invalid = true },
+  { path = "tokio::time::sleep", reason = "the host owns the clock; a retry is one more attempt, never a wait", allow-invalid = true },
+  { path = "tokio::time::interval", reason = "the host owns the clock; a periodic job is a topic or a route the host drives", allow-invalid = true },
+  { path = "tokio::time::timeout", reason = "the host bounds every call; a handler sets no deadline of its own", allow-invalid = true },
 ]
 
 disallowed-types = [
@@ -119,4 +134,11 @@ disallowed-types = [
   { path = "std::net::TcpStream", reason = "guests have no ambient socket capability" },
   { path = "std::net::TcpListener", reason = "guests have no ambient socket capability" },
   { path = "std::net::UdpSocket", reason = "guests have no ambient socket capability" },
+  { path = "std::fs::File", reason = "a file is a blob through `BlobStore` or a document through `DocumentStore`" },
+  { path = "std::fs::OpenOptions", reason = "a file is a blob through `BlobStore` or a document through `DocumentStore`" },
+]
+
+disallowed-macros = [
+  { path = "std::include_str", reason = "a table the program reads is a constant in code or a document through `DocumentStore`, never a file compiled in" },
+  { path = "std::include_bytes", reason = "a table the program reads is a constant in code or a document through `DocumentStore`, never a file compiled in" },
 ]

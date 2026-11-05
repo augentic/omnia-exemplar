@@ -1,14 +1,16 @@
-#![allow(missing_docs, reason = "integration tests, not a published API")]
+//! Static fixture tests for the Pulse position adapter.
 #![cfg(not(miri))]
 
 mod fixture;
 
 use std::ops::Sub;
 
-use acme_common::TIMEZONE;
 use chrono::{Duration, Timelike, Utc};
+use common::{config, topic};
+use omnia_sdk::api::messaging::{Delivery, DeliveryError, Router};
 use omnia_sdk::api::{Client, Metadata};
-use pulse_adapter::{ChangeType, EventType, PulseMessage, pulse};
+use omnia_test::guest::{MapConfig, Provider};
+use pulse_adapter::{ChangeType, EventType, PulseMessage, TIMEZONE, pulse};
 
 use self::fixture::{Case, Expected};
 
@@ -27,13 +29,16 @@ async fn deserialize_xml() {
 }
 
 // A train arriving at a mapped station: the event carries the stop's own
-// location.
+// location, and a second delivery reuses the cached stop table.
 #[tokio::test]
 async fn station_arrival() {
     let case = fixture::load("data/static/0001.json");
 
     run(&case).await.expect("should process");
 
+    if let Some(Expected::Success(expected)) = &case.expected {
+        assert!(!expected.is_empty());
+    }
     let events = case.events();
     assert_eq!(events.len(), 2);
 
@@ -44,6 +49,7 @@ async fn station_arrival() {
     assert!(event.location_data.latitude.eq(&-36.12345));
     assert!(event.location_data.longitude.eq(&174.12345));
     assert_eq!(event.remote_data.external_id, "vehicle1");
+    assert!(case.provider.storage.state("pulse:stops").is_some(), "stops table cached");
 }
 
 // A train departing a mapped station: the event carries the updated stop
@@ -129,6 +135,39 @@ async fn too_early() {
     expect_error("data/static/0010.json").await;
 }
 
+#[tokio::test]
+async fn undecodable_payload() {
+    let provider = Provider::default().config(MapConfig::default().with([(config::ENV, "dev")]));
+    let router = pulse_adapter::topics(Router::new(Client::new("acme", provider.clone())), "dev");
+    let delivery = Delivery {
+        topic: Some("dev-realtime-pulse.v1".to_string()),
+        payload: b"not xml".to_vec(),
+        ..Delivery::default()
+    };
+
+    let error = router.handle(delivery).await.expect_err("malformed XML");
+
+    assert!(matches!(error, DeliveryError::Rejected(_)), "{error}");
+    assert!(provider.publish.sent().is_empty());
+}
+
+#[tokio::test]
+async fn other_environment() {
+    let provider = Provider::default().config(MapConfig::default().with([(config::ENV, "dev")]));
+    let router = pulse_adapter::topics(Router::new(Client::new("acme", provider.clone())), "dev");
+    let wrong_topic = config::topic_for("prod", topic::PULSE);
+    let delivery = Delivery {
+        topic: Some(wrong_topic.clone()),
+        payload: XmlBuilder::new().xml().into_bytes(),
+        ..Delivery::default()
+    };
+
+    let error = router.handle(delivery).await.expect_err("wrong env");
+
+    assert_eq!(error, DeliveryError::UnhandledTopic(wrong_topic));
+    assert!(provider.publish.sent().is_empty());
+}
+
 // Run a fixture that is expected to fail and compare the error with the
 // fixture's expected output.
 async fn expect_error(path: &str) {
@@ -157,7 +196,7 @@ struct XmlBuilder<'a> {
 }
 
 #[derive(PartialEq, Eq)]
-#[allow(dead_code, reason = "each variant names a fixture scenario")]
+#[expect(dead_code, reason = "each variant names a fixture scenario")]
 enum UpdateType {
     None,
     Full,
@@ -165,7 +204,7 @@ enum UpdateType {
     NoActualChanges,
 }
 
-#[allow(dead_code, reason = "builder methods chain; not every test uses each setter")]
+#[expect(dead_code, reason = "builder methods chain; not every test uses each setter")]
 impl<'a> XmlBuilder<'a> {
     const fn new() -> Self {
         Self {

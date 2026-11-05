@@ -3,23 +3,6 @@
 version = 4
 
 [[package]]
-name = "acme-common"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "bytes",
- "chrono-tz",
- "http",
- "http-body-util",
- "omnia-http-cache",
- "omnia-sdk",
- "serde",
- "serde_json",
- "tracing",
- "urlencoding",
-]
-
-[[package]]
 name = "addr2line"
 version = "0.26.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -337,6 +320,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "axum",
+ "common",
  "omnia-sdk",
  "omnia-test",
  "serde",
@@ -468,6 +452,15 @@ checksum = "4356eba6976435498d05a311ee9fc486da3bc81c200d3f0d7dd9703b41913f92"
 dependencies = [
  "bytes",
  "memchr",
+]
+
+[[package]]
+name = "common"
+version = "0.1.0"
+dependencies = [
+ "omnia-sdk",
+ "serde",
+ "tracing",
 ]
 
 [[package]]
@@ -1004,6 +997,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "axum",
+ "common",
  "omnia-sdk",
  "omnia-test",
  "serde",
@@ -1377,14 +1371,14 @@ dependencies = [
 name = "gtfs-adapter"
 version = "0.1.0"
 dependencies = [
- "acme-common",
  "anyhow",
  "axum",
  "bytes",
  "chrono",
  "chrono-tz",
+ "common",
  "http",
- "http-body-util",
+ "omnia-http-cache",
  "omnia-sdk",
  "omnia-test",
  "serde",
@@ -1393,6 +1387,7 @@ dependencies = [
  "tokio",
  "tower",
  "tracing",
+ "urlencoding",
  "uuid",
 ]
 
@@ -1400,12 +1395,12 @@ dependencies = [
 name = "guest"
 version = "0.1.0"
 dependencies = [
- "acme-common",
  "anyhow",
  "axum",
  "bytes",
  "capability",
  "chrono",
+ "common",
  "docstore",
  "gtfs-adapter",
  "http",
@@ -2386,19 +2381,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "omnia-orm"
-version = "0.36.0"
-source = "git+https://github.com/augentic/omnia-extensions#e299773ddc06b019bd894424543bdd9cbd1e69ec"
-dependencies = [
- "anyhow",
- "chrono",
- "omnia-sdk",
- "sea-query",
- "serde_json",
- "tracing",
-]
-
-[[package]]
 name = "omnia-plugin"
 version = "0.38.0"
 source = "git+https://github.com/augentic/omnia#d0fb0d6b7ca9b2711c9a943edbb9733211e2dd6d"
@@ -2857,9 +2839,8 @@ dependencies = [
  "anyhow",
  "axum",
  "bytes",
+ "common",
  "http",
- "http-body-util",
- "omnia-orm",
  "omnia-sdk",
  "omnia-test",
  "serde",
@@ -3067,12 +3048,13 @@ dependencies = [
 name = "pulse-adapter"
 version = "0.1.0"
 dependencies = [
- "acme-common",
  "anyhow",
+ "axum",
  "bytes",
  "chrono",
+ "chrono-tz",
+ "common",
  "http",
- "http-body-util",
  "omnia-sdk",
  "omnia-test",
  "quick-xml",
@@ -3088,9 +3070,9 @@ dependencies = [
 name = "pulse-connector"
 version = "0.1.0"
 dependencies = [
- "acme-common",
  "anyhow",
  "axum",
+ "common",
  "http",
  "omnia-sdk",
  "omnia-test",
@@ -3689,15 +3671,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "94143f37725109f92c262ed2cf5e59bce7498c01bcc1502d7b9afe439a4e9f49"
 
 [[package]]
-name = "sea-query"
-version = "1.0.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "546040c653a705e60ec65ecd3191a809603734bebbc225775916dea9ae409b31"
-dependencies = [
- "chrono",
-]
-
-[[package]]
 name = "secrecy"
 version = "0.10.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3990,7 +3963,7 @@ dependencies = [
  "anyhow",
  "axum",
  "chrono",
- "omnia-orm",
+ "common",
  "omnia-sdk",
  "omnia-test",
  "serde",
@@ -4119,9 +4092,9 @@ checksum = "7b2093cf4c8eb1e67749a6762251bc9cd836b6fc171623bd0a9d324d37af2417"
 name = "tally-connector"
 version = "0.1.0"
 dependencies = [
- "acme-common",
  "anyhow",
  "axum",
+ "common",
  "omnia-sdk",
  "omnia-test",
  "serde",

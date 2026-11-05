@@ -1,11 +1,20 @@
 //! God-mode trip override.
 
 use anyhow::Context as _;
-use omnia_sdk::api::Context;
+use common::Capabilities;
+use omnia_sdk::api::http::post;
+use omnia_sdk::api::{Client, Context};
 use omnia_sdk::{Config, Result, StateStore, bad_request};
 use serde::{Deserialize, Serialize};
 
 use crate::god_mode;
+
+/// God-mode trip override route.
+pub const SET_TRIP: &str = "/god-mode/set-trip/{vehicle_id}/{trip_id}";
+
+pub(crate) fn routes<P: Capabilities>() -> axum::Router<Client<P>> {
+    axum::Router::new().route(SET_TRIP, post(set_trip))
+}
 
 /// Request to force a vehicle onto a specific trip.
 #[derive(Debug, Clone, Deserialize)]
@@ -17,7 +26,7 @@ pub struct SetTripRequest {
 }
 
 /// Reply confirming a god-mode trip override.
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct SetTripReply {
     /// Human-readable result.
     pub message: String,

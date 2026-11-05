@@ -18,6 +18,10 @@ use serde::{Deserialize, Serialize};
 
 use crate::{EventType, MotionMessage};
 
+/// Enables the god-mode trip override handler. Off unless set to a truthy
+/// value (`1`, `true`, `yes`, `on`).
+pub const GOD_MODE_ENABLED: &str = "GOD_MODE_ENABLED";
+
 const KEY_GOD_MODE: &str = "god_mode:overrides";
 const TTL_GOD_MODE: u64 = 24 * 60 * 60; // 24 hours
 
@@ -122,7 +126,7 @@ async fn preprocess(state_store: &impl StateStore, event: &mut MotionMessage) ->
 ///
 /// Returns an error if the configuration cannot be read.
 pub async fn is_enabled(provider: &impl Config) -> Result<bool> {
-    Ok(Config::get(provider, acme_common::config::GOD_MODE_ENABLED).await.is_ok_and(|value| {
+    Ok(Config::get(provider, GOD_MODE_ENABLED).await.is_ok_and(|value| {
         let normalized = value.trim().to_ascii_lowercase();
         matches!(normalized.as_str(), "1" | "true" | "yes" | "on")
     }))

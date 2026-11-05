@@ -19,9 +19,9 @@ workspace = true
 crate-type = ["lib"]
 
 [dependencies]
-axum.workspace = true
-acme-common.workspace = true
 anyhow.workspace = true
+axum.workspace = true
+common.workspace = true
 http.workspace = true
 omnia-sdk.workspace = true
 quick-xml.workspace = true

@@ -19,12 +19,12 @@ workspace = true
 crate-type = ["lib"]
 
 [dependencies]
-acme-common.workspace = true
 anyhow.workspace = true
-bytes.workspace = true
+axum.workspace = true
 chrono.workspace = true
+chrono-tz.workspace = true
+common.workspace = true
 http.workspace = true
-http-body-util.workspace = true
 omnia-sdk.workspace = true
 quick-xml.workspace = true
 serde.workspace = true
@@ -34,6 +34,7 @@ thiserror.workspace = true
 tracing.workspace = true
 
 [dev-dependencies]
+bytes.workspace = true
 tokio.workspace = true
 
 # Target-gated so the guest's wasm32 dependency graph never sees the doubles.

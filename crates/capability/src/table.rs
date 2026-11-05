@@ -1,9 +1,18 @@
 //! Table-store example: record a sensor reading and count the sensor's rows.
 
-use omnia_sdk::api::Context;
+use common::Capabilities;
+use omnia_sdk::api::http::post;
+use omnia_sdk::api::{Client, Context};
 use omnia_sdk::sql::DataType;
 use omnia_sdk::{Result, TableStore};
 use serde::{Deserialize, Serialize};
+
+/// Table-store sensor reading.
+pub const READING: &str = "/examples/reading";
+
+pub(crate) fn routes<P: Capabilities>() -> axum::Router<Client<P>> {
+    axum::Router::new().route(READING, post(reading))
+}
 
 /// SQL executed against the readings table.
 pub mod sql {
@@ -15,7 +24,7 @@ pub mod sql {
 }
 
 /// Record a sensor reading.
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct ReadingRequest {
     /// Named connection configured by the host.
     pub connection: String,
@@ -26,7 +35,7 @@ pub struct ReadingRequest {
 }
 
 /// Reading state after the insert.
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct ReadingReply {
     /// Rows affected by the insert.
     pub affected: u32,

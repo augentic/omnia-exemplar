@@ -1,14 +1,35 @@
-//! Integration tests driving each capability example through `omnia_test`
-//! doubles, invoked exactly as the guest invokes them.
+//! Integration tests driving each capability example through its router and
+//! `omnia_test` doubles.
 
+use axum::body::{Body, to_bytes};
+use axum::http::header::CONTENT_TYPE;
+use axum::http::{Request, StatusCode};
 use capability::table::sql;
 use capability::{
-    AlertRequest, ArchiveRequest, NoteRequest, ReadingRequest, alert, archive, note, reading,
+    ALERT, ARCHIVE, AlertRequest, ArchiveReply, ArchiveRequest, NOTE, NoteReply, NoteRequest,
+    READING, ReadingReply, ReadingRequest,
 };
 use omnia_sdk::DocumentStore as _;
-use omnia_sdk::api::{Client, Metadata};
+use omnia_sdk::api::Client;
 use omnia_sdk::sql::{DataType, Field, Row};
 use omnia_test::guest::{Broadcasted, Provider, ScriptedTables};
+use serde::Serialize;
+use serde::de::DeserializeOwned;
+use tower::ServiceExt as _;
+
+async fn post<I: Serialize + Sync, O: DeserializeOwned>(
+    provider: &Provider, path: &str, input: &I,
+) -> O {
+    let request = Request::post(path)
+        .header(CONTENT_TYPE, "application/json")
+        .body(Body::from(serde_json::to_vec(input).expect("serialize")))
+        .expect("request");
+    let router = capability::router().with_state(Client::new("acme", provider.clone()));
+    let response = router.oneshot(request).await.expect("response");
+    assert_eq!(response.status(), StatusCode::OK);
+    let bytes = to_bytes(response.into_body(), usize::MAX).await.expect("body");
+    serde_json::from_slice(&bytes).expect("deserialize")
+}
 
 #[tokio::test]
 async fn archive_object() {
@@ -19,10 +40,7 @@ async fn archive_object() {
         payload: r#"{"total":42}"#.to_string(),
     };
 
-    let reply = Client::new("acme", provider.clone())
-        .call(archive, request, &Metadata::default())
-        .await
-        .expect("should succeed");
+    let reply: ArchiveReply = post(&provider, ARCHIVE, &request).await;
 
     assert_eq!(reply.size, 12);
     assert_eq!(
@@ -40,11 +58,9 @@ async fn broadcast_alert() {
         sockets: Some(vec!["socket-1".to_string()]),
     };
 
-    Client::new("acme", provider.clone())
-        .call(alert, request, &Metadata::default())
-        .await
-        .expect("should succeed");
+    let reply: String = post(&provider, ALERT, &request).await;
 
+    assert_eq!(reply, "OK");
     assert_eq!(
         provider.broadcast.broadcasts(),
         [Broadcasted {
@@ -64,10 +80,7 @@ async fn upsert_note() {
         body: serde_json::json!({ "text": "hello" }),
     };
 
-    let reply = Client::new("acme", provider.clone())
-        .call(note, request, &Metadata::default())
-        .await
-        .expect("should succeed");
+    let reply: NoteReply = post(&provider, NOTE, &request).await;
 
     let stored = provider.docs.get("notes", "note-1").await.expect("get").expect("stored");
     assert_eq!(reply.size, stored.data.len());
@@ -103,10 +116,7 @@ async fn record_reading() {
         sensor: "temp-1".to_string(),
         value: 22.0,
     };
-    let reply = Client::new("acme", provider.clone())
-        .call(reading, request, &Metadata::default())
-        .await
-        .expect("should succeed");
+    let reply: ReadingReply = post(&provider, READING, &request).await;
 
     assert_eq!(reply.affected, 1);
     assert_eq!(reply.rows, 2);

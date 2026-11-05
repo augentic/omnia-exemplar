@@ -13,7 +13,12 @@ const TTL_SERIAL_TIMESTAMP_SECS: u64 = 24 * 60 * 60;
 
 const SERIAL_DATA_THRESHOLD: i64 = 900;
 
-// Processes Motion serial data events, updating allocations and state.
+/// Processes Motion serial data events, updating allocations and state.
+///
+/// # Errors
+///
+/// Returns an error when the message lacks required fields, has an invalid or
+/// outdated timestamp, or a state/upstream call fails.
 pub async fn process<P>(message: &MotionMessage, provider: &P) -> Result<()>
 where
     P: Config + HttpRequest + StateStore,
@@ -47,8 +52,9 @@ async fn update_timestamp(store: &impl StateStore, timestamp: i64, vehicle_id: &
     let key = state_keys::serial_timestamp(vehicle_id);
 
     // check previous timestamp
-    let previous = StateStore::get(store, &key).await?;
-    if serde_json::from_value::<i64>(previous.into()).is_ok_and(|prev| prev >= timestamp) {
+    if let Some(bytes) = StateStore::get(store, &key).await?
+        && serde_json::from_slice::<i64>(&bytes).is_ok_and(|prev| prev >= timestamp)
+    {
         return Err(MotionError::BadTime("outdated serial data message".to_string()).into());
     }
 

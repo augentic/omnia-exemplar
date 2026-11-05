@@ -14,6 +14,10 @@ const DECODER: &str = "https://decoder.test/decode";
 
 /// A provider whose decoder answers with the fixture segment.
 fn provider() -> Provider {
+    #[expect(
+        clippy::disallowed_macros,
+        reason = "integration test loads captured segment JSON from disk"
+    )]
     let segment = Bytes::from_static(include_bytes!("../data/segment.json"));
     Provider::default()
         .config(

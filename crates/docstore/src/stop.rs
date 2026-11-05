@@ -7,15 +7,57 @@
 //! date) — sorted by name with limit/continuation pagination.
 
 use anyhow::Context as _;
-use omnia_sdk::api::Context;
+use common::Capabilities;
+use omnia_sdk::api::http::{delete, get, post, put};
+use omnia_sdk::api::{Client, Context};
 use omnia_sdk::docstore::{Document, Filter, QueryOptions, SortField};
 use omnia_sdk::{DocumentStore, Result, bad_request, not_found};
+use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 
-use crate::{DocumentRecord, records};
+/// Stop collection: list (GET) and create (POST).
+pub const STOPS: &str = "/examples/stops";
+
+/// One stop: get (GET), upsert (PUT), and delete (DELETE).
+pub const STOP: &str = "/examples/stops/{id}";
 
 /// Document collection holding the stops.
 pub const COLLECTION: &str = "stops";
+
+pub(crate) fn routes<P: Capabilities>() -> axum::Router<Client<P>> {
+    axum::Router::new()
+        .route(STOPS, get(list_stops).merge(post(create_stop)))
+        .route(STOP, get(get_stop).merge(put(upsert_stop)).merge(delete(delete_stop)))
+}
+
+/// A stored document paired with its id, flattened onto the wire.
+///
+/// Replies use this shape so the id and the document fields share one JSON
+/// object: `{"id": "stop-001", "stop_name": "...", ...}`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DocumentRecord<T> {
+    /// Document id (the collection's primary key).
+    pub id: String,
+    /// The document payload, flattened into the same JSON object.
+    #[serde(flatten)]
+    pub document: T,
+}
+
+/// Deserialize query-result documents into typed records.
+pub(crate) fn records<T: DeserializeOwned>(
+    documents: &[Document],
+) -> anyhow::Result<Vec<DocumentRecord<T>>> {
+    documents
+        .iter()
+        .map(|doc| {
+            let document = serde_json::from_slice(&doc.data).context("deserializing document")?;
+            Ok(DocumentRecord {
+                id: doc.id.clone(),
+                document,
+            })
+        })
+        .collect()
+}
 
 /// A GTFS-like stop stored as one JSON document.
 #[derive(Debug, Clone, Serialize, Deserialize)]

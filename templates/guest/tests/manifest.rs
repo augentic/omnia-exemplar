@@ -2,11 +2,10 @@
 
 mod support;
 
-use omnia_template::{Error, Manifest};
+use omnia_template::{Error, Manifest, PATH_LIST_ANCHOR};
 
 use self::support::Scratch;
 
-const PATH_LIST_ANCHOR: &str = "common = { path = \"crates/common\" }\n";
 const PATH_LINE: &str = "orders = { path = \"crates/orders\" }\n";
 const CRATE_LINE: &str = "orders.workspace = true\n";
 const PIN: &str = "omnia-sdk = \"0.38.0\"";
@@ -18,7 +17,8 @@ fn template() -> &'static str {
 
 // The template's manifest with the `orders` stem's line in each list.
 fn with_orders() -> String {
-    template().replace(PATH_LIST_ANCHOR, &format!("{PATH_LIST_ANCHOR}{PATH_LINE}")) + CRATE_LINE
+    let anchor = format!("{PATH_LIST_ANCHOR}\n");
+    template().replace(&anchor, &format!("{anchor}{PATH_LINE}")) + CRATE_LINE
 }
 
 #[test]

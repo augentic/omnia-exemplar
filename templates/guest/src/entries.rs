@@ -109,9 +109,9 @@ pub static ENTRIES: &[Entry] = &[
     },
     exact!("Makefile", Role::Static),
     seed!("clippy.toml", Role::Static),
-    seed!("crates/common/Cargo.toml", Role::Static),
-    seed!("crates/common/src/config.rs", Role::Static),
-    seed!("crates/common/src/lib.rs", Role::Static),
+    exact!("crates/common/Cargo.toml", Role::Static),
+    exact!("crates/common/src/config.rs", Role::Static),
+    exact!("crates/common/src/lib.rs", Role::Static),
     seed!("crates/common/src/topic.rs", Role::Listed),
     seed!("deny.toml", Role::Static),
     seed!("examples/runtime.rs", Role::Static),
@@ -125,8 +125,8 @@ pub static ENTRIES: &[Entry] = &[
     seed!("supply-chain/audits.toml", Role::Static),
     seed!("supply-chain/config.toml", Role::Static),
     exact!("taplo.toml", Role::Static),
-    seed!("tests/messaging.rs", Role::Static),
-    seed!("tests/routes.rs", Role::Static),
+    exact!("tests/messaging.rs", Role::Static),
+    exact!("tests/routes.rs", Role::Static),
 ];
 
 /// Returns the entry at `path`, a `/`-separated path relative to the tree's root.

@@ -22,72 +22,38 @@
 //! - `gte`/`lte` ranges — [`ListStopTimesRequest`] time and sequence bounds
 //!
 //! Each handler is generic over `P: DocumentStore`, so the same code runs
-//! inside the WASM guest (served by [`router`] under the [`paths`]
-//! constants) and against the filter-evaluating `MemoryDocs` double in the
-//! crate-level tests.
+//! inside the WASM guest (served by [`router`]) and against the
+//! filter-evaluating `MemoryDocs` double in the crate-level tests.
 //!
 //! [`DocumentStore`]: omnia_sdk::DocumentStore
 
-pub mod paths;
 pub mod route;
 pub mod stop;
 pub mod stop_time;
 
-use anyhow::Context as _;
-use omnia_sdk::DocumentStore;
+use common::Capabilities;
 use omnia_sdk::api::Client;
-use omnia_sdk::api::http::{delete, get, post, put};
-use omnia_sdk::docstore::Document;
-use serde::de::DeserializeOwned;
-use serde::{Deserialize, Serialize};
 
 pub use crate::route::{
-    CreateRouteRequest, GetRouteRequest, ListRoutesRequest, Route, RoutesReply, create_route,
-    get_route, list_routes,
+    CreateRouteRequest, GetRouteRequest, ListRoutesRequest, ROUTE, ROUTES, Route, RoutesReply,
+    create_route, get_route, list_routes,
 };
 pub use crate::stop::{
-    CreateStopRequest, DeleteStopReply, DeleteStopRequest, GetStopRequest, ListStopsRequest, Stop,
-    StopsReply, UpsertStopRequest, create_stop, delete_stop, get_stop, list_stops, upsert_stop,
+    CreateStopRequest, DeleteStopReply, DeleteStopRequest, DocumentRecord, GetStopRequest,
+    ListStopsRequest, STOP, STOPS, Stop, StopsReply, UpsertStopRequest, create_stop, delete_stop,
+    get_stop, list_stops, upsert_stop,
 };
 pub use crate::stop_time::{
-    CreateStopTimeRequest, GetStopTimeRequest, ListStopTimesRequest, StopTime, StopTimesReply,
-    create_stop_time, get_stop_time, list_stop_times,
+    CreateStopTimeRequest, GetStopTimeRequest, ListStopTimesRequest, STOP_TIME, STOP_TIMES,
+    StopTime, StopTimesReply, create_stop_time, get_stop_time, list_stop_times,
 };
 
-/// The crate's routes, merged onto the guest's router.
-pub fn router<P: DocumentStore + Send + Sync + 'static>() -> axum::Router<Client<P>> {
-    axum::Router::new()
-        .route(paths::STOPS, get(list_stops).merge(post(create_stop)))
-        .route(paths::STOP, get(get_stop).merge(put(upsert_stop)).merge(delete(delete_stop)))
-        .route(paths::ROUTES, get(list_routes).merge(post(create_route)))
-        .route(paths::ROUTE, get(get_route))
-        .route(paths::STOP_TIMES, get(list_stop_times).merge(post(create_stop_time)))
-        .route(paths::STOP_TIME, get(get_stop_time))
-}
-
-/// A stored document paired with its id, flattened onto the wire.
-///
-/// Replies use this shape so the id and the document fields share one JSON
-/// object: `{"id": "stop-001", "stop_name": "...", ...}`.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct DocumentRecord<T> {
-    /// Document id (the collection's primary key).
-    pub id: String,
-    /// The document payload, flattened into the same JSON object.
-    #[serde(flatten)]
-    pub document: T,
-}
-
-/// Deserialize query-result documents into typed records.
-fn records<T: DeserializeOwned>(documents: &[Document]) -> anyhow::Result<Vec<DocumentRecord<T>>> {
-    documents
-        .iter()
-        .map(|doc| {
-            let document = serde_json::from_slice(&doc.data).context("deserializing document")?;
-            Ok(DocumentRecord {
-                id: doc.id.clone(),
-                document,
-            })
-        })
-        .collect()
+/// The stem's routes, merged onto the root router.
+pub fn router<P: Capabilities>() -> axum::Router<Client<P>> {
+    common::routers([
+        // one entry per part with routes, each added at the end
+        route::routes(),
+        stop::routes(),
+        stop_time::routes(),
+    ])
 }

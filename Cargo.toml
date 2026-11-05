@@ -23,9 +23,9 @@ god-mode = ["gtfs-adapter/god-mode"]
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-acme-common.workspace = true
 axum.workspace = true
 capability.workspace = true
+common.workspace = true
 docstore.workspace = true
 gtfs-adapter.workspace = true
 omnia-sdk.workspace = true
@@ -78,6 +78,7 @@ edition = "2024"
 homepage = "https://augentic.io"
 keywords = ["exemplar", "omnia", "wasi", "wasm", "component-model"]
 license = "MIT OR Apache-2.0"
+publish = false
 repository = "https://github.com/augentic/omnia-exemplar"
 rust-version = "1.99"
 version = "0.1.0"
@@ -97,10 +98,14 @@ nursery = { level = "warn", priority = -1 }
 pedantic = { level = "warn", priority = -1 }
 
 # cherry-picked `restriction`s
+allow_attributes = "deny"
 allow_attributes_without_reason = "warn"
 assertions_on_result_states = "warn"
 dbg_macro = "warn"
+disallowed_macros = "deny"
+disallowed_methods = "deny"
 disallowed_script_idents = "warn"
+disallowed_types = "deny"
 empty_drop = "warn"
 fn_to_numeric_cast_any = "warn"
 map_err_ignore = "warn"
@@ -152,10 +157,9 @@ omnia-wasi-websocket = "0.38.0"
 
 # omnia-extensions
 omnia-http-cache = "0.36.0"
-omnia-orm = "0.36.0"
 
-acme-common = { path = "crates/common" }
 capability = { path = "crates/capability" }
+common = { path = "crates/common" }
 docstore = { path = "crates/docstore" }
 gtfs-adapter = { path = "crates/gtfs-adapter" }
 pattern = { path = "crates/pattern" }
@@ -179,7 +183,6 @@ omnia-wasi-otel = { git = "https://github.com/augentic/omnia" }
 omnia-wasi-sql = { git = "https://github.com/augentic/omnia" }
 omnia-wasi-websocket = { git = "https://github.com/augentic/omnia" }
 omnia-http-cache = { git = "https://github.com/augentic/omnia-extensions" }
-omnia-orm = { git = "https://github.com/augentic/omnia-extensions" }
 
 # omnia = { path = "../omnia/crates/omnia" }
 # omnia-sdk = { path = "../omnia/crates/sdk" }
@@ -195,7 +198,6 @@ omnia-orm = { git = "https://github.com/augentic/omnia-extensions" }
 # omnia-wasi-sql = { path = "../omnia/crates/wasi-sql" }
 # omnia-wasi-websocket = { path = "../omnia/crates/wasi-websocket" }
 # omnia-http-cache = { path = "../omnia-extensions/crates/http-cache" }
-# omnia-orm = { path = "../omnia-extensions/crates/orm" }
 
 [profile.release]
 lto = true

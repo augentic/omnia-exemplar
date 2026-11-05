@@ -1,24 +1,53 @@
-//! Static fixture tests for the gtfs-adapter handlers.
+//! Static fixture tests for the gtfs-adapter routes and topics.
 //!
 //! Fixtures under `data/` are captured Kafka records from a live system;
-//! each test takes a record's `value` and invokes the handler natively
-//! against `omnia_test` doubles seeded with the upstream answers.
+//! each test takes a record's `value` and drives the stem's `router()` or
+//! `topics(..)` natively against `omnia_test` doubles seeded with the
+//! upstream answers.
 
 mod support;
 
+use axum::body::{Body, to_bytes};
+use axum::http::{Request, StatusCode};
 use chrono::{DateTime, Utc};
-use gtfs_adapter::{
-    MotionMessage, PassengerCountMessage, TrainAvlMessage, VehicleInfoRequest, motion,
-    passenger_count, train_avl, vehicle_info,
-};
-use omnia_sdk::api::{Client, Metadata};
-use omnia_test::guest::MatchedHttp;
+use common::{config, topic};
+use gtfs_adapter::VehicleInfoReply;
+use omnia_sdk::api::Client;
+use omnia_sdk::api::messaging::{Delivery, DeliveryError, Router};
+use omnia_test::guest::{MatchedHttp, Provider};
 use serde_json::{Value, json};
+use tower::ServiceExt as _;
 
 use self::support::{allocation_query, fleet_query, ok, provider, trip_instances};
 
 const OWNER: &str = "acme";
+const ENV: &str = "dev";
+#[expect(
+    clippy::disallowed_macros,
+    reason = "integration test loads captured fixture JSON from disk"
+)]
 const FLEET_QUERY: &[u8] = include_bytes!("../data/fleet-query.json");
+
+fn topics(provider: &Provider) -> Router<Provider> {
+    gtfs_adapter::topics(Router::new(Client::new(OWNER, provider.clone())), ENV)
+}
+
+fn delivery(suffix: &str, payload: impl Into<Vec<u8>>) -> Delivery {
+    Delivery {
+        topic: Some(config::topic_for(ENV, suffix)),
+        payload: payload.into(),
+        ..Delivery::default()
+    }
+}
+
+async fn send(provider: Provider, request: Request<Body>) -> (StatusCode, Value) {
+    let router = gtfs_adapter::router().with_state(Client::new(OWNER, provider));
+    let response = router.oneshot(request).await.expect("response");
+    let status = response.status();
+    let bytes = to_bytes(response.into_body(), usize::MAX).await.expect("body");
+    let body = serde_json::from_slice(&bytes).unwrap_or(Value::Null);
+    (status, body)
+}
 
 /// Extract the `value` payload of the fixture record at `index`.
 fn fixture_value(raw: &[u8], index: usize) -> Value {
@@ -51,6 +80,10 @@ fn trip_instance(trip_id: &str) -> Value {
 
 #[tokio::test]
 async fn motion_location() {
+    #[expect(
+        clippy::disallowed_macros,
+        reason = "integration test loads captured fixture JSON from disk"
+    )]
     let value = fixture_value(include_bytes!("../data/realtime-pulse-to-motion.v1.json"), 0);
     let provider = provider().http(
         MatchedHttp::default().on(http::Method::GET, fleet_query("EMP484"), ok(FLEET_QUERY)).on(
@@ -59,10 +92,9 @@ async fn motion_location() {
             ok("null"),
         ),
     );
-    let message: MotionMessage = serde_json::from_value(value).expect("should deserialize");
 
-    Client::new(OWNER, provider.clone())
-        .call(motion, message, &Metadata::default())
+    topics(&provider)
+        .handle(delivery(topic::PULSE_TO_MOTION, value.to_string()))
         .await
         .expect("should succeed");
 
@@ -108,10 +140,8 @@ async fn motion_without_gps() {
         &serde_json::to_vec(&trip_instance("TRIP-7")).expect("should serialize"),
     );
 
-    let message: MotionMessage = serde_json::from_value(value).expect("should deserialize");
-
-    Client::new(OWNER, provider.clone())
-        .call(motion, message, &Metadata::default())
+    topics(&provider)
+        .handle(delivery(topic::PULSE_TO_MOTION, value.to_string()))
         .await
         .expect("should succeed");
 
@@ -130,16 +160,14 @@ async fn motion_without_gps() {
 #[tokio::test]
 async fn motion_unknown_event() {
     let provider = provider();
-
-    let message: MotionMessage = serde_json::from_value(json!({
+    let value = json!({
         "eventType": "somethingElse",
         "remoteData": { "externalId": "EMP484" },
         "messageData": { "timestamp": "2025-11-19T22:38:16.559Z" },
-    }))
-    .expect("should deserialize");
+    });
 
-    Client::new(OWNER, provider.clone())
-        .call(motion, message, &Metadata::default())
+    topics(&provider)
+        .handle(delivery(topic::PULSE_TO_MOTION, value.to_string()))
         .await
         .expect("should succeed");
 
@@ -155,12 +183,14 @@ async fn train_avl_non_motion() {
         fleet_query("EM633"),
         ok(FLEET_QUERY),
     ));
-
+    #[expect(
+        clippy::disallowed_macros,
+        reason = "integration test loads captured fixture JSON from disk"
+    )]
     let value = fixture_value(include_bytes!("../data/realtime-train-avl.v1.json"), 0);
-    let message: TrainAvlMessage = serde_json::from_value(value).expect("should deserialize");
 
-    Client::new(OWNER, provider.clone())
-        .call(train_avl, message, &Metadata::default())
+    topics(&provider)
+        .handle(delivery(topic::TRAIN_AVL, value.to_string()))
         .await
         .expect("should succeed");
 
@@ -172,6 +202,10 @@ async fn train_avl_motion() {
     let mut fleet: Value = serde_json::from_slice(FLEET_QUERY).expect("should parse fixture");
     fleet[0]["tag"] = "motion".into();
 
+    #[expect(
+        clippy::disallowed_macros,
+        reason = "integration test loads captured fixture JSON from disk"
+    )]
     let value = fixture_value(include_bytes!("../data/realtime-train-avl.v1.json"), 0);
     let provider = provider().http(
         MatchedHttp::default()
@@ -182,10 +216,9 @@ async fn train_avl_motion() {
                 ok("null"),
             ),
     );
-    let message: TrainAvlMessage = serde_json::from_value(value).expect("should deserialize");
 
-    Client::new(OWNER, provider.clone())
-        .call(train_avl, message, &Metadata::default())
+    topics(&provider)
+        .handle(delivery(topic::TRAIN_AVL, value.to_string()))
         .await
         .expect("should succeed");
 
@@ -199,14 +232,18 @@ async fn train_avl_motion() {
 #[tokio::test]
 async fn passenger_count_occupancy() {
     let provider = provider();
-    let client = Client::new(OWNER, provider.clone());
     let key = "motionGtfs:occupancyStatus:32161:1347-05004-41400-2-89c4020e:20251120:11:30:00";
 
+    #[expect(
+        clippy::disallowed_macros,
+        reason = "integration test loads captured fixture JSON from disk"
+    )]
     let value = fixture_value(include_bytes!("../data/realtime-passenger-count.v1.json"), 0);
-    let message: PassengerCountMessage =
-        serde_json::from_value(value.clone()).expect("should deserialize");
 
-    client.call(passenger_count, message, &Metadata::default()).await.expect("should succeed");
+    topics(&provider)
+        .handle(delivery(topic::PASSENGER_COUNT, value.to_string()))
+        .await
+        .expect("should succeed");
 
     let stored = provider.storage.state(key).expect("occupancy status should be stored");
     assert_eq!(stored, b"\"FEW_SEATS_AVAILABLE\"");
@@ -214,9 +251,11 @@ async fn passenger_count_occupancy() {
     // the same count without an occupancy status clears what was stored
     let mut value = value;
     value.as_object_mut().expect("object").remove("occupancyStatus");
-    let message: PassengerCountMessage = serde_json::from_value(value).expect("should deserialize");
 
-    client.call(passenger_count, message, &Metadata::default()).await.expect("should succeed");
+    topics(&provider)
+        .handle(delivery(topic::PASSENGER_COUNT, value.to_string()))
+        .await
+        .expect("should succeed");
 
     assert!(provider.storage.state(key).is_none(), "occupancy status should be cleared");
 }
@@ -243,18 +282,17 @@ async fn serial_data_sign_on() {
         &serde_json::to_vec(&previous).expect("serialize"),
     );
 
-    let message: MotionMessage = serde_json::from_value(json!({
+    let value = json!({
         "eventType": "serialData",
         "remoteData": { "externalId": "EM580" },
         "messageData": { "timestamp": now.to_rfc3339() },
         "serialData": {
             "decodedSerialData": { "tripId": "TRIP-1", "tripNumber": "TRIP-1", "lineId": "L1" },
         },
-    }))
-    .expect("should deserialize");
+    });
 
-    Client::new(OWNER, provider.clone())
-        .call(motion, message, &Metadata::default())
+    topics(&provider)
+        .handle(delivery(topic::PULSE_TO_MOTION, value.to_string()))
         .await
         .expect("should succeed");
 
@@ -271,21 +309,52 @@ async fn serial_data_future() {
     let provider = provider();
     let future = chrono::Utc::now() + chrono::Duration::seconds(3_600);
 
-    let message: MotionMessage = serde_json::from_value(json!({
+    let value = json!({
         "eventType": "serialData",
         "remoteData": { "externalId": "EM580" },
         "messageData": { "timestamp": future.to_rfc3339() },
         "serialData": {
             "decodedSerialData": { "tripId": "TRIP-1", "tripNumber": "TRIP-1", "lineId": "L1" },
         },
-    }))
-    .expect("should deserialize");
+    });
 
-    let error = Client::new(OWNER, provider.clone())
-        .call(motion, message, &Metadata::default())
+    let error = topics(&provider)
+        .handle(delivery(topic::PULSE_TO_MOTION, value.to_string()))
         .await
         .expect_err("should reject future-dated message");
+    assert!(error.to_string().contains("bad_time"));
     assert!(error.to_string().contains("future-dated"));
+}
+
+#[tokio::test]
+async fn serial_data_outdated() {
+    let provider = provider();
+    let now = chrono::Utc::now();
+    provider.storage.insert_state(
+        "motionGtfs:serialTimestamp:EM580",
+        &serde_json::to_vec(&now.timestamp()).expect("serialize"),
+    );
+
+    let older = now - chrono::Duration::seconds(60);
+    let value = json!({
+        "eventType": "serialData",
+        "remoteData": { "externalId": "EM580" },
+        "messageData": { "timestamp": older.to_rfc3339() },
+        "serialData": {
+            "decodedSerialData": { "tripId": "TRIP-1", "tripNumber": "TRIP-1", "lineId": "L1" },
+        },
+    });
+
+    let error = topics(&provider)
+        .handle(delivery(topic::PULSE_TO_MOTION, value.to_string()))
+        .await
+        .expect_err("should reject outdated message");
+    assert_eq!(
+        error,
+        DeliveryError::Rejected(
+            "code: bad_time, description: outdated serial data message".to_string()
+        )
+    );
 }
 
 #[tokio::test]
@@ -301,17 +370,30 @@ async fn vehicle_info_state() {
     );
     provider.storage.insert_state("motionGtfs:vehicle:signOn:EMP484", b"1763592000");
 
-    let request = VehicleInfoRequest {
-        vehicle_id: "EMP484".to_string(),
-    };
-    let reply = Client::new(OWNER, provider.clone())
-        .call(vehicle_info, request, &Metadata::default())
-        .await
-        .expect("should succeed");
+    let request = Request::get("/info/EMP484").body(Body::empty()).expect("request");
+    let (status, body) = send(provider, request).await;
 
+    assert_eq!(status, StatusCode::OK);
+    let reply: VehicleInfoReply = serde_json::from_value(body).expect("reply");
     assert_eq!(reply.pid, 0);
     assert_eq!(reply.vehicle_id, "EMP484");
     assert_eq!(reply.sign_on_time.as_deref(), Some("1763592000"));
     assert_eq!(reply.trip_info.expect("trip info").trip_id, "TRIP-7");
     assert_eq!(reply.fleet_info.expect("fleet info").id, "59144");
+}
+
+#[tokio::test]
+async fn other_environment() {
+    let provider = provider();
+    let topic = config::topic_for("prod", topic::PASSENGER_COUNT);
+    let delivery = Delivery {
+        topic: Some(topic.clone()),
+        payload: b"{}".to_vec(),
+        ..Delivery::default()
+    };
+
+    let error = topics(&provider).handle(delivery).await.expect_err("wrong env");
+
+    assert_eq!(error, DeliveryError::UnhandledTopic(topic));
+    assert!(provider.storage.is_empty());
 }

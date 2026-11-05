@@ -1,39 +1,37 @@
 //! Producer gate for the guest template contract.
 //!
-//! Strictly parses `templates/guest/manifest.yaml`, enforces token
-//! discipline and path safety, requires every `exact` entry to reference
-//! its repository-root file in place (`source == target`, token-free —
-//! no second copy), renders `seed` templates with `values.yaml`,
-//! syntax-checks the rendered output, and holds the `omnia-template`
-//! crate's table to the manifest entry for entry, each embedded body the
-//! bytes of its source.
+//! Strictly parses `templates/guest/manifest.yaml`, enforces path safety,
+//! requires every `exact` entry to reference its repository-root file in
+//! place (`source == target` — no second copy), syntax-checks `seed`
+//! templates, holds `crates/clippy.toml` and
+//! `templates/guest/core/clippy.toml` to the same disallowed path sets, and
+//! holds the `omnia-template` crate's table to the manifest entry for
+//! entry, each embedded body the bytes of its source.
 //!
 //! The gate runs inside the standard test suite (`mise run test` /
 //! `mise run ci`) via `tests/gate.rs`, and stand-alone through
 //! `cargo run --package template-check` — the root `mise.toml` is itself
 //! an `exact` template, so no exemplar-only task may be added to it.
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeSet;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use omnia_template::ENTRIES;
+use omnia_template::{CRATE_LIST_ANCHOR, ENTRIES, PATH_LIST_ANCHOR};
 use serde::Deserialize;
 
 const MANIFEST: &str = "templates/guest/manifest.yaml";
 const SUBTREE: &str = "templates/guest";
 const STEM: &str = "templates/check/fixtures/stem";
+const CRATES_CLIPPY: &str = "crates/clippy.toml";
+const SEED_CLIPPY: &str = "templates/guest/core/clippy.toml";
 
 // What a slice appends for the fixture stem: its line in each list, after
 // the anchor the layout names, or at the end of a list file that names
 // none. The stem's own files are written whole from `STEM`.
 const STEM_LINES: &[(&str, &str, &str)] = &[
-    (
-        "Cargo.toml",
-        "common = { path = \"crates/common\" }\n",
-        "orders = { path = \"crates/orders\" }\n",
-    ),
-    ("Cargo.toml", "tracing.workspace = true\n", "orders.workspace = true\n"),
+    ("Cargo.toml", PATH_LIST_ANCHOR, "\norders = { path = \"crates/orders\" }"),
+    ("Cargo.toml", CRATE_LIST_ANCHOR, "\norders.workspace = true"),
     (
         "src/routes.rs",
         "    let router = axum::Router::new();\n",
@@ -55,7 +53,6 @@ const STEM_LINES: &[(&str, &str, &str)] = &[
 #[serde(deny_unknown_fields, rename_all = "kebab-case")]
 struct Manifest {
     schema_version: u32,
-    tokens: BTreeMap<String, String>,
     assemblies: Assemblies,
 }
 
@@ -140,12 +137,11 @@ pub fn run(root: &Path) -> Result<Vec<String>, String> {
     }
 
     let subtree = PathBuf::from(SUBTREE);
-    let values: BTreeMap<String, String> = parse_yaml(&root.join(&subtree).join("values.yaml"))?;
 
-    check_token_declarations(&manifest.tokens, &values, &mut failures);
-    check_entries(root, &subtree, &manifest, &values, &mut failures);
+    check_entries(root, &subtree, &manifest, &mut failures);
     check_orphans(root, &subtree, &manifest, &mut failures)?;
     check_crate(root, &manifest, &mut failures);
+    check_clippy(root, &mut failures);
 
     Ok(failures)
 }
@@ -191,35 +187,56 @@ fn check_crate(root: &Path, manifest: &Manifest, failures: &mut Vec<String>) {
     }
 }
 
+// Holds `crates/clippy.toml` and `templates/guest/core/clippy.toml` to the
+// same disallowed `path` sets across `disallowed-methods`,
+// `disallowed-types`, and `disallowed-macros`, ignoring `allow-invalid`
+// and `reason`.
+fn check_clippy(root: &Path, failures: &mut Vec<String>) {
+    let read_toml = |rel: &str| -> Option<toml::Value> {
+        let text = fs::read_to_string(root.join(rel)).ok()?;
+        toml::from_str(&text).ok()
+    };
+    let (Some(crates), Some(seed)) = (read_toml(CRATES_CLIPPY), read_toml(SEED_CLIPPY)) else {
+        return;
+    };
+
+    for key in ["disallowed-methods", "disallowed-types", "disallowed-macros"] {
+        let crates_paths = disallowed_paths(&crates, key);
+        let seed_paths = disallowed_paths(&seed, key);
+        for path in crates_paths.difference(&seed_paths) {
+            failures.push(format!(
+                "{SEED_CLIPPY}: `{key}` lacks `{path}`, which `{CRATES_CLIPPY}` bans"
+            ));
+        }
+        for path in seed_paths.difference(&crates_paths) {
+            failures.push(format!(
+                "{CRATES_CLIPPY}: `{key}` lacks `{path}`, which `{SEED_CLIPPY}` bans"
+            ));
+        }
+    }
+}
+
+fn disallowed_paths<'a>(config: &'a toml::Value, key: &str) -> BTreeSet<&'a str> {
+    config
+        .get(key)
+        .and_then(toml::Value::as_array)
+        .into_iter()
+        .flatten()
+        .filter_map(|item| match item {
+            toml::Value::String(path) => Some(path.as_str()),
+            toml::Value::Table(table) => table.get("path")?.as_str(),
+            _ => None,
+        })
+        .collect()
+}
+
 fn parse_yaml<T: serde::de::DeserializeOwned>(path: &Path) -> Result<T, String> {
     let text = fs::read_to_string(path).map_err(|err| format!("{}: {err}", path.display()))?;
     serde_saphyr::from_str(&text).map_err(|err| format!("{}: {err}", path.display()))
 }
 
-/// Every declared token needs a render value; every value needs a
-/// declaration.
-fn check_token_declarations(
-    tokens: &BTreeMap<String, String>, values: &BTreeMap<String, String>,
-    failures: &mut Vec<String>,
-) {
-    for token in tokens.keys() {
-        if !values.contains_key(token) {
-            failures.push(format!("values.yaml: no render value for declared token `{token}`"));
-        }
-    }
-    for value in values.keys() {
-        if !tokens.contains_key(value) {
-            failures.push(format!("values.yaml: `{value}` is not a declared token"));
-        }
-    }
-}
-
-fn check_entries(
-    root: &Path, subtree: &Path, manifest: &Manifest, values: &BTreeMap<String, String>,
-    failures: &mut Vec<String>,
-) {
+fn check_entries(root: &Path, subtree: &Path, manifest: &Manifest, failures: &mut Vec<String>) {
     let mut targets = BTreeSet::new();
-    let mut used_tokens = BTreeSet::new();
 
     for entry in &manifest.assemblies.core.files {
         if !targets.insert(entry.target.as_str()) {
@@ -246,14 +263,6 @@ fn check_entries(
             continue;
         };
 
-        let found = placeholders(&body);
-        for token in &found {
-            used_tokens.insert(token.clone());
-            if !manifest.tokens.contains_key(token) {
-                failures.push(format!("{}: undeclared token `<{token}>`", entry.source));
-            }
-        }
-
         match entry.proof {
             Proof::Exact => {
                 if entry.source != entry.target {
@@ -261,17 +270,6 @@ fn check_entries(
                         "manifest: proof `exact` requires source == target, got `{}` -> `{}` — \
                          exact entries reference the repository-root file in place",
                         entry.source, entry.target
-                    ));
-                }
-                if !found.is_empty() {
-                    failures.push(format!(
-                        "{}: proof `exact` forbids tokens, found {}",
-                        entry.source,
-                        found
-                            .iter()
-                            .map(|token| format!("`<{token}>`"))
-                            .collect::<Vec<_>>()
-                            .join(", ")
                     ));
                 }
             }
@@ -283,26 +281,13 @@ fn check_entries(
                         subtree.display()
                     ));
                 }
-                let rendered = render(&body, values);
-                if let Some(unresolved) = placeholders(&rendered).first() {
-                    failures.push(format!(
-                        "{}: token `<{unresolved}>` unresolved after rendering",
-                        entry.source
-                    ));
-                }
-                if let Some(err) = syntax_error(&entry.target, &rendered) {
-                    failures.push(format!("{}: rendered output is invalid: {err}", entry.source));
+                if let Some(err) = syntax_error(&entry.target, &body) {
+                    failures.push(format!("{}: output is invalid: {err}", entry.source));
                 }
                 if Path::new(&entry.target).file_name().is_some_and(|name| name == "Cargo.toml") {
-                    check_seed_versions(root, &entry.source, &rendered, failures);
+                    check_seed_versions(root, &entry.source, &body, failures);
                 }
             }
-        }
-    }
-
-    for token in manifest.tokens.keys() {
-        if !used_tokens.contains(token) {
-            failures.push(format!("manifest: declared token `{token}` appears in no template"));
         }
     }
 }
@@ -494,17 +479,16 @@ fn version(spec: &toml::Value) -> Option<String> {
     }
 }
 
-/// Write every manifest entry, rendered with `values.yaml`, under `dest`:
-/// the project a consumer build starts from.
+/// Write every manifest entry under `dest`: the project a consumer build
+/// starts from.
 ///
 /// # Errors
 ///
-/// Returns `Err` when the manifest, the values, or a source cannot be read,
-/// when an entry's path is absolute or climbs out of its root, or when a
-/// target cannot be written.
+/// Returns `Err` when the manifest or a source cannot be read, when an
+/// entry's path is absolute or climbs out of its root, or when a target
+/// cannot be written.
 pub fn scaffold(root: &Path, dest: &Path) -> Result<(), String> {
     let manifest: Manifest = parse_yaml(&root.join(MANIFEST))?;
-    let values: BTreeMap<String, String> = parse_yaml(&root.join(SUBTREE).join("values.yaml"))?;
 
     for entry in &manifest.assemblies.core.files {
         if is_unsafe(&entry.source) || is_unsafe(&entry.target) {
@@ -517,8 +501,7 @@ pub fn scaffold(root: &Path, dest: &Path) -> Result<(), String> {
         if let Some(parent) = target.parent() {
             fs::create_dir_all(parent).map_err(|err| format!("{}: {err}", parent.display()))?;
         }
-        fs::write(&target, render(&body, &values))
-            .map_err(|err| format!("{}: {err}", target.display()))?;
+        fs::write(&target, body).map_err(|err| format!("{}: {err}", target.display()))?;
     }
     Ok(())
 }
@@ -601,44 +584,8 @@ fn walk(dir: &Path, files: &mut Vec<PathBuf>) -> Result<(), String> {
     Ok(())
 }
 
-/// `<UPPER_SNAKE>` tokens in first-appearance order, deduplicated.
-///
-/// A lone uppercase letter (`<P>`, `<T>`) is a Rust generic in a seed
-/// source, not a token.
-fn placeholders(body: &str) -> Vec<String> {
-    let mut found = Vec::new();
-    let bytes = body.as_bytes();
-    let mut index = 0;
-    while let Some(open) = body[index..].find('<').map(|offset| index + offset) {
-        let rest = &body[open + 1..];
-        let end = rest.find('>');
-        if let Some(end) = end {
-            let candidate = &rest[..end];
-            let is_token = candidate.len() >= 2
-                && candidate.as_bytes()[0].is_ascii_uppercase()
-                && candidate
-                    .bytes()
-                    .all(|b| b.is_ascii_uppercase() || b.is_ascii_digit() || b == b'_');
-            if is_token && !found.iter().any(|existing| existing == candidate) {
-                found.push(candidate.to_string());
-            }
-        }
-        index = open + 1;
-        debug_assert!(index <= bytes.len());
-    }
-    found
-}
-
-fn render(body: &str, values: &BTreeMap<String, String>) -> String {
-    let mut rendered = body.to_string();
-    for (token, value) in values {
-        rendered = rendered.replace(&format!("<{token}>"), value);
-    }
-    rendered
-}
-
-/// Parse rendered output by target extension; `None` means valid or not a
-/// checked format.
+/// Parse output by target extension; `None` means valid or not a checked
+/// format.
 fn syntax_error(target: &str, rendered: &str) -> Option<String> {
     let extension = Path::new(target).extension().and_then(|ext| ext.to_str());
     match extension {

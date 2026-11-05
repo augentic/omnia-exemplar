@@ -7,7 +7,8 @@
 
 use omnia_sdk::TableStore;
 
-use crate::CONNECTION;
+/// Named connection configured by the host.
+pub const CONNECTION: &str = "db";
 
 /// SQL executed to create the schema.
 pub mod sql {

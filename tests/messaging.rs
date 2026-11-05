@@ -1,15 +1,15 @@
 //! Messaging rung: the production messaging router built natively.
 //!
-//! Building the router is the check: it panics where two crates consume one
-//! topic. A crate's topics are driven by its own `dispatch` tests through
-//! its `topics()`; this rung holds the registered whole.
+//! Building the router is the check: it panics where two stems consume one
+//! topic. A stem's topics are driven by its own tests through its
+//! `topics()`; this rung holds the registered whole.
 
-use acme_common::config;
+use common::config;
 use omnia_sdk::api::messaging::{Delivery, DeliveryError};
 use omnia_test::guest::{MapConfig, Provider};
 
 /// The environment the doubles answer `ENV` with.
-const ENV: &str = "dev";
+const ENV: &str = "test";
 
 fn provider() -> Provider {
     Provider::default().config(MapConfig::default().with([(config::ENV, ENV)]))

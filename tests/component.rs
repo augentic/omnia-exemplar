@@ -18,6 +18,10 @@
 use std::time::Duration;
 
 use bytes::Bytes;
+use common::{config, topic};
+use gtfs_adapter::block_mgt::{API_IDENTITY, BLOCK_MGT_URL};
+use gtfs_adapter::fleet::FLEET_URL;
+use gtfs_adapter::trip::TRIP_MANAGEMENT_URL;
 use http::header::{CONTENT_TYPE, HOST};
 use http::{Request, StatusCode};
 use http_body_util::Full;
@@ -26,6 +30,7 @@ use omnia::futures::StreamExt as _;
 use omnia_test::host::{Backends, Deployment};
 use omnia_wasi_http::HttpHandler;
 use omnia_wasi_messaging::{Message, MessagingHandler};
+use pulse_adapter::stops::STATIC_API_URL;
 use serde_json::Value;
 
 include!(concat!(env!("OUT_DIR"), "/gen.rs"));
@@ -45,14 +50,16 @@ const CLOSED_UPSTREAM: &str = "http://127.0.0.1:9";
 /// credentials, the websocket bind address) have no counterpart here:
 /// `Backends::defaults()` connects nothing.
 const GUEST_CONFIG: &[(&str, &str)] = &[
-    (acme_common::config::ENV, "dev"),
-    (acme_common::config::BLOCK_MGT_URL, CLOSED_UPSTREAM),
-    (acme_common::config::FLEET_URL, CLOSED_UPSTREAM),
-    (acme_common::config::TRIP_MANAGEMENT_URL, CLOSED_UPSTREAM),
-    (acme_common::config::STATIC_API_URL, CLOSED_UPSTREAM),
-    (acme_common::config::API_IDENTITY, "component-test"),
+    (config::ENV, "dev"),
+    (BLOCK_MGT_URL, CLOSED_UPSTREAM),
+    (FLEET_URL, CLOSED_UPSTREAM),
+    (TRIP_MANAGEMENT_URL, CLOSED_UPSTREAM),
+    (STATIC_API_URL, CLOSED_UPSTREAM),
+    (API_IDENTITY, "component-test"),
     (pattern::decode::DECODER_URL, CLOSED_UPSTREAM),
     (pattern::decode::CLIENT_CERT, "component-test"),
+    (pattern::identity::UPSTREAM_URL, CLOSED_UPSTREAM),
+    (pattern::identity::UPSTREAM_IDENTITY, "component-test"),
 ];
 
 /// Assemble the shipped component over fresh in-memory backends through the
@@ -111,7 +118,7 @@ async fn http_export() {
         .await
         .expect("the publish reaches the broker")
         .expect("the broker stays open");
-    assert_eq!(sent.topic, acme_common::config::topic_for("dev", acme_common::topic::TALLY_APC));
+    assert_eq!(sent.topic, config::topic_for("dev", topic::TALLY_APC));
     assert!(
         tokio::time::timeout(Duration::from_millis(200), broker.next()).await.is_err(),
         "nothing else reached the broker"
@@ -131,7 +138,7 @@ async fn messaging_export() {
         .expect("the guest exports the messaging handler");
 
     let mut message = Message::new(fixture_value(PASSENGER_COUNT, 0));
-    message.topic = acme_common::config::topic_for("dev", acme_common::topic::PASSENGER_COUNT);
+    message.topic = config::topic_for("dev", topic::PASSENGER_COUNT);
     handler.handle(message).await.expect("handled");
 
     // The guest's `StateStore` writes the occupancy under its composite key

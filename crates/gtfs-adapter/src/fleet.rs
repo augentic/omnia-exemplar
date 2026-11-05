@@ -3,16 +3,16 @@
 use std::convert::Infallible;
 use std::str::FromStr;
 
-use anyhow::{Context, Result};
-use bytes::Bytes;
+use anyhow::Context as _;
+use axum::body::Body;
 use http::Method;
 use http::header::{CACHE_CONTROL, IF_NONE_MATCH};
-use http_body_util::Empty;
 use omnia_http_cache::HttpCache;
-use omnia_sdk::{Config, HttpRequest, Identity, StateStore};
+use omnia_sdk::{Config, HttpRequest, Identity, Result, StateStore, bad_gateway};
 use serde::{Deserialize, Serialize};
 
-use crate::config;
+/// Base URL of the Fleet API.
+pub const FLEET_URL: &str = "FLEET_URL";
 
 /// Retrieves a vehicle (train) by label.
 ///
@@ -21,32 +21,34 @@ use crate::config;
 ///
 /// # Errors
 ///
-/// Returns an error when the fleet API request fails or the
-/// response cannot be deserialized.
+/// Returns an error when the fleet API request fails, returns a non-success
+/// status, or the response cannot be deserialized.
 pub async fn vehicle<P>(vehicle_id: &str, provider: &P) -> Result<Option<Vehicle>>
 where
     P: Config + HttpRequest + Identity + StateStore,
 {
-    let identifier = Identifier::from_str(vehicle_id)?;
+    let Ok(identifier) = Identifier::from_str(vehicle_id);
     let query = identifier.to_query();
-    let fleet_url =
-        Config::get(provider, config::FLEET_URL).await.context("getting `FLEET_URL`")?;
+    let fleet_url = Config::get(provider, FLEET_URL).await.context("getting `FLEET_URL`")?;
 
     // `HttpCache` requires a quoted strong etag; the prefix keeps the cache
     // key out of the guest's own state-store namespace.
     let request = http::Request::builder()
         .method(Method::GET)
         .uri(format!("{fleet_url}/vehicles?{query}"))
-        .header(CACHE_CONTROL, "max-age=300") // 5 minutes
+        .header(CACHE_CONTROL, "max-age=300")
         .header(IF_NONE_MATCH, format!("\"fleet:{query}\""))
-        .header("Content-Type", "application/json")
-        .body(Empty::<Bytes>::new())
+        .body(Body::empty())
         .context("building train_by_label request")?;
 
     let response = HttpCache::new(provider, provider)
         .fetch(request)
         .await
         .context("Fleet API request failed")?;
+
+    if !response.status().is_success() {
+        return Err(bad_gateway!("Fleet API returned {}", response.status()));
+    }
 
     let body = response.into_body();
     let records: Vec<Vehicle> =
@@ -136,7 +138,7 @@ impl Identifier {
 impl FromStr for Identifier {
     type Err = Infallible;
 
-    fn from_str(s: &str) -> Result<Self, Infallible> {
+    fn from_str(s: &str) -> std::result::Result<Self, Infallible> {
         let Some((prefix, suffix)) = ["EMP", "EM", "DML", "DM"]
             .into_iter()
             .find_map(|prefix| s.strip_prefix(prefix).map(|suffix| (prefix, suffix)))

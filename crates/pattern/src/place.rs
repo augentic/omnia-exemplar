@@ -1,10 +1,11 @@
-//! Relational geo queries through `TableStore` and the guest ORM.
+//! Relational geo queries through [`TableStore`] and [`common::RowExt`].
 //!
 //! A radius search does not need a geospatial extension bolted onto the
 //! key-value store: model the rows relationally, pre-filter with an indexable
 //! bounding box, and refine the survivors with a haversine check in Rust.
-//! [`UpsertPlaceRequest`] writes rows with the ORM's `INSERT … ON CONFLICT`
-//! builder; [`NearbyPlacesRequest`] is the `GEORADIUS` replacement.
+//! [`UpsertPlaceRequest`] writes rows with a parameterized `INSERT … ON
+//! CONFLICT` statement; [`NearbyPlacesRequest`] is the `GEORADIUS`
+//! replacement.
 //!
 //! The upsert also demonstrates a structured wire error: [`PlaceError`]
 //! replaces `omnia_sdk::Error` as the handler's error type, and its
@@ -13,12 +14,21 @@
 //! envelope — the fixed `error` / `message` pair every omnia transport
 //! emits, plus the variant's own domain fields.
 
-use anyhow::Context as _;
+use axum::Json;
+use axum::response::{IntoResponse, Response};
+use common::{Capabilities, RowExt as _};
 use http::{HeaderValue, StatusCode};
-use omnia_orm::{Entity as _, Filter, InsertBuilder, SelectBuilder, entity};
-use omnia_sdk::api::Context;
+use omnia_sdk::api::http::{MethodFilter, RawRequest, handle_with, post};
+use omnia_sdk::api::{Client, Context, DecodeError};
+use omnia_sdk::sql::{DataType, Row};
 use omnia_sdk::{Error, HttpError, TableStore};
 use serde::{Deserialize, Serialize};
+
+/// Place upsert (`INSERT … ON CONFLICT`).
+pub const PLACES: &str = "/examples/patterns/places";
+
+/// Nearby-place radius query (bounding box + haversine).
+pub const NEARBY: &str = "/examples/patterns/nearby";
 
 /// Named connection configured by the host.
 pub const CONNECTION: &str = "db";
@@ -26,21 +36,60 @@ pub const CONNECTION: &str = "db";
 /// Mean metres per degree of latitude (and of longitude at the equator).
 const METRES_PER_DEGREE: f64 = 111_320.0;
 
-entity!(
-    table = "places",
-    /// A named point of interest.
-    #[derive(Debug, Clone, Serialize, Deserialize)]
-    pub struct Place {
-        /// Stable identifier (conflict target for upserts).
-        pub id: String,
-        /// Display name.
-        pub name: String,
-        /// Latitude in degrees.
-        pub lat: f64,
-        /// Longitude in degrees.
-        pub lon: f64,
+pub(crate) fn routes<P: Capabilities>() -> axum::Router<Client<P>> {
+    axum::Router::new().route(PLACES, post(upsert_place)).route(
+        NEARBY,
+        handle_with(
+            MethodFilter::GET,
+            nearby_places,
+            |raw: RawRequest<'_>| decode_nearby(raw.body),
+            encode_nearby,
+        ),
+    )
+}
+
+// Demonstration only: this does exactly what the built-in `post` codec does,
+// and exists because the route is a GET. A route with an ordinary JSON body
+// uses `post(handler)` and no codec of its own.
+fn decode_nearby(body: &[u8]) -> Result<NearbyPlacesRequest, DecodeError> {
+    serde_json::from_slice(body)
+        .map_err(|error| DecodeError::new(format!("malformed JSON body: {error}")))
+}
+
+// `handle_with` requires both halves of the codec; this is the default
+// JSON encoding.
+fn encode_nearby(reply: NearbyPlacesReply) -> Response {
+    Json(reply).into_response()
+}
+
+/// A named point of interest.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Place {
+    /// Stable identifier (conflict target for upserts).
+    pub id: String,
+    /// Display name.
+    pub name: String,
+    /// Latitude in degrees.
+    pub lat: f64,
+    /// Longitude in degrees.
+    pub lon: f64,
+}
+
+impl Place {
+    /// Map a SQL [`Row`] into a [`Place`].
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when any required column is missing, null, or has an unexpected type.
+    pub fn from_row(row: &Row) -> omnia_sdk::Result<Self> {
+        Ok(Self {
+            id: row.get_str("id")?.to_string(),
+            name: row.get_str("name")?.to_string(),
+            lat: row.get_f64("lat")?,
+            lon: row.get_f64("lon")?,
+        })
     }
-);
+}
 
 /// Insert a place, or update it in full when the id already exists.
 #[derive(Debug, Clone, Deserialize)]
@@ -167,8 +216,7 @@ fn coordinate(field: &'static str, value: f64, min: f64, max: f64) -> Result<(),
 /// # Errors
 ///
 /// Returns [`PlaceError::InvalidCoordinate`] when a coordinate is out of
-/// range, or [`PlaceError::Storage`] when the statement cannot be built or
-/// executed.
+/// range, or [`PlaceError::Storage`] when the statement cannot be executed.
 pub async fn upsert_place<P>(
     input: UpsertPlaceRequest, context: Context<P>,
 ) -> Result<UpsertPlaceReply, PlaceError>
@@ -178,22 +226,20 @@ where
     coordinate("lat", input.lat, -90.0, 90.0)?;
     coordinate("lon", input.lon, -180.0, 180.0)?;
 
-    let place = Place {
-        id: input.id,
-        name: input.name,
-        lat: input.lat,
-        lon: input.lon,
-    };
-
-    let query = InsertBuilder::from_entity(&place)
-        .on_conflict("id")
-        .do_update_all()
-        .build()
-        .context("building place upsert")?;
-
-    let affected =
-        TableStore::exec(context.provider(), CONNECTION.to_string(), query.sql, query.params)
-            .await?;
+    let affected = TableStore::exec(
+        context.provider(),
+        CONNECTION.to_string(),
+        "INSERT INTO places (id, name, lat, lon) VALUES ($1, $2, $3, $4) \
+         ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, lat = EXCLUDED.lat, lon = EXCLUDED.lon"
+            .to_string(),
+        vec![
+            DataType::Str(Some(input.id)),
+            DataType::Str(Some(input.name)),
+            DataType::Double(Some(input.lat)),
+            DataType::Double(Some(input.lon)),
+        ],
+    )
+    .await?;
 
     Ok(UpsertPlaceReply { affected })
 }
@@ -210,7 +256,7 @@ pub struct NearbyPlacesRequest {
 }
 
 /// A place with its distance from the query point.
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NearbyPlace {
     /// The matched place.
     pub place: Place,
@@ -219,7 +265,7 @@ pub struct NearbyPlace {
 }
 
 /// Places within the radius, nearest first.
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NearbyPlacesReply {
     /// Matches ordered by ascending distance.
     pub places: Vec<NearbyPlace>,
@@ -229,8 +275,8 @@ pub struct NearbyPlacesReply {
 ///
 /// # Errors
 ///
-/// Returns an error when the query cannot be built or executed, or a row
-/// cannot be mapped to a [`Place`].
+/// Returns an error when the query fails or a row cannot be mapped to a
+/// [`Place`].
 pub async fn nearby_places<P>(
     input: NearbyPlacesRequest, context: Context<P>,
 ) -> Result<NearbyPlacesReply, Error>
@@ -244,24 +290,25 @@ where
     let lat_delta = input.radius_m / METRES_PER_DEGREE;
     let lon_delta = lat_delta / input.lat.to_radians().cos().abs().max(f64::EPSILON);
 
-    let query = SelectBuilder::<Place>::new()
-        .r#where(Filter::and([
-            Filter::gte("lat", input.lat - lat_delta),
-            Filter::lte("lat", input.lat + lat_delta),
-            Filter::gte("lon", input.lon - lon_delta),
-            Filter::lte("lon", input.lon + lon_delta),
-        ]))
-        .build()
-        .context("building nearby query")?;
-
-    let rows =
-        TableStore::query(context.provider(), CONNECTION.to_string(), query.sql, query.params)
-            .await?;
+    let rows = TableStore::query(
+        context.provider(),
+        CONNECTION.to_string(),
+        "SELECT id, name, lat, lon FROM places \
+         WHERE lat >= $1 AND lat <= $2 AND lon >= $3 AND lon <= $4"
+            .to_string(),
+        vec![
+            DataType::Double(Some(input.lat - lat_delta)),
+            DataType::Double(Some(input.lat + lat_delta)),
+            DataType::Double(Some(input.lon - lon_delta)),
+            DataType::Double(Some(input.lon + lon_delta)),
+        ],
+    )
+    .await?;
 
     // Refine the box to the true radius in Rust — no GEORADIUS required.
     let mut places = Vec::new();
     for row in &rows {
-        let place = Place::from_row(row).context("mapping place row")?;
+        let place = Place::from_row(row)?;
         let distance_m = haversine_m(input.lat, input.lon, place.lat, place.lon);
         if distance_m <= input.radius_m {
             places.push(NearbyPlace { place, distance_m });

@@ -8,18 +8,15 @@
 #
 # Every `source` is repository-relative. Proof modes:
 #   exact — `source` IS the repository-root file at `target` (source ==
-#           target, no tokens, no second copy): this repository's green
-#           CI is the template's proof.
+#           target, no second copy): this repository's green CI is the
+#           template's proof.
 #   seed  — a project-start baseline the consuming project immediately
 #           evolves (the root package and the lists a build appends to,
 #           vet state, the lint configuration, deploy parameters); the
 #           body lives under `templates/guest/core/` at the target's own
-#           path, is rendered with `values.yaml` and syntax-checked, and
-#           is never diffed against the root.
+#           path, is syntax-checked, and is never diffed against the root.
 
 schema-version: 3
-
-tokens: {}
 
 assemblies:
   core:
@@ -37,24 +34,24 @@ assemblies:
       - source: templates/guest/core/src/messaging.rs
         target: src/messaging.rs
         proof: seed
-      - source: templates/guest/core/tests/routes.rs
+      - source: tests/routes.rs
         target: tests/routes.rs
-        proof: seed
-      - source: templates/guest/core/tests/messaging.rs
+        proof: exact
+      - source: tests/messaging.rs
         target: tests/messaging.rs
-        proof: seed
+        proof: exact
       - source: templates/guest/core/examples/runtime.rs
         target: examples/runtime.rs
         proof: seed
-      - source: templates/guest/core/crates/common/Cargo.toml
+      - source: crates/common/Cargo.toml
         target: crates/common/Cargo.toml
-        proof: seed
-      - source: templates/guest/core/crates/common/src/lib.rs
+        proof: exact
+      - source: crates/common/src/lib.rs
         target: crates/common/src/lib.rs
-        proof: seed
-      - source: templates/guest/core/crates/common/src/config.rs
+        proof: exact
+      - source: crates/common/src/config.rs
         target: crates/common/src/config.rs
-        proof: seed
+        proof: exact
       - source: templates/guest/core/crates/common/src/topic.rs
         target: crates/common/src/topic.rs
         proof: seed

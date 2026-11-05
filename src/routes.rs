@@ -1,6 +1,6 @@
 //! The route list: every crate's routes merged onto one router, one statement per crate.
 
-use acme_common::Capabilities;
+use common::Capabilities;
 use omnia_sdk::api::Client;
 
 use crate::OWNER;

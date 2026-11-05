@@ -215,8 +215,30 @@ fn edited_source() {
     );
 }
 
+#[test]
+fn clippy_disallowed_paths_drifted() {
+    let replica = Replica::of_repo();
+    let crates_clippy = replica.read("crates/clippy.toml");
+    replica.write(
+        "crates/clippy.toml",
+        &crates_clippy.replacen(
+            "disallowed-methods = [\n",
+            "disallowed-methods = [\n  { path = \"std::mem::forget\", reason = \"no leaks\" },\n",
+            1,
+        ),
+    );
+
+    let failures = template_check::run(replica.root()).expect("contract inputs readable");
+
+    assert_eq!(
+        failures,
+        ["templates/guest/core/clippy.toml: `disallowed-methods` lacks `std::mem::forget`, \
+             which `crates/clippy.toml` bans"]
+    );
+}
+
 // The files the gate reads, copied beneath a scratch root a scenario edits:
-// the manifest, its render values, the root manifest the pins are held to,
+// the manifest, the root manifest the pins are held to, `crates/clippy.toml`,
 // and every entry's source.
 struct Replica(PathBuf);
 
@@ -229,7 +251,7 @@ impl Replica {
             process::id(),
             COUNT.fetch_add(1, Ordering::Relaxed)
         )));
-        let gated = ["Cargo.toml", "templates/guest/manifest.yaml", "templates/guest/values.yaml"];
+        let gated = ["Cargo.toml", "crates/clippy.toml", "templates/guest/manifest.yaml"];
         for source in ENTRIES.iter().map(|entry| entry.source).chain(gated) {
             let text = fs::read_to_string(root.join(source))
                 .unwrap_or_else(|err| panic!("`{source}`: {err}"));

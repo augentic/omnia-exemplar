@@ -1,17 +1,26 @@
 //! Trip Management API client and GTFS-realtime types.
 
-use acme_common::TIMEZONE;
 use anyhow::{Context, Result};
-use bytes::Bytes;
+use axum::body::Body;
 use chrono::{Duration, NaiveDate, TimeZone, Timelike};
 use chrono_tz::Tz;
 use http::header::CONTENT_TYPE;
 use http::{Method, StatusCode};
-use http_body_util::Full;
 use omnia_sdk::{Config, HttpRequest};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tracing::warn;
+
+/// Base URL of the Trip Management API.
+pub const TRIP_MANAGEMENT_URL: &str = "TRIP_MANAGEMENT_URL";
+
+/// The local timezone of the (fictional) Acme transit network.
+///
+/// All schedule arithmetic (service dates, seconds-since-midnight offsets)
+/// is performed in this zone. Acme deliberately runs on UTC to keep the
+/// exemplar's fixtures reproducible — a real operator would set its actual
+/// IANA zone here (`Pacific/Auckland`) and must not copy UTC-as-local.
+pub const TIMEZONE: Tz = chrono_tz::UTC;
 
 /// Retrieves the trip instance that matches the exact `trip_id`, `service_date`, and
 /// `start_time` combination.
@@ -98,7 +107,7 @@ async fn fetch<P>(trip_id: &str, service_date: &str, provider: &P) -> Result<Vec
 where
     P: HttpRequest + Config,
 {
-    let base_url = Config::get(provider, acme_common::config::TRIP_MANAGEMENT_URL).await?;
+    let base_url = Config::get(provider, TRIP_MANAGEMENT_URL).await?;
     let endpoint = format!("{}/tripinstances", base_url.trim_end_matches('/'));
 
     let payload = serde_json::json!({
@@ -111,7 +120,7 @@ where
         .method(Method::POST)
         .uri(&endpoint)
         .header(CONTENT_TYPE, "application/json")
-        .body(Full::new(Bytes::from(body_bytes)))
+        .body(Body::from(body_bytes))
         .context("building Trip Management request")?;
 
     let response = provider.fetch(request).await.context("requesting trip instances")?;
@@ -158,10 +167,6 @@ fn extract(value: Value) -> Result<Vec<TripInstance>> {
         }
         Value::Object(mut map) => {
             if let Some(data) = map.remove("tripInstances") {
-                return extract(data);
-            }
-
-            if let Some(data) = map.remove("data") {
                 return extract(data);
             }
 

@@ -1,11 +1,20 @@
 //! Blobstore example: archive a payload and report its stored size.
 
-use omnia_sdk::api::Context;
+use common::Capabilities;
+use omnia_sdk::api::http::post;
+use omnia_sdk::api::{Client, Context};
 use omnia_sdk::{BlobStore, Result};
 use serde::{Deserialize, Serialize};
 
+/// Blobstore archive ingress.
+pub const ARCHIVE: &str = "/examples/archive";
+
+pub(crate) fn routes<P: Capabilities>() -> axum::Router<Client<P>> {
+    axum::Router::new().route(ARCHIVE, post(archive))
+}
+
 /// Archive a payload into a blobstore container.
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct ArchiveRequest {
     /// Container receiving the object.
     pub container: String,
@@ -16,7 +25,7 @@ pub struct ArchiveRequest {
 }
 
 /// Metadata reported after archiving.
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct ArchiveReply {
     /// Stored object size in bytes.
     pub size: u64,

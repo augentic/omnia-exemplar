@@ -8,12 +8,11 @@ use crate::entries::ROOT_MANIFEST;
 use crate::hold::{Drift, Drifted, Error};
 use crate::tree::replace;
 
-// The template line each list follows: the path list runs from `common`'s
-// line to the blank line after it, the guest's `[dependencies]` list from
-// `tracing`'s line to the end of the file. An entry is kept by its shape
-// wherever it stands, and put back after its anchor.
-const PATH_LIST_ANCHOR: &str = "common = { path = \"crates/common\" }";
-const CRATE_LIST_ANCHOR: &str = "tracing.workspace = true";
+/// The template line the root manifest's path list follows.
+pub const PATH_LIST_ANCHOR: &str = "common = { path = \"crates/common\" }";
+
+/// The template line the root manifest's `[dependencies]` stem list follows.
+pub const CRATE_LIST_ANCHOR: &str = "tracing.workspace = true";
 
 /// The root `Cargo.toml` of one tree, held to the template around its two stem lists.
 ///
