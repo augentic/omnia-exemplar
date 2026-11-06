@@ -1,15 +1,16 @@
 //! Train AVL message filtering.
 
 use common::{Capabilities, topic};
-use omnia_sdk::api::{Context, messaging};
+use omnia_sdk::api::Context;
+use omnia_sdk::api::messaging::Topics;
 use omnia_sdk::{Config, HttpRequest, Identity, Publish, Result, StateStore};
 use serde::Deserialize;
 
 use crate::fleet;
 use crate::motion::{self, MotionMessage};
 
-pub(crate) fn topics<P: Capabilities>() -> messaging::Routes<P> {
-    messaging::Routes::new().route(topic::TRAIN_AVL, train_avl)
+pub(crate) fn topics<P: Capabilities>() -> Topics<P> {
+    Topics::new().route(topic::TRAIN_AVL, train_avl)
 }
 
 /// A Motion AVL message that should only be processed for Motion-tagged

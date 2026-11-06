@@ -3,7 +3,8 @@
 //! This module stores occupancy status for a given vehicle and trip.
 
 use common::{Capabilities, topic};
-use omnia_sdk::api::{Context, messaging};
+use omnia_sdk::api::Context;
+use omnia_sdk::api::messaging::Topics;
 use omnia_sdk::{Result, StateStore};
 use serde::{Deserialize, Serialize};
 
@@ -11,8 +12,8 @@ use crate::state_keys;
 
 const OCCUPANCY_STATUS_TTL: u64 = 3 * 60 * 60; // 3 hours
 
-pub(crate) fn topics<P: Capabilities>() -> messaging::Routes<P> {
-    messaging::Routes::new().route(topic::PASSENGER_COUNT, passenger_count)
+pub(crate) fn topics<P: Capabilities>() -> Topics<P> {
+    Topics::new().route(topic::PASSENGER_COUNT, passenger_count)
 }
 
 #[tracing::instrument(skip_all)]

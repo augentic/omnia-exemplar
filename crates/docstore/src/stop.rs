@@ -11,7 +11,8 @@ use axum::Json;
 use axum::extract::{Path, Query};
 use axum::routing::get;
 use common::Capabilities;
-use omnia_sdk::api::{Context, http};
+use omnia_sdk::api::Context;
+use omnia_sdk::api::http::Routes;
 use omnia_sdk::docstore::{Document, Filter, QueryOptions, SortField};
 use omnia_sdk::{DocumentStore, Result, bad_request, not_found};
 use serde::de::DeserializeOwned;
@@ -21,8 +22,8 @@ pub(crate) const STOPS: &str = "/examples/stops";
 pub(crate) const STOP: &str = "/examples/stops/{id}";
 pub(crate) const COLLECTION: &str = "stops";
 
-pub(crate) fn routes<P: Capabilities>() -> http::Routes<P> {
-    http::Routes::new()
+pub(crate) fn routes<P: Capabilities>() -> Routes<P> {
+    Routes::new()
         .route(STOPS, get(list_stops).post(create_stop))
         .route(STOP, get(get_stop).put(upsert_stop).delete(delete_stop))
 }

@@ -10,8 +10,8 @@ Unreleased
 
 - **One list shape at every level, and every stem exposes both halves.**
   The root's `http_router` and `topic_router` and a stem's `routes` and
-  `topics` all merge their entries with `http::Routes::from([..])` and
-  `messaging::Routes::from([..])`, each list under the comment that
+  `topics` all merge their entries with `Routes::from([..])` and
+  `Topics::from([..])`, each list under the comment that
   anchors it, so a slice adds a stem as it adds a part:
   one line after the anchor, which `omnia-template` names as
   `ROUTE_LIST_ANCHOR` and `TOPIC_LIST_ANCHOR` beside the manifest's two.
@@ -19,10 +19,10 @@ Unreleased
   no part of that kind, so the root lists each stem once in each list and
   a stem's first route or topic is a change to the stem alone. A part's
   and a stem's routes are `omnia_sdk::api::http::Routes<P>` alongside
-  `messaging::Routes<P>`, `Routes::map` qualifies the merged topics, and
-  both close into `http::Router` and `messaging::Router<P>` with
-  `with_state(Client::new(provider))`. `common::routers` and
-  `common::topics` are removed.
+  `omnia_sdk::api::messaging::Topics<P>`, `Topics::map` qualifies the
+  merged topics, and both close into `http::Router` and
+  `messaging::Router<P>` with `with_state(Client::new(provider))`.
+  `common::routers` and `common::topics` are removed.
 - **Parameterized SQL + `common::RowExt` replaces `omnia-orm`, `acme-common`
   becomes `common`, and stem entries hold composition alone.** `omnia-orm`
   is removed: `crates/sql` and `crates/pattern/src/place.rs` execute

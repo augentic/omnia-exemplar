@@ -10,7 +10,9 @@
 //! new Omnia services and the shape the guest template seeds.
 
 use common::{Capabilities, config};
-use omnia_sdk::api::{Client, http, messaging};
+use omnia_sdk::api::Client;
+use omnia_sdk::api::http::{self, Routes};
+use omnia_sdk::api::messaging::{self, Topics};
 
 /// Build the HTTP router over one provider-owning [`Client`].
 ///
@@ -20,7 +22,7 @@ use omnia_sdk::api::{Client, http, messaging};
 /// in. Merging panics where two stems serve one path under one method, so
 /// the rung under `tests/` holds the list to one route apiece.
 pub fn http_router<P: Capabilities>(provider: P) -> http::Router {
-    http::Routes::from([
+    Routes::from([
         // one routes() per stem, each added at the end
         capability::routes(),
         docstore::routes(),
@@ -44,7 +46,7 @@ pub fn http_router<P: Capabilities>(provider: P) -> http::Router {
 /// consumer apiece.
 pub async fn topic_router<P: Capabilities>(provider: P) -> messaging::Router<P> {
     let env = config::env(&provider).await;
-    messaging::Routes::from([
+    Topics::from([
         // one topics() per stem, each added at the end
         capability::topics(),
         docstore::topics(),

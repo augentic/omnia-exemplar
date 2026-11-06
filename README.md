@@ -9,11 +9,11 @@ Domain logic lives under `crates/*` as plain axum handlers
 (`pub async fn name<P>(Context<P>, Json<Input>)`) and messaging handlers
 (`pub async fn name<P>(Input, Context<P>)`), and each crate exposes its
 wiring: `routes()`, an `http::Routes` binding its paths to its fns
-(`post(tally)`), and `topics()`, a `messaging::Routes` binding its topic
+(`post(tally)`), and `topics()`, a `messaging::Topics` binding its topic
 suffixes to its consumers. The **guest is the workspace root package**
 (`src/lib.rs`) — one `<stem>::routes(),` entry per crate in `http_router`
 and one `<stem>::topics(),` entry in `topic_router`, merged by
-`http::Routes::from` and `messaging::Routes::from` and closed with
+`Routes::from` and `Topics::from` and closed with
 `with_state` over a provider-owning `Client`,
 each bound as a WASI export by `http::export!` and `messaging::export!`.
 Match this layout when creating a new Omnia service: root `src/`, not a
@@ -111,8 +111,8 @@ The guest:
   extractors, with `Bytes` for non-JSON wire formats) on an `http::Routes`
   — in `http_router`
 - Merges each crate's `topics()` — bare topic suffixes bound to consumers
-  on a `messaging::Routes` — in `topic_router`, which qualifies every
-  topic for the deployment's environment once (`Routes::map`) and
+  on a `messaging::Topics` — in `topic_router`, which qualifies every
+  topic for the deployment's environment once (`Topics::map`) and
   dispatches deliveries through the exact-topic
   `omnia_sdk::api::messaging::Router`
 - Binds each as a WASI export: `http::export!(http_router)` and
@@ -198,12 +198,12 @@ clients stay provider-generic.
 4. Declare the path and any configuration keys as `pub(crate) const`s of the
    part that uses them, and any new topic suffix in `common::topic`.
 5. Bind the handler in the part's `pub(crate) fn routes()`
-   (`http::Routes::new().route(PATH, post(handler))`; a custom status code
+   (`Routes::new().route(PATH, post(handler))`; a custom status code
    or wire format is an `IntoResponse` on the reply or error type) or
-   `pub(crate) fn topics()` (`messaging::Routes::new().route(topic::X, handler)`, or
+   `pub(crate) fn topics()` (`Topics::new().route(topic::X, handler)`, or
    `route_with(topic::X, handler, decode)` for a non-JSON payload), and
-   list the part in the stem's `src/lib.rs` (`http::Routes::from([..])`,
-   `messaging::Routes::from([..])`).
+   list the part in the stem's `src/lib.rs` (`Routes::from([..])`,
+   `Topics::from([..])`).
    A new stem adds its `<stem>::routes(),` line to the list in `http_router`
    and its `<stem>::topics(),` line to the list in `topic_router` in
    `src/lib.rs`, each after the comment that anchors the list.

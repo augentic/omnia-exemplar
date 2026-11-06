@@ -15,7 +15,7 @@ capability trait:
 | `table` | `TableStore` | `reading(ReadingRequest)` — insert a reading and count the sensor's rows |
 
 Each part declares its `pub(crate)` path constant (`/examples/*`), handler,
-and `routes()`; `src/lib.rs` merges them with `http::Routes::from`, and the
+and `routes()`; `src/lib.rs` merges them with `Routes::from`, and the
 workspace-root [`http_router`](../../src/lib.rs) merges `capability::routes()`.
 [`tests/operations.rs`](tests/operations.rs) drives `capability::routes()`
 over `omnia_test::guest::Provider` doubles.

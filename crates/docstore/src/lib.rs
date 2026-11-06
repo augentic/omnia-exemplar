@@ -32,11 +32,12 @@ pub mod stop;
 pub mod stop_time;
 
 use common::Capabilities;
-use omnia_sdk::api::{http, messaging};
+use omnia_sdk::api::http::Routes;
+use omnia_sdk::api::messaging::Topics;
 
 /// The stem's routes, merged onto the root router.
-pub fn routes<P: Capabilities>() -> http::Routes<P> {
-    http::Routes::from([
+pub fn routes<P: Capabilities>() -> Routes<P> {
+    Routes::from([
         // one entry per part with routes, each added at the end
         route::routes(),
         stop::routes(),
@@ -45,8 +46,8 @@ pub fn routes<P: Capabilities>() -> http::Routes<P> {
 }
 
 /// The stem's topics, merged onto the root messaging router.
-pub fn topics<P: Capabilities>() -> messaging::Routes<P> {
-    messaging::Routes::from([
+pub fn topics<P: Capabilities>() -> Topics<P> {
+    Topics::from([
         // one entry per part with topics, each added at the end
     ])
 }

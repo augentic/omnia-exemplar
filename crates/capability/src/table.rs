@@ -3,15 +3,16 @@
 use axum::Json;
 use axum::routing::post;
 use common::Capabilities;
-use omnia_sdk::api::{Context, http};
+use omnia_sdk::api::Context;
+use omnia_sdk::api::http::Routes;
 use omnia_sdk::sql::DataType;
 use omnia_sdk::{Result, TableStore};
 use serde::{Deserialize, Serialize};
 
 pub(crate) const READING: &str = "/examples/reading";
 
-pub(crate) fn routes<P: Capabilities>() -> http::Routes<P> {
-    http::Routes::new().route(READING, post(reading))
+pub(crate) fn routes<P: Capabilities>() -> Routes<P> {
+    Routes::new().route(READING, post(reading))
 }
 
 /// SQL executed against the readings table.
