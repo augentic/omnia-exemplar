@@ -8,13 +8,15 @@ Unreleased
 
 ### Changed
 
-- **One `Handlers` list at every level.** The root's `handlers`, a stem's
-  `handlers`, and a part's `handlers` all register or merge their HTTP
-  routes (`.route`) and messaging topics (`.topic`, `.topic_with`) on
-  `omnia_sdk::api::Handlers<P>` (`Handlers::from([..])`), each list under
-  the comment that anchors it, so a slice adds a stem as it adds a part:
-  one line after the anchor, which `omnia-template` names as
-  `HANDLER_LIST_ANCHOR` beside the manifest's two. `Handlers::map_topics`
+- **One `Handlers` list at every level, and stems only in the root `[dependencies]`.**
+  The root's `handlers`, a stem's `handlers`, and a part's `handlers` all
+  register or merge their HTTP routes (`.route`) and messaging topics
+  (`.topic`, `.topic_with`) on `omnia_sdk::api::Handlers<P>`
+  (`Handlers::from([..])`), each list under the comment that anchors it,
+  and the root `Cargo.toml` names each stem once in `[dependencies]`
+  (`<stem> = { path = "crates/<stem>" }`), so a slice adds a stem in two
+  lines after `CRATE_LIST_ANCHOR` and `HANDLER_LIST_ANCHOR`
+  (`PATH_LIST_ANCHOR` is removed). `Handlers::map_topics`
   qualifies the merged topics, and `with_state(Client::new(provider))`
   closes the handlers into `omnia_sdk::api::Router<P>`, which serves both
   HTTP requests and messaging deliveries. `common::routers` and
@@ -170,7 +172,7 @@ Unreleased
   guest-side HTTP cache from `omnia-wasi-http`: `Cache-Control` and
   `If-None-Match` on an outbound request are now plain headers. The exemplar
   restores caching where it was relied on with `omnia-http-cache`
-  ([omnia-extensions](https://github.com/augentic/omnia-extensions), a new
+  ([omnia-ext](https://github.com/augentic/omnia-ext), a new
   git dependency of `acme-common` with a matching `deny.toml` `allow-git`
   entry): `fleet::vehicle` and `block_mgt::cached_allocation` wrap the
   provider in `HttpCache::new(provider, provider)`, gain a `StateStore` bound,
@@ -179,10 +181,10 @@ Unreleased
   uses the etag verbatim as the state-store key. `gtfs_adapter::trip` no
   longer sends `Cache-Control` on its Trip Management `POST` — it carried no
   etag, so it was never cacheable under either implementation.
-- Pinned omnia to `31fb3f0` (omnia #290–#297) and omnia-extensions to
+- Pinned omnia to `31fb3f0` (omnia #290–#297) and omnia-ext to
   `184a1e1`. Omnia removed the guest ORM from `omnia-sdk` — the
   `omnia_sdk::orm` module and the `entity!` macro — and the layer now lives in
-  `omnia-orm` ([omnia-extensions](https://github.com/augentic/omnia-extensions)),
+  `omnia-orm` ([omnia-ext](https://github.com/augentic/omnia-ext)),
   a second git dependency from the same source and revision as
   `omnia-http-cache`. The API is unchanged: `crates/sql` and `crates/pattern`
   depend on `omnia-orm` and read `omnia_orm::{entity, Entity, Filter, Join,

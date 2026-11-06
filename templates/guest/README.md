@@ -9,7 +9,7 @@ copy, fill-only, before the first slice builds. Nothing here is copied
 into the adapter by hand — the crate is the single physical source, and
 the gate below holds its table to the manifest entry for entry. What the
 crate does with a tree — `scaffold`, `drift`, `restore`, and the root
-`Cargo.toml` held around its lists — is its own documentation
+`Cargo.toml` held around its list — is its own documentation
 (`cargo doc -p omnia-template`).
 
 [`manifest.yaml`](manifest.yaml) is the sole source-to-target map.
@@ -80,11 +80,10 @@ is dead code. Its tests under
 `tests/<part>.rs` drive the stem's `handlers()`, closed with
 `with_state(Client::new(provider))` over the doubles, so a
 route or a topic is asserted as the wire reaches it. The
-root `Cargo.toml` names the crate in its path list and its
-`[dependencies]`, and `src/lib.rs` lists its `handlers()`,
-one line in the list of `handlers`, after
-the anchor `HANDLER_LIST_ANCHOR` names as
-`PATH_LIST_ANCHOR` and `CRATE_LIST_ANCHOR` name the manifest's; a topic the stem
+root `Cargo.toml` names the crate in its `[dependencies]`
+(`<stem> = { path = "crates/<stem>" }`), and `src/lib.rs` lists its
+`handlers()`, one line in the list of `handlers`, after the anchors
+`CRATE_LIST_ANCHOR` and `HANDLER_LIST_ANCHOR` name; a topic the stem
 publishes or consumes is one constant appended to
 `crates/common/src/topic.rs`; nothing else of the seed is edited.
 

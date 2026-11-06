@@ -1,13 +1,12 @@
-//! Holding a tree's root manifest to the template around its two stem lists.
+//! Holding a tree's root manifest to the template around its stem list.
 
 mod support;
 
-use omnia_template::{CRATE_LIST_ANCHOR, Error, Manifest, PATH_LIST_ANCHOR, insert_after};
+use omnia_template::{CRATE_LIST_ANCHOR, Error, Manifest, insert_after};
 
 use self::support::Scratch;
 
-const PATH_LINE: &str = "orders = { path = \"crates/orders\" }\n";
-const CRATE_LINE: &str = "orders.workspace = true\n";
+const CRATE_LINE: &str = "orders = { path = \"crates/orders\" }\n";
 const PIN: &str = "omnia-sdk = \"0.38.0\"";
 const PIN_EDITED: &str = "omnia-sdk = \"0.39.0\"";
 
@@ -15,10 +14,9 @@ fn template() -> &'static str {
     omnia_template::entry(Manifest::PATH).expect("the template holds the manifest").body
 }
 
-// The template's manifest with the `orders` stem's line in each list.
+// The template's manifest with the `orders` stem's line in the list.
 fn with_orders() -> String {
-    let with_path = insert_after(template(), PATH_LIST_ANCHOR, PATH_LINE).expect("path anchor");
-    insert_after(&with_path, CRATE_LIST_ANCHOR, CRATE_LINE).expect("crate anchor")
+    insert_after(template(), CRATE_LIST_ANCHOR, CRATE_LINE).expect("crate anchor")
 }
 
 #[test]
@@ -27,7 +25,7 @@ fn standing_with_entries() {
     tree.write(Manifest::PATH, &with_orders());
     let manifest = Manifest::new(tree.root());
 
-    assert!(manifest.drift().expect("the drift").is_empty(), "a stem's lines are no drift");
+    assert!(manifest.drift().expect("the drift").is_empty(), "a stem's line is no drift");
     assert!(manifest.restore().expect("the restore").is_empty());
     assert_eq!(tree.read(Manifest::PATH), Some(with_orders()), "the manifest stands");
 }
@@ -53,7 +51,7 @@ fn pin_restore_keeps() {
 #[test]
 fn entries_anywhere_kept() {
     let tree = Scratch::new();
-    let misplaced = format!("{PATH_LINE}{CRATE_LINE}{}", template());
+    let misplaced = format!("{CRATE_LINE}{}", template());
     tree.write(Manifest::PATH, &misplaced);
     let manifest = Manifest::new(tree.root());
 
@@ -64,7 +62,7 @@ fn entries_anywhere_kept() {
     tree.write(Manifest::PATH, &misplaced.replace(PIN, PIN_EDITED));
     let drift = manifest.restore().expect("the restore");
     assert_eq!(drift.files().len(), 1, "the pin alone drifts: {drift}");
-    assert_eq!(tree.read(Manifest::PATH), Some(with_orders()), "each entry follows its anchor");
+    assert_eq!(tree.read(Manifest::PATH), Some(with_orders()), "the entry follows its anchor");
 }
 
 #[test]
@@ -80,30 +78,10 @@ fn duplicate_entry_is_drift() {
     assert_eq!(tree.read(Manifest::PATH), Some(with_orders()), "the entry is kept once");
 }
 
-// `authors.workspace = true` has a crate line's shape and is a `[package]`
-// key, so it is drift rather than an entry put back under `[dependencies]`.
+// A dependency line that is not a stem under `crates/` is drift and the
+// restore removes it.
 #[test]
-fn package_key_inherited() {
-    let tree = Scratch::new();
-    let inherited = with_orders().replace(
-        "\nversion.workspace = true\n",
-        "\nversion.workspace = true\nauthors.workspace = true\n",
-    );
-    assert_ne!(inherited, with_orders(), "the `[package]` table inherits `version`");
-    tree.write(Manifest::PATH, &inherited);
-    let manifest = Manifest::new(tree.root());
-
-    let drift = manifest.restore().expect("the restore");
-
-    let [drifted] = drift.files() else { panic!("the manifest alone drifts: {drift}") };
-    assert_eq!(drifted.lines, ["+ authors.workspace = true"]);
-    assert_eq!(tree.read(Manifest::PATH), Some(with_orders()), "the key is not kept as a stem's");
-}
-
-// A crate line whose stem the path list does not name would be left
-// without its pin by a restore, so it is drift and the restore removes it.
-#[test]
-fn crate_line_without_stem() {
+fn non_stem_dependency() {
     let tree = Scratch::new();
     tree.write(Manifest::PATH, &(template().to_owned() + "serde.workspace = true\n"));
     let manifest = Manifest::new(tree.root());

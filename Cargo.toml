@@ -23,21 +23,20 @@ god-mode = ["gtfs-adapter/god-mode"]
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-axum.workspace = true
-capability.workspace = true
+capability = { path = "crates/capability" }
 common.workspace = true
-docstore.workspace = true
-gtfs-adapter.workspace = true
+docstore = { path = "crates/docstore" }
+gtfs-adapter = { path = "crates/gtfs-adapter" }
 omnia-sdk.workspace = true
-pattern.workspace = true
-pulse-adapter.workspace = true
-pulse-connector.workspace = true
-sql.workspace = true
-tally-connector.workspace = true
-tracing.workspace = true
+pattern = { path = "crates/pattern" }
+pulse-adapter = { path = "crates/pulse-adapter" }
+pulse-connector = { path = "crates/pulse-connector" }
+sql = { path = "crates/sql" }
+tally-connector = { path = "crates/tally-connector" }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 anyhow.workspace = true
+axum.workspace = true
 bytes.workspace = true
 chrono.workspace = true
 http.workspace = true
@@ -155,18 +154,10 @@ omnia-wasi-otel = "0.38.0"
 omnia-wasi-sql = "0.38.0"
 omnia-wasi-websocket = "0.38.0"
 
-# omnia-extensions
+# omnia-ext
 omnia-http-cache = "0.36.0"
 
-capability = { path = "crates/capability" }
 common = { path = "crates/common" }
-docstore = { path = "crates/docstore" }
-gtfs-adapter = { path = "crates/gtfs-adapter" }
-pattern = { path = "crates/pattern" }
-pulse-adapter = { path = "crates/pulse-adapter" }
-pulse-connector = { path = "crates/pulse-connector" }
-sql = { path = "crates/sql" }
-tally-connector = { path = "crates/tally-connector" }
 
 [patch.crates-io]
 omnia = { path = "../omnia/crates/omnia" }
@@ -182,7 +173,7 @@ omnia-wasi-messaging = { path = "../omnia/crates/wasi-messaging" }
 omnia-wasi-otel = { path = "../omnia/crates/wasi-otel" }
 omnia-wasi-sql = { path = "../omnia/crates/wasi-sql" }
 omnia-wasi-websocket = { path = "../omnia/crates/wasi-websocket" }
-omnia-http-cache = { path = "../omnia-extensions/crates/http-cache" }
+omnia-http-cache = { path = "../omnia-ext/crates/http-cache" }
 
 # omnia = { git = "https://github.com/augentic/omnia" }
 # omnia-sdk = { git = "https://github.com/augentic/omnia" }
@@ -197,7 +188,7 @@ omnia-http-cache = { path = "../omnia-extensions/crates/http-cache" }
 # omnia-wasi-otel = { git = "https://github.com/augentic/omnia" }
 # omnia-wasi-sql = { git = "https://github.com/augentic/omnia" }
 # omnia-wasi-websocket = { git = "https://github.com/augentic/omnia" }
-# omnia-http-cache = { git = "https://github.com/augentic/omnia-extensions" }
+# omnia-http-cache = { git = "https://github.com/augentic/omnia-ext" }
 
 [profile.release]
 lto = true

@@ -18,7 +18,7 @@
 use std::time::Duration;
 
 use bytes::Bytes;
-use common::{config, topic};
+use common::topic;
 use http::header::{CONTENT_TYPE, HOST};
 use http::{Request, StatusCode};
 use http_body_util::Full;
@@ -46,7 +46,6 @@ const CLOSED_UPSTREAM: &str = "http://127.0.0.1:9";
 /// credentials, the websocket bind address) have no counterpart here:
 /// `Backends::defaults()` connects nothing.
 const GUEST_CONFIG: &[(&str, &str)] = &[
-    (config::ENV, "dev"),
     ("BLOCK_MGT_URL", CLOSED_UPSTREAM),
     ("FLEET_URL", CLOSED_UPSTREAM),
     ("TRIP_MANAGEMENT_URL", CLOSED_UPSTREAM),
@@ -110,12 +109,12 @@ async fn http_export() {
     let response = handler.handle(request).await.expect("handled");
     assert_eq!(response.status(), StatusCode::OK);
 
-    // Exactly one publish, on the environment-prefixed tally topic.
+    // Exactly one publish, on the tally topic.
     let sent = tokio::time::timeout(BROKER_WAIT, broker.next())
         .await
         .expect("the publish reaches the broker")
         .expect("the broker stays open");
-    assert_eq!(sent.topic, config::topic_for("dev", topic::TALLY_APC));
+    assert_eq!(sent.topic, topic::TALLY_APC);
     assert!(
         tokio::time::timeout(Duration::from_millis(200), broker.next()).await.is_err(),
         "nothing else reached the broker"
@@ -135,7 +134,7 @@ async fn messaging_export() {
         .expect("the guest exports the messaging handler");
 
     let mut message = Message::new(fixture_value(PASSENGER_COUNT, 0));
-    message.topic = config::topic_for("dev", topic::PASSENGER_COUNT);
+    message.topic = topic::PASSENGER_COUNT.to_owned();
     handler.handle(message).await.expect("handled");
 
     // The guest's `StateStore` writes the occupancy under its composite key

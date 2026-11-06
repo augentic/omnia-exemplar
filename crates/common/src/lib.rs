@@ -1,16 +1,13 @@
 //! # Common
 //!
 //! What every stem shares: the capability bound a stem's handlers take,
-//! the topic table a publisher and its consumer agree on, the
-//! configuration helpers that qualify a topic for the deployment's
-//! environment, and typed SQL column reads.
+//! the topic table a publisher and its consumer agree on, and typed SQL
+//! column reads.
 //!
-//! A stem's `handlers()` is stateless and keyed by the bare path or topic
-//! suffix, a stem exposes it whatever parts it has, and the root merges
-//! every stem's handlers onto its routers over one
-//! [`Client`](omnia_sdk::api::Client).
+//! A stem's `handlers()` is stateless and keyed by path or topic, a stem
+//! exposes it whatever parts it has, and the root merges every stem's
+//! handlers onto its router over one [`Client`](omnia_sdk::api::Client).
 
-pub mod config;
 pub mod topic;
 
 use omnia_sdk::sql::{DataType, Field, Row};

@@ -43,7 +43,7 @@ The omnia crates are crates.io dependencies (currently 0.38.0) declared once
 under `[workspace.dependencies]` in `Cargo.toml`; every `omnia-*` line moves
 together. Outbound HTTP caching is opt-in per call site through
 `omnia-http-cache` (from
-[omnia-extensions](https://github.com/augentic/omnia-extensions), 0.36.0), a
+[omnia-ext](https://github.com/augentic/omnia-ext), 0.36.0), a
 `HttpRequest` decorator that stores responses in the provider's `StateStore`
 (see `crates/gtfs-adapter`).
 
@@ -181,8 +181,8 @@ clients stay provider-generic.
 
 1. Pick a template: `tally-connector` for a connector, `pulse-adapter` for an
    adapter.
-2. Create the crate under `crates/`, register it in the workspace
-   `Cargo.toml` under `# The crates of this tree`.
+2. Create the crate under `crates/` and add `<stem> = { path = "crates/<stem>" }`
+   to `[dependencies]` in the root `Cargo.toml`.
 3. Implement the `pub` input and reply types and a handler fn with the
    narrowest capability bounds it needs (e.g. `P: Config + Publish + 'static`).
    An HTTP handler is a plain axum handler taking `Context<P>` as an
@@ -364,7 +364,7 @@ hand-written mock provider anywhere in the workspace.
   structured-error upsert rejection
 - `templates/guest/tests` — the template crate's contract: a tree
   scaffolded once, its static files held and restored, its root manifest
-  held around its stem lists
+  held around its stem list
 - `templates/check/tests` — the template contract gate and the scaffold
   proof (a rendered guest lints, tests, and builds for `wasm32-wasip2`)
 
@@ -444,7 +444,7 @@ and the topic table every stem shares, and the local host behind the
 scaffold test renders the manifest and lints, tests, and builds the
 result against the same published omnia the exemplar uses. To move to a
 new omnia release, bump every `omnia-*` line in `[workspace.dependencies]`
-together (and the omnia-extensions crates to their matching release),
+together (and the omnia-ext crates to their matching release),
 re-resolve `Cargo.lock`, and bump the seed's pins, which the gate holds
 equal to the workspace's.
 
@@ -491,6 +491,6 @@ release tag.
 
 Dependency on omnia is strictly one-way: the omnia crates and
 `omnia-http-cache` (from
-[omnia-extensions](https://github.com/augentic/omnia-extensions)) are
+[omnia-ext](https://github.com/augentic/omnia-ext)) are
 published crates.io dependencies declared once under `[workspace.dependencies]`
 and bumped together.

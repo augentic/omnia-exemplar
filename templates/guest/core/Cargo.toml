@@ -48,6 +48,7 @@ omnia-wasi-websocket = { workspace = true, optional = true }
 
 # Target-gated so the guest's wasm32 dependency graph never sees the doubles.
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
+axum.workspace = true
 omnia-test = { workspace = true, features = ["guest"] }
 tokio.workspace = true
 tower.workspace = true
@@ -134,10 +135,10 @@ omnia-wasi-otel = "0.38.0"
 omnia-wasi-sql = "0.38.0"
 omnia-wasi-websocket = "0.38.0"
 
-# omnia-extensions
+# omnia-ext
 omnia-http-cache = "0.36.0"
 
-# The crates of this tree: `common`, then one line per stem, each added at the end.
+# Shared by every stem of this tree.
 common = { path = "crates/common" }
 
 [patch.crates-io]
@@ -154,11 +155,9 @@ omnia-wasi-messaging = { path = "../omnia/crates/wasi-messaging" }
 omnia-wasi-otel = { path = "../omnia/crates/wasi-otel" }
 omnia-wasi-sql = { path = "../omnia/crates/wasi-sql" }
 omnia-wasi-websocket = { path = "../omnia/crates/wasi-websocket" }
-omnia-http-cache = { path = "../omnia-extensions/crates/http-cache" }
+omnia-http-cache = { path = "../omnia-ext/crates/http-cache" }
 
-# What the guest wires: the four below, then one line per stem, each added at the end.
+# What the guest wires: the two below, then one line per stem, each added at the end.
 [dependencies]
-axum.workspace = true
 common.workspace = true
 omnia-sdk.workspace = true
-tracing.workspace = true

@@ -461,7 +461,6 @@ name = "common"
 version = "0.1.0"
 dependencies = [
  "omnia-sdk",
- "tracing",
 ]
 
 [[package]]
@@ -1427,7 +1426,6 @@ dependencies = [
  "tally-connector",
  "tokio",
  "tower",
- "tracing",
 ]
 
 [[package]]

@@ -1,9 +1,7 @@
-//! Environment-agnostic topic suffixes.
+//! Messaging topics.
 //!
 //! A publishing crate and its consumer name one constant here, so producers
 //! and consumers agree on the surface by construction rather than by review.
-//! Prefix a suffix with `{env}-` through [`crate::config::topic`] or
-//! [`crate::config::topic_for`] before publishing or subscribing.
 
 /// Raw Pulse XML train updates (pulse-connector to pulse-adapter).
 pub const PULSE: &str = "realtime-pulse.v1";

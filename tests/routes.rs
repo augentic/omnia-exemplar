@@ -6,24 +6,19 @@
 
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
-use common::config;
-use omnia_test::guest::{MapConfig, Provider};
+use omnia_test::guest::Provider;
 use tower::ServiceExt as _;
-
-fn provider() -> Provider {
-    Provider::default().config(MapConfig::default().with([(config::ENV, "test")]))
-}
 
 #[test]
 fn merges() {
-    let _ = guest::http_router(provider());
+    let _ = guest::router(Provider::default());
 }
 
 #[tokio::test]
 async fn unknown_path() {
     let request = Request::get("/nothing-here").body(Body::empty()).expect("request");
 
-    let response = guest::http_router(provider()).oneshot(request).await.expect("response");
+    let response = guest::router(Provider::default()).oneshot(request).await.expect("response");
 
     assert_eq!(response.status(), StatusCode::NOT_FOUND);
 }

@@ -17,9 +17,7 @@ use std::collections::BTreeSet;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use omnia_template::{
-    CRATE_LIST_ANCHOR, ENTRIES, HANDLER_LIST_ANCHOR, PATH_LIST_ANCHOR, insert_after,
-};
+use omnia_template::{CRATE_LIST_ANCHOR, ENTRIES, HANDLER_LIST_ANCHOR, insert_after};
 use serde::Deserialize;
 
 const MANIFEST: &str = "templates/guest/manifest.yaml";
@@ -32,8 +30,7 @@ const SEED_CLIPPY: &str = "templates/guest/core/clippy.toml";
 // the anchor the template names, or at the end of a list file that names
 // none. The stem's own files are written whole from `STEM`.
 const STEM_LINES: &[(&str, &str, &str)] = &[
-    ("Cargo.toml", PATH_LIST_ANCHOR, "orders = { path = \"crates/orders\" }"),
-    ("Cargo.toml", CRATE_LIST_ANCHOR, "orders.workspace = true"),
+    ("Cargo.toml", CRATE_LIST_ANCHOR, "orders = { path = \"crates/orders\" }"),
     ("src/lib.rs", HANDLER_LIST_ANCHOR, "        orders::handlers(),"),
     (
         "crates/common/src/topic.rs",
