@@ -53,7 +53,7 @@ async fn forwards_bearer_token() {
 }
 
 #[tokio::test]
-async fn upstream_failure_is_bad_gateway() {
+async fn upstream_bad_gateway() {
     let provider = Provider::default()
         .config(MapConfig::default().with([
             ("PATTERN_UPSTREAM_URL", UPSTREAM_BASE),

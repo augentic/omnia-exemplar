@@ -209,7 +209,7 @@ fn file_as_parent() {
 // it reached it would put the Makefile back before refusing the link.
 #[cfg(unix)]
 #[test]
-fn restore_with_symlinked_parent() {
+fn restore_symlink_parent() {
     let tree = Scratch::new();
     scaffold(tree.root()).expect("the scaffold");
     tree.write("Makefile", "# edited\n");

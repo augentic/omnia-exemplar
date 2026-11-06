@@ -65,7 +65,7 @@ async fn create_then_update_quota() {
 }
 
 #[tokio::test]
-async fn stale_version_is_conflict() {
+async fn stale_version() {
     let provider = Provider::default();
     let (status, _) = put_quota(&provider, "metro", 0, 1_000).await;
     assert_eq!(status, StatusCode::OK);
@@ -88,7 +88,7 @@ async fn stale_version_is_conflict() {
 }
 
 #[tokio::test]
-async fn missing_quota_is_not_found() {
+async fn missing_quota() {
     let provider = Provider::default();
 
     let (status, body) = put_quota(&provider, "unknown", 1, 500).await;

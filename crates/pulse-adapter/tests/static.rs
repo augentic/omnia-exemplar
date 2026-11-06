@@ -58,7 +58,7 @@ async fn station_arrival() {
 // A corrupted cache entry is treated as a miss, refetched from the static API,
 // and overwritten in the state store.
 #[tokio::test]
-async fn stale_cache_entry_refetched() {
+async fn stale_refetch() {
     let case = fixture::load("data/static/0001.json");
     case.provider.storage.insert_state("pulse:stops", b"not valid json");
 

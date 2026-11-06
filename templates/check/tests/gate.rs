@@ -238,7 +238,7 @@ fn edited_source() {
 }
 
 #[test]
-fn clippy_disallowed_paths_drifted() {
+fn clippy_paths_drift() {
     let replica = Replica::of_repo();
     let crates_clippy = replica.read("crates/clippy.toml");
     replica.write(

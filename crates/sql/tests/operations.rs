@@ -144,7 +144,7 @@ const AGENCY_FILTER: &str = "WHERE agency_id = $1";
 /// rows. The probe SQL is the same in both, so each table state is its own
 /// scripted store.
 #[tokio::test]
-async fn create_agency_empty_and_populated_table() {
+async fn create_agency_empty_pop() {
     // Empty table: the first agency takes id 1.
     let empty = provider(
         tables()
@@ -188,7 +188,7 @@ async fn create_agency_empty_and_populated_table() {
 
 /// Listing agencies with the default request, then with a `limit`.
 #[tokio::test]
-async fn list_agencies_default_and_limited() {
+async fn list_agencies_limit() {
     let provider = provider(tables().on_query(
         |sql, _| sql.contains("ORDER BY created_at DESC"),
         vec![agency_row(2, "Metro"), agency_row(1, "Ritchies")],
@@ -273,7 +273,7 @@ async fn update_agency_partial() {
 async fn update_agency_empty() {
     let provider = provider(
         tables()
-            .on_query(is_agency_fetch_by_filter(1), vec![agency_row(1, "Ritchies")])
+            .on_query(agency_fetch_matches(1), vec![agency_row(1, "Ritchies")])
             .on_query(|sql, _| sql.contains(AGENCY_FILTER), vec![]),
     );
 
@@ -292,12 +292,12 @@ async fn update_agency_empty() {
     assert_eq!(body["error"], "not_found");
 }
 
-fn is_agency_fetch_by_filter(id: i64) -> impl Fn(&str, &[DataType]) -> bool + use<> {
+fn agency_fetch_matches(id: i64) -> impl Fn(&str, &[DataType]) -> bool + use<> {
     move |sql, params| sql.contains(AGENCY_FILTER) && int_param(params, 0) == Some(id)
 }
 
 #[tokio::test]
-async fn create_feed_missing_agency() {
+async fn create_feed_no_agency() {
     let provider = provider(tables().on_query(|sql, _| sql.contains(AGENCY_FILTER), vec![]));
 
     let (status, body) = send(
@@ -315,10 +315,10 @@ async fn create_feed_missing_agency() {
 
 /// Creating a feed for an agency that exists and already has one feed.
 #[tokio::test]
-async fn create_feed_for_existing_agency() {
+async fn create_feed_existing() {
     let provider = provider(
         tables()
-            .on_query(is_agency_fetch_by_filter(1), vec![agency_row(1, "Ritchies")])
+            .on_query(agency_fetch_matches(1), vec![agency_row(1, "Ritchies")])
             .on_query(
                 |sql, params| is_max_id_probe("feed", sql, params),
                 vec![feed_row(1, 1, "Bus routes and schedules")],

@@ -20,7 +20,7 @@ fn merges() {
 }
 
 #[tokio::test]
-async fn an_unknown_path_is_not_found() {
+async fn unknown_path() {
     let request = Request::get("/nothing-here").body(Body::empty()).expect("request");
 
     let response = guest::http_router(provider()).oneshot(request).await.expect("response");

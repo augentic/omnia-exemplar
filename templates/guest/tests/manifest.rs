@@ -33,7 +33,7 @@ fn standing_with_entries() {
 }
 
 #[test]
-fn pin_restored_with_entries_kept() {
+fn pin_restore_keeps() {
     let tree = Scratch::new();
     tree.write(Manifest::PATH, &with_orders().replace(PIN, PIN_EDITED));
     let manifest = Manifest::new(tree.root());

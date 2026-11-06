@@ -231,7 +231,7 @@ async fn train_avl_motion() {
 /// A passenger count with an occupancy status, then the same count without
 /// one: the status is stored under the trip key, then cleared from it.
 #[tokio::test]
-async fn passenger_count_occupancy() {
+async fn pax_occupancy() {
     let provider = provider();
     let key = "motionGtfs:occupancyStatus:32161:1347-05004-41400-2-89c4020e:20251120:11:30:00";
 

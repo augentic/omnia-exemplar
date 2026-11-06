@@ -39,7 +39,7 @@ async fn get_catalogue(provider: &Provider) -> CatalogueReply {
 }
 
 #[tokio::test]
-async fn queries_then_serves_from_cache() {
+async fn queries_cache_serve() {
     let tables = ScriptedTables::default().on_query(
         |sql, params| {
             sql.starts_with("SELECT sku, cents, in_stock FROM catalogue")

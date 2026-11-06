@@ -25,7 +25,7 @@ async fn get_order(provider: &Provider, id: &str) -> (StatusCode, Value) {
 }
 
 #[tokio::test]
-async fn pending_order_is_accepted() {
+async fn pending_order_ok() {
     let provider = Provider::default();
     let pending = OrderStatus {
         id: "ord-1".to_string(),

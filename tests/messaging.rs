@@ -32,7 +32,7 @@ async fn registers() {
 }
 
 #[tokio::test]
-async fn an_unknown_topic_is_unhandled() {
+async fn unknown_topic() {
     let router = guest::topic_router(provider()).await;
     let topic = config::topic_for(ENV, "nothing-here");
 
