@@ -75,6 +75,14 @@ where
     Ok(PulseReply("OK"))
 }
 
+/// Pulse SOAP Envelope for incoming [`ReceiveMessage`] requests
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct PulseRequest {
+    /// SOAP Body
+    pub body: Body,
+}
+
 impl PulseRequest {
     /// Deserialize a Pulse SOAP envelope from raw XML.
     ///
@@ -84,14 +92,6 @@ impl PulseRequest {
     pub fn from_xml(input: &[u8]) -> anyhow::Result<Self> {
         quick_xml::de::from_reader(input).context("deserializing PulseRequest")
     }
-}
-
-/// Pulse SOAP Envelope for incoming [`ReceiveMessage`] requests
-#[derive(Debug, Clone, Deserialize)]
-#[serde(rename_all = "PascalCase")]
-pub struct PulseRequest {
-    /// SOAP Body
-    pub body: Body,
 }
 
 /// Pulse SOAP Body for [`ReceiveMessage`] requests

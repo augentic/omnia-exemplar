@@ -127,14 +127,6 @@ impl PlaceError {
     }
 }
 
-/// The wire body: omnia's `ErrorBody` fields, then the variant's own.
-#[derive(Serialize)]
-struct Body<'a> {
-    message: String,
-    #[serde(flatten)]
-    error: &'a PlaceError, // `error` tag + domain fields
-}
-
 impl IntoResponse for PlaceError {
     fn into_response(self) -> Response {
         let body = Body {
@@ -152,6 +144,14 @@ impl From<anyhow::Error> for PlaceError {
             description: format!("{error:#}"),
         }
     }
+}
+
+/// The wire body: omnia's `ErrorBody` fields, then the variant's own.
+#[derive(Serialize)]
+struct Body<'a> {
+    message: String,
+    #[serde(flatten)]
+    error: &'a PlaceError, // `error` tag + domain fields
 }
 
 /// Reject a coordinate outside its inclusive range (`NaN` always fails).

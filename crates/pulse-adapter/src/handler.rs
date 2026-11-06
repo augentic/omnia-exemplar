@@ -75,18 +75,18 @@ impl PulseMessageError {
     }
 }
 
+impl From<quick_xml::DeError> for PulseMessageError {
+    fn from(err: quick_xml::DeError) -> Self {
+        Self::InvalidXml(err.to_string())
+    }
+}
+
 impl From<PulseMessageError> for Error {
     fn from(err: PulseMessageError) -> Self {
         Self::BadRequest {
             code: err.code(),
             description: err.to_string(),
         }
-    }
-}
-
-impl From<quick_xml::DeError> for PulseMessageError {
-    fn from(err: quick_xml::DeError) -> Self {
-        Self::InvalidXml(err.to_string())
     }
 }
 

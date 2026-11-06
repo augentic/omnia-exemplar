@@ -69,14 +69,6 @@ pub struct TrainUpdate {
     pub changes: Vec<Change>,
 }
 
-fn pulse_date<'de, D>(deserializer: D) -> anyhow::Result<NaiveDate, D::Error>
-where
-    D: serde::Deserializer<'de>,
-{
-    let s: String = Deserialize::deserialize(deserializer)?;
-    NaiveDate::parse_from_str(&s, "%d/%m/%Y").map_err(serde::de::Error::custom)
-}
-
 impl TrainUpdate {
     /// Get the train ID, preferring even over odd.
     #[must_use]
@@ -146,6 +138,14 @@ impl TrainUpdate {
 
         Ok(())
     }
+}
+
+fn pulse_date<'de, D>(deserializer: D) -> anyhow::Result<NaiveDate, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let s: String = Deserialize::deserialize(deserializer)?;
+    NaiveDate::parse_from_str(&s, "%d/%m/%Y").map_err(serde::de::Error::custom)
 }
 
 /// Pulse train update change.

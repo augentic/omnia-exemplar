@@ -212,15 +212,6 @@ struct XmlBuilder<'a> {
     update: UpdateType,
 }
 
-#[derive(PartialEq, Eq)]
-#[expect(dead_code, reason = "each variant names a fixture scenario")]
-enum UpdateType {
-    None,
-    Full,
-    NoChanges,
-    NoActualChanges,
-}
-
 #[expect(dead_code, reason = "builder methods chain; not every test uses each setter")]
 impl<'a> XmlBuilder<'a> {
     const fn new() -> Self {
@@ -332,6 +323,15 @@ impl<'a> XmlBuilder<'a> {
             </ActualizarDatosTren></CCO>"#
         )
     }
+}
+
+#[derive(PartialEq, Eq)]
+#[expect(dead_code, reason = "each variant names a fixture scenario")]
+enum UpdateType {
+    None,
+    Full,
+    NoChanges,
+    NoActualChanges,
 }
 
 const NO_UPDATE_MSG: &str = r#"<CCO xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" stream="7c104b58-25cb-437a-8c39-297633a6638e" sequence="1214699" xsi:type="CCO">

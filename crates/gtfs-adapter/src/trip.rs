@@ -248,6 +248,24 @@ impl TripInstance {
     }
 }
 
+/// A GTFS-realtime trip descriptor.
+#[derive(Debug, Clone, Deserialize, Serialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct TripDescriptor {
+    /// The trip identifier.
+    pub trip_id: String,
+    /// The route the trip belongs to.
+    pub route_id: String,
+    /// The scheduled start time.
+    pub start_time: Option<String>,
+    /// The trip's service date.
+    pub start_date: Option<String>,
+    /// The direction of travel, if known.
+    pub direction_id: Option<i32>,
+    /// The GTFS-realtime schedule relationship.
+    pub schedule_relationship: Option<String>,
+}
+
 impl From<&TripInstance> for TripDescriptor {
     fn from(inst: &TripInstance) -> Self {
         Self {
@@ -263,6 +281,13 @@ impl From<&TripInstance> for TripDescriptor {
             }),
         }
     }
+}
+
+impl TripDescriptor {
+    /// Schedule relationship for trips added outside the schedule.
+    pub const ADDED: &'static str = "ADDED";
+    /// Schedule relationship for scheduled trips.
+    pub const SCHEDULED: &'static str = "SCHEDULED";
 }
 
 /// A dead-reckoning position estimate for a vehicle without a GPS fix.
@@ -349,29 +374,4 @@ pub struct VehicleDescriptor {
     pub label: Option<String>,
     /// The vehicle's license plate.
     pub license_plate: Option<String>,
-}
-
-/// A GTFS-realtime trip descriptor.
-#[derive(Debug, Clone, Deserialize, Serialize, Default)]
-#[serde(rename_all = "camelCase")]
-pub struct TripDescriptor {
-    /// The trip identifier.
-    pub trip_id: String,
-    /// The route the trip belongs to.
-    pub route_id: String,
-    /// The scheduled start time.
-    pub start_time: Option<String>,
-    /// The trip's service date.
-    pub start_date: Option<String>,
-    /// The direction of travel, if known.
-    pub direction_id: Option<i32>,
-    /// The GTFS-realtime schedule relationship.
-    pub schedule_relationship: Option<String>,
-}
-
-impl TripDescriptor {
-    /// Schedule relationship for trips added outside the schedule.
-    pub const ADDED: &'static str = "ADDED";
-    /// Schedule relationship for scheduled trips.
-    pub const SCHEDULED: &'static str = "SCHEDULED";
 }
