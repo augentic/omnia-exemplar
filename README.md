@@ -198,8 +198,8 @@ clients stay provider-generic.
    `.topic(topic::X, handler)`, or `.topic_with(topic::X, handler, decode)`
    for a non-JSON payload), and list the part in the stem's `src/lib.rs`
    (`Handlers::from([..])`).
-   A new stem adds its `<stem>::handlers(),` line to the list in `router`
-   in `src/lib.rs`, after the comment that anchors the list.
+   A new stem adds its `<stem>::handlers(),` line to the `Handlers::from([..])`
+   list in `router` in `src/lib.rs`.
 6. Add fixtures under the crate's `data/` and native tests under `tests/`
    that seed an `omnia_test::guest::Provider` with the doubles the
    handler's capabilities read and drive the stem's `handlers()`.

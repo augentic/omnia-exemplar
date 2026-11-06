@@ -11,19 +11,46 @@ use crate::tree::replace;
 /// The template line the root manifest's `[dependencies]` stem list follows.
 pub const CRATE_LIST_ANCHOR: &str = "omnia-sdk.workspace = true";
 
-/// Insert `line` on a new line immediately following the first occurrence of `anchor` in `text`.
+/// Insert `line` after the first occurrence of `anchor` in `text`.
 ///
-/// Neither `anchor` nor `line` needs a trailing newline; returns `None` when
-/// `anchor` does not appear in `text`.
+/// When `anchor` opens a bracketed list (`anchor` ends with `'['`), `line`
+/// is appended to the list before its closing `']'` whether the list is
+/// empty, single-line, or multi-line. Otherwise `line` is placed on a new
+/// line immediately following `anchor`'s line. Returns `None` when `anchor`
+/// (or its closing `']'`) does not appear in `text`.
 #[must_use]
 pub fn insert_after(text: &str, anchor: &str, line: &str) -> Option<String> {
     let (before, after) = text.split_once(anchor)?;
-    let (tail, rest) = after.split_once('\n').unwrap_or((after, ""));
     let line = line.trim_end_matches('\n');
-    if rest.is_empty() && !after.ends_with('\n') {
-        Some(format!("{before}{anchor}{tail}\n{line}"))
+    if anchor.ends_with('[') {
+        let (inner, rest) = after.split_once(']')?;
+        let line_start = before.rfind('\n').map_or(0, |index| index + 1);
+        let indent: String =
+            before[line_start..].chars().take_while(|ch| ch.is_whitespace()).collect();
+        let item_indent = format!("{indent}    ");
+        let entry = format!("{item_indent}{},", line.trim().trim_end_matches(','));
+        if inner.trim().is_empty() {
+            Some(format!("{before}{anchor}\n{entry}\n{indent}]{rest}"))
+        } else if !inner.contains('\n') {
+            let mut items = String::new();
+            for existing in inner.split(',').map(str::trim).filter(|item| !item.is_empty()) {
+                items.push_str(&item_indent);
+                items.push_str(existing);
+                items.push_str(",\n");
+            }
+            Some(format!("{before}{anchor}\n{items}{entry}\n{indent}]{rest}"))
+        } else {
+            let trimmed = inner.trim_end();
+            let comma = if trimmed.ends_with(',') { "" } else { "," };
+            Some(format!("{before}{anchor}{trimmed}{comma}\n{entry}\n{indent}]{rest}"))
+        }
     } else {
-        Some(format!("{before}{anchor}{tail}\n{line}\n{rest}"))
+        let (tail, rest) = after.split_once('\n').unwrap_or((after, ""));
+        if rest.is_empty() && !after.ends_with('\n') {
+            Some(format!("{before}{anchor}{tail}\n{line}"))
+        } else {
+            Some(format!("{before}{anchor}{tail}\n{line}\n{rest}"))
+        }
     }
 }
 

@@ -17,10 +17,7 @@ use omnia_sdk::api::{Client, Handlers, Router, http, messaging};
 /// one path under one method or consume one topic, so the rungs under
 /// `tests/` hold the list to one handler apiece.
 pub fn router<P: Capabilities>(provider: P) -> Router<P> {
-    Handlers::from([
-        // one handlers() per stem, each added at the end
-    ])
-    .with_state(Client::new(provider))
+    Handlers::from([]).with_state(Client::new(provider))
 }
 
 http::export!(router);

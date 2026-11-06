@@ -29,9 +29,5 @@ use omnia_sdk::api::Handlers;
 
 /// The stem's handlers, merged onto the root routers.
 pub fn handlers<P: Capabilities>() -> Handlers<P> {
-    Handlers::from([
-        // one entry per part, each added at the end
-        agency::handlers(),
-        feed::handlers(),
-    ])
+    Handlers::from([agency::handlers(), feed::handlers()])
 }

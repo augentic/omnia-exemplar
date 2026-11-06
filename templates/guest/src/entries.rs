@@ -24,11 +24,11 @@ pub enum Role {
     Listed,
 }
 
-/// The template line the `router` list of `src/lib.rs` follows.
+/// The opening delimiter of the `Handlers` list in `src/lib.rs` and each stem's `src/lib.rs`.
 ///
-/// A stem's entry in the list is `        <stem>::handlers(),`, inserted
-/// after this line with [`insert_after`](crate::insert_after).
-pub const HANDLER_LIST_ANCHOR: &str = "        // one handlers() per stem, each added at the end";
+/// A stem's or part's `<name>::handlers()` entry is inserted into the
+/// array opened by this anchor with [`insert_after`](crate::insert_after).
+pub const HANDLER_LIST_ANCHOR: &str = "Handlers::from([";
 
 /// One entry of the manifest: where its body is read from, where it goes, its proof, and its role.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

@@ -66,8 +66,8 @@ the shape a generated stem copies. Its
 `src/lib.rs` is the crate doc, one `pub mod <part>;` line per part, and
 the function the root list composes, written whatever parts the stem has:
 `pub fn handlers<P: Capabilities>() -> Handlers<P>`,
-`Handlers::from([..])` over one `<part>::handlers(),` entry per part. The array is a list under a
-comment that anchors it, empty for a stem with no part yet, so every
+`Handlers::from([..])` over one `<part>::handlers(),` entry per part. The array is a list
+opened by `HANDLER_LIST_ANCHOR`, empty for a stem with no part yet, so every
 line of the entry outside its two lists is the same whichever slice
 writes it, two slices writing one stem at once merge line by line, and
 the root lists every stem once. A

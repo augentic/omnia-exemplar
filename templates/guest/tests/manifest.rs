@@ -2,7 +2,7 @@
 
 mod support;
 
-use omnia_template::{CRATE_LIST_ANCHOR, Error, Manifest, insert_after};
+use omnia_template::{CRATE_LIST_ANCHOR, Error, HANDLER_LIST_ANCHOR, Manifest, insert_after};
 
 use self::support::Scratch;
 
@@ -146,4 +146,25 @@ fn whole_file_replaced() {
     let [drifted] = drift.files() else { panic!("the manifest alone drifts: {drift}") };
     assert!(drifted.lines.contains(&"+ name = \"other\"".to_owned()), "{drift}");
     assert_eq!(tree.read(Manifest::PATH).as_deref(), Some(template()));
+}
+
+#[test]
+fn handler_list_insertion() {
+    let seed = omnia_template::entry("src/lib.rs").expect("the template holds `src/lib.rs`").body;
+
+    let one = insert_after(seed, HANDLER_LIST_ANCHOR, "        orders::handlers(),").expect("one");
+    assert!(one.contains("    Handlers::from([\n        orders::handlers(),\n    ])"), "{one}");
+
+    let two = insert_after(&one, HANDLER_LIST_ANCHOR, "billing::handlers()").expect("two");
+    assert!(
+        two.contains(
+            "    Handlers::from([\n        orders::handlers(),\n        billing::handlers(),\n    ])"
+        ),
+        "{two}"
+    );
+
+    let single_line = seed.replace("Handlers::from([])", "Handlers::from([orders::handlers()])");
+    let after_fmt =
+        insert_after(&single_line, HANDLER_LIST_ANCHOR, "billing::handlers()").expect("formatted");
+    assert_eq!(after_fmt, two);
 }

@@ -12,7 +12,8 @@ Unreleased
   The root's `router`, a stem's `handlers`, and a part's `handlers` all
   register or merge their HTTP routes (`.route`) and messaging topics
   (`.topic`, `.topic_with`) on `omnia_sdk::api::Handlers<P>`
-  (`Handlers::from([..])`), each list under the comment that anchors it,
+  (`Handlers::from([..])`), anchored structurally by `HANDLER_LIST_ANCHOR`
+  (`"Handlers::from(["`) with no comment inside the array,
   and the root `Cargo.toml` names each stem once in `[dependencies]`
   (`<stem> = { path = "crates/<stem>" }`), so a slice adds a stem in two
   lines after `CRATE_LIST_ANCHOR` and `HANDLER_LIST_ANCHOR`
