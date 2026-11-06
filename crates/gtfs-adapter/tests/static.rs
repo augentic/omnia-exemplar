@@ -262,13 +262,18 @@ async fn serial_data_sign_on() {
     let now = chrono::Utc::now();
     let today = now.format("%Y%m%d").to_string();
 
-    // trip management resolves the keyed-in trip
+    // trip management resolves the nearest keyed-in trip, including an
+    // extended-hours (>24:00:00) start time scheduled for the next day
     let mut instance = trip_instance("TRIP-1");
     instance["serviceDate"] = today.clone().into();
+    instance["startTime"] = now.format("%H:%M:%S").to_string().into();
+    let mut extended = trip_instance("TRIP-EXT");
+    extended["serviceDate"] = today.clone().into();
+    extended["startTime"] = "25:15:00".into();
     let provider = provider().http(MatchedHttp::default().on(
         http::Method::POST,
         trip_instances(),
-        ok(json!([instance]).to_string()),
+        ok(json!([extended, instance]).to_string()),
     ));
 
     // the vehicle is currently on a different trip

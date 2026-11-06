@@ -375,29 +375,3 @@ impl TripDescriptor {
     /// Schedule relationship for scheduled trips.
     pub const SCHEDULED: &'static str = "SCHEDULED";
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    /// A GTFS start time past 24:00, as trips running after midnight are
-    /// scheduled.
-    #[test]
-    fn extended_hours_start_time() {
-        let tz = TIMEZONE;
-        let trip = TripInstance {
-            trip_id: "trip".to_string(),
-            route_id: "route".to_string(),
-            service_date: "20240101".to_string(),
-            start_time: "25:15:00".to_string(),
-            end_time: String::new(),
-            direction_id: None,
-            is_added_trip: false,
-            error: false,
-        };
-        let timestamp = timestamp(&trip, tz).unwrap();
-        // 25:15 local time maps to 01:15 the following day; in UTC that is
-        // 4_500 seconds from midnight.
-        assert_eq!(timestamp % 86_400, 4_500);
-    }
-}

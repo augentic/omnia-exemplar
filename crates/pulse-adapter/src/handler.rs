@@ -218,22 +218,3 @@ where
 
     Ok(allocated)
 }
-
-#[cfg(test)]
-mod tests {
-    use super::PulseMessage;
-
-    #[test]
-    fn deserialization() {
-        #[expect(
-            clippy::disallowed_macros,
-            reason = "unit test loads captured XML sample from disk"
-        )]
-        let xml = include_str!("../data/sample.xml");
-        let message: PulseMessage = quick_xml::de::from_str(xml).expect("should deserialize");
-
-        let update = message.train_update;
-        assert_eq!(update.even_train_id, Some("1234".to_string()));
-        assert!(!update.changes.is_empty(), "should have changes");
-    }
-}

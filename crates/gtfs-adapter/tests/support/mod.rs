@@ -4,7 +4,6 @@
 use bytes::Bytes;
 use chrono::{DateTime, Utc};
 use common::config;
-use gtfs_adapter::fleet::Identifier;
 use http::Response;
 use omnia_test::guest::{FixedIdentity, MapConfig, Provider};
 
@@ -27,8 +26,12 @@ pub fn provider() -> Provider {
 
 /// The Fleet API lookup `gtfs_adapter::fleet::vehicle` makes for `vehicle_id`.
 pub fn fleet_query(vehicle_id: &str) -> String {
-    let identifier: Identifier = vehicle_id.parse().expect("identifier parse is infallible");
-    format!("{FLEET_BASE}/vehicles?{}", identifier.to_query())
+    let query = match vehicle_id {
+        "EMP484" => "label=EMP%20%20%20%20%20%20%20%20484",
+        "EM633" => "label=EM%20%20%20%20%20%20%20%20%20633",
+        other => panic!("unexpected test vehicle_id: {other}"),
+    };
+    format!("{FLEET_BASE}/vehicles?{query}")
 }
 
 /// The Block Management lookup `cached_allocation` makes for a fleet id at a
