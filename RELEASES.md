@@ -9,7 +9,7 @@ Unreleased
 ### Changed
 
 - **One `Handlers` list at every level, one `router`, and stems only in the root `[dependencies]`.**
-  The root's `handlers`, a stem's `handlers`, and a part's `handlers` all
+  The root's `router`, a stem's `handlers`, and a part's `handlers` all
   register or merge their HTTP routes (`.route`) and messaging topics
   (`.topic`, `.topic_with`) on `omnia_sdk::api::Handlers<P>`
   (`Handlers::from([..])`), each list under the comment that anchors it,

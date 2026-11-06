@@ -11,8 +11,8 @@ Domain logic lives under `crates/*` as plain axum handlers
 wiring: `handlers()`, an `api::Handlers` binding its paths to its fns
 (`post(tally)`) and its topics to its consumers. The **guest is the
 workspace root package** (`src/lib.rs`) — one `<stem>::handlers(),` entry per
-crate in `handlers`, merged by `Handlers::from` and closed with `with_state`
-over a provider-owning `Client` in `router`, bound as the WASI exports by
+crate in `router`, merged by `Handlers::from` and closed with `with_state`
+over a provider-owning `Client`, bound as the WASI exports by
 `http::export!(router)` and `messaging::export!(router)`.
 Match this layout when creating a new Omnia service: root `src/`, not a
 `guests/<name>/` tree.
@@ -107,9 +107,9 @@ The guest:
 - Merges each crate's `handlers()` — plain axum routes
   (`axum::routing::{get, post}` over `Path`, `Query`, and `Json`
   extractors, with `Bytes` for non-JSON wire formats) and topics bound to
-  consumers on an `api::Handlers` — once in `handlers`, closing it with
-  `with_state` in `router` into the one `omnia_sdk::api::Router` that
-  serves HTTP requests and dispatches messaging deliveries
+  consumers on an `api::Handlers` — once in `router`, closing it with
+  `with_state` into the one `omnia_sdk::api::Router` that serves HTTP
+  requests and dispatches messaging deliveries
 - Binds the router to each WASI export: `http::export!(router)` and
   `messaging::export!(router)`
 - Uses `omnia_sdk::WasiProvider`, the zero-sized provider implementing every
@@ -198,7 +198,7 @@ clients stay provider-generic.
    `.topic(topic::X, handler)`, or `.topic_with(topic::X, handler, decode)`
    for a non-JSON payload), and list the part in the stem's `src/lib.rs`
    (`Handlers::from([..])`).
-   A new stem adds its `<stem>::handlers(),` line to the list in `handlers`
+   A new stem adds its `<stem>::handlers(),` line to the list in `router`
    in `src/lib.rs`, after the comment that anchors the list.
 6. Add fixtures under the crate's `data/` and native tests under `tests/`
    that seed an `omnia_test::guest::Provider` with the doubles the
@@ -245,7 +245,7 @@ Patterns worth copying into new services:
   `Context<P>` for HTTP, `async fn(Input, Context<P>)` for messaging),
   each crate binding its own to its paths and topics in `handlers()`,
   with the guest as a thin composing layer at the **workspace root**
-  (`src/lib.rs`), one line per crate in `handlers`.
+  (`src/lib.rs`), one line per crate in `router`.
 - One topic table (`common::topic`) a producer and its consumer both
   name, so they agree by construction.
 - Per-part config keys read through `Config::get` at use.

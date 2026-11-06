@@ -24,7 +24,7 @@ pub enum Role {
     Listed,
 }
 
-/// The template line the `handlers` list of `src/lib.rs` follows.
+/// The template line the `router` list of `src/lib.rs` follows.
 ///
 /// A stem's entry in the list is `        <stem>::handlers(),`, inserted
 /// after this line with [`insert_after`](crate::insert_after).

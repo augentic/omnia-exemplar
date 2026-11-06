@@ -42,7 +42,7 @@ The seed also carries the guest's starting shape: the root `Cargo.toml`
 as both the workspace and the deployable package, `crate-type =
 ["cdylib", "rlib"]`, every pin under `[workspace.dependencies]`, the
 `wasm32`-excluded `omnia-test` dev-dependency (`features = ["guest"]`)
-and the `host` feature; `src/lib.rs` with `handlers` and `router`, a
+and the `host` feature; `src/lib.rs` with `router`, a
 provider-generic router composed from the single list of one entry per
 stem after the anchor `HANDLER_LIST_ANCHOR` names, and bound over
 `omnia_sdk::WasiProvider` by `http::export!(router)` and
@@ -80,7 +80,7 @@ is dead code. Its tests under
 route or a topic is asserted as the wire reaches it. The
 root `Cargo.toml` names the crate in its `[dependencies]`
 (`<stem> = { path = "crates/<stem>" }`), and `src/lib.rs` lists its
-`handlers()`, one line in the list of `handlers`, after the anchors
+`handlers()`, one line in the list of `router`, after the anchors
 `CRATE_LIST_ANCHOR` and `HANDLER_LIST_ANCHOR` name; a topic the stem
 publishes or consumes is one constant appended to
 `crates/common/src/topic.rs`; nothing else of the seed is edited.
