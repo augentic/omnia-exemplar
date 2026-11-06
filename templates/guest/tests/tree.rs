@@ -19,7 +19,7 @@ fn table() {
     sorted.sort_unstable();
     sorted.dedup();
     assert_eq!(paths, sorted, "the table is sorted by path, each path once");
-    assert_eq!(paths.len(), 27, "the layout is twenty-seven files");
+    assert_eq!(paths.len(), 26, "the layout is twenty-six files");
 
     for entry in ENTRIES {
         assert!(!entry.path.starts_with('/'), "`{}` is relative", entry.path);
@@ -32,7 +32,7 @@ fn table() {
     }
     let exact = ENTRIES.iter().filter(|entry| entry.proof == Proof::Exact).count();
     let listed = ENTRIES.iter().filter(|entry| entry.role == Role::Listed).count();
-    assert_eq!(exact, 18, "the exact entries are the repository's tooling");
+    assert_eq!(exact, 17, "the exact entries are the repository's tooling");
     assert_eq!(listed, 3, "the listed entries are the three lists a slice appends to");
     assert!(
         ENTRIES

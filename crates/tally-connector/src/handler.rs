@@ -3,9 +3,9 @@
 use anyhow::Context as _;
 use axum::Json;
 use axum::routing::post;
-use common::{Capabilities, config, topic};
+use common::{Capabilities, topic};
 use omnia_sdk::api::{Context, Handlers};
-use omnia_sdk::{Config, Message, Publish, Result};
+use omnia_sdk::{Message, Publish, Result};
 use serde::{Deserialize, Serialize};
 
 use crate::types::TallyMessage;
@@ -20,7 +20,7 @@ pub(crate) async fn tally<P>(
     context: Context<P>, Json(input): Json<TallyRequest>,
 ) -> Result<Json<TallyReply>>
 where
-    P: Config + Publish + 'static,
+    P: Publish + 'static,
 {
     let provider = context.provider();
     let message = &input.message;
@@ -31,9 +31,7 @@ where
     let site = message.device.as_ref().map_or_else(|| "undefined", |device| &device.site);
     msg.headers.insert("key".to_string(), site.to_string());
 
-    let topic = config::topic(provider, topic::TALLY_APC).await;
-
-    Publish::send(provider, &topic, &msg).await?;
+    Publish::send(provider, topic::TALLY_APC, &msg).await?;
 
     Ok(Json(TallyReply("OK")))
 }

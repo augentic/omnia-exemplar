@@ -42,17 +42,16 @@ The seed also carries the guest's starting shape: the root `Cargo.toml`
 as both the workspace and the deployable package, `crate-type =
 ["cdylib", "rlib"]`, every pin under `[workspace.dependencies]`, the
 `wasm32`-excluded `omnia-test` dev-dependency (`features = ["guest"]`)
-and the `host` feature; `src/lib.rs` with `handlers`, `http_router`, and
-`topic_router`, provider-generic routers composed from the single list
-of one entry per stem after the anchor `HANDLER_LIST_ANCHOR` names, and
-each bound over `omnia_sdk::WasiProvider` by `http::export!` and
-`messaging::export!`; `tests/routes.rs` and `tests/messaging.rs`, one native rung each
-that builds the composed router over a seeded
-`omnia_test::guest::Provider`, so two stems serving one route or
-consuming one topic fail there; `crates/common`, the `Capabilities`
-bound a stem's handlers take, the topic table a publisher and its
-consumer agree on, the environment helpers, and typed SQL column reads
-(`RowExt`); and
+and the `host` feature; `src/lib.rs` with `handlers` and `router`, a
+provider-generic router composed from the single list of one entry per
+stem after the anchor `HANDLER_LIST_ANCHOR` names, and bound over
+`omnia_sdk::WasiProvider` by `http::export!(router)` and
+`messaging::export!(router)`; `tests/routes.rs` and `tests/messaging.rs`, one native rung each
+that builds the composed router over `omnia_test::guest::Provider`, so
+two stems serving one route or consuming one topic fail there;
+`crates/common`, the `Capabilities` bound a stem's handlers take, the
+topic table a publisher and its consumer agree on, and typed SQL column
+reads (`RowExt`); and
 `examples/runtime.rs`, the local host behind `host`. Its shared
 dependency pins and patches must match the root workspace's, and
 `templates/check/tests/scaffold.rs` renders the whole manifest into
@@ -67,8 +66,7 @@ the shape a generated stem copies. Its
 `src/lib.rs` is the crate doc, one `pub mod <part>;` line per part, and
 the function the root list composes, written whatever parts the stem has:
 `pub fn handlers<P: Capabilities>() -> Handlers<P>`,
-`Handlers::from([..])` over one `<part>::handlers(),` entry per part,
-each topic a bare suffix the root qualifies. The array is a list under a
+`Handlers::from([..])` over one `<part>::handlers(),` entry per part. The array is a list under a
 comment that anchors it, empty for a stem with no part yet, so every
 line of the entry outside its two lists is the same whichever slice
 writes it, two slices writing one stem at once merge line by line, and

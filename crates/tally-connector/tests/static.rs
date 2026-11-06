@@ -3,8 +3,9 @@
 use axum::body::{Body, to_bytes};
 use axum::http::header::CONTENT_TYPE;
 use axum::http::{Request, StatusCode};
+use common::topic;
 use omnia_sdk::api::Client;
-use omnia_test::guest::{MapConfig, Provider};
+use omnia_test::guest::Provider;
 use tally_connector::types::TallyMessage;
 use tower::ServiceExt as _;
 
@@ -24,12 +25,6 @@ const TALLY_NO_DEVICE: &[u8] = include_bytes!("../data/tally-no-device.json");
 )]
 const TALLY_WHITESPACE: &[u8] = include_bytes!("../data/tally-whitespace.json");
 
-// `config::env` falls back to `dev` when `ENV` is unset; seeding it keeps the
-// topic assertions honest rather than leaning on the fallback.
-fn provider() -> Provider {
-    Provider::default().config(MapConfig::default().with([("ENV", "dev")]))
-}
-
 async fn forward(provider: &Provider, payload: &'static [u8]) {
     let request = Request::post("/api/apc")
         .header(CONTENT_TYPE, "application/json")
@@ -44,7 +39,7 @@ async fn forward(provider: &Provider, payload: &'static [u8]) {
 
 #[tokio::test]
 async fn device_with_site() {
-    let provider = provider();
+    let provider = Provider::default();
 
     forward(&provider, TALLY_MESSAGE).await;
 
@@ -52,7 +47,7 @@ async fn device_with_site() {
     assert_eq!(published.len(), 1);
 
     let (topic, record) = &published[0];
-    assert_eq!(topic, "dev-realtime-tally-apc.v2");
+    assert_eq!(topic, topic::TALLY_APC);
 
     let message: TallyMessage = serde_json::from_slice(TALLY_MESSAGE).expect("should deserialize");
 
@@ -65,7 +60,7 @@ async fn device_with_site() {
 
 #[tokio::test]
 async fn device_missing() {
-    let provider = provider();
+    let provider = Provider::default();
 
     forward(&provider, TALLY_NO_DEVICE).await;
 
@@ -73,7 +68,7 @@ async fn device_missing() {
     assert_eq!(published.len(), 1);
 
     let (topic, record) = &published[0];
-    assert_eq!(topic, "dev-realtime-tally-apc.v2");
+    assert_eq!(topic, topic::TALLY_APC);
     assert_eq!(record.headers.get("key").map(String::as_str), Some("undefined"));
 
     let message: TallyMessage =
@@ -84,7 +79,7 @@ async fn device_missing() {
 
 #[tokio::test]
 async fn device_site_whitespace() {
-    let provider = provider();
+    let provider = Provider::default();
 
     forward(&provider, TALLY_WHITESPACE).await;
 
@@ -92,7 +87,7 @@ async fn device_site_whitespace() {
     assert_eq!(published.len(), 1);
 
     let (topic, record) = &published[0];
-    assert_eq!(topic, "dev-realtime-tally-apc.v2");
+    assert_eq!(topic, topic::TALLY_APC);
     assert_eq!(record.headers.get("key").map(String::as_str), Some("  "));
 
     let message: TallyMessage =

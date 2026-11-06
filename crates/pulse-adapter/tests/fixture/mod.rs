@@ -13,7 +13,6 @@ use std::path::Path;
 
 use bytes::Bytes;
 use chrono::{Duration, Timelike, Utc};
-use common::config;
 use http::{Method, Response};
 use omnia_test::guest::{FixedIdentity, MapConfig, MatchedHttp, Provider};
 use pulse_adapter::handler::PulseMessage;
@@ -157,7 +156,6 @@ pub fn prepare(def: TestDef) -> Case {
 
     let provider = Provider::default()
         .config(MapConfig::default().with([
-            (config::ENV, "dev"),
             ("STATIC_API_URL", BASE_URL),
             ("BLOCK_MGT_URL", BASE_URL),
             ("API_IDENTITY", "block-mgt"),

@@ -8,7 +8,7 @@ Unreleased
 
 ### Changed
 
-- **One `Handlers` list at every level, and stems only in the root `[dependencies]`.**
+- **One `Handlers` list at every level, one `router`, and stems only in the root `[dependencies]`.**
   The root's `handlers`, a stem's `handlers`, and a part's `handlers` all
   register or merge their HTTP routes (`.route`) and messaging topics
   (`.topic`, `.topic_with`) on `omnia_sdk::api::Handlers<P>`
@@ -16,11 +16,11 @@ Unreleased
   and the root `Cargo.toml` names each stem once in `[dependencies]`
   (`<stem> = { path = "crates/<stem>" }`), so a slice adds a stem in two
   lines after `CRATE_LIST_ANCHOR` and `HANDLER_LIST_ANCHOR`
-  (`PATH_LIST_ANCHOR` is removed). `Handlers::map_topics`
-  qualifies the merged topics, and `with_state(Client::new(provider))`
-  closes the handlers into `omnia_sdk::api::Router<P>`, which serves both
-  HTTP requests and messaging deliveries. `common::routers` and
-  `common::topics` are removed.
+  (`PATH_LIST_ANCHOR` is removed). `with_state(Client::new(provider))`
+  closes the handlers into one `omnia_sdk::api::Router<P>` (`router`),
+  bound by both `http::export!(router)` and `messaging::export!(router)`.
+  Environment topic prefixing moves to the host messaging backends, so
+  `common::config`, `common::routers`, and `common::topics` are removed.
 - **Parameterized SQL + `common::RowExt` replaces `omnia-orm`, `acme-common`
   becomes `common`, and stem entries hold composition alone.** `omnia-orm`
   is removed: `crates/sql` and `crates/pattern/src/place.rs` execute

@@ -43,9 +43,6 @@ assemblies:
       - source: crates/common/src/lib.rs
         target: crates/common/src/lib.rs
         proof: exact
-      - source: crates/common/src/config.rs
-        target: crates/common/src/config.rs
-        proof: exact
       - source: templates/guest/core/crates/common/src/topic.rs
         target: crates/common/src/topic.rs
         proof: seed

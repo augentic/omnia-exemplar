@@ -2,7 +2,7 @@
 
 The Pulse Position Adapter transforms Pulse data for specific stations into
 Motion events. The transformed events are published to the
-`{env}-realtime-pulse-to-motion.v1` topic for downstream processing by the
+`realtime-pulse-to-motion.v1` topic for downstream processing by the
 GTFS adapter.
 
 Each event is published `PUBLISH_REPEATS` times because the downstream

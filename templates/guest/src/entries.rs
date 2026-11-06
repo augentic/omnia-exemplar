@@ -88,13 +88,12 @@ macro_rules! seed {
 /// The tree is the root-package guest this repository teaches:
 ///
 /// - the root package `guest` is the component, exporting WASI HTTP and
-///   WASI Messaging over one provider and building both routers from the
+///   WASI Messaging over one provider and building the router from the
 ///   handler list in `src/lib.rs`, one entry per stem after
-///   [`HANDLER_LIST_ANCHOR`], each built natively by a rung under
-///   `tests/`; the file is listed, so the rungs rather than the hold pin
-///   its routers;
+///   [`HANDLER_LIST_ANCHOR`], built natively by the rungs under `tests/`;
+///   the file is listed, so the rungs rather than the hold pin its router;
 /// - `crates/common` holds the capability bound, the topic table, and the
-///   environment helpers every stem shares;
+///   typed SQL column reads every stem shares;
 /// - `examples/runtime.rs` is the local host behind the `host` feature;
 /// - the rest is the tooling this repository runs under, the toolchain,
 ///   the formatter, lint, deny, and vet configuration, the task runner,
@@ -118,7 +117,6 @@ pub static ENTRIES: &[Entry] = &[
     exact!("Makefile", Role::Static),
     seed!("clippy.toml", Role::Static),
     exact!("crates/common/Cargo.toml", Role::Static),
-    exact!("crates/common/src/config.rs", Role::Static),
     exact!("crates/common/src/lib.rs", Role::Static),
     seed!("crates/common/src/topic.rs", Role::Listed),
     seed!("deny.toml", Role::Static),

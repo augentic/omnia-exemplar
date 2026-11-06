@@ -19,7 +19,6 @@ use omnia_sdk::api::{Client, Handlers, Router, http, messaging};
 /// rungs under `tests/` hold the list to one handler apiece.
 pub fn handlers<P: Capabilities>() -> Handlers<P> {
     Handlers::from([
-        // one handlers() per stem, each added at the end
         capability::handlers(),
         docstore::handlers(),
         gtfs_adapter::handlers(),

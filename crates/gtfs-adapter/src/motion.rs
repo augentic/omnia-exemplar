@@ -1,7 +1,7 @@
 //! Motion AVL message processing.
 
 use chrono::{DateTime, Utc};
-use common::{Capabilities, config, topic};
+use common::{Capabilities, topic};
 use omnia_sdk::api::{Context, Handlers};
 use omnia_sdk::{
     Config, Error, HttpRequest, Identity, Message, Publish, Result, StateStore, bad_request,
@@ -62,17 +62,15 @@ where
         return Ok(());
     };
 
-    let (payload, key, suffix) = match location {
+    let (payload, key, topic) = match location {
         Location::VehiclePosition(feed) => (serde_json::to_vec(&feed)?, feed.id, topic::GTFS_VP),
         Location::DeadReckoning(dr) => (serde_json::to_vec(&dr)?, dr.id, topic::DEAD_RECKONING),
     };
 
-    let topic = config::topic(provider, suffix).await;
-
     // publish
     let mut message = Message::new(&payload);
     message.headers.insert("key".to_string(), key.clone());
-    Publish::send(provider, &topic, &message).await?;
+    Publish::send(provider, topic, &message).await?;
 
     Ok(())
 }

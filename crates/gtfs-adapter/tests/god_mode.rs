@@ -6,7 +6,6 @@ mod support;
 
 use axum::body::{Body, to_bytes};
 use axum::http::{Request, StatusCode};
-use common::config;
 use gtfs_adapter::set_trip::SetTripReply;
 use omnia_sdk::api::Client;
 use omnia_test::guest::{MapConfig, Provider};
@@ -42,8 +41,7 @@ async fn set_trip_disabled() {
 
 #[tokio::test]
 async fn set_trip_enabled() {
-    let provider = provider()
-        .config(MapConfig::default().with([(config::ENV, "dev"), ("GOD_MODE_ENABLED", "true")]));
+    let provider = provider().config(MapConfig::default().with([("GOD_MODE_ENABLED", "true")]));
     let request = Request::post("/god-mode/set-trip/EM580/TRIP-9")
         .header(axum::http::header::CONTENT_TYPE, "application/json")
         .body(Body::from("{}"))

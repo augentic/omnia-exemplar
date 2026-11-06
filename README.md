@@ -9,11 +9,11 @@ Domain logic lives under `crates/*` as plain axum handlers
 (`pub async fn name<P>(Context<P>, Json<Input>)`) and messaging handlers
 (`pub async fn name<P>(Input, Context<P>)`), and each crate exposes its
 wiring: `handlers()`, an `api::Handlers` binding its paths to its fns
-(`post(tally)`) and its topic suffixes to its consumers. The **guest is the
+(`post(tally)`) and its topics to its consumers. The **guest is the
 workspace root package** (`src/lib.rs`) — one `<stem>::handlers(),` entry per
 crate in `handlers`, merged by `Handlers::from` and closed with `with_state`
-over a provider-owning `Client` in `http_router` and `topic_router`, each
-bound as a WASI export by `http::export!` and `messaging::export!`.
+over a provider-owning `Client` in `router`, bound as the WASI exports by
+`http::export!(router)` and `messaging::export!(router)`.
 Match this layout when creating a new Omnia service: root `src/`, not a
 `guests/<name>/` tree.
 
@@ -72,13 +72,13 @@ flowchart LR
   apc --> tallyConn[tally-connector]
   xml --> pulseConn[pulse-connector]
 
-  tallyConn -->|"{env}-realtime-tally-apc.v2"| outOfScope["downstream (out of scope)"]
-  pulseConn -->|"{env}-realtime-pulse.v1"| pulseAdapter[pulse-adapter]
-  pulseAdapter -->|"{env}-realtime-pulse-to-motion.v1"| gtfsAdapter[gtfs-adapter]
-  trainAvl["{env}-realtime-train-avl.v1"] --> gtfsAdapter
-  paxCount["{env}-realtime-passenger-count.v1"] --> gtfsAdapter
-  gtfsAdapter -->|"{env}-realtime-gtfs-vp.v1"| vp[vehicle positions]
-  gtfsAdapter -->|"{env}-realtime-dead-reckoning.v1"| dr[dead reckoning]
+  tallyConn -->|"realtime-tally-apc.v2"| outOfScope["downstream (out of scope)"]
+  pulseConn -->|"realtime-pulse.v1"| pulseAdapter[pulse-adapter]
+  pulseAdapter -->|"realtime-pulse-to-motion.v1"| gtfsAdapter[gtfs-adapter]
+  trainAvl["realtime-train-avl.v1"] --> gtfsAdapter
+  paxCount["realtime-passenger-count.v1"] --> gtfsAdapter
+  gtfsAdapter -->|"realtime-gtfs-vp.v1"| vp[vehicle positions]
+  gtfsAdapter -->|"realtime-dead-reckoning.v1"| dr[dead reckoning]
   info --> gtfsAdapter
 ```
 
@@ -106,13 +106,12 @@ The guest:
 
 - Merges each crate's `handlers()` — plain axum routes
   (`axum::routing::{get, post}` over `Path`, `Query`, and `Json`
-  extractors, with `Bytes` for non-JSON wire formats) and bare topic
-  suffixes bound to consumers on an `api::Handlers` — once in `handlers`,
-  closing it with `with_state` in `http_router` and qualifying every topic
-  for the deployment's environment once (`Handlers::map_topics`) in
-  `topic_router` to dispatch deliveries through `omnia_sdk::api::Router`
-- Binds each as a WASI export: `http::export!(http_router)` and
-  `messaging::export!(topic_router)`
+  extractors, with `Bytes` for non-JSON wire formats) and topics bound to
+  consumers on an `api::Handlers` — once in `handlers`, closing it with
+  `with_state` in `router` into the one `omnia_sdk::api::Router` that
+  serves HTTP requests and dispatches messaging deliveries
+- Binds the router to each WASI export: `http::export!(router)` and
+  `messaging::export!(router)`
 - Uses `omnia_sdk::WasiProvider`, the zero-sized provider implementing every
   capability trait (`BlobStore`, `Broadcast`, `Config`, `DocumentStore`,
   `HttpRequest`, `Identity`, `Publish`, `StateStore`, `TableStore`) over its
@@ -146,19 +145,19 @@ The guest:
 
 | Messaging topic | Handler |
 | --- | --- |
-| `{env}-realtime-pulse.v1` | `pulse_adapter::pulse` (XML) |
-| `{env}-realtime-pulse-to-motion.v1` | `gtfs_adapter::motion` |
-| `{env}-realtime-train-avl.v1` | `gtfs_adapter::train_avl` |
-| `{env}-realtime-passenger-count.v1` | `gtfs_adapter::passenger_count` |
+| `realtime-pulse.v1` | `pulse_adapter::pulse` (XML) |
+| `realtime-pulse-to-motion.v1` | `gtfs_adapter::motion` |
+| `realtime-train-avl.v1` | `gtfs_adapter::train_avl` |
+| `realtime-passenger-count.v1` | `gtfs_adapter::passenger_count` |
 
-`POST /api/apc` publishes to `{env}-realtime-tally-apc.v2`; its downstream
+`POST /api/apc` publishes to `realtime-tally-apc.v2`; its downstream
 consumer is out of scope for the exemplar.
 
 ## Crate map
 
 | Crate | Role |
 | --- | --- |
-| `crates/common` | The `Capabilities` bound every stem's `handlers()` takes, `config::ENV` and topic qualification helpers, the topic table (`common::topic`), and `RowExt` |
+| `crates/common` | The `Capabilities` bound every stem's `handlers()` takes, the topic table (`common::topic`), and `RowExt` |
 | `crates/pulse-connector` | HTTP ingress for the vendor "Pulse" SOAP/XML position feed; republishes to messaging |
 | `crates/pulse-adapter` | Converts Pulse train updates into Motion location events |
 | `crates/tally-connector` | HTTP ingress for the vendor "Tally" passenger-count feed |
@@ -192,7 +191,7 @@ clients stay provider-generic.
    (`pub(crate) async fn name<P>(input: Input, context: Context<P>) -> Result<Reply>`).
    Read capabilities through `context.provider()`.
 4. Declare the path and any configuration keys as `pub(crate) const`s of the
-   part that uses them, and any new topic suffix in `common::topic`.
+   part that uses them, and any new topic in `common::topic`.
 5. Bind the handler in the part's `pub(crate) fn handlers()`
    (`Handlers::new().route(PATH, post(handler))`; a custom status code
    or wire format is an `IntoResponse` on the reply or error type; or
@@ -208,13 +207,13 @@ clients stay provider-generic.
 
 ## Configuration
 
-`common::config::ENV` is shared across stems; every domain configuration key
-is declared beside the part that reads it, and `.env.example` carries sample
-values.
+Every domain configuration key is declared beside the part that reads it,
+and `.env.example` carries sample values. Environment-specific topic
+prefixing is a host-side messaging backend concern (`KAFKA_TOPIC_PREFIX` /
+`NATS_TOPIC_PREFIX`), so guests address logical topic names directly.
 
 | Key | Used by | Purpose |
 | --- | --- | --- |
-| `ENV` | all publishers/consumers | Deployment environment; prefixes every topic (`dev-…`). Defaults to `dev` with a warning when unset |
 | `BLOCK_MGT_URL` | gtfs-adapter, pulse-adapter | Block Management API base URL |
 | `FLEET_URL` | gtfs-adapter | Fleet API base URL |
 | `TRIP_MANAGEMENT_URL` | gtfs-adapter | Trip Management API base URL |
@@ -249,8 +248,7 @@ Patterns worth copying into new services:
   (`src/lib.rs`), one line per crate in `handlers`.
 - One topic table (`common::topic`) a producer and its consumer both
   name, so they agree by construction.
-- Per-part config keys read through `Config::get` at use, with `common::config`
-  holding `ENV` and the topic-qualification helpers.
+- Per-part config keys read through `Config::get` at use.
 - Native tests under `omnia_test::guest::Provider` doubles plus captured fixtures
   (`tests/` + `data/` in each crate), each crate driving its own `handlers()`,
   and a rung per router at the root (`tests/routes.rs`,
@@ -388,7 +386,7 @@ effect on the backends, leaving payload semantics to the handler rung:
 
 - `component::http_export` — `HttpHandler` posts the tally fixture to
   `/api/apc` and requires exactly one message on the broker, on
-  `dev-realtime-tally-apc.v2`
+  `realtime-tally-apc.v2`
 - `component::messaging_export` — `MessagingHandler` delivers a
   passenger-count record and reads the occupancy status back from the
   `wasi:keyvalue` bucket through `Backends::state`

@@ -3,7 +3,7 @@
 use axum::body::{Body, to_bytes};
 use axum::http::header::CONTENT_TYPE;
 use axum::http::{Request, StatusCode};
-use common::config;
+use common::topic;
 use omnia_sdk::StateStore;
 use omnia_sdk::api::Client;
 use omnia_sdk::api::messaging::Delivery;
@@ -12,8 +12,7 @@ use orders::placing::Placed;
 use tower::ServiceExt as _;
 
 fn provider() -> Provider {
-    Provider::default()
-        .config(MapConfig::default().with([(config::ENV, "test"), ("ORDERS_LIMIT", "2")]))
+    Provider::default().config(MapConfig::default().with([("ORDERS_LIMIT", "2")]))
 }
 
 async fn place(provider: &Provider, body: &'static str) -> (StatusCode, Vec<u8>) {
@@ -39,7 +38,7 @@ async fn placed_within_the_limit() {
     assert_eq!(placed.lines, 2);
     let sent = provider.publish.sent();
     assert_eq!(sent.len(), 1, "the placement is published once");
-    assert_eq!(sent[0].0, "test-order-placed");
+    assert_eq!(sent[0].0, topic::ORDER_PLACED);
     let carried: Placed = serde_json::from_slice(&sent[0].1.payload).expect("a placement");
     assert_eq!(carried.lines, 2);
 }

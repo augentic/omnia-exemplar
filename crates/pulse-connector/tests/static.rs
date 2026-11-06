@@ -3,19 +3,14 @@
 use axum::body::{Body, to_bytes};
 use axum::http::header::CONTENT_TYPE;
 use axum::http::{Request, Response, StatusCode};
+use common::topic;
 use omnia_sdk::api::Client;
-use omnia_test::guest::{MapConfig, Provider};
+use omnia_test::guest::Provider;
 use pulse_connector::handler::PulseRequest;
 use tower::ServiceExt as _;
 
 #[expect(clippy::disallowed_macros, reason = "integration test loads captured SOAP XML from disk")]
 const RECEIVE_MESSAGE: &[u8] = include_bytes!("../data/receive-message.xml");
-
-// `config::env` falls back to `dev` when `ENV` is unset; seeding it keeps the
-// topic assertions honest rather than leaning on the fallback.
-fn provider() -> Provider {
-    Provider::default().config(MapConfig::default().with([("ENV", "dev")]))
-}
 
 async fn post(provider: Provider, body: &'static [u8]) -> Response<Body> {
     let request = Request::post("/inbound/xml")
@@ -32,7 +27,7 @@ fn content_type(response: &Response<Body>) -> &str {
 
 #[tokio::test]
 async fn train_update() {
-    let provider = provider();
+    let provider = Provider::default();
 
     let request = PulseRequest::from_xml(RECEIVE_MESSAGE).expect("should deserialize");
     let expected_payload = request.body.receive_message.axml_message;
@@ -50,13 +45,13 @@ async fn train_update() {
     assert_eq!(published.len(), 1);
 
     let (topic, record) = &published[0];
-    assert_eq!(topic, "dev-realtime-pulse.v1");
+    assert_eq!(topic, topic::PULSE);
     assert_eq!(record.payload, expected_payload.as_bytes());
 }
 
 #[tokio::test]
 async fn without_train_update() {
-    let provider = provider();
+    let provider = Provider::default();
 
     let xml = br#"<?xml version="1.0" encoding="utf-8"?>
         <soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
@@ -82,7 +77,7 @@ async fn without_train_update() {
 
 #[tokio::test]
 async fn malformed_envelope() {
-    let provider = provider();
+    let provider = Provider::default();
 
     // parsing happens inside the handler, so even an unparseable body is
     // answered with the vendor's SOAP fault rather than an extractor's

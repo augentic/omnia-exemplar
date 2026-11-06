@@ -1,7 +1,7 @@
 # Pulse HTTP Connector
 
 HTTP connector that receives Pulse SOAP/XML data (`POST /inbound/xml`) and
-forwards the embedded train update to the `{env}-realtime-pulse.v1` topic.
+forwards the embedded train update to the `realtime-pulse.v1` topic.
 
 Pulse data is received from track-side sensors that are triggered when a train
 passes. This position data is used to help improve train location information

@@ -111,7 +111,7 @@ async fn motion_location() {
     assert_eq!(published.len(), 1);
 
     let (topic, record) = &published[0];
-    assert_eq!(topic, "dev-realtime-gtfs-vp.v1");
+    assert_eq!(topic, topic::GTFS_VP);
     // the key is the fleet identifier resolved from the message's external id
     assert_eq!(record.headers.get("key").map(String::as_str), Some("59144"));
 
@@ -158,7 +158,7 @@ async fn motion_without_gps() {
     assert_eq!(published.len(), 1);
 
     let (topic, record) = &published[0];
-    assert_eq!(topic, "dev-realtime-dead-reckoning.v1");
+    assert_eq!(topic, topic::DEAD_RECKONING);
 
     let dr: Value = serde_json::from_slice(&record.payload).expect("should parse payload");
     assert_eq!(dr["trip"]["tripId"], "TRIP-7");
@@ -225,7 +225,7 @@ async fn train_avl_motion() {
 
     let published = provider.publish.sent();
     assert_eq!(published.len(), 1);
-    assert_eq!(published[0].0, "dev-realtime-gtfs-vp.v1");
+    assert_eq!(published[0].0, topic::GTFS_VP);
 }
 
 /// A passenger count with an occupancy status, then the same count without
@@ -379,10 +379,8 @@ async fn vehicle_info_state() {
     assert_eq!(reply.fleet_info.expect("fleet info").id, "59144");
 }
 
-// The stem's topics are bare suffixes; the root qualifies them for the
-// deployment's environment.
 #[test]
-fn topics_by_suffix() {
+fn topics() {
     let router = router(&provider());
 
     assert_eq!(

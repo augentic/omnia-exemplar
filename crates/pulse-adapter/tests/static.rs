@@ -6,10 +6,10 @@ mod fixture;
 use std::ops::Sub;
 
 use chrono::{Duration, Timelike, Utc};
-use common::{config, topic};
+use common::topic;
 use omnia_sdk::api::Client;
 use omnia_sdk::api::messaging::{Delivery, DeliveryError};
-use omnia_test::guest::{MapConfig, Provider};
+use omnia_test::guest::Provider;
 use pulse_adapter::handler::PulseMessage;
 use pulse_adapter::motion::EventType;
 use pulse_adapter::pulse::{ChangeType, TIMEZONE};
@@ -155,7 +155,7 @@ async fn too_early() {
 
 #[tokio::test]
 async fn undecodable_payload() {
-    let provider = Provider::default().config(MapConfig::default().with([(config::ENV, "dev")]));
+    let provider = Provider::default();
     let router = pulse_adapter::handlers().with_state(Client::new(provider.clone()));
     let delivery = Delivery {
         topic: Some(topic::PULSE.to_string()),
@@ -169,10 +169,8 @@ async fn undecodable_payload() {
     assert!(provider.publish.sent().is_empty());
 }
 
-// The stem's topics are bare suffixes; the root qualifies them for the
-// deployment's environment.
 #[test]
-fn topics_by_suffix() {
+fn topics() {
     let router = pulse_adapter::handlers().with_state(Client::new(Provider::default()));
 
     assert_eq!(router.topics().collect::<Vec<_>>(), [topic::PULSE]);

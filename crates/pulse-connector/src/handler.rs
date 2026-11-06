@@ -11,9 +11,9 @@ use axum::http::StatusCode;
 use axum::http::header::CONTENT_TYPE;
 use axum::response::{IntoResponse, Response};
 use axum::routing::post;
-use common::{Capabilities, config, topic};
+use common::{Capabilities, topic};
 use omnia_sdk::api::{Context, Handlers};
-use omnia_sdk::{Config, Error, Message, Publish};
+use omnia_sdk::{Error, Message, Publish};
 use serde::{Deserialize, Serialize};
 
 pub(crate) const PULSE_XML: &str = "/inbound/xml";
@@ -44,7 +44,7 @@ pub(crate) fn handlers<P: Capabilities>() -> Handlers<P> {
 // extractor's rejection.
 pub(crate) async fn pulse<P>(context: Context<P>, body: Bytes) -> Result<PulseReply, Fault>
 where
-    P: Config + Publish + 'static,
+    P: Publish + 'static,
 {
     let provider = context.provider();
 
@@ -64,10 +64,8 @@ where
     }
 
     // forward to pulse-adapter topic
-    let topic = config::topic(provider, topic::PULSE).await;
-
     let msg = Message::new(message.as_bytes());
-    Publish::send(provider, &topic, &msg).await.map_err(|error| {
+    Publish::send(provider, topic::PULSE, &msg).await.map_err(|error| {
         tracing::error!("failed to forward Pulse message: {error:#}");
         SERVER_FAULT
     })?;

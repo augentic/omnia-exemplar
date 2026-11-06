@@ -5,7 +5,7 @@
 use anyhow::Context as _;
 use axum::body::Body;
 use chrono::Utc;
-use common::{Capabilities, config, topic};
+use common::{Capabilities, topic};
 use http::Method;
 use http::header::AUTHORIZATION;
 use omnia_sdk::api::messaging::Delivery;
@@ -126,8 +126,6 @@ where
     let events = update.into_events(provider).await?;
 
     // publish events to Motion topic (repeated — see `PUBLISH_REPEATS`)
-    let topic = config::topic(provider, topic::PULSE_TO_MOTION).await;
-
     for _ in 0..PUBLISH_REPEATS {
         for event in &events {
             tracing::info!(monotonic_counter.motion_events_published = 1);
@@ -138,7 +136,7 @@ where
             let mut message = Message::new(&payload);
             message.headers.insert("key".to_string(), external_id.clone());
 
-            Publish::send(provider, &topic, &message).await?;
+            Publish::send(provider, topic::PULSE_TO_MOTION, &message).await?;
         }
     }
 

@@ -2,7 +2,7 @@
 
 use axum::Json;
 use axum::routing::post;
-use common::{Capabilities, config, topic};
+use common::{Capabilities, topic};
 use omnia_sdk::api::{Context, Handlers};
 use omnia_sdk::{Config, Message, Publish, Result, StateStore, bad_request, server_error};
 use serde::{Deserialize, Serialize};
@@ -56,8 +56,7 @@ where
         lines: input.lines.len(),
     };
     let payload = serde_json::to_vec(&placed).map_err(|error| server_error!("{error}"))?;
-    let topic = config::topic(provider, topic::ORDER_PLACED).await;
-    Publish::send(provider, &topic, &Message::new(&payload)).await?;
+    Publish::send(provider, topic::ORDER_PLACED, &Message::new(&payload)).await?;
     Ok(Json(placed))
 }
 

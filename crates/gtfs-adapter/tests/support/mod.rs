@@ -3,7 +3,6 @@
 
 use bytes::Bytes;
 use chrono::{DateTime, Utc};
-use common::config;
 use http::Response;
 use omnia_test::guest::{FixedIdentity, MapConfig, Provider};
 
@@ -15,7 +14,6 @@ pub const TRIP_MANAGEMENT_BASE: &str = "http://trip-mgt.test";
 pub fn provider() -> Provider {
     Provider::default()
         .config(MapConfig::default().with([
-            (config::ENV, "dev"),
             ("BLOCK_MGT_URL", BLOCK_MGT_BASE),
             ("FLEET_URL", FLEET_BASE),
             ("TRIP_MANAGEMENT_URL", TRIP_MANAGEMENT_BASE),
