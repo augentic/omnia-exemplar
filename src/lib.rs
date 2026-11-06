@@ -1,64 +1,53 @@
 //! # Root-package guest
 //!
-//! An Omnia WASI guest: every stem's routes merged onto one HTTP router and
-//! every stem's topics merged onto one messaging router, over one provider.
-//! Only the WASI exports are `wasm32`-gated: the routers are generic over
-//! their provider, so `tests/routes.rs` and `tests/messaging.rs` build the
-//! production routers natively under `omnia_test::guest::Provider` doubles.
+//! An Omnia WASI guest: every stem's handlers merged onto one HTTP router and
+//! one messaging router, over one provider. Only the WASI exports are
+//! `wasm32`-gated: the routers are generic over their provider, so
+//! `tests/routes.rs` and `tests/messaging.rs` build the production routers
+//! natively under `omnia_test::guest::Provider` doubles.
 //!
 //! This root-package layout (`src/lib.rs`) is the compiling reference for
 //! new Omnia services and the shape the guest template seeds.
 
 use common::{Capabilities, config};
-use omnia_sdk::api::Client;
-use omnia_sdk::api::http::{self, Routes};
-use omnia_sdk::api::messaging::{self, Topics};
+use omnia_sdk::api::{Client, Handlers, Router, http, messaging};
+
+/// Every stem's handlers, merged onto the guest's routers.
+///
+/// The list holds one `<stem>::handlers(),` per stem, each added at the
+/// end, in the array form a stem lists its parts in. Merging panics where
+/// two stems serve one path under one method or consume one topic, so the
+/// rungs under `tests/` hold the list to one handler apiece.
+pub fn handlers<P: Capabilities>() -> Handlers<P> {
+    Handlers::from([
+        // one handlers() per stem, each added at the end
+        capability::handlers(),
+        docstore::handlers(),
+        gtfs_adapter::handlers(),
+        pattern::handlers(),
+        pulse_adapter::handlers(),
+        pulse_connector::handlers(),
+        sql::handlers(),
+        tally_connector::handlers(),
+    ])
+}
 
 /// Build the HTTP router over one provider-owning [`Client`].
 ///
 /// Omnia creates one component instance per request, so the router and the
-/// client are built inside each call. The list holds one `<stem>::routes(),`
-/// per stem, each added at the end, in the array form a stem lists its parts
-/// in. Merging panics where two stems serve one path under one method, so
-/// the rung under `tests/` holds the list to one route apiece.
-pub fn http_router<P: Capabilities>(provider: P) -> http::Router {
-    Routes::from([
-        // one routes() per stem, each added at the end
-        capability::routes(),
-        docstore::routes(),
-        gtfs_adapter::routes(),
-        pattern::routes(),
-        pulse_adapter::routes(),
-        pulse_connector::routes(),
-        sql::routes(),
-        tally_connector::routes(),
-    ])
-    .with_state(Client::new(provider))
+/// client are built inside each call.
+pub fn http_router<P: Capabilities>(provider: P) -> Router<P> {
+    handlers().with_state(Client::new(provider))
 }
 
 /// Build the exact-topic messaging router over one provider-owning [`Client`].
 ///
-/// Each stem names its topics by bare suffix, and `map` qualifies them all
-/// for the deployment's environment, so a delivery from another environment
-/// is unhandled rather than consumed. The list holds one `<stem>::topics(),`
-/// per stem, in the form [`http_router`] describes. Merging panics where two
-/// stems consume one topic, so the rung under `tests/` holds the list to one
-/// consumer apiece.
-pub async fn topic_router<P: Capabilities>(provider: P) -> messaging::Router<P> {
+/// Each stem names its topics by bare suffix, and [`Handlers::map_topics`]
+/// qualifies them all for the deployment's environment, so a delivery from
+/// another environment is unhandled rather than consumed.
+pub async fn topic_router<P: Capabilities>(provider: P) -> Router<P> {
     let env = config::env(&provider).await;
-    Topics::from([
-        // one topics() per stem, each added at the end
-        capability::topics(),
-        docstore::topics(),
-        gtfs_adapter::topics(),
-        pattern::topics(),
-        pulse_adapter::topics(),
-        pulse_connector::topics(),
-        sql::topics(),
-        tally_connector::topics(),
-    ])
-    .map(|topic| config::topic_for(&env, topic))
-    .with_state(Client::new(provider))
+    handlers().map_topics(|topic| config::topic_for(&env, topic)).with_state(Client::new(provider))
 }
 
 http::export!(http_router);

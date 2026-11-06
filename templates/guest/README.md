@@ -42,15 +42,15 @@ The seed also carries the guest's starting shape: the root `Cargo.toml`
 as both the workspace and the deployable package, `crate-type =
 ["cdylib", "rlib"]`, every pin under `[workspace.dependencies]`, the
 `wasm32`-excluded `omnia-test` dev-dependency (`features = ["guest"]`)
-and the `host` feature; `src/lib.rs` with `http_router` and
-`topic_router`, provider-generic routers each composed from its list
-of one entry per stem, after the anchor `ROUTE_LIST_ANCHOR` or
-`TOPIC_LIST_ANCHOR` names, and each bound over `omnia_sdk::WasiProvider`
-by `http::export!` and `messaging::export!`; `tests/routes.rs` and `tests/messaging.rs`, one native rung each
+and the `host` feature; `src/lib.rs` with `handlers`, `http_router`, and
+`topic_router`, provider-generic routers composed from the single list
+of one entry per stem after the anchor `HANDLER_LIST_ANCHOR` names, and
+each bound over `omnia_sdk::WasiProvider` by `http::export!` and
+`messaging::export!`; `tests/routes.rs` and `tests/messaging.rs`, one native rung each
 that builds the composed router over a seeded
 `omnia_test::guest::Provider`, so two stems serving one route or
 consuming one topic fail there; `crates/common`, the `Capabilities`
-bound a stem's routers take, the topic table a publisher and its
+bound a stem's handlers take, the topic table a publisher and its
 consumer agree on, the environment helpers, and typed SQL column reads
 (`RowExt`); and
 `examples/runtime.rs`, the local host behind `host`. Its shared
@@ -65,28 +65,25 @@ A stem is one crate under `crates/<stem>/`, and the fixture stem
 `orders` (`placing`, `lookup`, `catalogue`, `dispatch`) is its proof and
 the shape a generated stem copies. Its
 `src/lib.rs` is the crate doc, one `pub mod <part>;` line per part, and
-the two functions the root lists compose, both written whatever parts the
-stem has: `pub fn routes<P: Capabilities>() -> Routes<P>`,
-`Routes::from([..])` over one `<part>::routes(),` entry per part
-with routes, and `pub fn topics<P: Capabilities>() ->
-Topics<P>`, `Topics::from([..])` over one
-`<part>::topics(),` entry per part with topics, each topic a bare suffix
-the root qualifies. Each array is a list under a comment that
-anchors it, empty for a stem with no route or no topic yet, so every
-line of the entry outside its three lists is the same whichever slice
+the function the root list composes, written whatever parts the stem has:
+`pub fn handlers<P: Capabilities>() -> Handlers<P>`,
+`Handlers::from([..])` over one `<part>::handlers(),` entry per part,
+each topic a bare suffix the root qualifies. The array is a list under a
+comment that anchors it, empty for a stem with no part yet, so every
+line of the entry outside its two lists is the same whichever slice
 writes it, two slices writing one stem at once merge line by line, and
-the root lists every stem once in each of its lists. A
+the root lists every stem once. A
 part is one module: its paths, its settings' keys, and its state keys
 as `pub(crate) const`, its handlers `pub(crate)`, and `pub(crate) fn
-routes()` and `pub(crate) fn topics()` registering them, so a part the
-stem's lists do not name is dead code. Its tests under
-`tests/<part>.rs` drive the stem's `routes()` and `topics()`, each
-closed with `with_state(Client::new(provider))` over the doubles, so a
+handlers()` registering them, so a part the stem's list does not name
+is dead code. Its tests under
+`tests/<part>.rs` drive the stem's `handlers()`, closed with
+`with_state(Client::new(provider))` over the doubles, so a
 route or a topic is asserted as the wire reaches it. The
 root `Cargo.toml` names the crate in its path list and its
-`[dependencies]`, and `src/lib.rs` lists its `routes()` and `topics()`,
-one line in each of the lists of `http_router` and `topic_router`, after
-the anchors `ROUTE_LIST_ANCHOR` and `TOPIC_LIST_ANCHOR` name as
+`[dependencies]`, and `src/lib.rs` lists its `handlers()`,
+one line in the list of `handlers`, after
+the anchor `HANDLER_LIST_ANCHOR` names as
 `PATH_LIST_ANCHOR` and `CRATE_LIST_ANCHOR` name the manifest's; a topic the stem
 publishes or consumes is one constant appended to
 `crates/common/src/topic.rs`; nothing else of the seed is edited.

@@ -1,14 +1,14 @@
 //! # Common
 //!
-//! What every stem shares: the capability bound a stem's routes and topics
-//! take, the topic table a publisher and its consumer agree on, the
+//! What every stem shares: the capability bound a stem's handlers take,
+//! the topic table a publisher and its consumer agree on, the
 //! configuration helpers that qualify a topic for the deployment's
 //! environment, and typed SQL column reads.
 //!
-//! A stem's `routes()` and `topics()` are the two halves of one contract:
-//! each is stateless and keyed by the bare path or topic suffix, a stem
-//! exposes both whatever parts it has, and the root merges every stem's
-//! halves onto one router apiece over one [`Client`](omnia_sdk::api::Client).
+//! A stem's `handlers()` is stateless and keyed by the bare path or topic
+//! suffix, a stem exposes it whatever parts it has, and the root merges
+//! every stem's handlers onto its routers over one
+//! [`Client`](omnia_sdk::api::Client).
 
 pub mod config;
 pub mod topic;
@@ -21,8 +21,8 @@ use omnia_sdk::{
 
 /// Every capability a stem may bound its provider on.
 ///
-/// A stem's `routes` and `topics` take any provider under this bound, so a
-/// stem reaching a capability no stem reached before changes no signature.
+/// A stem's `handlers` takes any provider under this bound, so a stem
+/// reaching a capability no stem reached before changes no signature.
 pub trait Capabilities:
     BlobStore
     + Broadcast

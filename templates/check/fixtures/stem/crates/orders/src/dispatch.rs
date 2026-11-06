@@ -1,13 +1,13 @@
 //! Recording XML dispatch notices from the warehouse stream.
 
 use common::{Capabilities, topic};
-use omnia_sdk::api::messaging::{Delivery, Topics};
-use omnia_sdk::api::{Context, DecodeError};
+use omnia_sdk::api::messaging::Delivery;
+use omnia_sdk::api::{Context, DecodeError, Handlers};
 use omnia_sdk::{Result, StateStore, bad_request};
 use serde::{Deserialize, Serialize};
 
-pub(crate) fn topics<P: Capabilities>() -> Topics<P> {
-    Topics::new().route_with(topic::ORDER_DISPATCHED, on_dispatched, decode_dispatch_xml)
+pub(crate) fn handlers<P: Capabilities>() -> Handlers<P> {
+    Handlers::new().topic_with(topic::ORDER_DISPATCHED, on_dispatched, decode_dispatch_xml)
 }
 
 pub(crate) fn dispatched_key(id: &str) -> String {

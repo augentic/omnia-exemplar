@@ -116,7 +116,7 @@ async fn send(
         None => builder.body(Body::empty()),
     }
     .expect("request");
-    let router = sql::routes().with_state(Client::new(provider.clone()));
+    let router = sql::handlers().with_state(Client::new(provider.clone()));
     let response = router.oneshot(request).await.expect("response");
     let status = response.status();
     let bytes = to_bytes(response.into_body(), usize::MAX).await.expect("body");

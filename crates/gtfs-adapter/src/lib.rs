@@ -18,25 +18,17 @@ pub mod trip;
 pub mod vehicle_info;
 
 use common::Capabilities;
-use omnia_sdk::api::http::Routes;
-use omnia_sdk::api::messaging::Topics;
+use omnia_sdk::api::Handlers;
 
-/// The stem's routes, merged onto the root router.
-pub fn routes<P: Capabilities>() -> Routes<P> {
-    Routes::from([
-        // one entry per part with routes, each added at the end
-        vehicle_info::routes(),
+/// The stem's handlers, merged onto the root routers.
+pub fn handlers<P: Capabilities>() -> Handlers<P> {
+    Handlers::from([
+        // one entry per part, each added at the end
+        motion::handlers(),
+        passenger_count::handlers(),
         #[cfg(feature = "god-mode")]
-        set_trip::routes(),
-    ])
-}
-
-/// The stem's topics, merged onto the root messaging router.
-pub fn topics<P: Capabilities>() -> Topics<P> {
-    Topics::from([
-        // one entry per part with topics, each added at the end
-        motion::topics(),
-        train_avl::topics(),
-        passenger_count::topics(),
+        set_trip::handlers(),
+        train_avl::handlers(),
+        vehicle_info::handlers(),
     ])
 }

@@ -7,7 +7,7 @@ use omnia_test::guest::Provider;
 #[tokio::test]
 async fn records_carrier_from_xml() {
     let provider = Provider::default();
-    let router = orders::topics().with_state(Client::new(provider.clone()));
+    let router = orders::handlers().with_state(Client::new(provider.clone()));
     let delivery = Delivery {
         topic: Some("order-dispatched".to_string()),
         payload: b"<Dispatched><id>ord-7</id><carrier>NZP</carrier></Dispatched>".to_vec(),
@@ -25,7 +25,7 @@ async fn records_carrier_from_xml() {
 #[tokio::test]
 async fn rejects_malformed_xml() {
     let provider = Provider::default();
-    let router = orders::topics().with_state(Client::new(provider.clone()));
+    let router = orders::handlers().with_state(Client::new(provider.clone()));
     let delivery = Delivery {
         topic: Some("order-dispatched".to_string()),
         payload: b"<Dispatched><unclosed>".to_vec(),

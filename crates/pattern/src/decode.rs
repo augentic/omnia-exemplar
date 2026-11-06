@@ -14,8 +14,7 @@ use axum::body::Body;
 use axum::http::{Method, Request};
 use axum::routing::post;
 use common::Capabilities;
-use omnia_sdk::api::Context;
-use omnia_sdk::api::http::Routes;
+use omnia_sdk::api::{Context, Handlers};
 use omnia_sdk::{Config, HttpRequest, Result, StateStore, bad_gateway};
 use serde::{Deserialize, Serialize};
 
@@ -30,8 +29,8 @@ pub(crate) const CLIENT_CERT: &str = "PATTERN_CLIENT_CERT";
 // Cache lifetime for decoded segments, in seconds.
 pub(crate) const SEGMENT_TTL_SECS: u64 = 24 * 60 * 60;
 
-pub(crate) fn routes<P: Capabilities>() -> Routes<P> {
-    Routes::new().route(DECODE, post(decode_segment))
+pub(crate) fn handlers<P: Capabilities>() -> Handlers<P> {
+    Handlers::new().route(DECODE, post(decode_segment))
 }
 
 pub(crate) fn segment_key(code: &str) -> String {

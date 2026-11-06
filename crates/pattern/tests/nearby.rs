@@ -68,7 +68,7 @@ fn upserted_id(statement: &Statement) -> Option<&str> {
 }
 
 async fn send(provider: &Provider, request: Request<Body>) -> (StatusCode, Vec<u8>) {
-    let router = pattern::routes().with_state(Client::new(provider.clone()));
+    let router = pattern::handlers().with_state(Client::new(provider.clone()));
     let response = router.oneshot(request).await.expect("response");
     let status = response.status();
     let bytes = to_bytes(response.into_body(), usize::MAX).await.expect("body");

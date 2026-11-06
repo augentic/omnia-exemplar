@@ -10,8 +10,7 @@ use axum::extract::{Path, Query};
 use axum::routing::{delete, get};
 use chrono::Utc;
 use common::{Capabilities, RowExt as _};
-use omnia_sdk::api::Context;
-use omnia_sdk::api::http::Routes;
+use omnia_sdk::api::{Context, Handlers};
 use omnia_sdk::sql::{DataType, Row};
 use omnia_sdk::{Result, TableStore, not_found};
 use serde::{Deserialize, Serialize};
@@ -26,8 +25,8 @@ pub(crate) const FEED: &str = "/examples/feeds/{id}";
 const FEED_COLUMNS: &str = "feed_id, agency_id, description, created_at";
 const DEFAULT_LIMIT: u64 = 100;
 
-pub(crate) fn routes<P: Capabilities>() -> Routes<P> {
-    Routes::new()
+pub(crate) fn handlers<P: Capabilities>() -> Handlers<P> {
+    Handlers::new()
         .route(AGENCY_FEEDS, get(list_agency_feeds).post(create_feed))
         .route(FEEDS, get(list_all_feeds))
         .route(FEED, delete(delete_feed))

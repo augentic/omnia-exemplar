@@ -19,8 +19,7 @@ use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
 use common::{Capabilities, RowExt as _};
-use omnia_sdk::api::Context;
-use omnia_sdk::api::http::Routes;
+use omnia_sdk::api::{Context, Handlers};
 use omnia_sdk::sql::{DataType, Row};
 use omnia_sdk::{Error, TableStore};
 use serde::{Deserialize, Serialize};
@@ -32,8 +31,8 @@ pub(crate) const CONNECTION: &str = "db";
 /// Mean metres per degree of latitude (and of longitude at the equator).
 const METRES_PER_DEGREE: f64 = 111_320.0;
 
-pub(crate) fn routes<P: Capabilities>() -> Routes<P> {
-    Routes::new().route(PLACES, post(upsert_place)).route(NEARBY, get(nearby_places))
+pub(crate) fn handlers<P: Capabilities>() -> Handlers<P> {
+    Handlers::new().route(PLACES, post(upsert_place)).route(NEARBY, get(nearby_places))
 }
 
 /// A named point of interest.

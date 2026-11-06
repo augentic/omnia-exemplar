@@ -12,7 +12,7 @@ each handler here composes several:
 | `place` | `TableStore` + `common::RowExt` | `upsert_place` — parameterized `INSERT … ON CONFLICT` upsert, rejecting bad coordinates with a structured JSON error body (`PlaceError`) |
 | `place` | `TableStore` + `common::RowExt` | `nearby_places` — bounding-box `SELECT` refined by haversine |
 
-The crate's `routes()` serves these under `/examples/patterns/*`. The routes
+The crate's `handlers()` serves these under `/examples/patterns/*`. The routes
 are pedagogical: they exist to instantiate the composed default WASM
 capability implementations, deliberately apart from the transit crates'
 paths.
@@ -105,7 +105,7 @@ Two things to note:
 
 ## Spy mock tests
 
-The crate-level tests (`tests/`) drive every route through `pattern::routes()`
+The crate-level tests (`tests/`) drive every route through `pattern::handlers()`
 over a mock provider that *records* outbound HTTP requests and SQL statements
 as well as answering them. Tests assert on the request shape — method, path,
 and the `Client-Cert` or `Authorization` header — and on the exact number of

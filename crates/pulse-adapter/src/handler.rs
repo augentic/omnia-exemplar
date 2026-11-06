@@ -8,8 +8,8 @@ use chrono::Utc;
 use common::{Capabilities, config, topic};
 use http::Method;
 use http::header::AUTHORIZATION;
-use omnia_sdk::api::messaging::{Delivery, Topics};
-use omnia_sdk::api::{Context, DecodeError};
+use omnia_sdk::api::messaging::Delivery;
+use omnia_sdk::api::{Context, DecodeError, Handlers};
 use omnia_sdk::{
     Config, Error, HttpRequest, Identity, Message, Publish, Result, StateStore, bad_gateway,
 };
@@ -38,8 +38,8 @@ pub(crate) const API_IDENTITY: &str = "API_IDENTITY";
 /// handler.
 const PUBLISH_REPEATS: usize = 2;
 
-pub(crate) fn topics<P: Capabilities>() -> Topics<P> {
-    Topics::new().route_with(topic::PULSE, pulse, decode_pulse_xml)
+pub(crate) fn handlers<P: Capabilities>() -> Handlers<P> {
+    Handlers::new().topic_with(topic::PULSE, pulse, decode_pulse_xml)
 }
 
 fn decode_pulse_xml(delivery: &Delivery) -> std::result::Result<PulseMessage, DecodeError> {

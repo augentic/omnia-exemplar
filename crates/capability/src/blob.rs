@@ -3,15 +3,14 @@
 use axum::Json;
 use axum::routing::post;
 use common::Capabilities;
-use omnia_sdk::api::Context;
-use omnia_sdk::api::http::Routes;
+use omnia_sdk::api::{Context, Handlers};
 use omnia_sdk::{BlobStore, Result};
 use serde::{Deserialize, Serialize};
 
 pub(crate) const ARCHIVE: &str = "/examples/archive";
 
-pub(crate) fn routes<P: Capabilities>() -> Routes<P> {
-    Routes::new().route(ARCHIVE, post(archive))
+pub(crate) fn handlers<P: Capabilities>() -> Handlers<P> {
+    Handlers::new().route(ARCHIVE, post(archive))
 }
 
 /// Archive a payload into a blobstore container.

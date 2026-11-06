@@ -2,7 +2,7 @@
 //!
 //! Building the router is the check: it panics where two stems consume one
 //! topic. A stem's topics are driven by its own tests through its
-//! `topics()`; this rung holds the merged whole, qualified for `ENV`.
+//! `handlers()`; this rung holds the merged whole, qualified for `ENV`.
 
 use common::config;
 use omnia_sdk::api::messaging::{Delivery, DeliveryError};

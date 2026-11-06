@@ -8,21 +8,17 @@ Unreleased
 
 ### Changed
 
-- **One list shape at every level, and every stem exposes both halves.**
-  The root's `http_router` and `topic_router` and a stem's `routes` and
-  `topics` all merge their entries with `Routes::from([..])` and
-  `Topics::from([..])`, each list under the comment that
-  anchors it, so a slice adds a stem as it adds a part:
+- **One `Handlers` list at every level.** The root's `handlers`, a stem's
+  `handlers`, and a part's `handlers` all register or merge their HTTP
+  routes (`.route`) and messaging topics (`.topic`, `.topic_with`) on
+  `omnia_sdk::api::Handlers<P>` (`Handlers::from([..])`), each list under
+  the comment that anchors it, so a slice adds a stem as it adds a part:
   one line after the anchor, which `omnia-template` names as
-  `ROUTE_LIST_ANCHOR` and `TOPIC_LIST_ANCHOR` beside the manifest's two.
-  Every stem exposes `routes()` and `topics()`, an empty list where it has
-  no part of that kind, so the root lists each stem once in each list and
-  a stem's first route or topic is a change to the stem alone. A part's
-  and a stem's routes are `omnia_sdk::api::http::Routes<P>` alongside
-  `omnia_sdk::api::messaging::Topics<P>`, `Topics::map` qualifies the
-  merged topics, and both close into `http::Router` and
-  `messaging::Router<P>` with `with_state(Client::new(provider))`.
-  `common::routers` and `common::topics` are removed.
+  `HANDLER_LIST_ANCHOR` beside the manifest's two. `Handlers::map_topics`
+  qualifies the merged topics, and `with_state(Client::new(provider))`
+  closes the handlers into `omnia_sdk::api::Router<P>`, which serves both
+  HTTP requests and messaging deliveries. `common::routers` and
+  `common::topics` are removed.
 - **Parameterized SQL + `common::RowExt` replaces `omnia-orm`, `acme-common`
   becomes `common`, and stem entries hold composition alone.** `omnia-orm`
   is removed: `crates/sql` and `crates/pattern/src/place.rs` execute

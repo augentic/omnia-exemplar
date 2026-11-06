@@ -12,8 +12,8 @@ use axum::http::{Request, StatusCode};
 use chrono::{DateTime, Utc};
 use common::topic;
 use gtfs_adapter::vehicle_info::VehicleInfoReply;
-use omnia_sdk::api::Client;
-use omnia_sdk::api::messaging::{Delivery, DeliveryError, Router};
+use omnia_sdk::api::messaging::{Delivery, DeliveryError};
+use omnia_sdk::api::{Client, Router};
 use omnia_test::guest::{MatchedHttp, Provider};
 use serde_json::{Value, json};
 use tower::ServiceExt as _;
@@ -41,8 +41,8 @@ const TRAIN_AVL: &[u8] = include_bytes!("../data/realtime-train-avl.v1.json");
 )]
 const PASSENGER_COUNT: &[u8] = include_bytes!("../data/realtime-passenger-count.v1.json");
 
-fn topics(provider: &Provider) -> Router<Provider> {
-    gtfs_adapter::topics().with_state(Client::new(provider.clone()))
+fn router(provider: &Provider) -> Router<Provider> {
+    gtfs_adapter::handlers().with_state(Client::new(provider.clone()))
 }
 
 fn delivery(topic: &str, payload: impl Into<Vec<u8>>) -> Delivery {
@@ -54,7 +54,7 @@ fn delivery(topic: &str, payload: impl Into<Vec<u8>>) -> Delivery {
 }
 
 async fn send(provider: Provider, request: Request<Body>) -> (StatusCode, Value) {
-    let router = gtfs_adapter::routes().with_state(Client::new(provider));
+    let router = gtfs_adapter::handlers().with_state(Client::new(provider));
     let response = router.oneshot(request).await.expect("response");
     let status = response.status();
     let bytes = to_bytes(response.into_body(), usize::MAX).await.expect("body");
@@ -102,7 +102,7 @@ async fn motion_location() {
         ),
     );
 
-    topics(&provider)
+    router(&provider)
         .handle(delivery(topic::PULSE_TO_MOTION, value.to_string()))
         .await
         .expect("should succeed");
@@ -149,7 +149,7 @@ async fn motion_without_gps() {
         &serde_json::to_vec(&trip_instance("TRIP-7")).expect("should serialize"),
     );
 
-    topics(&provider)
+    router(&provider)
         .handle(delivery(topic::PULSE_TO_MOTION, value.to_string()))
         .await
         .expect("should succeed");
@@ -175,7 +175,7 @@ async fn motion_unknown_event() {
         "messageData": { "timestamp": "2025-11-19T22:38:16.559Z" },
     });
 
-    topics(&provider)
+    router(&provider)
         .handle(delivery(topic::PULSE_TO_MOTION, value.to_string()))
         .await
         .expect("should succeed");
@@ -194,7 +194,7 @@ async fn train_avl_non_motion() {
     ));
     let value = fixture_value(TRAIN_AVL, 0);
 
-    topics(&provider)
+    router(&provider)
         .handle(delivery(topic::TRAIN_AVL, value.to_string()))
         .await
         .expect("should succeed");
@@ -218,7 +218,7 @@ async fn train_avl_motion() {
             ),
     );
 
-    topics(&provider)
+    router(&provider)
         .handle(delivery(topic::TRAIN_AVL, value.to_string()))
         .await
         .expect("should succeed");
@@ -237,7 +237,7 @@ async fn passenger_count_occupancy() {
 
     let value = fixture_value(PASSENGER_COUNT, 0);
 
-    topics(&provider)
+    router(&provider)
         .handle(delivery(topic::PASSENGER_COUNT, value.to_string()))
         .await
         .expect("should succeed");
@@ -249,7 +249,7 @@ async fn passenger_count_occupancy() {
     let mut value = value;
     value.as_object_mut().expect("object").remove("occupancyStatus");
 
-    topics(&provider)
+    router(&provider)
         .handle(delivery(topic::PASSENGER_COUNT, value.to_string()))
         .await
         .expect("should succeed");
@@ -288,7 +288,7 @@ async fn serial_data_sign_on() {
         },
     });
 
-    topics(&provider)
+    router(&provider)
         .handle(delivery(topic::PULSE_TO_MOTION, value.to_string()))
         .await
         .expect("should succeed");
@@ -315,7 +315,7 @@ async fn serial_data_future() {
         },
     });
 
-    let error = topics(&provider)
+    let error = router(&provider)
         .handle(delivery(topic::PULSE_TO_MOTION, value.to_string()))
         .await
         .expect_err("should reject future-dated message");
@@ -342,7 +342,7 @@ async fn serial_data_outdated() {
         },
     });
 
-    let error = topics(&provider)
+    let error = router(&provider)
         .handle(delivery(topic::PULSE_TO_MOTION, value.to_string()))
         .await
         .expect_err("should reject outdated message");
@@ -378,7 +378,7 @@ async fn vehicle_info_state() {
 // deployment's environment.
 #[test]
 fn topics_by_suffix() {
-    let router = topics(&provider());
+    let router = router(&provider());
 
     assert_eq!(
         router.topics().collect::<Vec<_>>(),

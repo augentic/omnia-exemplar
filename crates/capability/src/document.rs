@@ -4,16 +4,15 @@ use anyhow::Context as _;
 use axum::Json;
 use axum::routing::post;
 use common::Capabilities;
-use omnia_sdk::api::Context;
-use omnia_sdk::api::http::Routes;
+use omnia_sdk::api::{Context, Handlers};
 use omnia_sdk::docstore::Document;
 use omnia_sdk::{DocumentStore, Result};
 use serde::{Deserialize, Serialize};
 
 pub(crate) const NOTE: &str = "/examples/note";
 
-pub(crate) fn routes<P: Capabilities>() -> Routes<P> {
-    Routes::new().route(NOTE, post(note))
+pub(crate) fn handlers<P: Capabilities>() -> Handlers<P> {
+    Handlers::new().route(NOTE, post(note))
 }
 
 /// Upsert a JSON note document.

@@ -10,8 +10,7 @@ use axum::Json;
 use axum::extract::{Path, Query};
 use axum::routing::get;
 use common::Capabilities;
-use omnia_sdk::api::Context;
-use omnia_sdk::api::http::Routes;
+use omnia_sdk::api::{Context, Handlers};
 use omnia_sdk::docstore::{Document, Filter, QueryOptions, ScalarValue, SortField};
 use omnia_sdk::{DocumentStore, Result, not_found};
 use serde::{Deserialize, Serialize};
@@ -22,8 +21,8 @@ pub(crate) const ROUTES: &str = "/examples/routes";
 pub(crate) const ROUTE: &str = "/examples/routes/{id}";
 pub(crate) const COLLECTION: &str = "routes";
 
-pub(crate) fn routes<P: Capabilities>() -> Routes<P> {
-    Routes::new().route(ROUTES, get(list_routes).post(create_route)).route(ROUTE, get(get_route))
+pub(crate) fn handlers<P: Capabilities>() -> Handlers<P> {
+    Handlers::new().route(ROUTES, get(list_routes).post(create_route)).route(ROUTE, get(get_route))
 }
 
 /// A GTFS-like route stored as one JSON document.

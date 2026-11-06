@@ -9,8 +9,7 @@ use axum::Json;
 use axum::extract::{Path, Query};
 use axum::routing::get;
 use common::Capabilities;
-use omnia_sdk::api::Context;
-use omnia_sdk::api::http::Routes;
+use omnia_sdk::api::{Context, Handlers};
 use omnia_sdk::docstore::{Document, Filter, QueryOptions, SortField};
 use omnia_sdk::{DocumentStore, Result, not_found};
 use serde::{Deserialize, Serialize};
@@ -21,8 +20,8 @@ pub(crate) const STOP_TIMES: &str = "/examples/stop-times";
 pub(crate) const STOP_TIME: &str = "/examples/stop-times/{id}";
 pub(crate) const COLLECTION: &str = "stop_times";
 
-pub(crate) fn routes<P: Capabilities>() -> Routes<P> {
-    Routes::new()
+pub(crate) fn handlers<P: Capabilities>() -> Handlers<P> {
+    Handlers::new()
         .route(STOP_TIMES, get(list_stop_times).post(create_stop_time))
         .route(STOP_TIME, get(get_stop_time))
 }

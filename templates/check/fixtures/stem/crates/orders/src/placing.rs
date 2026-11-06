@@ -3,9 +3,7 @@
 use axum::Json;
 use axum::routing::post;
 use common::{Capabilities, config, topic};
-use omnia_sdk::api::Context;
-use omnia_sdk::api::http::Routes;
-use omnia_sdk::api::messaging::Topics;
+use omnia_sdk::api::{Context, Handlers};
 use omnia_sdk::{Config, Message, Publish, Result, StateStore, bad_request, server_error};
 use serde::{Deserialize, Serialize};
 
@@ -18,12 +16,8 @@ pub(crate) const ORDERS: &str = "/orders";
 // The state key of the running count of lines placed.
 pub(crate) const LINES_PLACED: &str = "orders/lines-placed";
 
-pub(crate) fn routes<P: Capabilities>() -> Routes<P> {
-    Routes::new().route(ORDERS, post(place))
-}
-
-pub(crate) fn topics<P: Capabilities>() -> Topics<P> {
-    Topics::new().route(topic::ORDER_PLACED, on_placed)
+pub(crate) fn handlers<P: Capabilities>() -> Handlers<P> {
+    Handlers::new().route(ORDERS, post(place)).topic(topic::ORDER_PLACED, on_placed)
 }
 
 /// An order to place.

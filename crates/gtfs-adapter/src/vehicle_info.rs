@@ -4,8 +4,7 @@ use axum::Json;
 use axum::extract::Path;
 use axum::routing::get;
 use common::Capabilities;
-use omnia_sdk::api::Context;
-use omnia_sdk::api::http::Routes;
+use omnia_sdk::api::{Context, Handlers};
 use omnia_sdk::{Config, HttpRequest, Identity, Result, StateStore};
 use serde::{Deserialize, Serialize};
 
@@ -17,8 +16,8 @@ const PROCESS_ID: u32 = 0;
 
 pub(crate) const VEHICLE_INFO: &str = "/info/{vehicle_id}";
 
-pub(crate) fn routes<P: Capabilities>() -> Routes<P> {
-    Routes::new().route(VEHICLE_INFO, get(vehicle_info))
+pub(crate) fn handlers<P: Capabilities>() -> Handlers<P> {
+    Handlers::new().route(VEHICLE_INFO, get(vehicle_info))
 }
 
 /// A vehicle's current trip and fleet information.

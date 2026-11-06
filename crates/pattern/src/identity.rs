@@ -13,8 +13,7 @@ use axum::http::header::AUTHORIZATION;
 use axum::http::{Method, Request};
 use axum::routing::get;
 use common::Capabilities;
-use omnia_sdk::api::Context;
-use omnia_sdk::api::http::Routes;
+use omnia_sdk::api::{Context, Handlers};
 use omnia_sdk::{Config, HttpRequest, Identity, Result, bad_gateway};
 use serde::{Deserialize, Serialize};
 
@@ -26,8 +25,8 @@ pub(crate) const UPSTREAM_URL: &str = "PATTERN_UPSTREAM_URL";
 // Config key naming the identity whose access token authenticates upstream requests.
 pub(crate) const UPSTREAM_IDENTITY: &str = "PATTERN_UPSTREAM_IDENTITY";
 
-pub(crate) fn routes<P: Capabilities>() -> Routes<P> {
-    Routes::new().route(UPSTREAM_STATUS, get(fetch_upstream_status))
+pub(crate) fn handlers<P: Capabilities>() -> Handlers<P> {
+    Handlers::new().route(UPSTREAM_STATUS, get(fetch_upstream_status))
 }
 
 /// Status payload returned by the upstream service.
