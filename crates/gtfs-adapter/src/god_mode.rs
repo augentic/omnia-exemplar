@@ -12,7 +12,7 @@
 
 use std::collections::HashMap;
 
-use anyhow::{Context, Result};
+use anyhow::Result;
 use omnia_sdk::{Config, StateStore};
 use serde::{Deserialize, Serialize};
 
@@ -31,17 +31,11 @@ struct GodModeState {
 }
 
 async fn load_state(state_store: &impl StateStore) -> Result<GodModeState> {
-    let Some(bytes) = state_store.get(KEY_GOD_MODE).await? else {
-        return Ok(GodModeState::default());
-    };
-    let state = serde_json::from_slice(&bytes).context("deserializing god mode state")?;
-    Ok(state)
+    Ok(state_store.get_json(KEY_GOD_MODE).await?.unwrap_or_default())
 }
 
 async fn save_state(state_store: &impl StateStore, state: &GodModeState) -> Result<()> {
-    let bytes = serde_json::to_vec(state).context("serializing god mode state")?;
-    state_store.set(KEY_GOD_MODE, &bytes, Some(TTL_GOD_MODE)).await?;
-    Ok(())
+    state_store.set_json(KEY_GOD_MODE, state, Some(TTL_GOD_MODE)).await
 }
 
 pub(crate) async fn set_vehicle_to_trip(

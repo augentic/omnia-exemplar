@@ -8,7 +8,7 @@ use axum::response::{IntoResponse, Response};
 use axum::routing::get;
 use common::Capabilities;
 use omnia_sdk::api::{Context, Handlers};
-use omnia_sdk::{StateStore, not_found, server_error};
+use omnia_sdk::{StateStore, not_found};
 use serde::{Deserialize, Serialize};
 
 // The paths the part serves.
@@ -75,11 +75,11 @@ where
     P: StateStore + 'static,
 {
     let key = order_key(&id);
-    let bytes = StateStore::get(context.provider(), &key)
+    let status: OrderStatus = context
+        .state()
+        .get_json(&key)
         .await?
         .ok_or_else(|| not_found!("order `{id}` not found"))?;
-    let status: OrderStatus =
-        serde_json::from_slice(&bytes).map_err(|err| server_error!("order record: {err}"))?;
     if status.locked {
         return Err(LookupError::Conflict(id));
     }

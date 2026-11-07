@@ -11,7 +11,7 @@ use http::header::AUTHORIZATION;
 use omnia_sdk::api::messaging::Delivery;
 use omnia_sdk::api::{Context, DecodeError, Handlers};
 use omnia_sdk::{
-    Config, Error, HttpRequest, Identity, Message, Publish, Result, StateStore, bad_gateway,
+    Config, Error, HttpRequest, Identity, Message, Publish, Result, Settings, StateStore,
 };
 use serde::Deserialize;
 use thiserror::Error;
@@ -20,11 +20,14 @@ use crate::motion::{EventType, MessageData, MotionEvent, RemoteData};
 use crate::pulse::TrainUpdate;
 use crate::stops;
 
-// Base URL of the Block Management API.
-pub(crate) const BLOCK_MGT_URL: &str = "BLOCK_MGT_URL";
-
-// Identity used to acquire access tokens for the operator APIs.
-pub(crate) const API_IDENTITY: &str = "API_IDENTITY";
+/// The settings the Pulse handler reads.
+#[derive(Debug, Settings)]
+pub struct PulseSettings {
+    // Base URL of the Block Management API.
+    block_mgt_url: String,
+    // Identity used to acquire access tokens for the operator APIs.
+    api_identity: String,
+}
 
 /// Each Motion event is published this many times: the downstream schedule
 /// adherence process treats the repeated location event as confirmation that
@@ -112,31 +115,25 @@ impl PulseMessage {
 }
 
 #[tracing::instrument(skip_all)]
-pub(crate) async fn pulse<P>(input: PulseMessage, context: Context<P>) -> Result<()>
+pub(crate) async fn pulse<P>(context: Context<P>, input: PulseMessage) -> Result<()>
 where
     P: Config + HttpRequest + Identity + Publish + StateStore,
 {
-    let provider = context.provider();
-
     // validate message
     let update = input.train_update;
     update.validate()?;
 
     // convert to Motion events
-    let events = update.into_events(provider).await?;
+    let events = update.into_events(context.provider()).await?;
 
     // publish events to Motion topic (repeated — see `PUBLISH_REPEATS`)
     for _ in 0..PUBLISH_REPEATS {
         for event in &events {
             tracing::info!(monotonic_counter.motion_events_published = 1);
 
-            let payload = serde_json::to_vec(&event).context("serializing event")?;
-            let external_id = &event.remote_data.external_id;
-
-            let mut message = Message::new(&payload);
-            message.headers.insert("key".to_string(), external_id.clone());
-
-            Publish::send(provider, topic::PULSE_TO_MOTION, &message).await?;
+            let message =
+                Message::json(event)?.with_header("key", event.remote_data.external_id.clone());
+            context.publish().send(topic::PULSE_TO_MOTION, &message).await?;
         }
     }
 
@@ -193,8 +190,10 @@ async fn trip_allocations<P>(external_ref_id: &str, provider: &P) -> Result<Vec<
 where
     P: Config + HttpRequest + Identity,
 {
-    let url = Config::get(provider, BLOCK_MGT_URL).await?;
-    let identity = Config::get(provider, API_IDENTITY).await?;
+    let PulseSettings {
+        block_mgt_url: url,
+        api_identity: identity,
+    } = PulseSettings::load(provider).await?;
     let token = Identity::access_token(provider, identity).await?;
 
     let request = http::Request::builder()
@@ -204,15 +203,5 @@ where
         .body(Body::empty())
         .context("building trip allocations request")?;
 
-    let response =
-        HttpRequest::fetch(provider, request).await.context("fetching trip allocations")?;
-    if !response.status().is_success() {
-        return Err(bad_gateway!("Block Management API returned {}", response.status()));
-    }
-
-    let body = response.into_body();
-    let allocated: Vec<String> =
-        serde_json::from_slice(&body).context("deserializing trip allocations response")?;
-
-    Ok(allocated)
+    provider.fetch_json(request).await
 }

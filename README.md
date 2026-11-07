@@ -7,7 +7,7 @@ passenger counting, and GTFS realtime adaptation.
 
 Domain logic lives under `crates/*` as plain axum handlers
 (`pub async fn name<P>(Context<P>, Json<Input>)`) and messaging handlers
-(`pub async fn name<P>(Input, Context<P>)`), and each crate exposes its
+(`pub async fn name<P>(Context<P>, Input)`), and each crate exposes its
 wiring: `handlers()`, an `api::Handlers` binding its paths to its fns
 (`post(tally)`) and its topics to its consumers. The **guest is the
 workspace root package** (`src/lib.rs`) — one `<stem>::handlers(),` entry per
@@ -31,7 +31,7 @@ docstore, and SQL. Two capabilities get a deeper treatment:
 `crates/docstore` and `crates/sql` rebuild the rich
 docstore and SQL examples that omnia trimmed from its own `examples/` tree
 (commit `c4666ca`, "Example tidy"), rewritten as typed handlers — every
-portable docstore filter type, parameterized SQL queries with `common::RowExt`,
+portable docstore filter type, parameterized SQL queries into `FromRow` records,
 a JOIN entity, and server-assigned ids. The example host (`examples/runtime.rs`) is a single
 `omnia::runtime!` invocation wiring every capability the guest imports —
 including `WasiBlobStore` and `WasiWebSocket` — to the in-tree default
@@ -157,14 +157,14 @@ consumer is out of scope for the exemplar.
 
 | Crate | Role |
 | --- | --- |
-| `crates/common` | The `Capabilities` bound every stem's `handlers()` takes, the topic table (`common::topic`), and `RowExt` |
+| `crates/common` | The `Capabilities` bound every stem's `handlers()` takes and the topic table (`common::topic`) |
 | `crates/pulse-connector` | HTTP ingress for the vendor "Pulse" SOAP/XML position feed; republishes to messaging |
 | `crates/pulse-adapter` | Converts Pulse train updates into Motion location events |
 | `crates/tally-connector` | HTTP ingress for the vendor "Tally" passenger-count feed |
 | `crates/gtfs-adapter` | Converts Motion events into GTFS-realtime vehicle positions |
 | `crates/capability` | Domain-free handlers proving the remaining capabilities: `BlobStore`, `Broadcast`, `DocumentStore`, `TableStore`; mounted by the guest at `POST /examples/{archive,alert,note,reading}` |
 | `crates/docstore` | Rich `wasi:docstore` showcase: GTFS-like collections exercising every portable filter type, sorting, and continuation pagination |
-| `crates/sql` | Rich `wasi-sql` showcase: agency/feed schema exercising parameterized SQL, `common::RowExt`, a JOIN entity, and server-assigned ids |
+| `crates/sql` | Rich `wasi-sql` showcase: agency/feed schema exercising parameterized SQL, `FromRow` records through `query_as`, a JOIN entity, and server-assigned ids |
 | `crates/pattern` | Composition patterns: decode-through-cache, `StateStore::cas` optimistic concurrency (`409`), `Identity::access_token` bearer auth, relational geo queries, and structured JSON error bodies |
 | root package (`guest`) | Typed-router HTTP + exact-topic messaging WASM guest binary |
 
@@ -187,11 +187,13 @@ clients stay provider-generic.
    An HTTP handler is a plain axum handler taking `Context<P>` as an
    extractor alongside axum's own
    (`pub(crate) async fn name<P>(context: Context<P>, Json(input): Json<Input>) -> Result<Json<Reply>>`);
-   a messaging handler takes its decoded input first
-   (`pub(crate) async fn name<P>(input: Input, context: Context<P>) -> Result<Reply>`).
-   Read capabilities through `context.provider()`.
-4. Declare the path and any configuration keys as `pub(crate) const`s of the
-   part that uses them, and any new topic in `common::topic`.
+   a messaging handler takes the same context first, then its decoded input
+   (`pub(crate) async fn name<P>(context: Context<P>, input: Input) -> Result<Reply>`).
+   Read a capability through the context's accessor for it (`context.state()`,
+   `context.tables()`, `context.http()`, ...).
+4. Declare the path as a `pub(crate) const` of the part that uses it, its
+   required configuration as one `#[derive(Settings)]` struct (whose `KEYS`
+   `tests/component.rs` seeds), and any new topic in `common::topic`.
 5. Bind the handler in the part's `pub(crate) fn handlers()`
    (`Handlers::new().route(PATH, post(handler))`; a custom status code
    or wire format is an `IntoResponse` on the reply or error type; or
@@ -242,28 +244,30 @@ state.
 Patterns worth copying into new services:
 
 - Handler fns behind capability traits (plain axum handlers taking
-  `Context<P>` for HTTP, `async fn(Input, Context<P>)` for messaging),
+  `Context<P>` for HTTP, `async fn(Context<P>, Input)` for messaging),
   each crate binding its own to its paths and topics in `handlers()`,
   with the guest as a thin composing layer at the **workspace root**
   (`src/lib.rs`), one line per crate in `router`.
 - One topic table (`common::topic`) a producer and its consumer both
   name, so they agree by construction.
-- Per-part config keys read through `Config::get` at use.
+- Per-part configuration as one `#[derive(Settings)]` struct, loaded at
+  use (`<Part>Settings::load(context.config())`), its `KEYS` the list the
+  component rung seeds.
 - Native tests under `omnia_test::guest::Provider` doubles plus captured fixtures
   (`tests/` + `data/` in each crate), each crate driving its own `handlers()`,
   and a rung per router at the root (`tests/routes.rs`,
   `tests/messaging.rs`) that builds the composed whole.
 - Decode-through-cache: expensive lookups go through `StateStore` in one
-  handler — miss → `Config` → `HttpRequest` → write back with a TTL —
-  instead of a separate cache-population process
+  handler — `get_json` miss → `Settings` → `fetch_json` → `set_json` with
+  a TTL — instead of a separate cache-population process
   (`pattern::decode`, `pulse_adapter::stops`).
 - Optimistic concurrency (`StateStore::cas`): versioned state updates map
   `CasError::Conflict` to `409 Conflict` through a module error type's
   `IntoResponse` (`pattern::cas`).
 - Upstream bearer-token authentication (`Identity::access_token`): resolve
-  the identity name from `Config::get`, acquire a token via
+  the identity name from the part's `Settings`, acquire a token via
   `Identity::access_token`, and send `Authorization: Bearer <token>` on
-  `HttpRequest::fetch` (`pattern::identity`).
+  `HttpRequest::fetch_json` (`pattern::identity`).
 - Cached upstream fetches as an explicit decorator, not an ambient runtime
   feature: `HttpCache::new(provider, provider).fetch(request)` at the call
   sites that want it (`gtfs_adapter::fleet::vehicle`,
@@ -275,8 +279,8 @@ Patterns worth copying into new services:
 - Recording doubles: `MatchedHttp` answers only the exact requests a test
   seeds and records what left the guest — shape, headers, and call count
   (`crates/pattern/tests/decode.rs`).
-- Radius queries as bounding-box `SELECT`s through `TableStore` and
-  `common::RowExt`, refined by haversine in Rust — never a geospatial
+- Radius queries as bounding-box `SELECT`s through `TableStore::query_as`
+  into `FromRow` records, refined by haversine in Rust — never a geospatial
   extension bolted onto the KV state store (`pattern::place`).
 - Structured JSON error bodies: the handler owns its error type and its
   `IntoResponse` serializes it as `application/json`, extending the

@@ -1,6 +1,5 @@
 //! Serial data (sign-on) event processing.
 
-use anyhow::Context as _;
 use chrono::Utc;
 use omnia_sdk::{Config, HttpRequest, Result, StateStore, bad_request};
 
@@ -47,15 +46,14 @@ async fn update_timestamp(store: &impl StateStore, timestamp: i64, vehicle_id: &
     let key = state_keys::serial_timestamp(vehicle_id);
 
     // check previous timestamp
-    if let Some(bytes) = StateStore::get(store, &key).await?
-        && serde_json::from_slice::<i64>(&bytes).is_ok_and(|prev| prev >= timestamp)
+    if let Some(prev) = store.get_json::<i64>(&key).await?
+        && prev >= timestamp
     {
         return Err(MotionError::BadTime("outdated serial data message".to_string()).into());
     }
 
     // store new timestamp
-    let value = serde_json::to_vec(&timestamp).context("failed to serialize timestamp")?;
-    StateStore::set(store, &key, &value, Some(TTL_SERIAL_TIMESTAMP_SECS)).await?;
+    store.set_json(&key, &timestamp, Some(TTL_SERIAL_TIMESTAMP_SECS)).await?;
 
     Ok(())
 }
@@ -80,10 +78,10 @@ where
         return Ok(());
     };
 
-    let Some(prev) = StateStore::get(provider, &trip_key).await? else {
+    let Some(prev) = provider.get_json::<TripInstance>(&trip_key).await? else {
         return Ok(());
     };
-    if serde_json::from_slice::<TripInstance>(&prev).is_ok_and(|t| t.trip_id == trip_id) {
+    if prev.trip_id == trip_id {
         return Ok(());
     }
 
@@ -109,12 +107,8 @@ where
     let trip_key = state_keys::trip(vehicle_id);
     let sign_on_key = state_keys::sign_on(vehicle_id);
 
-    let trip_bytes = serde_json::to_vec(&trip).context("failed to serialize trip")?;
-    StateStore::set(provider, &trip_key, &trip_bytes, Some(TTL_TRIP_SERIAL_SECS)).await?;
-
-    let timestamp_bytes =
-        serde_json::to_vec(&event_timestamp).context("failed to serialize message timestamp")?;
-    StateStore::set(provider, &sign_on_key, &timestamp_bytes, Some(TTL_SIGN_ON_SECS)).await?;
+    provider.set_json(&trip_key, &trip, Some(TTL_TRIP_SERIAL_SECS)).await?;
+    provider.set_json(&sign_on_key, &event_timestamp, Some(TTL_SIGN_ON_SECS)).await?;
 
     Ok(())
 }

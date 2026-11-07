@@ -6,13 +6,17 @@ use chrono::{Duration, NaiveDate, TimeZone, Timelike};
 use chrono_tz::Tz;
 use http::header::CONTENT_TYPE;
 use http::{Method, StatusCode};
-use omnia_sdk::{Config, HttpRequest};
+use omnia_sdk::{Config, HttpRequest, Settings};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tracing::warn;
 
-// Base URL of the Trip Management API.
-pub(crate) const TRIP_MANAGEMENT_URL: &str = "TRIP_MANAGEMENT_URL";
+/// The settings the Trip Management client reads.
+#[derive(Debug, Settings)]
+pub struct TripSettings {
+    // Base URL of the Trip Management API.
+    trip_management_url: String,
+}
 
 /// The local timezone of the (fictional) Acme transit network.
 ///
@@ -95,8 +99,8 @@ async fn fetch<P>(trip_id: &str, service_date: &str, provider: &P) -> Result<Vec
 where
     P: HttpRequest + Config,
 {
-    let base_url = Config::get(provider, TRIP_MANAGEMENT_URL).await?;
-    let endpoint = format!("{}/tripinstances", base_url.trim_end_matches('/'));
+    let TripSettings { trip_management_url } = TripSettings::load(provider).await?;
+    let endpoint = format!("{}/tripinstances", trip_management_url.trim_end_matches('/'));
 
     let payload = serde_json::json!({
         "tripIds": [trip_id],

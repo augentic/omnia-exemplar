@@ -8,11 +8,15 @@ use axum::body::Body;
 use http::Method;
 use http::header::{CACHE_CONTROL, IF_NONE_MATCH};
 use omnia_http_cache::HttpCache;
-use omnia_sdk::{Config, HttpRequest, Identity, Result, StateStore, bad_gateway};
+use omnia_sdk::{Config, HttpRequest, Identity, Result, Settings, StateStore, bad_gateway};
 use serde::{Deserialize, Serialize};
 
-// Base URL of the Fleet API.
-pub(crate) const FLEET_URL: &str = "FLEET_URL";
+/// The settings the Fleet client reads.
+#[derive(Debug, Settings)]
+pub struct FleetSettings {
+    // Base URL of the Fleet API.
+    fleet_url: String,
+}
 
 // Responses are cached for five minutes through the provider's `StateStore`
 // under the quoted, namespaced etag `"fleet:<query>"`.
@@ -22,7 +26,7 @@ where
 {
     let Ok(identifier) = Identifier::from_str(vehicle_id);
     let query = identifier.to_query();
-    let fleet_url = Config::get(provider, FLEET_URL).await.context("getting `FLEET_URL`")?;
+    let FleetSettings { fleet_url } = FleetSettings::load(provider).await?;
 
     // `HttpCache` requires a quoted strong etag; the prefix keeps the cache
     // key out of the guest's own state-store namespace.

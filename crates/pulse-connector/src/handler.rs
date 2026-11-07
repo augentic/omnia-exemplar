@@ -46,8 +46,6 @@ pub(crate) async fn pulse<P>(context: Context<P>, body: Bytes) -> Result<PulseRe
 where
     P: Publish + 'static,
 {
-    let provider = context.provider();
-
     // Parse and verify the message. Rejections are SOAP <Fault> envelopes
     // because the Pulse vendor protocol requires an XML fault body. This is
     // a vendor-protocol accommodation, not a general error-handling pattern
@@ -65,7 +63,7 @@ where
 
     // forward to pulse-adapter topic
     let msg = Message::new(message.as_bytes());
-    Publish::send(provider, topic::PULSE, &msg).await.map_err(|error| {
+    context.publish().send(topic::PULSE, &msg).await.map_err(|error| {
         tracing::error!("failed to forward Pulse message: {error:#}");
         SERVER_FAULT
     })?;

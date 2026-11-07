@@ -29,9 +29,8 @@ pub mod sql {
 // Called at the top of every handler: omnia creates one guest instance per
 // request, so there is no process-lifetime initialisation hook. The
 // `IF NOT EXISTS` guard keeps the repeat cheap.
-pub async fn ensure<P: TableStore>(provider: &P) -> anyhow::Result<()> {
-    TableStore::exec(provider, CONNECTION.to_owned(), sql::CREATE_AGENCY.to_owned(), vec![])
-        .await?;
-    TableStore::exec(provider, CONNECTION.to_owned(), sql::CREATE_FEED.to_owned(), vec![]).await?;
+pub async fn ensure<P: TableStore>(tables: &P) -> anyhow::Result<()> {
+    tables.exec(CONNECTION, sql::CREATE_AGENCY, &[]).await?;
+    tables.exec(CONNECTION, sql::CREATE_FEED, &[]).await?;
     Ok(())
 }

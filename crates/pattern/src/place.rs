@@ -1,4 +1,4 @@
-//! Relational geo queries through [`TableStore`] and [`common::RowExt`].
+//! Relational geo queries through [`TableStore`], rows decoded by [`FromRow`].
 //!
 //! A radius search does not need a geospatial extension bolted onto the
 //! key-value store: model the rows relationally, pre-filter with an indexable
@@ -18,9 +18,9 @@ use axum::Json;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
-use common::{Capabilities, RowExt as _};
+use common::Capabilities;
 use omnia_sdk::api::{Context, Handlers};
-use omnia_sdk::sql::{DataType, Row};
+use omnia_sdk::sql::{DataType, FromRow};
 use omnia_sdk::{Error, TableStore};
 use serde::{Deserialize, Serialize};
 
@@ -36,7 +36,7 @@ pub(crate) fn handlers<P: Capabilities>() -> Handlers<P> {
 }
 
 /// A named point of interest.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, FromRow)]
 pub struct Place {
     /// Stable identifier (conflict target for upserts).
     pub id: String,
@@ -46,19 +46,6 @@ pub struct Place {
     pub lat: f64,
     /// Longitude in degrees.
     pub lon: f64,
-}
-
-impl TryFrom<&Row> for Place {
-    type Error = Error;
-
-    fn try_from(row: &Row) -> Result<Self, Self::Error> {
-        Ok(Self {
-            id: row.get_str("id")?.to_owned(),
-            name: row.get_str("name")?.to_owned(),
-            lat: row.get_f64("lat")?,
-            lon: row.get_f64("lon")?,
-        })
-    }
 }
 
 /// Insert a place, or update it in full when the id already exists.
@@ -177,20 +164,20 @@ where
     coordinate("lat", input.lat, -90.0, 90.0)?;
     coordinate("lon", input.lon, -180.0, 180.0)?;
 
-    let affected = TableStore::exec(
-        context.provider(),
-        CONNECTION.to_owned(),
-        "INSERT INTO places (id, name, lat, lon) VALUES ($1, $2, $3, $4) \
-         ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, lat = EXCLUDED.lat, lon = EXCLUDED.lon"
-            .to_owned(),
-        vec![
-            DataType::Str(Some(input.id)),
-            DataType::Str(Some(input.name)),
-            DataType::Double(Some(input.lat)),
-            DataType::Double(Some(input.lon)),
-        ],
-    )
-    .await?;
+    let affected = context
+        .tables()
+        .exec(
+            CONNECTION,
+            "INSERT INTO places (id, name, lat, lon) VALUES ($1, $2, $3, $4) \
+             ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, lat = EXCLUDED.lat, lon = EXCLUDED.lon",
+            &[
+                DataType::Str(Some(input.id)),
+                DataType::Str(Some(input.name)),
+                DataType::Double(Some(input.lat)),
+                DataType::Double(Some(input.lon)),
+            ],
+        )
+        .await?;
 
     Ok(Json(UpsertPlaceReply { affected }))
 }
@@ -236,25 +223,24 @@ where
     let lat_delta = input.radius_m / METRES_PER_DEGREE;
     let lon_delta = lat_delta / input.lat.to_radians().cos().abs().max(f64::EPSILON);
 
-    let rows = TableStore::query(
-        context.provider(),
-        CONNECTION.to_owned(),
-        "SELECT id, name, lat, lon FROM places \
-         WHERE lat >= $1 AND lat <= $2 AND lon >= $3 AND lon <= $4"
-            .to_owned(),
-        vec![
-            DataType::Double(Some(input.lat - lat_delta)),
-            DataType::Double(Some(input.lat + lat_delta)),
-            DataType::Double(Some(input.lon - lon_delta)),
-            DataType::Double(Some(input.lon + lon_delta)),
-        ],
-    )
-    .await?;
+    let candidates: Vec<Place> = context
+        .tables()
+        .query_as(
+            CONNECTION,
+            "SELECT id, name, lat, lon FROM places \
+             WHERE lat >= $1 AND lat <= $2 AND lon >= $3 AND lon <= $4",
+            &[
+                DataType::Double(Some(input.lat - lat_delta)),
+                DataType::Double(Some(input.lat + lat_delta)),
+                DataType::Double(Some(input.lon - lon_delta)),
+                DataType::Double(Some(input.lon + lon_delta)),
+            ],
+        )
+        .await?;
 
     // refine the box to the true radius in Rust — no GEORADIUS required
     let mut places = Vec::new();
-    for row in &rows {
-        let place = Place::try_from(row)?;
+    for place in candidates {
         let distance_m = haversine_m(input.lat, input.lon, place.lat, place.lon);
         if distance_m <= input.radius_m {
             places.push(NearbyPlace { place, distance_m });

@@ -4,11 +4,8 @@ use axum::Json;
 use axum::routing::post;
 use common::{Capabilities, topic};
 use omnia_sdk::api::{Context, Handlers};
-use omnia_sdk::{Config, Message, Publish, Result, StateStore, bad_request, server_error};
+use omnia_sdk::{Config, Message, Publish, Result, Settings, StateStore, bad_request};
 use serde::{Deserialize, Serialize};
-
-// The settings the part reads, each key its own name.
-pub(crate) const ORDERS_LIMIT: &str = "ORDERS_LIMIT";
 
 // The paths the part serves.
 pub(crate) const ORDERS: &str = "/orders";
@@ -18,6 +15,13 @@ pub(crate) const LINES_PLACED: &str = "orders/lines-placed";
 
 pub(crate) fn handlers<P: Capabilities>() -> Handlers<P> {
     Handlers::new().route(ORDERS, post(place)).topic(topic::ORDER_PLACED, on_placed)
+}
+
+// The settings the part reads: `ORDERS_LIMIT`.
+#[derive(Debug, Settings)]
+#[setting(prefix = "ORDERS_")]
+pub(crate) struct PlacingSettings {
+    limit: usize,
 }
 
 /// An order to place.
@@ -40,32 +44,27 @@ pub(crate) async fn place<P>(
 where
     P: Config + Publish + 'static,
 {
-    let provider = context.provider();
-    let limit: usize = Config::get(provider, ORDERS_LIMIT)
-        .await?
-        .parse()
-        .map_err(|error| server_error!("`{ORDERS_LIMIT}` is not a count: {error}"))?;
+    let settings = PlacingSettings::load(context.config()).await?;
     if input.lines.is_empty() {
         return Err(bad_request!("an order holds at least one line"));
     }
-    if input.lines.len() > limit {
-        return Err(bad_request!("an order holds at most {limit} lines"));
+    if input.lines.len() > settings.limit {
+        return Err(bad_request!("an order holds at most {} lines", settings.limit));
     }
 
     let placed = Placed {
         lines: input.lines.len(),
     };
-    let payload = serde_json::to_vec(&placed).map_err(|error| server_error!("{error}"))?;
-    Publish::send(provider, topic::ORDER_PLACED, &Message::new(&payload)).await?;
+    context.publish().send(topic::ORDER_PLACED, &Message::json(&placed)?).await?;
     Ok(Json(placed))
 }
 
-pub(crate) async fn on_placed<P>(input: Placed, context: Context<P>) -> Result<()>
+pub(crate) async fn on_placed<P>(context: Context<P>, input: Placed) -> Result<()>
 where
     P: StateStore,
 {
     let delta = i64::try_from(input.lines).map_err(|error| bad_request!("{error}"))?;
-    let total = StateStore::increment(context.provider(), LINES_PLACED, delta).await?;
+    let total = context.state().increment(LINES_PLACED, delta).await?;
     tracing::info!(lines = input.lines, total, "order placed");
     Ok(())
 }

@@ -49,23 +49,18 @@ pub(crate) async fn reading<P>(
 where
     P: TableStore + 'static,
 {
-    let provider = context.provider();
+    let tables = context.tables();
 
-    let affected = TableStore::exec(
-        provider,
-        input.connection.clone(),
-        sql::INSERT.to_string(),
-        vec![DataType::Str(Some(input.sensor.clone())), DataType::Double(Some(input.value))],
-    )
-    .await?;
+    let affected = tables
+        .exec(
+            &input.connection,
+            sql::INSERT,
+            &[DataType::Str(Some(input.sensor.clone())), DataType::Double(Some(input.value))],
+        )
+        .await?;
 
-    let rows = TableStore::query(
-        provider,
-        input.connection,
-        sql::SELECT.to_string(),
-        vec![DataType::Str(Some(input.sensor))],
-    )
-    .await?;
+    let rows =
+        tables.query(&input.connection, sql::SELECT, &[DataType::Str(Some(input.sensor))]).await?;
 
     Ok(Json(ReadingReply {
         affected,

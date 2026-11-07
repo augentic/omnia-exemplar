@@ -1,7 +1,8 @@
 //! # SQL examples
 //!
 //! The rich `wasi-sql` showcase: an agency/feed schema exercising
-//! parameterized SQL over [`TableStore`] and [`common::RowExt`]:
+//! parameterized SQL over [`TableStore`], rows decoded through
+//! [`FromRow`] and [`TableStore::query_as`]:
 //!
 //! - `SELECT` with `ORDER BY ... DESC`, optional `LIMIT`, and `WHERE`
 //!   filters
@@ -17,8 +18,10 @@
 //! Schema DDL goes through [`TableStore::exec`] rather than wasm-only
 //! bindings so the handlers run unchanged against native mock providers.
 //!
+//! [`FromRow`]: omnia_sdk::sql::FromRow
 //! [`TableStore`]: omnia_sdk::TableStore
 //! [`TableStore::exec`]: omnia_sdk::TableStore::exec
+//! [`TableStore::query_as`]: omnia_sdk::TableStore::query_as
 
 pub mod agency;
 pub mod feed;

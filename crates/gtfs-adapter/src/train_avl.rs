@@ -19,7 +19,7 @@ pub(crate) fn handlers<P: Capabilities>() -> Handlers<P> {
 pub struct TrainAvlMessage(pub MotionMessage);
 
 #[tracing::instrument(skip_all)]
-pub(crate) async fn train_avl<P>(input: TrainAvlMessage, context: Context<P>) -> Result<()>
+pub(crate) async fn train_avl<P>(context: Context<P>, input: TrainAvlMessage) -> Result<()>
 where
     P: Config + HttpRequest + Identity + Publish + StateStore,
 {
@@ -42,5 +42,5 @@ where
         return Ok(());
     }
 
-    motion::motion(request, context).await
+    motion::motion(context, request).await
 }

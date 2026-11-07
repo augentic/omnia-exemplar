@@ -1,4 +1,4 @@
-//! Querying the catalogue over `TableStore` and `common::RowExt`, with a
+//! Querying the catalogue over `TableStore` into `FromRow` items, with a
 //! `StateStore` cache-aside in front of it.
 
 use axum::body::{Body, to_bytes};

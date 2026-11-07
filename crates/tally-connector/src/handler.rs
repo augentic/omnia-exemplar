@@ -1,6 +1,5 @@
 //! Tally APC connector handler.
 
-use anyhow::Context as _;
 use axum::Json;
 use axum::routing::post;
 use common::{Capabilities, topic};
@@ -22,16 +21,12 @@ pub(crate) async fn tally<P>(
 where
     P: Publish + 'static,
 {
-    let provider = context.provider();
     let message = &input.message;
 
     // forward to the tally APC topic
-    let msg_vec = serde_json::to_vec(message).context("failed to serialize TallyMessage")?;
-    let mut msg = Message::new(&msg_vec);
     let site = message.device.as_ref().map_or_else(|| "undefined", |device| &device.site);
-    msg.headers.insert("key".to_string(), site.to_string());
-
-    Publish::send(provider, topic::TALLY_APC, &msg).await?;
+    let msg = Message::json(message)?.with_header("key", site);
+    context.publish().send(topic::TALLY_APC, &msg).await?;
 
     Ok(Json(TallyReply("OK")))
 }

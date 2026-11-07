@@ -47,21 +47,17 @@ pub(crate) async fn vehicle_info<P>(
 where
     P: Config + HttpRequest + Identity + StateStore + 'static,
 {
-    let provider = context.provider();
-
     let trip_key = state_keys::trip(&vehicle_id);
-    let trip_info = if let Some(bytes) = StateStore::get(provider, &trip_key).await? {
-        Some(serde_json::from_slice::<TripInstance>(&bytes)?)
-    } else {
-        None
-    };
+    let trip_info: Option<TripInstance> = context.state().get_json(&trip_key).await?;
 
     let sign_on_key = state_keys::sign_on(&vehicle_id);
-    let sign_on_time = StateStore::get(provider, &sign_on_key)
+    let sign_on_time = context
+        .state()
+        .get(&sign_on_key)
         .await?
         .map(|bytes| String::from_utf8_lossy(&bytes).to_string());
 
-    let fleet_info = fleet::vehicle(&vehicle_id, provider).await?;
+    let fleet_info = fleet::vehicle(&vehicle_id, context.provider()).await?;
 
     Ok(Json(VehicleInfoReply {
         pid: PROCESS_ID,

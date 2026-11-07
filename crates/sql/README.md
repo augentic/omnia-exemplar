@@ -1,9 +1,9 @@
 # SQL examples
 
 The rich `wasi-sql` showcase: a two-table agency/feed schema exercising
-parameterized SQL over `omnia_sdk::TableStore` (`TableStore::query`,
-`TableStore::exec`) and `common::RowExt` (`get_i64`, `get_str`,
-`get_opt_str`) — `SELECT` with `ORDER BY` and optional `LIMIT`, `INSERT`
+parameterized SQL over `omnia_sdk::TableStore` (`TableStore::query_as`,
+`TableStore::exec`) into `#[derive(FromRow)]` records — `SELECT` with
+`ORDER BY` and optional `LIMIT`, `INSERT`
 with server-assigned ids, dynamic `UPDATE ... SET` writing only provided
 fields, `DELETE` answering 404 on zero rows affected, and a multi-column
 `LEFT JOIN` with aliased columns.
@@ -74,9 +74,10 @@ curl -s -X DELETE http://localhost:8080/examples/feeds/1
 
 ## Features demonstrated
 
-- **Typed row extraction (`common::RowExt`)** — `TryFrom<&Row>` for
-  `Agency`, `Feed`, and `FeedWithAgency` reads columns through `row.get_i64`,
-  `row.get_str`, and `row.get_opt_str`
+- **Typed row decoding (`FromRow`)** — `Agency`, `Feed`, and
+  `FeedWithAgency` derive `omnia_sdk::sql::FromRow`, one field per column
+  (`Option<T>` for a nullable one), and `TableStore::query_as` returns them
+  directly; a lone column is `row.get::<i64>("agency_id")?`
 - **JOINs** — `FeedWithAgency` selects `agency.name AS agency_name`,
   `agency.url AS agency_url`, and `agency.timezone AS agency_timezone`
   through a `LEFT JOIN`

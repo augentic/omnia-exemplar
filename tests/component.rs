@@ -40,27 +40,32 @@ mod production;
 /// A closed loopback port: every upstream call is refused immediately.
 const CLOSED_UPSTREAM: &str = "http://127.0.0.1:9";
 
-/// The `wasi:config` the guest reads: real keys, dummy values. Upstreams
-/// point at a closed port so handlers that call out fail fast. Host-side
-/// settings the example host reads from its environment (identity
-/// credentials, the websocket bind address) have no counterpart here:
-/// `Backends::defaults()` connects nothing.
-const GUEST_CONFIG: &[(&str, &str)] = &[
-    ("BLOCK_MGT_URL", CLOSED_UPSTREAM),
-    ("FLEET_URL", CLOSED_UPSTREAM),
-    ("TRIP_MANAGEMENT_URL", CLOSED_UPSTREAM),
-    ("STATIC_API_URL", CLOSED_UPSTREAM),
-    ("API_IDENTITY", "component-test"),
-    ("PATTERN_DECODER_URL", CLOSED_UPSTREAM),
-    ("PATTERN_CLIENT_CERT", "component-test"),
-    ("PATTERN_UPSTREAM_URL", CLOSED_UPSTREAM),
-    ("PATTERN_UPSTREAM_IDENTITY", "component-test"),
+/// The `wasi:config` keys the guest reads, one `Settings` per part, so a
+/// setting added to a part cannot be left out here. Host-side settings the
+/// example host reads from its environment (identity credentials, the
+/// websocket bind address) have no counterpart: `Backends::defaults()`
+/// connects nothing.
+const GUEST_KEYS: &[&[&str]] = &[
+    gtfs_adapter::block_mgt::BlockMgtSettings::KEYS,
+    gtfs_adapter::fleet::FleetSettings::KEYS,
+    gtfs_adapter::trip::TripSettings::KEYS,
+    pulse_adapter::handler::PulseSettings::KEYS,
+    pulse_adapter::stops::StopsSettings::KEYS,
+    pattern::decode::DecodeSettings::KEYS,
+    pattern::identity::IdentitySettings::KEYS,
 ];
+
+/// A dummy value for a guest setting: upstreams point at a closed port so
+/// handlers that call out fail fast, everything else is a marker string.
+fn guest_value(key: &str) -> &'static str {
+    if key.ends_with("_URL") { CLOSED_UPSTREAM } else { "component-test" }
+}
 
 /// Assemble the shipped component over fresh in-memory backends through the
 /// example host's `Hooks`, returning the bundle for reading state back.
 async fn boot() -> (Backends, Runtime<Backends>) {
-    let backends = Backends::defaults().await.config(GUEST_CONFIG.iter().copied());
+    let config = GUEST_KEYS.iter().flat_map(|keys| keys.iter().map(|key| (*key, guest_value(key))));
+    let backends = Backends::defaults().await.config(config);
     let runtime = Deployment::from(production::manifest())
         .guest("guest", COMPONENT_GUEST)
         .boot(backends.clone(), <production::Hooks as omnia::Wiring<Backends>>::link)

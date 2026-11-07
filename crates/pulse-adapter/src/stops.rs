@@ -1,11 +1,15 @@
 //! Station-to-stop mapping and stop location lookups.
 
 use axum::body::Body;
-use omnia_sdk::{Config, HttpRequest, Result, StateStore, bad_gateway, server_error};
+use omnia_sdk::{Config, HttpRequest, Result, Settings, StateStore, server_error};
 use serde::{Deserialize, Serialize};
 
-// Base URL of the static GTFS API.
-pub(crate) const STATIC_API_URL: &str = "STATIC_API_URL";
+/// The settings the stop lookup reads.
+#[derive(Debug, Settings)]
+pub struct StopsSettings {
+    // Base URL of the static GTFS API.
+    static_api_url: String,
+}
 
 const STOPS_CACHE_KEY: &str = "pulse:stops";
 const STOPS_TTL_SECS: u64 = 300;
@@ -62,21 +66,13 @@ where
         }
     }
 
-    let static_api_url = Config::get(provider, STATIC_API_URL).await?;
+    let StopsSettings { static_api_url } = StopsSettings::load(provider).await?;
     let request = http::Request::builder()
         .uri(format!("{static_api_url}/gtfs/stops?fields=stop_code,stop_lon,stop_lat"))
         .body(Body::empty())
         .map_err(|error| server_error!("building stops request: {error}"))?;
-    let response = HttpRequest::fetch(provider, request).await?;
-    if !response.status().is_success() {
-        return Err(bad_gateway!("Static GTFS API returned {}", response.status()));
-    }
-
-    let bytes = response.into_body();
-    let stops: Vec<StopInfo> = serde_json::from_slice(&bytes)
-        .map_err(|error| bad_gateway!("deserializing stops response: {error}"))?;
-    let cached = serde_json::to_vec(&stops)?;
-    StateStore::set(provider, STOPS_CACHE_KEY, &cached, Some(STOPS_TTL_SECS)).await?;
+    let stops: Vec<StopInfo> = provider.fetch_json(request).await?;
+    provider.set_json(STOPS_CACHE_KEY, &stops, Some(STOPS_TTL_SECS)).await?;
     Ok(stops)
 }
 

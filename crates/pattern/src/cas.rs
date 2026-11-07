@@ -96,9 +96,8 @@ pub(crate) async fn update_quota<P>(
 where
     P: StateStore + 'static,
 {
-    let provider = context.provider();
     let key = quota_key(&tenant);
-    let current = StateStore::get(provider, &key).await?;
+    let current = context.state().get(&key).await?;
 
     let expected_bytes = match (&current, input.expected_version) {
         (None, 0) => None,
@@ -126,7 +125,7 @@ where
     let next_bytes =
         serde_json::to_vec(&next).map_err(|err| server_error!("serializing quota: {err}"))?;
 
-    match StateStore::cas(provider, &key, expected_bytes, &next_bytes).await {
+    match context.state().cas(&key, expected_bytes, &next_bytes).await {
         Ok(()) => Ok(Json(next)),
         Err(CasError::Conflict(observed)) => {
             let current_version = observed

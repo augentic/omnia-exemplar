@@ -17,13 +17,11 @@ pub(crate) fn handlers<P: Capabilities>() -> Handlers<P> {
 
 #[tracing::instrument(skip_all)]
 pub(crate) async fn passenger_count<P>(
-    input: PassengerCountMessage, context: Context<P>,
+    context: Context<P>, input: PassengerCountMessage,
 ) -> Result<()>
 where
     P: StateStore,
 {
-    let provider = context.provider();
-
     // create state key
     let vehicle_id = &input.vehicle.id;
     let Trip {
@@ -35,10 +33,9 @@ where
 
     // save occupancy status to state if set, otherwise remove
     if let Some(occupancy_status) = input.occupancy_status {
-        let bytes = serde_json::to_vec(&occupancy_status)?;
-        StateStore::set(provider, &key, &bytes, Some(OCCUPANCY_STATUS_TTL)).await?;
+        context.state().set_json(&key, &occupancy_status, Some(OCCUPANCY_STATUS_TTL)).await?;
     } else {
-        StateStore::delete(provider, &key).await?;
+        context.state().delete(&key).await?;
     }
 
     Ok(())

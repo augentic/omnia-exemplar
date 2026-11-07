@@ -42,7 +42,7 @@ impl From<MotionError> for Error {
 }
 
 #[tracing::instrument(skip_all)]
-pub(crate) async fn motion<P>(input: MotionMessage, context: Context<P>) -> Result<()>
+pub(crate) async fn motion<P>(context: Context<P>, input: MotionMessage) -> Result<()>
 where
     P: Config + HttpRequest + Identity + Publish + StateStore,
 {
@@ -62,15 +62,13 @@ where
         return Ok(());
     };
 
-    let (payload, key, topic) = match location {
-        Location::VehiclePosition(feed) => (serde_json::to_vec(&feed)?, feed.id, topic::GTFS_VP),
-        Location::DeadReckoning(dr) => (serde_json::to_vec(&dr)?, dr.id, topic::DEAD_RECKONING),
+    let (message, key, topic) = match location {
+        Location::VehiclePosition(feed) => (Message::json(&feed)?, feed.id, topic::GTFS_VP),
+        Location::DeadReckoning(dr) => (Message::json(&dr)?, dr.id, topic::DEAD_RECKONING),
     };
 
     // publish
-    let mut message = Message::new(&payload);
-    message.headers.insert("key".to_string(), key.clone());
-    Publish::send(provider, topic, &message).await?;
+    context.publish().send(topic, &message.with_header("key", key)).await?;
 
     Ok(())
 }

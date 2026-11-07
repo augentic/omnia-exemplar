@@ -28,7 +28,7 @@ pub struct Dispatched {
     pub carrier: String,
 }
 
-pub(crate) async fn on_dispatched<P>(input: Dispatched, context: Context<P>) -> Result<()>
+pub(crate) async fn on_dispatched<P>(context: Context<P>, input: Dispatched) -> Result<()>
 where
     P: StateStore,
 {
@@ -36,6 +36,6 @@ where
         return Err(bad_request!("dispatch notice lacks a carrier"));
     }
     let key = dispatched_key(&input.id);
-    StateStore::set(context.provider(), &key, input.carrier.as_bytes(), None).await?;
+    context.state().set(&key, input.carrier.as_bytes(), None).await?;
     Ok(())
 }

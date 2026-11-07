@@ -4,10 +4,10 @@
 use axum::Json;
 use axum::extract::Query;
 use axum::routing::get;
-use common::{Capabilities, RowExt as _};
+use common::Capabilities;
 use omnia_sdk::api::{Context, Handlers};
-use omnia_sdk::sql::{DataType, Row};
-use omnia_sdk::{Result, StateStore, TableStore, server_error};
+use omnia_sdk::sql::{DataType, FromRow};
+use omnia_sdk::{Result, StateStore, TableStore};
 use serde::{Deserialize, Serialize};
 
 // The paths the part serves.
@@ -32,7 +32,7 @@ pub struct ListCatalogue {
 }
 
 /// One item in the catalogue.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, FromRow)]
 pub struct CatalogueItem {
     /// Item SKU.
     pub sku: String,
@@ -40,18 +40,6 @@ pub struct CatalogueItem {
     pub cents: i64,
     /// Whether the item is currently in stock.
     pub in_stock: bool,
-}
-
-impl TryFrom<&Row> for CatalogueItem {
-    type Error = omnia_sdk::Error;
-
-    fn try_from(row: &Row) -> Result<Self> {
-        Ok(Self {
-            sku: row.get_str("sku")?.to_owned(),
-            cents: row.get_i64("cents")?,
-            in_stock: row.get_bool("in_stock")?,
-        })
-    }
 }
 
 /// The catalogue items matching the query.
@@ -67,28 +55,25 @@ pub(crate) async fn list_catalogue<P>(
 where
     P: StateStore + TableStore + 'static,
 {
-    let provider = context.provider();
     let min_cents = input.min_cents.unwrap_or(0);
 
     if min_cents == 0
-        && let Some(bytes) = StateStore::get(provider, CATALOGUE_KEY).await?
-        && let Ok(items) = serde_json::from_slice::<Vec<CatalogueItem>>(&bytes)
+        && let Some(items) = context.state().get_json(CATALOGUE_KEY).await?
     {
         return Ok(Json(CatalogueReply { items }));
     }
 
-    let rows = TableStore::query(
-        provider,
-        CONNECTION.to_owned(),
-        "SELECT sku, cents, in_stock FROM catalogue WHERE cents >= $1 ORDER BY sku ASC".to_owned(),
-        vec![DataType::Int64(Some(min_cents))],
-    )
-    .await?;
-    let items = rows.iter().map(CatalogueItem::try_from).collect::<Result<Vec<_>>>()?;
+    let items: Vec<CatalogueItem> = context
+        .tables()
+        .query_as(
+            CONNECTION,
+            "SELECT sku, cents, in_stock FROM catalogue WHERE cents >= $1 ORDER BY sku ASC",
+            &[DataType::Int64(Some(min_cents))],
+        )
+        .await?;
 
     if min_cents == 0 {
-        let bytes = serde_json::to_vec(&items).map_err(|err| server_error!("{err}"))?;
-        StateStore::set(provider, CATALOGUE_KEY, &bytes, Some(CATALOGUE_TTL_SECS)).await?;
+        context.state().set_json(CATALOGUE_KEY, &items, Some(CATALOGUE_TTL_SECS)).await?;
     }
 
     Ok(Json(CatalogueReply { items }))

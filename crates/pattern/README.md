@@ -8,9 +8,9 @@ each handler here composes several:
 | --- | --- | --- |
 | `decode` | `Config` + `HttpRequest` + `StateStore` | `decode_segment` — decode-through-cache with a config-carried client certificate |
 | `cas` | `StateStore` (`StateStore::cas`) | `update_quota` — optimistic concurrency over `StateStore::cas`, answering `409 Conflict` via `QuotaError` |
-| `identity` | `Config` + `Identity` + `HttpRequest` | `fetch_upstream_status` — resolving an upstream identity via `Config::get`, acquiring a bearer token via `Identity::access_token`, and forwarding `Authorization: Bearer <token>` |
-| `place` | `TableStore` + `common::RowExt` | `upsert_place` — parameterized `INSERT … ON CONFLICT` upsert, rejecting bad coordinates with a structured JSON error body (`PlaceError`) |
-| `place` | `TableStore` + `common::RowExt` | `nearby_places` — bounding-box `SELECT` refined by haversine |
+| `identity` | `Config` + `Identity` + `HttpRequest` | `fetch_upstream_status` — resolving an upstream identity via `IdentitySettings`, acquiring a bearer token via `Identity::access_token`, and forwarding `Authorization: Bearer <token>` |
+| `place` | `TableStore` | `upsert_place` — parameterized `INSERT … ON CONFLICT` upsert, rejecting bad coordinates with a structured JSON error body (`PlaceError`) |
+| `place` | `TableStore` + `FromRow` | `nearby_places` — bounding-box `SELECT` refined by haversine |
 
 The crate's `handlers()` serves these under `/examples/patterns/*`. The routes
 are pedagogical: they exist to instantiate the composed default WASM
@@ -21,14 +21,15 @@ paths.
 
 `DecodeSegmentRequest` is the canonical capability-composition vignette:
 
-1. `StateStore::get` — on a hit, return immediately: no config read, no
-   outbound request.
-2. `Config::get` — resolve the decoder endpoint (`PATTERN_DECODER_URL`) and
-   the client certificate (`PATTERN_CLIENT_CERT`).
-3. `HttpRequest::fetch` — POST to the decoder with the certificate riding
-   the `Client-Cert` header.
-4. `StateStore::set` — write the decoded segment back with a TTL so the
-   next lookup short-circuits.
+1. `StateStore::get_json` — on a hit, return immediately: no config read,
+   no outbound request.
+2. `DecodeSettings::load` — resolve the decoder endpoint
+   (`PATTERN_DECODER_URL`) and the client certificate
+   (`PATTERN_CLIENT_CERT`).
+3. `HttpRequest::fetch_json` — POST to the decoder with the certificate
+   riding the `Client-Cert` header.
+4. `StateStore::set_json` — write the decoded segment back with a TTL so
+   the next lookup short-circuits.
 
 Two things to copy: expensive lookups go *through* the cache rather than
 being populated by a separate process, and credential material stays in
@@ -47,11 +48,12 @@ retry without a separate read.
 
 ## Upstream bearer-token authentication (`Identity::access_token`)
 
-`fetch_upstream_status` reads the identity name (`PATTERN_UPSTREAM_IDENTITY`)
-and base URL (`PATTERN_UPSTREAM_URL`) from `Config::get`, calls
-`Identity::access_token(provider, identity)` to obtain the bearer token, and
-sends `Authorization: Bearer <token>` on the outbound `HttpRequest::fetch`
-call, turning non-2xx upstream responses into `bad_gateway!` (`502`).
+`fetch_upstream_status` loads the identity name (`PATTERN_UPSTREAM_IDENTITY`)
+and base URL (`PATTERN_UPSTREAM_URL`) through `IdentitySettings`, calls
+`context.identity().access_token(identity)` to obtain the bearer token, and
+sends `Authorization: Bearer <token>` on the outbound
+`HttpRequest::fetch_json` call, which answers a non-2xx upstream response
+with `502`.
 
 ## Relational geo queries — no `GEORADIUS`
 
@@ -62,8 +64,9 @@ it is good at:
 
 1. Over-approximate the radius with a degree bounding box — four plain,
    indexable comparisons in a parameterized `SELECT`.
-2. Map rows with `Place::try_from` over `common::RowExt` (`get_str`,
-   `get_f64`) and refine the survivors with a haversine check in Rust.
+2. Read the rows as `Place` records (`#[derive(FromRow)]`) through
+   `TableStore::query_as` and refine the survivors with a haversine check
+   in Rust.
 
 `UpsertPlaceRequest` writes the rows with a parameterized
 `INSERT INTO places ... ON CONFLICT (id) DO UPDATE SET ...` statement;

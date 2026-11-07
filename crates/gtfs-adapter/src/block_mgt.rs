@@ -5,14 +5,17 @@ use axum::body::Body;
 use http::Method;
 use http::header::{AUTHORIZATION, CACHE_CONTROL, IF_NONE_MATCH};
 use omnia_http_cache::HttpCache;
-use omnia_sdk::{Config, HttpRequest, Identity, Result, StateStore, bad_gateway};
+use omnia_sdk::{Config, HttpRequest, Identity, Result, Settings, StateStore, bad_gateway};
 use serde::{Deserialize, Serialize};
 
-// Base URL of the Block Management API.
-pub(crate) const BLOCK_MGT_URL: &str = "BLOCK_MGT_URL";
-
-// Identity used to acquire access tokens for the operator APIs.
-pub(crate) const API_IDENTITY: &str = "API_IDENTITY";
+/// The settings the Block Management client reads.
+#[derive(Debug, Settings)]
+pub struct BlockMgtSettings {
+    // Base URL of the Block Management API.
+    block_mgt_url: String,
+    // Identity used to acquire access tokens for the operator APIs.
+    api_identity: String,
+}
 
 // Responses are cached for twenty seconds through the provider's
 // `StateStore` under the quoted, namespaced etag `"allocation:<vehicle_id>"`.
@@ -22,8 +25,10 @@ pub(crate) async fn cached_allocation<P>(
 where
     P: Config + HttpRequest + Identity + StateStore,
 {
-    let url = Config::get(provider, BLOCK_MGT_URL).await?;
-    let identity = Config::get(provider, API_IDENTITY).await?;
+    let BlockMgtSettings {
+        block_mgt_url: url,
+        api_identity: identity,
+    } = BlockMgtSettings::load(provider).await?;
 
     let token = Identity::access_token(provider, identity).await?;
     let endpoint = format!(

@@ -9,9 +9,9 @@ use axum::Json;
 use axum::extract::{Path, Query};
 use axum::routing::get;
 use chrono::Utc;
-use common::{Capabilities, RowExt as _};
+use common::Capabilities;
 use omnia_sdk::api::{Context, Handlers};
-use omnia_sdk::sql::{DataType, Row};
+use omnia_sdk::sql::{DataType, FromRow};
 use omnia_sdk::{Result, TableStore, bad_request, not_found};
 use serde::{Deserialize, Serialize};
 
@@ -29,7 +29,7 @@ pub(crate) fn handlers<P: Capabilities>() -> Handlers<P> {
 }
 
 /// A transit agency.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, FromRow)]
 pub struct Agency {
     /// Server-assigned primary key.
     pub agency_id: i64,
@@ -43,42 +43,24 @@ pub struct Agency {
     pub created_at: String,
 }
 
-impl TryFrom<&Row> for Agency {
-    type Error = omnia_sdk::Error;
-
-    fn try_from(row: &Row) -> Result<Self> {
-        Ok(Self {
-            agency_id: row.get_i64("agency_id")?,
-            name: row.get_str("name")?.to_owned(),
-            url: row.get_opt_str("url")?.map(str::to_owned),
-            timezone: row.get_opt_str("timezone")?.map(str::to_owned),
-            created_at: row.get_str("created_at")?.to_owned(),
-        })
-    }
-}
-
-pub(crate) async fn fetch_agency<P: TableStore>(provider: &P, id: i64) -> Result<Option<Agency>> {
-    let rows = TableStore::query(
-        provider,
-        CONNECTION.to_owned(),
-        format!("SELECT {AGENCY_COLUMNS} FROM agency WHERE agency_id = $1"),
-        vec![DataType::Int64(Some(id))],
-    )
-    .await?;
-    rows.first().map(Agency::try_from).transpose()
+pub(crate) async fn fetch_agency<P: TableStore>(tables: &P, id: i64) -> Result<Option<Agency>> {
+    let agencies: Vec<Agency> = tables
+        .query_as(
+            CONNECTION,
+            &format!("SELECT {AGENCY_COLUMNS} FROM agency WHERE agency_id = $1"),
+            &[DataType::Int64(Some(id))],
+        )
+        .await?;
+    Ok(agencies.into_iter().next())
 }
 
 // A concurrent create simply fails on the primary key — acceptable for an
 // example; production code would use a database sequence.
-async fn next_agency_id<P: TableStore>(provider: &P) -> Result<i64> {
-    let rows = TableStore::query(
-        provider,
-        CONNECTION.to_owned(),
-        "SELECT agency_id FROM agency ORDER BY agency_id DESC LIMIT 1".to_owned(),
-        vec![],
-    )
-    .await?;
-    let newest = rows.first().map(|row| row.get_i64("agency_id")).transpose()?;
+async fn next_agency_id<P: TableStore>(tables: &P) -> Result<i64> {
+    let rows = tables
+        .query(CONNECTION, "SELECT agency_id FROM agency ORDER BY agency_id DESC LIMIT 1", &[])
+        .await?;
+    let newest: Option<i64> = rows.first().map(|row| row.get("agency_id")).transpose()?;
     Ok(newest.map_or(1, |id| id + 1))
 }
 
@@ -102,8 +84,8 @@ pub(crate) async fn list_agencies<P>(
 where
     P: TableStore + 'static,
 {
-    let provider = context.provider();
-    schema::ensure(provider).await?;
+    let tables = context.tables();
+    schema::ensure(tables).await?;
 
     let mut sql = format!("SELECT {AGENCY_COLUMNS} FROM agency ORDER BY created_at DESC");
     let mut params = Vec::new();
@@ -112,8 +94,7 @@ where
         params.push(DataType::Uint64(Some(limit)));
     }
 
-    let rows = TableStore::query(provider, CONNECTION.to_owned(), sql, params).await?;
-    let agencies = rows.iter().map(Agency::try_from).collect::<Result<Vec<_>>>()?;
+    let agencies = tables.query_as(CONNECTION, &sql, &params).await?;
 
     Ok(Json(AgenciesReply { agencies }))
 }
@@ -142,30 +123,30 @@ pub(crate) async fn create_agency<P>(
 where
     P: TableStore + 'static,
 {
-    let provider = context.provider();
-    schema::ensure(provider).await?;
+    let tables = context.tables();
+    schema::ensure(tables).await?;
 
     let agency = Agency {
-        agency_id: next_agency_id(provider).await?,
+        agency_id: next_agency_id(tables).await?,
         name: input.name,
         url: input.url,
         timezone: input.timezone,
         created_at: Utc::now().format("%Y-%m-%d %H:%M:%S").to_string(),
     };
 
-    TableStore::exec(
-        provider,
-        CONNECTION.to_owned(),
-        format!("INSERT INTO agency ({AGENCY_COLUMNS}) VALUES ($1, $2, $3, $4, $5)"),
-        vec![
-            DataType::Int64(Some(agency.agency_id)),
-            DataType::Str(Some(agency.name.clone())),
-            DataType::Str(agency.url.clone()),
-            DataType::Str(agency.timezone.clone()),
-            DataType::Str(Some(agency.created_at.clone())),
-        ],
-    )
-    .await?;
+    tables
+        .exec(
+            CONNECTION,
+            &format!("INSERT INTO agency ({AGENCY_COLUMNS}) VALUES ($1, $2, $3, $4, $5)"),
+            &[
+                DataType::Int64(Some(agency.agency_id)),
+                DataType::Str(Some(agency.name.clone())),
+                DataType::Str(agency.url.clone()),
+                DataType::Str(agency.timezone.clone()),
+                DataType::Str(Some(agency.created_at.clone())),
+            ],
+        )
+        .await?;
 
     Ok(Json(AgencyReply { agency }))
 }
@@ -176,11 +157,11 @@ pub(crate) async fn get_agency<P>(
 where
     P: TableStore + 'static,
 {
-    let provider = context.provider();
-    schema::ensure(provider).await?;
+    let tables = context.tables();
+    schema::ensure(tables).await?;
 
     let agency =
-        fetch_agency(provider, id).await?.ok_or_else(|| not_found!("agency {id} not found"))?;
+        fetch_agency(tables, id).await?.ok_or_else(|| not_found!("agency {id} not found"))?;
 
     Ok(Json(AgencyReply { agency }))
 }
@@ -202,10 +183,10 @@ pub(crate) async fn update_agency<P>(
 where
     P: TableStore + 'static,
 {
-    let provider = context.provider();
-    schema::ensure(provider).await?;
+    let tables = context.tables();
+    schema::ensure(tables).await?;
 
-    if fetch_agency(provider, id).await?.is_none() {
+    if fetch_agency(tables, id).await?.is_none() {
         return Err(not_found!("agency {id} not found"));
     }
 
@@ -226,10 +207,10 @@ where
     params.push(DataType::Int64(Some(id)));
     let sql =
         format!("UPDATE agency SET {} WHERE agency_id = ${}", assignments.join(", "), params.len());
-    TableStore::exec(provider, CONNECTION.to_owned(), sql, params).await?;
+    tables.exec(CONNECTION, &sql, &params).await?;
 
     // fetch after update so the reply reflects what was stored
-    let agency = fetch_agency(provider, id)
+    let agency = fetch_agency(tables, id)
         .await?
         .ok_or_else(|| not_found!("agency {id} not found after update"))?;
 

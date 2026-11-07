@@ -49,9 +49,8 @@ stem after the anchor `HANDLER_LIST_ANCHOR` names, and bound over
 `messaging::export!(router)`; `tests/routes.rs` and `tests/messaging.rs`, one native rung each
 that builds the composed router over `omnia_test::guest::Provider`, so
 two stems serving one route or consuming one topic fail there;
-`crates/common`, the `Capabilities` bound a stem's handlers take, the
-topic table a publisher and its consumer agree on, and typed SQL column
-reads (`RowExt`); and
+`crates/common`, the `Capabilities` bound a stem's handlers take and the
+topic table a publisher and its consumer agree on; and
 `examples/runtime.rs`, the local host behind `host`. Its shared
 dependency pins and patches must match the root workspace's, and
 `templates/check/tests/scaffold.rs` renders the whole manifest into
