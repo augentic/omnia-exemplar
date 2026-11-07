@@ -1,9 +1,9 @@
 //! Recording XML dispatch notices from the warehouse stream.
 
-use common::{Capabilities, topic};
+use common::topic;
 use omnia_sdk::api::messaging::Delivery;
 use omnia_sdk::api::{Context, DecodeError, Handlers};
-use omnia_sdk::{Result, StateStore, bad_request};
+use omnia_sdk::{Capabilities, Result, StateStore, bad_request};
 use serde::{Deserialize, Serialize};
 
 pub(crate) fn handlers<P: Capabilities>() -> Handlers<P> {

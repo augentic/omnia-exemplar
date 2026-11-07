@@ -1,10 +1,11 @@
 //! Motion AVL message processing.
 
 use chrono::{DateTime, Utc};
-use common::{Capabilities, topic};
+use common::topic;
 use omnia_sdk::api::{Context, Handlers};
 use omnia_sdk::{
-    Config, Error, HttpRequest, Identity, Message, Publish, Result, StateStore, bad_request,
+    Capabilities, Config, Error, HttpRequest, Identity, Message, Publish, Result, StateStore,
+    bad_request,
 };
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -34,10 +35,7 @@ impl MotionError {
 
 impl From<MotionError> for Error {
     fn from(err: MotionError) -> Self {
-        Self::BadRequest {
-            code: err.code(),
-            description: err.to_string(),
-        }
+        Self::bad_request(err.code(), err.to_string())
     }
 }
 

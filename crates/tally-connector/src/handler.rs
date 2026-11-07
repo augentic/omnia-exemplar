@@ -2,9 +2,9 @@
 
 use axum::Json;
 use axum::routing::post;
-use common::{Capabilities, topic};
+use common::topic;
 use omnia_sdk::api::{Context, Handlers};
-use omnia_sdk::{Message, Publish, Result};
+use omnia_sdk::{Capabilities, Message, Publish, Result};
 use serde::{Deserialize, Serialize};
 
 use crate::types::TallyMessage;
@@ -19,7 +19,7 @@ pub(crate) async fn tally<P>(
     context: Context<P>, Json(input): Json<TallyRequest>,
 ) -> Result<Json<TallyReply>>
 where
-    P: Publish + 'static,
+    P: Publish,
 {
     let message = &input.message;
 

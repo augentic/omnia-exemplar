@@ -9,10 +9,9 @@ use axum::Json;
 use axum::extract::{Path, Query};
 use axum::routing::get;
 use chrono::Utc;
-use common::Capabilities;
 use omnia_sdk::api::{Context, Handlers};
 use omnia_sdk::sql::{DataType, FromRow};
-use omnia_sdk::{Result, TableStore, TableStoreExt as _, bad_request, not_found};
+use omnia_sdk::{Capabilities, Result, TableStore, TableStoreExt as _, bad_request, not_found};
 use serde::{Deserialize, Serialize};
 
 use crate::schema::{self, CONNECTION};
@@ -82,7 +81,7 @@ pub(crate) async fn list_agencies<P>(
     context: Context<P>, Query(input): Query<ListAgenciesRequest>,
 ) -> Result<Json<AgenciesReply>>
 where
-    P: TableStore + 'static,
+    P: TableStore,
 {
     let tables = context.tables();
     schema::ensure(tables).await?;
@@ -121,7 +120,7 @@ pub(crate) async fn create_agency<P>(
     context: Context<P>, Json(input): Json<CreateAgencyRequest>,
 ) -> Result<Json<AgencyReply>>
 where
-    P: TableStore + 'static,
+    P: TableStore,
 {
     let tables = context.tables();
     schema::ensure(tables).await?;
@@ -155,7 +154,7 @@ pub(crate) async fn get_agency<P>(
     context: Context<P>, Path(id): Path<i64>,
 ) -> Result<Json<AgencyReply>>
 where
-    P: TableStore + 'static,
+    P: TableStore,
 {
     let tables = context.tables();
     schema::ensure(tables).await?;
@@ -181,7 +180,7 @@ pub(crate) async fn update_agency<P>(
     context: Context<P>, Path(id): Path<i64>, Json(input): Json<UpdateAgencyRequest>,
 ) -> Result<Json<AgencyReply>>
 where
-    P: TableStore + 'static,
+    P: TableStore,
 {
     let tables = context.tables();
     schema::ensure(tables).await?;

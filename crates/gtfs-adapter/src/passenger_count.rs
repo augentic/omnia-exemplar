@@ -2,9 +2,9 @@
 //!
 //! This module stores occupancy status for a given vehicle and trip.
 
-use common::{Capabilities, topic};
+use common::topic;
 use omnia_sdk::api::{Context, Handlers};
-use omnia_sdk::{Result, StateStore, StateStoreExt as _};
+use omnia_sdk::{Capabilities, Result, StateStore, StateStoreExt as _};
 use serde::{Deserialize, Serialize};
 
 use crate::state_keys;

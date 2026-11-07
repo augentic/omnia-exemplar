@@ -9,10 +9,9 @@ use axum::Json;
 use axum::extract::{Path, Query};
 use axum::routing::{delete, get};
 use chrono::Utc;
-use common::Capabilities;
 use omnia_sdk::api::{Context, Handlers};
 use omnia_sdk::sql::{DataType, FromRow};
-use omnia_sdk::{Result, TableStore, TableStoreExt as _, not_found};
+use omnia_sdk::{Capabilities, Result, TableStore, TableStoreExt as _, not_found};
 use serde::{Deserialize, Serialize};
 
 use crate::agency::fetch_agency;
@@ -83,7 +82,7 @@ pub(crate) async fn list_agency_feeds<P>(
     context: Context<P>, Path(agency_id): Path<i64>,
 ) -> Result<Json<FeedsReply>>
 where
-    P: TableStore + 'static,
+    P: TableStore,
 {
     let tables = context.tables();
     schema::ensure(tables).await?;
@@ -119,7 +118,7 @@ pub(crate) async fn create_feed<P>(
     context: Context<P>, Path(agency_id): Path<i64>, Json(input): Json<CreateFeedRequest>,
 ) -> Result<Json<FeedReply>>
 where
-    P: TableStore + 'static,
+    P: TableStore,
 {
     let tables = context.tables();
     schema::ensure(tables).await?;
@@ -170,7 +169,7 @@ pub(crate) async fn list_all_feeds<P>(
     context: Context<P>, Query(input): Query<ListAllFeedsRequest>,
 ) -> Result<Json<FeedsWithAgencyReply>>
 where
-    P: TableStore + 'static,
+    P: TableStore,
 {
     let tables = context.tables();
     schema::ensure(tables).await?;
@@ -200,7 +199,7 @@ pub(crate) async fn delete_feed<P>(
     context: Context<P>, Path(id): Path<i64>,
 ) -> Result<Json<DeleteFeedReply>>
 where
-    P: TableStore + 'static,
+    P: TableStore,
 {
     let tables = context.tables();
     schema::ensure(tables).await?;

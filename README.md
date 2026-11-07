@@ -168,7 +168,7 @@ consumer is out of scope for the exemplar.
 
 | Crate | Role |
 | --- | --- |
-| `crates/common` | The `Capabilities` bound every stem's `handlers()` takes and the topic table (`common::topic`) |
+| `crates/common` | The topic table (`common::topic`) a publishing stem and its consumer both name |
 | `crates/pulse-connector` | HTTP ingress for the vendor "Pulse" SOAP/XML position feed; republishes to messaging |
 | `crates/pulse-adapter` | Converts Pulse train updates into Motion location events |
 | `crates/tally-connector` | HTTP ingress for the vendor "Tally" passenger-count feed |
@@ -194,7 +194,7 @@ clients stay provider-generic.
 2. Create the crate under `crates/` and add `<stem> = { path = "crates/<stem>" }`
    to `[dependencies]` in the root `Cargo.toml`.
 3. Implement the `pub` input and reply types and a handler fn with the
-   narrowest capability bounds it needs (e.g. `P: Config + Publish + 'static`).
+   narrowest capability bounds it needs (e.g. `P: Config + Publish`).
    An HTTP handler is a plain axum handler taking `Context<P>` as an
    extractor alongside axum's own
    (`pub(crate) async fn name<P>(context: Context<P>, Json(input): Json<Input>) -> Result<Json<Reply>>`);

@@ -2,9 +2,8 @@
 
 use axum::Json;
 use axum::routing::post;
-use common::Capabilities;
 use omnia_sdk::api::{Context, Handlers};
-use omnia_sdk::{BlobStore, Result};
+use omnia_sdk::{BlobStore, Capabilities, Result};
 use serde::{Deserialize, Serialize};
 
 pub(crate) const ARCHIVE: &str = "/examples/archive";
@@ -35,7 +34,7 @@ pub(crate) async fn archive<P>(
     context: Context<P>, Json(input): Json<ArchiveRequest>,
 ) -> Result<Json<ArchiveReply>>
 where
-    P: BlobStore + 'static,
+    P: BlobStore,
 {
     let provider = context.provider();
 

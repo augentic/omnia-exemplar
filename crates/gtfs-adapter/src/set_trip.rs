@@ -4,9 +4,8 @@ use anyhow::Context as _;
 use axum::Json;
 use axum::extract::Path;
 use axum::routing::post;
-use common::Capabilities;
 use omnia_sdk::api::{Context, Handlers};
-use omnia_sdk::{Config, Result, StateStore, bad_request};
+use omnia_sdk::{Capabilities, Config, Result, StateStore, bad_request};
 use serde::{Deserialize, Serialize};
 
 use crate::god_mode;
@@ -40,7 +39,7 @@ pub(crate) async fn set_trip<P>(
     context: Context<P>, Path(input): Path<SetTripRequest>,
 ) -> Result<Json<SetTripReply>>
 where
-    P: Config + StateStore + 'static,
+    P: Config + StateStore,
 {
     let provider = context.provider();
 

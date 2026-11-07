@@ -5,14 +5,14 @@
 use anyhow::Context as _;
 use axum::body::Body;
 use chrono::Utc;
-use common::{Capabilities, topic};
+use common::topic;
 use http::Method;
 use http::header::AUTHORIZATION;
 use omnia_sdk::api::messaging::Delivery;
 use omnia_sdk::api::{Context, DecodeError, Handlers};
 use omnia_sdk::{
-    Config, Error, HttpRequest, HttpRequestExt as _, Identity, IdentityExt, Message, Publish,
-    Result, Settings, StateStore,
+    Capabilities, Config, Error, HttpRequest, HttpRequestExt as _, Identity, IdentityExt, Message,
+    Publish, Result, Settings, StateStore,
 };
 use serde::Deserialize;
 use thiserror::Error;
@@ -87,10 +87,7 @@ impl From<quick_xml::DeError> for PulseMessageError {
 
 impl From<PulseMessageError> for Error {
     fn from(err: PulseMessageError) -> Self {
-        Self::BadRequest {
-            code: err.code(),
-            description: err.to_string(),
-        }
+        Self::bad_request(err.code(), err.to_string())
     }
 }
 

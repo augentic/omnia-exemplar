@@ -5,7 +5,7 @@
 //! over its provider, so `tests/routes.rs` and `tests/messaging.rs` build the
 //! production router natively under `omnia_test::guest::Provider` doubles.
 
-use common::Capabilities;
+use omnia_sdk::Capabilities;
 use omnia_sdk::api::{Client, Handlers, Router, http, messaging};
 
 /// Build the guest router over one provider-owning [`Client`].

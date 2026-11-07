@@ -3,9 +3,10 @@
 use axum::Json;
 use axum::extract::Path;
 use axum::routing::get;
-use common::Capabilities;
 use omnia_sdk::api::{Context, Handlers};
-use omnia_sdk::{Config, HttpRequest, Identity, Result, StateStore, StateStoreExt as _};
+use omnia_sdk::{
+    Capabilities, Config, HttpRequest, Identity, Result, StateStore, StateStoreExt as _,
+};
 use serde::{Deserialize, Serialize};
 
 use crate::fleet::{self, Vehicle};
@@ -44,7 +45,7 @@ pub(crate) async fn vehicle_info<P>(
     context: Context<P>, Path(vehicle_id): Path<String>,
 ) -> Result<Json<VehicleInfoReply>>
 where
-    P: Config + HttpRequest + Identity + StateStore + 'static,
+    P: Config + HttpRequest + Identity + StateStore,
 {
     let trip_key = state_keys::trip(&vehicle_id);
     let trip_info: Option<TripInstance> = context.state().get_json(&trip_key).await?;

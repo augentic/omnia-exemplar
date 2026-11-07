@@ -1,8 +1,8 @@
 //! Train AVL message filtering.
 
-use common::{Capabilities, topic};
+use common::topic;
 use omnia_sdk::api::{Context, Handlers};
-use omnia_sdk::{Config, HttpRequest, Identity, Publish, Result, StateStore};
+use omnia_sdk::{Capabilities, Config, HttpRequest, Identity, Publish, Result, StateStore};
 use serde::Deserialize;
 
 use crate::fleet;

@@ -18,10 +18,9 @@ use axum::Json;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
-use common::Capabilities;
 use omnia_sdk::api::{Context, Handlers};
 use omnia_sdk::sql::{DataType, FromRow};
-use omnia_sdk::{Error, TableStore, TableStoreExt as _};
+use omnia_sdk::{Capabilities, Error, TableStore, TableStoreExt as _};
 use serde::{Deserialize, Serialize};
 
 pub(crate) const PLACES: &str = "/examples/patterns/places";
@@ -159,7 +158,7 @@ pub(crate) async fn upsert_place<P>(
     context: Context<P>, Json(input): Json<UpsertPlaceRequest>,
 ) -> Result<Json<UpsertPlaceReply>, PlaceError>
 where
-    P: TableStore + 'static,
+    P: TableStore,
 {
     coordinate("lat", input.lat, -90.0, 90.0)?;
     coordinate("lon", input.lon, -180.0, 180.0)?;
@@ -214,7 +213,7 @@ pub(crate) async fn nearby_places<P>(
     context: Context<P>, Json(input): Json<NearbyPlacesRequest>,
 ) -> Result<Json<NearbyPlacesReply>, Error>
 where
-    P: TableStore + 'static,
+    P: TableStore,
 {
     // A degree bounding box over-approximates the radius: cheap for the
     // database (plain comparisons, indexable), refined exactly below.

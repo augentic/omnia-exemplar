@@ -9,10 +9,9 @@ use anyhow::Context as _;
 use axum::Json;
 use axum::extract::{Path, Query};
 use axum::routing::get;
-use common::Capabilities;
 use omnia_sdk::api::{Context, Handlers};
 use omnia_sdk::docstore::{Document, Filter, QueryOptions, ScalarValue, SortField};
-use omnia_sdk::{DocumentStore, Result, not_found};
+use omnia_sdk::{Capabilities, DocumentStore, Result, not_found};
 use serde::{Deserialize, Serialize};
 
 use crate::stop::{DocumentRecord, records};
@@ -54,7 +53,7 @@ pub(crate) async fn create_route<P>(
     context: Context<P>, Json(input): Json<CreateRouteRequest>,
 ) -> Result<Json<DocumentRecord<Route>>>
 where
-    P: DocumentStore + 'static,
+    P: DocumentStore,
 {
     let document = Document {
         id: input.id.clone(),
@@ -72,7 +71,7 @@ pub(crate) async fn get_route<P>(
     context: Context<P>, Path(id): Path<String>,
 ) -> Result<Json<DocumentRecord<Route>>>
 where
-    P: DocumentStore + 'static,
+    P: DocumentStore,
 {
     let document = DocumentStore::get(context.provider(), COLLECTION, &id)
         .await?
@@ -122,7 +121,7 @@ pub(crate) async fn list_routes<P>(
     context: Context<P>, Query(input): Query<ListRoutesRequest>,
 ) -> Result<Json<RoutesReply>>
 where
-    P: DocumentStore + 'static,
+    P: DocumentStore,
 {
     let mut filters = Vec::new();
 

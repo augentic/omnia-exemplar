@@ -11,9 +11,8 @@ use axum::extract::Path;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use axum::routing::put;
-use common::Capabilities;
 use omnia_sdk::api::{Context, Handlers};
-use omnia_sdk::{CasError, StateStore, not_found, server_error};
+use omnia_sdk::{Capabilities, CasError, StateStore, not_found, server_error};
 use serde::{Deserialize, Serialize};
 
 pub(crate) const QUOTA: &str = "/examples/patterns/quotas/{tenant}";
@@ -94,7 +93,7 @@ pub(crate) async fn update_quota<P>(
     context: Context<P>, Path(tenant): Path<String>, Json(input): Json<UpdateQuotaRequest>,
 ) -> Result<Json<QuotaRecord>, QuotaError>
 where
-    P: StateStore + 'static,
+    P: StateStore,
 {
     let key = quota_key(&tenant);
     let current = context.state().get(&key).await?;

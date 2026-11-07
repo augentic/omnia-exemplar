@@ -322,7 +322,6 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "axum",
- "common",
  "omnia-sdk",
  "omnia-test",
  "serde",
@@ -458,9 +457,6 @@ dependencies = [
 [[package]]
 name = "common"
 version = "0.1.0"
-dependencies = [
- "omnia-sdk",
-]
 
 [[package]]
 name = "const-hex"
@@ -996,7 +992,6 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "axum",
- "common",
  "omnia-sdk",
  "omnia-test",
  "serde",
@@ -2811,7 +2806,6 @@ dependencies = [
  "anyhow",
  "axum",
  "bytes",
- "common",
  "omnia-sdk",
  "omnia-test",
  "serde",
@@ -3941,7 +3935,6 @@ dependencies = [
  "anyhow",
  "axum",
  "chrono",
- "common",
  "omnia-sdk",
  "omnia-test",
  "serde",

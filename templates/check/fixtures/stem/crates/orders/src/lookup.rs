@@ -6,9 +6,8 @@ use axum::extract::Path;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use axum::routing::get;
-use common::Capabilities;
 use omnia_sdk::api::{Context, Handlers};
-use omnia_sdk::{StateStore, StateStoreExt as _, not_found};
+use omnia_sdk::{Capabilities, StateStore, StateStoreExt as _, not_found};
 use serde::{Deserialize, Serialize};
 
 // The paths the part serves.
@@ -72,7 +71,7 @@ pub(crate) async fn lookup<P>(
     context: Context<P>, Path(id): Path<String>,
 ) -> Result<(StatusCode, Json<OrderStatus>), LookupError>
 where
-    P: StateStore + 'static,
+    P: StateStore,
 {
     let key = order_key(&id);
     let status: OrderStatus = context

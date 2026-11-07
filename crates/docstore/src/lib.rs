@@ -31,7 +31,7 @@ pub mod route;
 pub mod stop;
 pub mod stop_time;
 
-use common::Capabilities;
+use omnia_sdk::Capabilities;
 use omnia_sdk::api::Handlers;
 
 /// The stem's handlers, merged onto the root routers.

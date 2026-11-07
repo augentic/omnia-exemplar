@@ -7,7 +7,7 @@ pub mod motion;
 pub mod pulse;
 pub mod stops;
 
-use common::Capabilities;
+use omnia_sdk::Capabilities;
 use omnia_sdk::api::Handlers;
 
 /// The stem's handlers, merged onto the root routers.

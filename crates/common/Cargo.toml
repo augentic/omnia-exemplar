@@ -1,6 +1,6 @@
 [package]
 name = "common"
-description = "The capability bound, the topic table, and typed SQL column reads every stem shares"
+description = "The topic table every stem shares"
 publish.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -8,6 +8,3 @@ version.workspace = true
 
 [lints]
 workspace = true
-
-[dependencies]
-omnia-sdk.workspace = true

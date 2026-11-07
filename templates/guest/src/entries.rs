@@ -92,8 +92,7 @@ macro_rules! seed {
 ///   handler list in `src/lib.rs`, one entry per stem after
 ///   [`HANDLER_LIST_ANCHOR`], built natively by the rungs under `tests/`;
 ///   the file is listed, so the rungs rather than the hold pin its router;
-/// - `crates/common` holds the capability bound, the topic table, and the
-///   typed SQL column reads every stem shares;
+/// - `crates/common` holds the topic table every stem shares;
 /// - `examples/runtime.rs` is the local host behind the `host` feature;
 /// - the rest is the tooling this repository runs under, the toolchain,
 ///   the formatter, lint, deny, and vet configuration, the task runner,

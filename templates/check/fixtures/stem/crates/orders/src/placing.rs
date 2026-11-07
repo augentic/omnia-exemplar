@@ -2,9 +2,11 @@
 
 use axum::Json;
 use axum::routing::post;
-use common::{Capabilities, topic};
+use common::topic;
 use omnia_sdk::api::{Context, Handlers};
-use omnia_sdk::{Config, Message, Publish, Result, Settings, StateStore, bad_request};
+use omnia_sdk::{
+    Capabilities, Config, Message, Publish, Result, Settings, StateStore, bad_request,
+};
 use serde::{Deserialize, Serialize};
 
 // The paths the part serves.
@@ -42,7 +44,7 @@ pub(crate) async fn place<P>(
     context: Context<P>, Json(input): Json<PlaceOrder>,
 ) -> Result<Json<Placed>>
 where
-    P: Config + Publish + 'static,
+    P: Config + Publish,
 {
     let settings = PlacingSettings::load(context.config()).await?;
     if input.lines.is_empty() {

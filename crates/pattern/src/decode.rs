@@ -13,10 +13,10 @@ use axum::Json;
 use axum::body::Body;
 use axum::http::{Method, Request};
 use axum::routing::post;
-use common::Capabilities;
 use omnia_sdk::api::{Context, Handlers};
 use omnia_sdk::{
-    Config, HttpRequest, HttpRequestExt as _, Result, Settings, StateStore, StateStoreExt as _,
+    Capabilities, Config, HttpRequest, HttpRequestExt as _, Result, Settings, StateStore,
+    StateStoreExt as _,
 };
 use serde::{Deserialize, Serialize};
 
@@ -72,7 +72,7 @@ pub(crate) async fn decode_segment<P>(
     context: Context<P>, Json(input): Json<DecodeSegmentRequest>,
 ) -> Result<Json<DecodeSegmentReply>>
 where
-    P: Config + HttpRequest + StateStore + 'static,
+    P: Config + HttpRequest + StateStore,
 {
     let key = segment_key(&input.code);
 

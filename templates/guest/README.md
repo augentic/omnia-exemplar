@@ -49,8 +49,8 @@ stem after the anchor `HANDLER_LIST_ANCHOR` names, and bound over
 `messaging::export!(router)`; `tests/routes.rs` and `tests/messaging.rs`, one native rung each
 that builds the composed router over `omnia_test::guest::Provider`, so
 two stems serving one route or consuming one topic fail there;
-`crates/common`, the `Capabilities` bound a stem's handlers take and the
-topic table a publisher and its consumer agree on; and
+`crates/common`, the topic table a publisher and its consumer agree on;
+and
 `examples/runtime.rs`, the local host behind `host`. Its shared
 dependency pins and patches must match the root workspace's, and
 `templates/check/tests/scaffold.rs` renders the whole manifest into
@@ -64,7 +64,8 @@ A stem is one crate under `crates/<stem>/`, and the fixture stem
 the shape a generated stem copies. Its
 `src/lib.rs` is the crate doc, one `pub mod <part>;` line per part, and
 the function the root list composes, written whatever parts the stem has:
-`pub fn handlers<P: Capabilities>() -> Handlers<P>`,
+`pub fn handlers<P: Capabilities>() -> Handlers<P>` over
+`omnia_sdk::Capabilities`,
 `Handlers::from([..])` over one `<part>::handlers(),` entry per part. The array is a list
 opened by `HANDLER_LIST_ANCHOR`, empty for a stem with no part yet, so every
 line of the entry outside its two lists is the same whichever slice

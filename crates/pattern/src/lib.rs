@@ -37,7 +37,7 @@ pub mod decode;
 pub mod identity;
 pub mod place;
 
-use common::Capabilities;
+use omnia_sdk::Capabilities;
 use omnia_sdk::api::Handlers;
 
 /// The stem's handlers, merged onto the root routers.

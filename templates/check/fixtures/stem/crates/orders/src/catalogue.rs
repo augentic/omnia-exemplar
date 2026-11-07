@@ -4,10 +4,11 @@
 use axum::Json;
 use axum::extract::Query;
 use axum::routing::get;
-use common::Capabilities;
 use omnia_sdk::api::{Context, Handlers};
 use omnia_sdk::sql::{DataType, FromRow};
-use omnia_sdk::{Result, StateStore, StateStoreExt as _, TableStore, TableStoreExt as _};
+use omnia_sdk::{
+    Capabilities, Result, StateStore, StateStoreExt as _, TableStore, TableStoreExt as _,
+};
 use serde::{Deserialize, Serialize};
 
 // The paths the part serves.
@@ -53,7 +54,7 @@ pub(crate) async fn list_catalogue<P>(
     context: Context<P>, Query(input): Query<ListCatalogue>,
 ) -> Result<Json<CatalogueReply>>
 where
-    P: StateStore + TableStore + 'static,
+    P: StateStore + TableStore,
 {
     let min_cents = input.min_cents.unwrap_or(0);
 

@@ -11,9 +11,9 @@ use axum::http::StatusCode;
 use axum::http::header::CONTENT_TYPE;
 use axum::response::{IntoResponse, Response};
 use axum::routing::post;
-use common::{Capabilities, topic};
+use common::topic;
 use omnia_sdk::api::{Context, Handlers};
-use omnia_sdk::{Error, Message, Publish};
+use omnia_sdk::{Capabilities, Error, Message, Publish};
 use serde::{Deserialize, Serialize};
 
 pub(crate) const PULSE_XML: &str = "/inbound/xml";
@@ -44,7 +44,7 @@ pub(crate) fn handlers<P: Capabilities>() -> Handlers<P> {
 // extractor's rejection.
 pub(crate) async fn pulse<P>(context: Context<P>, body: Bytes) -> Result<PulseReply, Fault>
 where
-    P: Publish + 'static,
+    P: Publish,
 {
     // Parse and verify the message. Rejections are SOAP <Fault> envelopes
     // because the Pulse vendor protocol requires an XML fault body. This is

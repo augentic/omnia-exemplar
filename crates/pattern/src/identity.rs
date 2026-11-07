@@ -13,10 +13,10 @@ use axum::extract::Path;
 use axum::http::header::AUTHORIZATION;
 use axum::http::{Method, Request};
 use axum::routing::get;
-use common::Capabilities;
 use omnia_sdk::api::{Context, Handlers};
 use omnia_sdk::{
-    Config, HttpRequest, HttpRequestExt as _, Identity, IdentityExt as _, Result, Settings,
+    Capabilities, Config, HttpRequest, HttpRequestExt as _, Identity, IdentityExt as _, Result,
+    Settings,
 };
 use serde::{Deserialize, Serialize};
 
@@ -49,7 +49,7 @@ pub(crate) async fn fetch_upstream_status<P>(
     context: Context<P>, Path(resource): Path<String>,
 ) -> Result<Json<UpstreamStatusReply>>
 where
-    P: Config + HttpRequest + Identity + 'static,
+    P: Config + HttpRequest + Identity,
 {
     let settings = IdentitySettings::load(context.config()).await?;
     let token = context.identity().access_token(&settings.upstream_identity).await?;

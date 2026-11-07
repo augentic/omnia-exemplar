@@ -3,10 +3,9 @@
 use anyhow::Context as _;
 use axum::Json;
 use axum::routing::post;
-use common::Capabilities;
 use omnia_sdk::api::{Context, Handlers};
 use omnia_sdk::docstore::Document;
-use omnia_sdk::{DocumentStore, Result};
+use omnia_sdk::{Capabilities, DocumentStore, Result};
 use serde::{Deserialize, Serialize};
 
 pub(crate) const NOTE: &str = "/examples/note";
@@ -37,7 +36,7 @@ pub(crate) async fn note<P>(
     context: Context<P>, Json(input): Json<NoteRequest>,
 ) -> Result<Json<NoteReply>>
 where
-    P: DocumentStore + 'static,
+    P: DocumentStore,
 {
     let provider = context.provider();
 

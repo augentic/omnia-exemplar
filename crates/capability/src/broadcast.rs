@@ -6,9 +6,8 @@
 
 use axum::Json;
 use axum::routing::post;
-use common::Capabilities;
 use omnia_sdk::api::{Context, Handlers};
-use omnia_sdk::{Broadcast, Result};
+use omnia_sdk::{Broadcast, Capabilities, Result};
 use serde::{Deserialize, Serialize};
 
 pub(crate) const ALERT: &str = "/examples/alert";
@@ -37,7 +36,7 @@ pub(crate) async fn alert<P>(
     context: Context<P>, Json(input): Json<AlertRequest>,
 ) -> Result<Json<AlertReply>>
 where
-    P: Broadcast + 'static,
+    P: Broadcast,
 {
     Broadcast::send(context.provider(), &input.channel, input.message.as_bytes(), input.sockets)
         .await?;

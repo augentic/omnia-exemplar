@@ -2,10 +2,9 @@
 
 use axum::Json;
 use axum::routing::post;
-use common::Capabilities;
 use omnia_sdk::api::{Context, Handlers};
 use omnia_sdk::sql::DataType;
-use omnia_sdk::{Result, TableStore};
+use omnia_sdk::{Capabilities, Result, TableStore};
 use serde::{Deserialize, Serialize};
 
 pub(crate) const READING: &str = "/examples/reading";
@@ -47,7 +46,7 @@ pub(crate) async fn reading<P>(
     context: Context<P>, Json(input): Json<ReadingRequest>,
 ) -> Result<Json<ReadingReply>>
 where
-    P: TableStore + 'static,
+    P: TableStore,
 {
     let tables = context.tables();
 

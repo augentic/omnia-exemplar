@@ -10,10 +10,9 @@ use anyhow::Context as _;
 use axum::Json;
 use axum::extract::{Path, Query};
 use axum::routing::get;
-use common::Capabilities;
 use omnia_sdk::api::{Context, Handlers};
 use omnia_sdk::docstore::{Document, Filter, QueryOptions, SortField};
-use omnia_sdk::{DocumentStore, Result, bad_request, not_found};
+use omnia_sdk::{Capabilities, DocumentStore, Result, bad_request, not_found};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 
@@ -91,7 +90,7 @@ pub(crate) async fn create_stop<P>(
     context: Context<P>, Json(input): Json<CreateStopRequest>,
 ) -> Result<Json<DocumentRecord<Stop>>>
 where
-    P: DocumentStore + 'static,
+    P: DocumentStore,
 {
     let document = Document {
         id: input.id.clone(),
@@ -109,7 +108,7 @@ pub(crate) async fn get_stop<P>(
     context: Context<P>, Path(id): Path<String>,
 ) -> Result<Json<DocumentRecord<Stop>>>
 where
-    P: DocumentStore + 'static,
+    P: DocumentStore,
 {
     let document = DocumentStore::get(context.provider(), COLLECTION, &id)
         .await?
@@ -127,7 +126,7 @@ pub(crate) async fn upsert_stop<P>(
     context: Context<P>, Path(id): Path<String>, Json(stop): Json<Stop>,
 ) -> Result<Json<DocumentRecord<Stop>>>
 where
-    P: DocumentStore + 'static,
+    P: DocumentStore,
 {
     let document = Document {
         id: id.clone(),
@@ -149,7 +148,7 @@ pub(crate) async fn delete_stop<P>(
     context: Context<P>, Path(id): Path<String>,
 ) -> Result<Json<DeleteStopReply>>
 where
-    P: DocumentStore + 'static,
+    P: DocumentStore,
 {
     let removed = DocumentStore::delete(context.provider(), COLLECTION, &id).await?;
     if !removed {
@@ -204,7 +203,7 @@ pub(crate) async fn list_stops<P>(
     context: Context<P>, Query(input): Query<ListStopsRequest>,
 ) -> Result<Json<StopsReply>>
 where
-    P: DocumentStore + 'static,
+    P: DocumentStore,
 {
     let mut filters = Vec::new();
 
