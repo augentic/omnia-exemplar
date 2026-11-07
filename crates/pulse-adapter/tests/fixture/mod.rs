@@ -181,11 +181,12 @@ pub fn delivery_error_matches(expected: &omnia_sdk::Error, error: &DeliveryError
         return false;
     }
     let desc = expected.description();
-    match extract_delay_seconds(&desc) {
-        Some(expected_secs) => extract_delay_seconds(msg)
-            .is_some_and(|actual| (actual - expected_secs).abs() <= 3),
-        None => msg.contains(&desc),
-    }
+    extract_delay_seconds(&desc).map_or_else(
+        || msg.contains(&desc),
+        |expected_secs| {
+            extract_delay_seconds(msg).is_some_and(|actual| (actual - expected_secs).abs() <= 3)
+        },
+    )
 }
 
 fn extract_delay_seconds(text: &str) -> Option<i64> {
@@ -193,7 +194,7 @@ fn extract_delay_seconds(text: &str) -> Option<i64> {
         let Some(rest) = text.split_once(prefix).map(|(_, rest)| rest) else {
             continue;
         };
-        let digits: String = rest.chars().take_while(|c| c.is_ascii_digit()).collect();
+        let digits: String = rest.chars().take_while(char::is_ascii_digit).collect();
         if let Ok(secs) = digits.parse() {
             return Some(secs);
         }
