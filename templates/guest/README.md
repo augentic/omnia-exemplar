@@ -44,7 +44,9 @@ as both the workspace and the deployable package, `crate-type =
 `wasm32`-excluded `omnia-test` dev-dependency (`features = ["guest"]`)
 and the `host` feature; `src/lib.rs` with `router`, a
 provider-generic router composed from the single list of one entry per
-stem after the anchor `HANDLER_LIST_ANCHOR` names, and bound over
+stem after the anchor `HANDLER_LIST_ANCHOR` names, laid one entry per line
+under the comment that heads the array so two stems listed in one merge
+land as two lines, and bound over
 `omnia_sdk::WasiProvider` by `http::export!(router)` and
 `messaging::export!(router)`; `tests/routes.rs` and `tests/messaging.rs`, one native rung each
 that builds the composed router over `omnia_test::guest::Provider`, so
