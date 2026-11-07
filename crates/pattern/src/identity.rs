@@ -5,6 +5,9 @@
 //! [`IdentitySettings`], handed to [`Identity::access_token`], and attached
 //! as an `Authorization: Bearer <token>` header on the outbound
 //! [`HttpRequest::fetch_json`] call.
+//!
+//! [`HttpRequest::fetch_json`]: omnia_sdk::HttpRequestExt::fetch_json
+//! [`Identity::access_token`]: omnia_sdk::IdentityExt::access_token
 
 use anyhow::Context as _;
 use axum::Json;

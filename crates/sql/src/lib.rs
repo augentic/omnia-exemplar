@@ -21,7 +21,7 @@
 //! [`FromRow`]: omnia_sdk::sql::FromRow
 //! [`TableStore`]: omnia_sdk::TableStore
 //! [`TableStore::exec`]: omnia_sdk::TableStore::exec
-//! [`TableStore::query_as`]: omnia_sdk::TableStore::query_as
+//! [`TableStore::query_as`]: omnia_sdk::TableStoreExt::query_as
 
 pub mod agency;
 pub mod feed;

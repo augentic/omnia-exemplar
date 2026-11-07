@@ -25,8 +25,8 @@
 //!   `ErrorBody` envelope with the variant's domain fields.
 //!
 //! [`FromRow`]: omnia_sdk::sql::FromRow
-//! [`HttpRequest::fetch_json`]: omnia_sdk::HttpRequest::fetch_json
-//! [`Identity::access_token`]: omnia_sdk::Identity::access_token
+//! [`HttpRequest::fetch_json`]: omnia_sdk::HttpRequestExt::fetch_json
+//! [`Identity::access_token`]: omnia_sdk::IdentityExt::access_token
 //! [`IntoResponse`]: axum::response::IntoResponse
 //! [`StateStore`]: omnia_sdk::StateStore
 //! [`StateStore::cas`]: omnia_sdk::StateStore::cas
