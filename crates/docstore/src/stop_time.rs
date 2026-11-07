@@ -5,15 +5,25 @@
 //! sorted by sequence.
 
 use anyhow::Context as _;
-use omnia_sdk::api::Context;
+use axum::Json;
+use axum::extract::{Path, Query};
+use axum::routing::get;
+use omnia_sdk::api::{Context, Handlers};
 use omnia_sdk::docstore::{Document, Filter, QueryOptions, SortField};
-use omnia_sdk::{DocumentStore, Result, not_found};
+use omnia_sdk::{Capabilities, DocumentStore, Result, not_found};
 use serde::{Deserialize, Serialize};
 
-use crate::{DocumentRecord, records};
+use crate::stop::{DocumentRecord, records};
 
-/// Document collection holding the stop times.
-pub const COLLECTION: &str = "stop_times";
+pub(crate) const STOP_TIMES: &str = "/examples/stop-times";
+pub(crate) const STOP_TIME: &str = "/examples/stop-times/{id}";
+pub(crate) const COLLECTION: &str = "stop_times";
+
+pub(crate) fn handlers<P: Capabilities>() -> Handlers<P> {
+    Handlers::new()
+        .route(STOP_TIMES, get(list_stop_times).post(create_stop_time))
+        .route(STOP_TIME, get(get_stop_time))
+}
 
 /// A GTFS-like stop time stored as one JSON document.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -35,7 +45,7 @@ pub struct StopTime {
 }
 
 /// Create a stop time with a caller-chosen id (fails when the id exists).
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CreateStopTimeRequest {
     /// Document id for the new stop time.
     pub id: String,
@@ -44,15 +54,9 @@ pub struct CreateStopTimeRequest {
     pub stop_time: StopTime,
 }
 
-/// Creates a stop time with a caller-chosen id.
-///
-/// # Errors
-///
-/// Returns an error when the stop time cannot be serialized or the id
-/// already exists in the collection.
-pub async fn create_stop_time<P>(
-    input: CreateStopTimeRequest, context: Context<P>,
-) -> Result<DocumentRecord<StopTime>>
+pub(crate) async fn create_stop_time<P>(
+    context: Context<P>, Json(input): Json<CreateStopTimeRequest>,
+) -> Result<Json<DocumentRecord<StopTime>>>
 where
     P: DocumentStore,
 {
@@ -62,40 +66,27 @@ where
     };
     DocumentStore::insert(context.provider(), COLLECTION, &document).await?;
 
-    Ok(DocumentRecord {
+    Ok(Json(DocumentRecord {
         id: input.id,
         document: input.stop_time,
-    })
+    }))
 }
 
-/// Fetch one stop time by id.
-#[derive(Debug, Clone, Deserialize)]
-pub struct GetStopTimeRequest {
-    /// Document id (path parameter).
-    pub id: String,
-}
-
-/// Fetches one stop time by id.
-///
-/// # Errors
-///
-/// Returns `not_found` when no stop time has the id, or an error when the
-/// stored document cannot be deserialized.
-pub async fn get_stop_time<P>(
-    input: GetStopTimeRequest, context: Context<P>,
-) -> Result<DocumentRecord<StopTime>>
+pub(crate) async fn get_stop_time<P>(
+    context: Context<P>, Path(id): Path<String>,
+) -> Result<Json<DocumentRecord<StopTime>>>
 where
     P: DocumentStore,
 {
-    let document = DocumentStore::get(context.provider(), COLLECTION, &input.id)
+    let document = DocumentStore::get(context.provider(), COLLECTION, &id)
         .await?
-        .ok_or_else(|| not_found!("stop time {} not found", input.id))?;
+        .ok_or_else(|| not_found!("stop time {id} not found"))?;
     let stop_time = serde_json::from_slice(&document.data).context("deserializing stop time")?;
 
-    Ok(DocumentRecord {
+    Ok(Json(DocumentRecord {
         id: document.id,
         document: stop_time,
-    })
+    }))
 }
 
 /// Query stop times with any combination of the supported filters.
@@ -123,7 +114,7 @@ pub struct ListStopTimesRequest {
 }
 
 /// One page of matching stop times.
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StopTimesReply {
     /// Matches sorted by `stop_sequence` ascending.
     pub stop_times: Vec<DocumentRecord<StopTime>>,
@@ -131,16 +122,9 @@ pub struct StopTimesReply {
     pub continuation: Option<String>,
 }
 
-/// Queries stop times with any combination of the supported filters, sorted
-/// by stop sequence with limit/continuation pagination.
-///
-/// # Errors
-///
-/// Returns an error when the query fails or a document cannot be
-/// deserialized.
-pub async fn list_stop_times<P>(
-    input: ListStopTimesRequest, context: Context<P>,
-) -> Result<StopTimesReply>
+pub(crate) async fn list_stop_times<P>(
+    context: Context<P>, Query(input): Query<ListStopTimesRequest>,
+) -> Result<Json<StopTimesReply>>
 where
     P: DocumentStore,
 {
@@ -183,8 +167,8 @@ where
     )
     .await?;
 
-    Ok(StopTimesReply {
+    Ok(Json(StopTimesReply {
         stop_times: records(&result.documents)?,
         continuation: result.continuation,
-    })
+    }))
 }

@@ -1,20 +1,18 @@
 //! Location event processing.
 
-use acme_common::TIMEZONE;
-use acme_common::block_mgt::{self, BlockInstance};
-use acme_common::fleet::{self, Vehicle};
-use anyhow::Context as _;
 use chrono::{Duration, NaiveDate, TimeZone};
 use chrono_tz::Tz;
-use omnia_sdk::{Config, HttpRequest, Identity, Result, StateStore};
-use serde::de::DeserializeOwned;
+use omnia_sdk::{Config, HttpRequest, Identity, Result, StateStore, StateStoreExt as _};
 use uuid::Uuid;
 
+use crate::block_mgt::{self, BlockInstance};
+use crate::fleet::{self, Vehicle};
+use crate::motion::{EventType, MotionMessage};
+use crate::state_keys;
 use crate::trip::{
-    self, DeadReckoningMessage, FeedEntity, Position, PositionDr, TripDescriptor, TripInstance,
-    VehicleDescriptor, VehicleDr, VehiclePosition,
+    self, DeadReckoningMessage, FeedEntity, Position, PositionDr, TIMEZONE, TripDescriptor,
+    TripInstance, VehicleDescriptor, VehicleDr, VehiclePosition,
 };
-use crate::{EventType, MotionMessage, state_keys};
 
 const TTL_TRIP_TRAIN: Duration = Duration::seconds(3 * 60 * 60);
 const TTL_SIGN_ON: Duration = Duration::seconds(24 * 60 * 60);
@@ -28,13 +26,7 @@ pub enum Location {
     DeadReckoning(DeadReckoningMessage),
 }
 
-/// Processes a Motion location payload and emits outbound messages when applicable.
-///
-/// # Errors
-///
-/// Returns an error when the incoming payload cannot be parsed or when domain logic
-/// encounters an unrecoverable condition.
-pub async fn process<P>(message: &MotionMessage, provider: &P) -> Result<Option<Location>>
+pub async fn process<P>(provider: &P, message: &MotionMessage) -> Result<Option<Location>>
 where
     P: Config + HttpRequest + Identity + StateStore,
 {
@@ -56,7 +48,7 @@ where
         tracing::debug!("no vehicle identifier found");
         return Ok(None);
     };
-    let Some(vehicle) = fleet::vehicle(vehicle_id, provider).await? else {
+    let Some(vehicle) = fleet::vehicle(provider, vehicle_id).await? else {
         tracing::debug!("vehicle info not found for {vehicle_id}");
         return Ok(None);
     };
@@ -64,8 +56,8 @@ where
     let timestamp = message.timestamp()?;
 
     if vehicle.is_train() {
-        let allocation = block_mgt::cached_allocation(&vehicle.id, timestamp, provider).await?;
-        allocate(&vehicle, allocation, timestamp, provider).await?;
+        let allocation = block_mgt::cached_allocation(provider, &vehicle.id, timestamp).await?;
+        allocate(provider, &vehicle, allocation, timestamp).await?;
     }
     let trip_inst = current_trip(provider, &vehicle.id, timestamp).await?;
     let trip_desc = trip_inst.as_ref().map(TripDescriptor::from);
@@ -122,15 +114,8 @@ where
     Ok(Some(Location::VehiclePosition(entity)))
 }
 
-fn deserialize_optional<T>(bytes: Option<&[u8]>) -> Option<T>
-where
-    T: DeserializeOwned,
-{
-    bytes.and_then(|raw| serde_json::from_slice::<T>(raw).ok())
-}
-
 async fn allocate<P>(
-    vehicle: &Vehicle, allocation: Option<BlockInstance>, timestamp: i64, provider: &P,
+    provider: &P, vehicle: &Vehicle, allocation: Option<BlockInstance>, timestamp: i64,
 ) -> Result<()>
 where
     P: Config + HttpRequest + StateStore,
@@ -157,19 +142,17 @@ where
     }
 
     // is this trip the same as the previous one?
-    if let Some(bytes) = StateStore::get(provider, &trip_key).await? {
-        let prev = serde_json::from_slice::<TripInstance>(&bytes)?;
-        if prev.trip_id == alloc.trip_id
-            && prev.start_time == alloc.start_time
-            && prev.service_date == alloc.service_date
-        {
-            return Ok(());
-        }
+    if let Some(prev) = provider.get_json::<TripInstance>(&trip_key).await?
+        && prev.trip_id == alloc.trip_id
+        && prev.start_time == alloc.start_time
+        && prev.service_date == alloc.service_date
+    {
+        return Ok(());
     }
 
     // try and get the new trip
     let Some(new_trip) =
-        trip::get_instance(&alloc.trip_id, &alloc.service_date, &alloc.start_time, provider)
+        trip::get_instance(provider, &alloc.trip_id, &alloc.service_date, &alloc.start_time)
             .await?
     else {
         StateStore::delete(provider, &sign_on_key).await?;
@@ -182,11 +165,8 @@ where
     }
 
     // save the new trip
-    let bytes = serde_json::to_vec(&new_trip).context("failed to serialize trip")?;
-    StateStore::set(provider, &trip_key, &bytes, Some(duration_secs(TTL_TRIP_TRAIN))).await?;
-
-    let bytes = serde_json::to_vec(&timestamp).context("failed to serialize message timestamp")?;
-    StateStore::set(provider, &sign_on_key, &bytes, Some(duration_secs(TTL_SIGN_ON))).await?;
+    provider.set_json(&trip_key, &new_trip, Some(duration_secs(TTL_TRIP_TRAIN))).await?;
+    provider.set_json(&sign_on_key, &timestamp, Some(duration_secs(TTL_SIGN_ON))).await?;
 
     Ok(())
 }
@@ -199,27 +179,24 @@ where
 {
     let trip_key = state_keys::trip(vehicle_id);
     let sign_on_key = state_keys::sign_on(vehicle_id);
-    let bytes = StateStore::get(provider, &trip_key).await?;
 
-    if let Some(instance) = deserialize_optional::<TripInstance>(bytes.as_deref()) {
-        let sign_on_bytes = StateStore::get(provider, &sign_on_key).await?;
-        let sign_on = deserialize_optional::<i64>(sign_on_bytes.as_deref());
-        if let (Some(sign_on_ts), Some(start), Some(end)) = (
-            sign_on,
-            time_to_timestamp(&instance.service_date, &instance.start_time, TIMEZONE),
-            time_to_timestamp(&instance.service_date, &instance.end_time, TIMEZONE),
-        ) {
-            let duration = end - start + Duration::seconds(3_600).num_seconds();
-            if timestamp - duration > sign_on_ts {
-                StateStore::delete(provider, &sign_on_key).await?;
-                StateStore::delete(provider, &trip_key).await?;
-                return Ok(None);
-            }
+    let Some(instance) = provider.get_json::<TripInstance>(&trip_key).await? else {
+        return Ok(None);
+    };
+    let sign_on = provider.get_json::<i64>(&sign_on_key).await?;
+    if let (Some(sign_on_ts), Some(start), Some(end)) = (
+        sign_on,
+        time_to_timestamp(&instance.service_date, &instance.start_time, TIMEZONE),
+        time_to_timestamp(&instance.service_date, &instance.end_time, TIMEZONE),
+    ) {
+        let duration = end - start + Duration::seconds(3_600).num_seconds();
+        if timestamp - duration > sign_on_ts {
+            StateStore::delete(provider, &sign_on_key).await?;
+            StateStore::delete(provider, &trip_key).await?;
+            return Ok(None);
         }
-        return Ok(Some(instance));
     }
-
-    Ok(None)
+    Ok(Some(instance))
 }
 
 async fn get_occupancy_status<P>(
@@ -237,13 +214,7 @@ where
     };
 
     let key = state_keys::occupancy_status(&vehicle.id, &trip.trip_id, start_date, start_time);
-
-    let Some(bytes) = StateStore::get(provider, &key).await? else {
-        return Ok(None);
-    };
-    let occupancy_status = serde_json::from_slice(&bytes)?;
-
-    Ok(Some(occupancy_status))
+    Ok(provider.get_json(&key).await?)
 }
 
 fn time_to_timestamp(date: &str, time: &str, tz: Tz) -> Option<i64> {

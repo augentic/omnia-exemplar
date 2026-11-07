@@ -1,14 +1,12 @@
 # SQL examples
 
-The rich `wasi-sql` showcase: a two-table agency/feed schema exercising the
-full `omnia-orm` surface ([omnia-extensions](https://github.com/augentic/omnia-extensions))
-— `SelectBuilder`, `InsertBuilder::from_entity`,
-`UpdateBuilder` with conditional sets, `DeleteBuilder`, and `entity!` with
-multi-column JOIN aliasing. This crate restores the full SQL example that
-omnia's "Example tidy" trimmed, rewritten in this repository's typed-handler
-style: `pub async fn` handlers over `P: TableStore`, mounted by the root
-guest under `/examples/*`, and tested natively against a spy mock that
-recognizes the ORM-generated SQL.
+The rich `wasi-sql` showcase: a two-table agency/feed schema exercising
+parameterized SQL over `omnia_sdk::TableStore` (`TableStore::query_as`,
+`TableStore::exec`) into `#[derive(FromRow)]` records — `SELECT` with
+`ORDER BY` and optional `LIMIT`, `INSERT`
+with server-assigned ids, dynamic `UPDATE ... SET` writing only provided
+fields, `DELETE` answering 404 on zero rows affected, and a multi-column
+`LEFT JOIN` with aliased columns.
 
 One deliberate deviation from the pre-trim original: schema DDL goes through
 `TableStore::exec` instead of the wasm-only `Connection`/`Statement`/
@@ -29,11 +27,11 @@ cargo run --example runtime -- run target/wasm32-wasip2/release/guest.wasm
 
 | Route | Methods | Handler |
 | --- | --- | --- |
-| `/examples/agencies` | GET, POST | `list_agencies(ListAgenciesRequest)`, `create_agency(CreateAgencyRequest)` |
-| `/examples/agencies/{id}` | GET, PATCH | `get_agency(GetAgencyRequest)`, `update_agency(UpdateAgencyRequest)` |
-| `/examples/agencies/{agency_id}/feeds` | GET, POST | `list_agency_feeds(ListAgencyFeedsRequest)`, `create_feed(CreateFeedRequest)` |
-| `/examples/feeds` | GET | `list_all_feeds(ListAllFeedsRequest)` |
-| `/examples/feeds/{id}` | DELETE | `delete_feed(DeleteFeedRequest)` |
+| `/examples/agencies` | GET, POST | `list_agencies(Query<ListAgenciesRequest>)`, `create_agency(Json<CreateAgencyRequest>)` |
+| `/examples/agencies/{id}` | GET, PATCH | `get_agency(Path<i64>)`, `update_agency(Path<i64>, Json<UpdateAgencyRequest>)` |
+| `/examples/agencies/{agency_id}/feeds` | GET, POST | `list_agency_feeds(Path<i64>)`, `create_feed(Path<i64>, Json<CreateFeedRequest>)` |
+| `/examples/feeds` | GET | `list_all_feeds(Query<ListAllFeedsRequest>)` |
+| `/examples/feeds/{id}` | DELETE | `delete_feed(Path<i64>)` |
 
 ### Agencies
 
@@ -67,7 +65,7 @@ curl -s -X POST http://localhost:8080/examples/agencies/1/feeds \
 # List feeds for one agency
 curl -s http://localhost:8080/examples/agencies/1/feeds
 
-# List all feeds with agency info (demonstrates the JOIN entity)
+# List all feeds with agency info (demonstrates the JOIN projection)
 curl -s http://localhost:8080/examples/feeds
 
 # Delete a feed (404 when zero rows are affected)
@@ -76,33 +74,33 @@ curl -s -X DELETE http://localhost:8080/examples/feeds/1
 
 ## Features demonstrated
 
-- **ORM entity definition** — `omnia_orm::entity!`, including column
-  aliasing for joined tables
-- **JOINs** — `FeedWithAgency` selects `agency.name`, `agency.url`, and
-  `agency.timezone` through `Join::left` + `Filter::col_eq`
-- **Server-assigned ids** — a max-id probe (`order_by_desc` + `limit(1)`)
-  then max + 1
+- **Typed row decoding (`FromRow`)** — `Agency`, `Feed`, and
+  `FeedWithAgency` derive `omnia_sdk::sql::FromRow`, one field per column
+  (`Option<T>` for a nullable one), and `TableStore::query_as` returns them
+  directly; a lone column is `row.get::<i64>("agency_id")?`
+- **JOINs** — `FeedWithAgency` selects `agency.name AS agency_name`,
+  `agency.url AS agency_url`, and `agency.timezone AS agency_timezone`
+  through a `LEFT JOIN`
+- **Server-assigned ids** — an id-only max probe (`SELECT <pk> FROM <table>
+  ORDER BY <pk> DESC LIMIT 1`) then max + 1
 - **Existence checks** — get/update answer 404 for a missing agency, and a
   feed for a missing agency is rejected
-- **Partial updates** — `UpdateBuilder` with one conditional `.set()` per
-  provided field, an empty patch rejected as 400, and a fetch-after-update
-  reply
-- **Delete semantics** — `DeleteBuilder` with 404 on zero rows affected
+- **Partial updates** — dynamic `SET` assignments for each provided field,
+  an empty patch rejected as 400, and a fetch-after-update reply
+- **Delete semantics** — `DELETE` answering 404 when zero rows are affected
 - **Parameterized SQL** — every statement binds values as `$1, $2, ...`
-  placeholders
-- **Query building** — `SelectBuilder`, `InsertBuilder`, `UpdateBuilder`,
-  `DeleteBuilder`
+  placeholders over `omnia_sdk::sql::DataType`
 
 ## Testing
 
-[`tests/operations.rs`](tests/operations.rs) drives each handler through
-`Client::call` over `omnia_test::guest::ScriptedTables`, a responder-only
-`TableStore` double: every scenario scripts the rows the ORM-generated
-`SELECT` should see and asserts the recorded statements — SQL text and
-bound parameters — for id assignment, partial update, the referential
-check, the JOIN listing, and delete-with-404. There is no in-memory
-database; the tests pin the contract between the handlers and the store.
+[`tests/operations.rs`](tests/operations.rs) drives `sql::handlers()` over
+`omnia_test::guest::ScriptedTables`, a responder-only `TableStore` double:
+every scenario scripts the rows the `SELECT` should see and asserts the
+recorded statements — SQL text and bound parameters — for id assignment,
+partial update, the referential check, the JOIN listing, and delete-with-404.
+There is no in-memory database; the tests pin the contract between the
+handlers and the store.
 
 ```shell
-cargo nextest run -p sql-examples
+cargo nextest run -p sql
 ```

@@ -1,5 +1,0 @@
-# Render values for the `template-check` gate, one per token the manifest
-# declares: seed templates are rendered with them and syntax-checked so a
-# filled-in file is proven parseable. The manifest declares none.
-
-{}

@@ -23,21 +23,20 @@ god-mode = ["gtfs-adapter/god-mode"]
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-acme-common.workspace = true
-axum.workspace = true
-capability.workspace = true
-docstore.workspace = true
-gtfs-adapter.workspace = true
+capability = { path = "crates/capability" }
+common.workspace = true
+docstore = { path = "crates/docstore" }
+gtfs-adapter = { path = "crates/gtfs-adapter" }
 omnia-sdk.workspace = true
-pattern.workspace = true
-pulse-adapter.workspace = true
-pulse-connector.workspace = true
-sql.workspace = true
-tally-connector.workspace = true
-tracing.workspace = true
+pattern = { path = "crates/pattern" }
+pulse-adapter = { path = "crates/pulse-adapter" }
+pulse-connector = { path = "crates/pulse-connector" }
+sql = { path = "crates/sql" }
+tally-connector = { path = "crates/tally-connector" }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 anyhow.workspace = true
+axum.workspace = true
 bytes.workspace = true
 chrono.workspace = true
 http.workspace = true
@@ -56,7 +55,6 @@ omnia-wasi-sql.workspace = true
 omnia-wasi-websocket.workspace = true
 serde_json.workspace = true
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
-tower.workspace = true
 
 # The fixture rung: `build.rs` compiles this package to a `wasm32-wasip2`
 # component for `tests/component.rs`. `build` is `std`-only by contract.
@@ -78,6 +76,7 @@ edition = "2024"
 homepage = "https://augentic.io"
 keywords = ["exemplar", "omnia", "wasi", "wasm", "component-model"]
 license = "MIT OR Apache-2.0"
+publish = false
 repository = "https://github.com/augentic/omnia-exemplar"
 rust-version = "1.99"
 version = "0.1.0"
@@ -97,10 +96,14 @@ nursery = { level = "warn", priority = -1 }
 pedantic = { level = "warn", priority = -1 }
 
 # cherry-picked `restriction`s
+allow_attributes = "deny"
 allow_attributes_without_reason = "warn"
 assertions_on_result_states = "warn"
 dbg_macro = "warn"
+disallowed_macros = "deny"
+disallowed_methods = "deny"
 disallowed_script_idents = "warn"
+disallowed_types = "deny"
 empty_drop = "warn"
 fn_to_numeric_cast_any = "warn"
 map_err_ignore = "warn"
@@ -110,7 +113,7 @@ unused_result_ok = "warn"
 
 [workspace.dependencies]
 anyhow = "1.0.104"
-axum = { version = "0.8.9", default-features = false, features = ["json"] }
+axum = { version = "0.8.9", default-features = false, features = ["json", "query"] }
 bytes = "1.12.1"
 chrono = { version = "0.4.45", features = ["serde"] }
 chrono-tz = "0.10.4"
@@ -119,7 +122,7 @@ http-body = "1.1.0"
 http-body-util = "0.1.5"
 quick-xml = { version = "0.42.0", features = ["serde", "serialize"] }
 serde = { version = "1.0.229", features = ["derive"] }
-serde-saphyr = "2.0.0"
+serde-saphyr = "2.1.1"
 serde_json = "1.0.154"
 serde_repr = "0.1.21"
 thiserror = "2.0.21"
@@ -130,11 +133,10 @@ tokio = { version = "1.54.1", default-features = false, features = [
     "sync",
     "time",
 ] }
-toml = "1.1.8"
-tower = { version = "0.5.3", default-features = false, features = ["util"] }
+toml = "1.2.1"
 tracing = "0.1.44"
 urlencoding = "2.1.3"
-uuid = { version = "1.28.0", features = ["v4"] }
+uuid = { version = "1.29.1", features = ["serde", "v4"] }
 
 omnia = "0.38.0"
 omnia-sdk = "0.38.0"
@@ -150,19 +152,9 @@ omnia-wasi-otel = "0.38.0"
 omnia-wasi-sql = "0.38.0"
 omnia-wasi-websocket = "0.38.0"
 
-# omnia-extensions
 omnia-http-cache = "0.36.0"
-omnia-orm = "0.36.0"
 
-acme-common = { path = "crates/common" }
-capability = { path = "crates/capability" }
-docstore = { path = "crates/docstore" }
-gtfs-adapter = { path = "crates/gtfs-adapter" }
-pattern = { path = "crates/pattern" }
-pulse-adapter = { path = "crates/pulse-adapter" }
-pulse-connector = { path = "crates/pulse-connector" }
-sql = { path = "crates/sql" }
-tally-connector = { path = "crates/tally-connector" }
+common = { path = "crates/common" }
 
 [patch.crates-io]
 omnia = { git = "https://github.com/augentic/omnia" }
@@ -178,24 +170,7 @@ omnia-wasi-messaging = { git = "https://github.com/augentic/omnia" }
 omnia-wasi-otel = { git = "https://github.com/augentic/omnia" }
 omnia-wasi-sql = { git = "https://github.com/augentic/omnia" }
 omnia-wasi-websocket = { git = "https://github.com/augentic/omnia" }
-omnia-http-cache = { git = "https://github.com/augentic/omnia-extensions" }
-omnia-orm = { git = "https://github.com/augentic/omnia-extensions" }
-
-# omnia = { path = "../omnia/crates/omnia" }
-# omnia-sdk = { path = "../omnia/crates/sdk" }
-# omnia-test = { path = "../omnia/crates/test" }
-# omnia-wasi-blobstore = { path = "../omnia/crates/wasi-blobstore" }
-# omnia-wasi-config = { path = "../omnia/crates/wasi-config" }
-# omnia-wasi-docstore = { path = "../omnia/crates/wasi-docstore" }
-# omnia-wasi-http = { path = "../omnia/crates/wasi-http" }
-# omnia-wasi-identity = { path = "../omnia/crates/wasi-identity" }
-# omnia-wasi-keyvalue = { path = "../omnia/crates/wasi-keyvalue" }
-# omnia-wasi-messaging = { path = "../omnia/crates/wasi-messaging" }
-# omnia-wasi-otel = { path = "../omnia/crates/wasi-otel" }
-# omnia-wasi-sql = { path = "../omnia/crates/wasi-sql" }
-# omnia-wasi-websocket = { path = "../omnia/crates/wasi-websocket" }
-# omnia-http-cache = { path = "../omnia-extensions/crates/http-cache" }
-# omnia-orm = { path = "../omnia-extensions/crates/orm" }
+omnia-http-cache = { git = "https://github.com/augentic/omnia-ext" }
 
 [profile.release]
 lto = true

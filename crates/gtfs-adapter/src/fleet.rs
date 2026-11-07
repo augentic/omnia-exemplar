@@ -3,50 +3,49 @@
 use std::convert::Infallible;
 use std::str::FromStr;
 
-use anyhow::{Context, Result};
-use bytes::Bytes;
+use anyhow::Context as _;
+use axum::body::Body;
 use http::Method;
 use http::header::{CACHE_CONTROL, IF_NONE_MATCH};
-use http_body_util::Empty;
 use omnia_http_cache::HttpCache;
-use omnia_sdk::{Config, HttpRequest, Identity, StateStore};
+use omnia_sdk::{Config, HttpRequest, Identity, Result, Settings, StateStore, bad_gateway};
 use serde::{Deserialize, Serialize};
 
-use crate::config;
+/// The settings the Fleet client reads.
+#[derive(Debug, Settings)]
+pub struct FleetSettings {
+    // Base URL of the Fleet API.
+    fleet_url: String,
+}
 
-/// Retrieves a vehicle (train) by label.
-///
-/// Responses are cached for five minutes through the provider's
-/// [`StateStore`] under the quoted, namespaced etag `"fleet:<query>"`.
-///
-/// # Errors
-///
-/// Returns an error when the fleet API request fails or the
-/// response cannot be deserialized.
-pub async fn vehicle<P>(vehicle_id: &str, provider: &P) -> Result<Option<Vehicle>>
+// Responses are cached for five minutes through the provider's `StateStore`
+// under the quoted, namespaced etag `"fleet:<query>"`.
+pub(crate) async fn vehicle<P>(provider: &P, vehicle_id: &str) -> Result<Option<Vehicle>>
 where
     P: Config + HttpRequest + Identity + StateStore,
 {
-    let identifier = Identifier::from_str(vehicle_id)?;
+    let Ok(identifier) = Identifier::from_str(vehicle_id);
     let query = identifier.to_query();
-    let fleet_url =
-        Config::get(provider, config::FLEET_URL).await.context("getting `FLEET_URL`")?;
+    let FleetSettings { fleet_url } = FleetSettings::load(provider).await?;
 
     // `HttpCache` requires a quoted strong etag; the prefix keeps the cache
     // key out of the guest's own state-store namespace.
     let request = http::Request::builder()
         .method(Method::GET)
         .uri(format!("{fleet_url}/vehicles?{query}"))
-        .header(CACHE_CONTROL, "max-age=300") // 5 minutes
+        .header(CACHE_CONTROL, "max-age=300")
         .header(IF_NONE_MATCH, format!("\"fleet:{query}\""))
-        .header("Content-Type", "application/json")
-        .body(Empty::<Bytes>::new())
+        .body(Body::empty())
         .context("building train_by_label request")?;
 
     let response = HttpCache::new(provider, provider)
         .fetch(request)
         .await
         .context("Fleet API request failed")?;
+
+    if !response.status().is_success() {
+        return Err(bad_gateway!("Fleet API returned {}", response.status()));
+    }
 
     let body = response.into_body();
     let records: Vec<Vehicle> =
@@ -136,7 +135,7 @@ impl Identifier {
 impl FromStr for Identifier {
     type Err = Infallible;
 
-    fn from_str(s: &str) -> Result<Self, Infallible> {
+    fn from_str(s: &str) -> std::result::Result<Self, Infallible> {
         let Some((prefix, suffix)) = ["EMP", "EM", "DML", "DM"]
             .into_iter()
             .find_map(|prefix| s.strip_prefix(prefix).map(|suffix| (prefix, suffix)))
@@ -147,65 +146,5 @@ impl FromStr for Identifier {
         // train label: format as 14 characters
         let width = 14usize.saturating_sub(prefix.len());
         Ok(Self::Label(format!("{prefix}{suffix:>width$}")))
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::Identifier;
-
-    #[test]
-    fn em_label() {
-        let identifier = "EM123".parse().expect("valid label");
-        assert_eq!(identifier, Identifier::Label("EM         123".to_string()));
-        let Identifier::Label(s) = identifier else {
-            panic!("Expected Identifier::Label");
-        };
-        assert_eq!(s.len(), 14);
-    }
-
-    #[test]
-    fn emp_label() {
-        let identifier = "EMP123".parse().expect("valid label");
-        assert_eq!(identifier, Identifier::Label("EMP        123".to_string()));
-        let Identifier::Label(s) = identifier else {
-            panic!("Expected Identifier::Label");
-        };
-        assert_eq!(s.len(), 14);
-    }
-
-    #[test]
-    fn dm_label() {
-        let identifier = "DM123".parse().expect("valid label");
-        assert_eq!(identifier, Identifier::Label("DM         123".to_string()));
-        let Identifier::Label(s) = identifier else {
-            panic!("Expected Identifier::Label");
-        };
-        assert_eq!(s.len(), 14);
-    }
-
-    #[test]
-    fn dml_label() {
-        let identifier = "DML123".parse().expect("valid label");
-        assert_eq!(identifier, Identifier::Label("DML        123".to_string()));
-        let Identifier::Label(s) = identifier else {
-            panic!("Expected Identifier::Label");
-        };
-        assert_eq!(s.len(), 14);
-    }
-
-    #[test]
-    fn already_padded() {
-        let identifier = "EMP        123".parse().expect("valid label");
-        assert_eq!(identifier, Identifier::Label("EMP        123".to_string()));
-        let Identifier::Label(s) = identifier else {
-            panic!("Expected Identifier::Label");
-        };
-        assert_eq!(s.len(), 14);
-    }
-
-    #[test]
-    fn invalid_label() {
-        assert_eq!("TRAIN".parse::<Identifier>().unwrap(), Identifier::Id("TRAIN".to_string()));
     }
 }

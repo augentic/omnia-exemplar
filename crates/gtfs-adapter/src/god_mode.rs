@@ -3,20 +3,24 @@
 //! This is an operational tool, not part of the production pipeline: it lets
 //! an operator force a vehicle onto a specific trip while diagnosing
 //! allocation issues. The whole module — and the HTTP handler that drives
-//! it ([`crate::SetTripRequest`]) — is compiled only when the `god-mode`
-//! cargo feature is enabled, and does nothing at runtime unless the
-//! `GOD_MODE_ENABLED` configuration key is set to a truthy value.
+//! it ([`crate::set_trip::SetTripRequest`]) — is compiled only when the
+//! `god-mode` cargo feature is enabled, and does nothing at runtime unless
+//! the `GOD_MODE_ENABLED` configuration key is set to a truthy value.
 //!
 //! Overrides live in the state store under the `god_mode:` prefix, separate
-//! from the `motionGtfs:` pipeline state (see [`crate::state_keys`]).
+//! from the `motionGtfs:` pipeline state (see `state_keys`).
 
 use std::collections::HashMap;
 
-use anyhow::{Context, Result};
-use omnia_sdk::{Config, StateStore};
+use anyhow::Result;
+use omnia_sdk::{Config, StateStore, StateStoreExt as _};
 use serde::{Deserialize, Serialize};
 
-use crate::{EventType, MotionMessage};
+use crate::motion::{EventType, MotionMessage};
+
+// Enables the god-mode trip override handler. Off unless set to a truthy
+// value (`1`, `true`, `yes`, `on`).
+pub(crate) const GOD_MODE_ENABLED: &str = "GOD_MODE_ENABLED";
 
 const KEY_GOD_MODE: &str = "god_mode:overrides";
 const TTL_GOD_MODE: u64 = 24 * 60 * 60; // 24 hours
@@ -26,28 +30,15 @@ struct GodModeState {
     overrides: HashMap<String, String>,
 }
 
-/// Load the current God Mode state from the state store.
 async fn load_state(state_store: &impl StateStore) -> Result<GodModeState> {
-    let Some(bytes) = state_store.get(KEY_GOD_MODE).await? else {
-        return Ok(GodModeState::default());
-    };
-    let state = serde_json::from_slice(&bytes).context("deserializing god mode state")?;
-    Ok(state)
+    Ok(state_store.get_json(KEY_GOD_MODE).await?.unwrap_or_default())
 }
 
-/// Save the current God Mode state to the state store.
 async fn save_state(state_store: &impl StateStore, state: &GodModeState) -> Result<()> {
-    let bytes = serde_json::to_vec(state).context("serializing god mode state")?;
-    state_store.set(KEY_GOD_MODE, &bytes, Some(TTL_GOD_MODE)).await?;
-    Ok(())
+    state_store.set_json(KEY_GOD_MODE, state, Some(TTL_GOD_MODE)).await
 }
 
-/// Set a vehicle to a specific trip ID.
-///
-/// # Errors
-///
-/// Returns an error if the state cannot be loaded or persisted to the state store.
-pub async fn set_vehicle_to_trip(
+pub(crate) async fn set_vehicle_to_trip(
     state_store: &impl StateStore, vehicle_id: impl Into<String>, trip_id: impl Into<String>,
 ) -> Result<()> {
     let mut state = load_state(state_store).await?;
@@ -55,15 +46,7 @@ pub async fn set_vehicle_to_trip(
     save_state(state_store, &state).await
 }
 
-/// Apply any god-mode trip overrides to a serial data event.
-///
-/// Returns the event unchanged when god mode is disabled or no override is
-/// registered for the vehicle.
-///
-/// # Errors
-///
-/// Returns an error if the configuration or state store cannot be read.
-pub async fn apply_overrides<P>(event: MotionMessage, provider: &P) -> Result<MotionMessage>
+pub(crate) async fn apply_overrides<P>(provider: &P, event: MotionMessage) -> Result<MotionMessage>
 where
     P: Config + StateStore,
 {
@@ -74,11 +57,6 @@ where
     Ok(event)
 }
 
-/// Preprocess a Motion message, applying any vehicle overrides.
-///
-/// # Errors
-///
-/// Returns an error if the state cannot be loaded from the state store.
 async fn preprocess(state_store: &impl StateStore, event: &mut MotionMessage) -> Result<()> {
     if event.event_type != EventType::SerialData {
         return Ok(());
@@ -116,13 +94,8 @@ async fn preprocess(state_store: &impl StateStore, event: &mut MotionMessage) ->
     Ok(())
 }
 
-/// Check if God Mode is enabled via configuration.
-///
-/// # Errors
-///
-/// Returns an error if the configuration cannot be read.
-pub async fn is_enabled(provider: &impl Config) -> Result<bool> {
-    Ok(Config::get(provider, acme_common::config::GOD_MODE_ENABLED).await.is_ok_and(|value| {
+pub(crate) async fn is_enabled(provider: &impl Config) -> Result<bool> {
+    Ok(Config::get(provider, GOD_MODE_ENABLED).await.is_ok_and(|value| {
         let normalized = value.trim().to_ascii_lowercase();
         matches!(normalized.as_str(), "1" | "true" | "yes" | "on")
     }))

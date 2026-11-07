@@ -1,64 +1,66 @@
 //! Agency handlers: list, create, get, and partial update.
 //!
 //! Demonstrates server-assigned ids (a max-id probe, then max + 1),
-//! existence checks answering 404, [`UpdateBuilder`] with conditional
-//! `.set()`s so only provided fields are written, and a fetch-after-update
-//! reply so the caller sees exactly what was stored.
+//! existence checks answering 404, conditional `SET` clauses so only
+//! provided fields are written, and a fetch-after-update reply so the
+//! caller sees exactly what was stored.
 
-use anyhow::Context as _;
+use axum::Json;
+use axum::extract::{Path, Query};
+use axum::routing::get;
 use chrono::Utc;
-use omnia_orm::{Entity as _, Filter, InsertBuilder, SelectBuilder, UpdateBuilder, entity};
-use omnia_sdk::api::Context;
-use omnia_sdk::{Result, TableStore, bad_request, not_found};
+use omnia_sdk::api::{Context, Handlers};
+use omnia_sdk::sql::{DataType, FromRow};
+use omnia_sdk::{Capabilities, Result, TableStore, TableStoreExt as _, bad_request, not_found};
 use serde::{Deserialize, Serialize};
 
-use crate::{CONNECTION, schema};
+use crate::schema::{self, CONNECTION};
 
-entity!(
-    table = "agency",
-    /// A transit agency.
-    #[derive(Debug, Clone, Serialize)]
-    pub struct Agency {
-        /// Server-assigned primary key.
-        pub agency_id: i64,
-        /// Display name.
-        pub name: String,
-        /// Homepage URL.
-        pub url: Option<String>,
-        /// IANA timezone name.
-        pub timezone: Option<String>,
-        /// Creation timestamp (`YYYY-MM-DD HH:MM:SS`).
-        pub created_at: String,
-    }
-);
+pub(crate) const AGENCIES: &str = "/examples/agencies";
+pub(crate) const AGENCY: &str = "/examples/agencies/{id}";
 
-/// Fetch a single agency by id, or `None` when it does not exist.
-pub(crate) async fn fetch_agency<P: TableStore>(
-    provider: &P, id: i64,
-) -> anyhow::Result<Option<Agency>> {
-    let query = SelectBuilder::<Agency>::new()
-        .r#where(Filter::eq("agency_id", id))
-        .build()
-        .context("building agency fetch")?;
+const AGENCY_COLUMNS: &str = "agency_id, name, url, timezone, created_at";
 
-    let rows = TableStore::query(provider, CONNECTION.to_string(), query.sql, query.params).await?;
-    rows.first().map(Agency::from_row).transpose().context("mapping agency row")
+pub(crate) fn handlers<P: Capabilities>() -> Handlers<P> {
+    Handlers::new()
+        .route(AGENCIES, get(list_agencies).post(create_agency))
+        .route(AGENCY, get(get_agency).patch(update_agency))
 }
 
-/// Compute the next server-assigned agency id (max + 1).
-///
-/// A concurrent create simply fails on the primary key — acceptable for an
-/// example; production code would use a database sequence.
-async fn next_agency_id<P: TableStore>(provider: &P) -> anyhow::Result<i64> {
-    let query = SelectBuilder::<Agency>::new()
-        .order_by_desc(None, "agency_id")
-        .limit(1)
-        .build()
-        .context("building max agency id probe")?;
+/// A transit agency.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, FromRow)]
+pub struct Agency {
+    /// Server-assigned primary key.
+    pub agency_id: i64,
+    /// Display name.
+    pub name: String,
+    /// Homepage URL.
+    pub url: Option<String>,
+    /// IANA timezone name.
+    pub timezone: Option<String>,
+    /// Creation timestamp (`YYYY-MM-DD HH:MM:SS`).
+    pub created_at: String,
+}
 
-    let rows = TableStore::query(provider, CONNECTION.to_string(), query.sql, query.params).await?;
-    let newest = rows.first().map(Agency::from_row).transpose().context("mapping agency row")?;
-    Ok(newest.map_or(1, |agency| agency.agency_id + 1))
+pub(crate) async fn fetch_agency<P: TableStore>(tables: &P, id: i64) -> Result<Option<Agency>> {
+    let agencies: Vec<Agency> = tables
+        .query_as(
+            CONNECTION,
+            &format!("SELECT {AGENCY_COLUMNS} FROM agency WHERE agency_id = $1"),
+            &[DataType::Int64(Some(id))],
+        )
+        .await?;
+    Ok(agencies.into_iter().next())
+}
+
+// A concurrent create simply fails on the primary key — acceptable for an
+// example; production code would use a database sequence.
+async fn next_agency_id<P: TableStore>(tables: &P) -> Result<i64> {
+    let rows = tables
+        .query(CONNECTION, "SELECT agency_id FROM agency ORDER BY agency_id DESC LIMIT 1", &[])
+        .await?;
+    let newest: Option<i64> = rows.first().map(|row| row.get("agency_id")).transpose()?;
+    Ok(newest.map_or(1, |id| id + 1))
 }
 
 /// List agencies, newest first.
@@ -69,45 +71,35 @@ pub struct ListAgenciesRequest {
 }
 
 /// Agencies sorted by creation time, newest first.
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AgenciesReply {
     /// The matching agencies.
     pub agencies: Vec<Agency>,
 }
 
-/// Lists agencies, newest first, with an optional row cap.
-///
-/// # Errors
-///
-/// Returns an error when the schema cannot be ensured, the select cannot be
-/// built or executed, or a row cannot be mapped to an [`Agency`].
-pub async fn list_agencies<P>(
-    input: ListAgenciesRequest, context: Context<P>,
-) -> Result<AgenciesReply>
+pub(crate) async fn list_agencies<P>(
+    context: Context<P>, Query(input): Query<ListAgenciesRequest>,
+) -> Result<Json<AgenciesReply>>
 where
     P: TableStore,
 {
-    let provider = context.provider();
-    schema::ensure(provider).await?;
+    let tables = context.tables();
+    schema::ensure(tables).await?;
 
-    let mut select = SelectBuilder::<Agency>::new().order_by_desc(None, "created_at");
+    let mut sql = format!("SELECT {AGENCY_COLUMNS} FROM agency ORDER BY created_at DESC");
+    let mut params = Vec::new();
     if let Some(limit) = input.limit {
-        select = select.limit(limit);
+        sql.push_str(" LIMIT $1");
+        params.push(DataType::Uint64(Some(limit)));
     }
-    let query = select.build().context("building agency list")?;
 
-    let rows = TableStore::query(provider, CONNECTION.to_string(), query.sql, query.params).await?;
-    let agencies = rows
-        .iter()
-        .map(Agency::from_row)
-        .collect::<anyhow::Result<Vec<_>>>()
-        .context("mapping agency rows")?;
+    let agencies = tables.query_as(CONNECTION, &sql, &params).await?;
 
-    Ok(AgenciesReply { agencies })
+    Ok(Json(AgenciesReply { agencies }))
 }
 
 /// Create an agency with a server-assigned id.
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CreateAgencyRequest {
     /// Display name.
     pub name: String,
@@ -118,74 +110,64 @@ pub struct CreateAgencyRequest {
 }
 
 /// The agency row after the operation.
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AgencyReply {
     /// The stored agency.
     pub agency: Agency,
 }
 
-/// Creates an agency with a server-assigned id (max + 1).
-///
-/// # Errors
-///
-/// Returns an error when the schema cannot be ensured, the id probe or the
-/// insert cannot be built or executed, or a probed row cannot be mapped.
-pub async fn create_agency<P>(
-    input: CreateAgencyRequest, context: Context<P>,
-) -> Result<AgencyReply>
+pub(crate) async fn create_agency<P>(
+    context: Context<P>, Json(input): Json<CreateAgencyRequest>,
+) -> Result<Json<AgencyReply>>
 where
     P: TableStore,
 {
-    let provider = context.provider();
-    schema::ensure(provider).await?;
+    let tables = context.tables();
+    schema::ensure(tables).await?;
 
     let agency = Agency {
-        agency_id: next_agency_id(provider).await?,
+        agency_id: next_agency_id(tables).await?,
         name: input.name,
         url: input.url,
         timezone: input.timezone,
         created_at: Utc::now().format("%Y-%m-%d %H:%M:%S").to_string(),
     };
 
-    let query = InsertBuilder::from_entity(&agency).build().context("building agency insert")?;
-    TableStore::exec(provider, CONNECTION.to_string(), query.sql, query.params).await?;
+    tables
+        .exec(
+            CONNECTION,
+            &format!("INSERT INTO agency ({AGENCY_COLUMNS}) VALUES ($1, $2, $3, $4, $5)"),
+            &[
+                DataType::Int64(Some(agency.agency_id)),
+                DataType::Str(Some(agency.name.clone())),
+                DataType::Str(agency.url.clone()),
+                DataType::Str(agency.timezone.clone()),
+                DataType::Str(Some(agency.created_at.clone())),
+            ],
+        )
+        .await?;
 
-    Ok(AgencyReply { agency })
+    Ok(Json(AgencyReply { agency }))
 }
 
-/// Fetch one agency by id.
-#[derive(Debug, Clone, Deserialize)]
-pub struct GetAgencyRequest {
-    /// Agency id (path parameter).
-    pub id: i64,
-}
-
-/// Fetches one agency by id.
-///
-/// # Errors
-///
-/// Returns `not_found` when no agency has the id, or an error when the
-/// schema cannot be ensured or the fetch fails.
-pub async fn get_agency<P>(input: GetAgencyRequest, context: Context<P>) -> Result<AgencyReply>
+pub(crate) async fn get_agency<P>(
+    context: Context<P>, Path(id): Path<i64>,
+) -> Result<Json<AgencyReply>>
 where
     P: TableStore,
 {
-    let provider = context.provider();
-    schema::ensure(provider).await?;
+    let tables = context.tables();
+    schema::ensure(tables).await?;
 
-    let agency = fetch_agency(provider, input.id)
-        .await?
-        .ok_or_else(|| not_found!("agency {} not found", input.id))?;
+    let agency =
+        fetch_agency(tables, id).await?.ok_or_else(|| not_found!("agency {id} not found"))?;
 
-    Ok(AgencyReply { agency })
+    Ok(Json(AgencyReply { agency }))
 }
 
 /// Partially update an agency: only provided fields are written.
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UpdateAgencyRequest {
-    /// Agency id (path parameter, delivered as a numeric string).
-    #[serde(deserialize_with = "crate::numeric_id")]
-    pub id: i64,
     /// Replacement display name.
     pub name: Option<String>,
     /// Replacement homepage URL.
@@ -194,51 +176,42 @@ pub struct UpdateAgencyRequest {
     pub timezone: Option<String>,
 }
 
-/// Partially updates an agency, writing only the provided fields, and
-/// replies with the row as stored after the update.
-///
-/// # Errors
-///
-/// Returns `not_found` when no agency has the id, `bad_request` when the
-/// patch sets no fields, or an error when the schema cannot be ensured or a
-/// statement fails.
-pub async fn update_agency<P>(
-    input: UpdateAgencyRequest, context: Context<P>,
-) -> Result<AgencyReply>
+pub(crate) async fn update_agency<P>(
+    context: Context<P>, Path(id): Path<i64>, Json(input): Json<UpdateAgencyRequest>,
+) -> Result<Json<AgencyReply>>
 where
     P: TableStore,
 {
-    let provider = context.provider();
-    schema::ensure(provider).await?;
+    let tables = context.tables();
+    schema::ensure(tables).await?;
 
-    if fetch_agency(provider, input.id).await?.is_none() {
-        return Err(not_found!("agency {} not found", input.id));
+    if fetch_agency(tables, id).await?.is_none() {
+        return Err(not_found!("agency {id} not found"));
     }
 
-    // Conditionally set only the provided fields.
-    let mut update = UpdateBuilder::<Agency>::new();
-    if let Some(name) = input.name {
-        update = update.set("name", name);
+    // conditionally set only the provided fields
+    let mut assignments = Vec::new();
+    let mut params = Vec::new();
+    for (column, value) in [("name", input.name), ("url", input.url), ("timezone", input.timezone)]
+    {
+        if let Some(value) = value {
+            params.push(DataType::Str(Some(value)));
+            assignments.push(format!("{column} = ${}", params.len()));
+        }
     }
-    if let Some(url) = input.url {
-        update = update.set("url", url);
-    }
-    if let Some(timezone) = input.timezone {
-        update = update.set("timezone", timezone);
+    if assignments.is_empty() {
+        return Err(bad_request!("update sets no columns"));
     }
 
-    // An empty patch fails the builder's "no SET clause" guard: a 400, not
-    // a server error.
-    let query = update
-        .r#where(Filter::eq("agency_id", input.id))
-        .build()
-        .map_err(|error| bad_request!("{}", error))?;
-    TableStore::exec(provider, CONNECTION.to_string(), query.sql, query.params).await?;
+    params.push(DataType::Int64(Some(id)));
+    let sql =
+        format!("UPDATE agency SET {} WHERE agency_id = ${}", assignments.join(", "), params.len());
+    tables.exec(CONNECTION, &sql, &params).await?;
 
-    // Fetch after update so the reply reflects exactly what was stored.
-    let agency = fetch_agency(provider, input.id)
+    // fetch after update so the reply reflects what was stored
+    let agency = fetch_agency(tables, id)
         .await?
-        .ok_or_else(|| not_found!("agency {} not found after update", input.id))?;
+        .ok_or_else(|| not_found!("agency {id} not found after update"))?;
 
-    Ok(AgencyReply { agency })
+    Ok(Json(AgencyReply { agency }))
 }

@@ -1,11 +1,19 @@
 //! Blobstore example: archive a payload and report its stored size.
 
-use omnia_sdk::api::Context;
-use omnia_sdk::{BlobStore, Result};
+use axum::Json;
+use axum::routing::post;
+use omnia_sdk::api::{Context, Handlers};
+use omnia_sdk::{BlobStore, Capabilities, Result};
 use serde::{Deserialize, Serialize};
 
+pub(crate) const ARCHIVE: &str = "/examples/archive";
+
+pub(crate) fn handlers<P: Capabilities>() -> Handlers<P> {
+    Handlers::new().route(ARCHIVE, post(archive))
+}
+
 /// Archive a payload into a blobstore container.
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct ArchiveRequest {
     /// Container receiving the object.
     pub container: String,
@@ -16,19 +24,15 @@ pub struct ArchiveRequest {
 }
 
 /// Metadata reported after archiving.
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct ArchiveReply {
     /// Stored object size in bytes.
     pub size: u64,
 }
 
-/// Archives the payload as an object, creating the container if needed, and
-/// reports the stored size.
-///
-/// # Errors
-///
-/// Returns an error when any blobstore operation fails.
-pub async fn archive<P>(input: ArchiveRequest, context: Context<P>) -> Result<ArchiveReply>
+pub(crate) async fn archive<P>(
+    context: Context<P>, Json(input): Json<ArchiveRequest>,
+) -> Result<Json<ArchiveReply>>
 where
     P: BlobStore,
 {
@@ -40,5 +44,5 @@ where
     BlobStore::put(provider, &input.container, &input.name, input.payload.as_bytes()).await?;
 
     let info = BlobStore::object_info(provider, &input.container, &input.name).await?;
-    Ok(ArchiveReply { size: info.size })
+    Ok(Json(ArchiveReply { size: info.size }))
 }

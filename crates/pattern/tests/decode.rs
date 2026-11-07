@@ -1,37 +1,53 @@
-//! Tests for the decode-through-cache handler, driven exactly as the guest
-//! invokes it, with the outbound request recorded by `MatchedHttp`.
+//! Tests for the decode-through-cache handler, driven through the stem's
+//! router, with the outbound request recorded by `MatchedHttp`.
 
+use axum::body::Body;
+use axum::http::header::CONTENT_TYPE;
+use axum::http::{HeaderValue, Method, Request, Response, StatusCode};
 use bytes::Bytes;
-use http::{Method, Response};
-use omnia_sdk::api::{Client, Metadata};
-use omnia_test::guest::{MapConfig, MatchedHttp, Provider};
-use pattern::Segment;
-use pattern::decode::{
-    CLIENT_CERT, DECODER_URL, DecodeSegmentRequest, decode_segment, segment_key,
-};
+use omnia_sdk::api::Client;
+use omnia_test::guest::{MapConfig, MatchedHttp, Provider, send};
+use pattern::decode::{DecodeSegmentReply, Segment};
+use serde_json::json;
 
 const DECODER: &str = "https://decoder.test/decode";
+#[expect(
+    clippy::disallowed_macros,
+    reason = "integration test loads captured segment JSON from disk"
+)]
+const SEGMENT: &[u8] = include_bytes!("../data/segment.json");
 
-/// A provider whose decoder answers with the fixture segment.
 fn provider() -> Provider {
-    let segment = Bytes::from_static(include_bytes!("../data/segment.json"));
     Provider::default()
         .config(
-            MapConfig::default().with([(DECODER_URL, DECODER), (CLIENT_CERT, "test-client-cert")]),
+            MapConfig::default().with([
+                ("PATTERN_DECODER_URL", DECODER),
+                ("PATTERN_CLIENT_CERT", "test-client-cert"),
+            ]),
         )
-        .http(MatchedHttp::default().on(Method::POST, DECODER, Response::new(segment)))
+        .http(MatchedHttp::default().on(
+            Method::POST,
+            DECODER,
+            Response::new(Bytes::from_static(SEGMENT)),
+        ))
+}
+
+async fn decode(provider: &Provider, code: &str) -> DecodeSegmentReply {
+    let request = Request::post("/examples/patterns/decode")
+        .header(CONTENT_TYPE, "application/json")
+        .body(Body::from(json!({ "code": code }).to_string()))
+        .expect("request");
+    let router = pattern::handlers().with_state(Client::new(provider.clone()));
+    let response = send(&router, request).await;
+    assert_eq!(response.status(), StatusCode::OK);
+    serde_json::from_slice(response.body()).expect("reply")
 }
 
 #[tokio::test]
 async fn miss() {
     let provider = provider();
-    let client = Client::new("acme", provider.clone());
 
-    let request = DecodeSegmentRequest {
-        code: "seg-1".to_string(),
-    };
-    let reply =
-        client.call(decode_segment, request, &Metadata::default()).await.expect("should succeed");
+    let reply = decode(&provider, "seg-1").await;
 
     assert!(!reply.cached);
     assert_eq!(reply.segment.code, "seg-1");
@@ -44,21 +60,17 @@ async fn miss() {
     assert_eq!(requests[0].method, Method::POST);
     assert_eq!(requests[0].uri.path(), "/decode");
     assert_eq!(
-        requests[0].headers.get("Client-Cert").map(http::HeaderValue::as_bytes),
+        requests[0].headers.get("Client-Cert").map(HeaderValue::as_bytes),
         Some(b"test-client-cert".as_slice())
     );
 
     // The result was written back through the cache…
-    let cached = provider.storage.state(&segment_key("seg-1")).expect("segment cached");
+    let cached = provider.storage.state("pattern:segment:seg-1").expect("segment cached");
     let segment: Segment = serde_json::from_slice(&cached).expect("valid cached JSON");
     assert_eq!(segment.code, "seg-1");
 
     // …so a second invocation never reaches HTTP.
-    let request = DecodeSegmentRequest {
-        code: "seg-1".to_string(),
-    };
-    let reply =
-        client.call(decode_segment, request, &Metadata::default()).await.expect("should succeed");
+    let reply = decode(&provider, "seg-1").await;
     assert!(reply.cached);
     assert_eq!(provider.http.requests().len(), 1);
 }
@@ -67,18 +79,12 @@ async fn miss() {
 async fn hit() {
     // No config seeded and no route scripted: reading either would fail.
     let provider = Provider::default();
-    let segment = serde_json::json!({ "code": "seg-2", "points": [[0.0, 0.0]] });
+    let segment = json!({ "code": "seg-2", "points": [[0.0, 0.0]] });
     provider
         .storage
-        .insert_state(&segment_key("seg-2"), &serde_json::to_vec(&segment).expect("serialize"));
+        .insert_state("pattern:segment:seg-2", &serde_json::to_vec(&segment).expect("serialize"));
 
-    let request = DecodeSegmentRequest {
-        code: "seg-2".to_string(),
-    };
-    let reply = Client::new("acme", provider.clone())
-        .call(decode_segment, request, &Metadata::default())
-        .await
-        .expect("should succeed");
+    let reply = decode(&provider, "seg-2").await;
 
     assert!(reply.cached);
     assert_eq!(reply.segment.code, "seg-2");

@@ -3,13 +3,13 @@
 The largest domain crate. Handles multiple message types for realtime train
 position and passenger count data:
 
-- **Motion messages** (`{env}-realtime-pulse-to-motion.v1`) — vehicle position
+- **Motion messages** (`realtime-pulse-to-motion.v1`) — vehicle position
   and arrival/departure updates, published onward as GTFS-realtime vehicle
-  positions (`{env}-realtime-gtfs-vp.v1`) or dead-reckoning estimates
-  (`{env}-realtime-dead-reckoning.v1`).
-- **Train AVL** (`{env}-realtime-train-avl.v1`) — Motion AVL events filtered
+  positions (`realtime-gtfs-vp.v1`) or dead-reckoning estimates
+  (`realtime-dead-reckoning.v1`).
+- **Train AVL** (`realtime-train-avl.v1`) — Motion AVL events filtered
   to Motion-tagged train vehicles before standard processing.
-- **Passenger count** (`{env}-realtime-passenger-count.v1`) — onboard
+- **Passenger count** (`realtime-passenger-count.v1`) — onboard
   passenger count events, stored as occupancy status.
 
 Also provides an HTTP vehicle info lookup, and — behind the off-by-default

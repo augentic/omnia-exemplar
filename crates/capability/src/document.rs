@@ -1,13 +1,21 @@
 //! Document-store example: upsert a JSON note and read it back.
 
 use anyhow::Context as _;
-use omnia_sdk::api::Context;
+use axum::Json;
+use axum::routing::post;
+use omnia_sdk::api::{Context, Handlers};
 use omnia_sdk::docstore::Document;
-use omnia_sdk::{DocumentStore, Result};
+use omnia_sdk::{Capabilities, DocumentStore, Result};
 use serde::{Deserialize, Serialize};
 
+pub(crate) const NOTE: &str = "/examples/note";
+
+pub(crate) fn handlers<P: Capabilities>() -> Handlers<P> {
+    Handlers::new().route(NOTE, post(note))
+}
+
 /// Upsert a JSON note document.
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct NoteRequest {
     /// Document collection.
     pub store: String,
@@ -18,20 +26,15 @@ pub struct NoteRequest {
 }
 
 /// Note state after the upsert.
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct NoteReply {
     /// Stored payload size in bytes, read back from the store.
     pub size: usize,
 }
 
-/// Upserts the note as a JSON document and reads it back to report the
-/// stored size.
-///
-/// # Errors
-///
-/// Returns an error when the body cannot be serialized, a document-store
-/// operation fails, or the note is missing after the upsert.
-pub async fn note<P>(input: NoteRequest, context: Context<P>) -> Result<NoteReply>
+pub(crate) async fn note<P>(
+    context: Context<P>, Json(input): Json<NoteRequest>,
+) -> Result<Json<NoteReply>>
 where
     P: DocumentStore,
 {
@@ -46,7 +49,7 @@ where
     let stored = DocumentStore::get(provider, &input.store, &input.id)
         .await?
         .context("note missing after upsert")?;
-    Ok(NoteReply {
+    Ok(Json(NoteReply {
         size: stored.data.len(),
-    })
+    }))
 }

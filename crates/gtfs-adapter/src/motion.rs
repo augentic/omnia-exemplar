@@ -1,23 +1,45 @@
 //! Motion AVL message processing.
 
-use acme_common::{config, topic};
 use chrono::{DateTime, Utc};
-use omnia_sdk::api::Context;
-use omnia_sdk::{Config, HttpRequest, Identity, Message, Publish, Result, StateStore, bad_request};
+use common::topic;
+use omnia_sdk::api::{Context, Handlers};
+use omnia_sdk::{
+    Capabilities, Config, Error, HttpRequest, Identity, Message, Publish, Result, StateStore,
+    bad_request,
+};
 use serde::{Deserialize, Serialize};
+use thiserror::Error;
 
 use crate::location::Location;
 use crate::{location, serial_data};
 
-/// Processes a Motion AVL message, publishing a GTFS-realtime vehicle
-/// position or dead-reckoning event when applicable.
-///
-/// # Errors
-///
-/// Returns an error when the payload cannot be processed or a provider
-/// request fails.
-#[tracing::instrument(skip_all)]
-pub async fn motion<P>(input: MotionMessage, context: Context<P>) -> Result<()>
+pub(crate) fn handlers<P: Capabilities>() -> Handlers<P> {
+    Handlers::new().topic(topic::PULSE_TO_MOTION, motion)
+}
+
+/// Errors raised while validating an inbound Motion message.
+#[derive(Error, Debug)]
+pub enum MotionError {
+    /// The message timestamp is invalid (too old or future-dated).
+    #[error("{0}")]
+    BadTime(String),
+}
+
+impl MotionError {
+    fn code(&self) -> String {
+        match self {
+            Self::BadTime(_) => "bad_time".to_string(),
+        }
+    }
+}
+
+impl From<MotionError> for Error {
+    fn from(err: MotionError) -> Self {
+        Self::bad_request(err.code(), err.to_string())
+    }
+}
+
+pub(crate) async fn motion<P>(context: Context<P>, input: MotionMessage) -> Result<()>
 where
     P: Config + HttpRequest + Identity + Publish + StateStore,
 {
@@ -27,27 +49,23 @@ where
     // serial data event
     if message.event_type == EventType::SerialData {
         #[cfg(feature = "god-mode")]
-        let message = crate::god_mode::apply_overrides(message, provider).await?;
-        serial_data::process(&message, provider).await?;
+        let message = crate::god_mode::apply_overrides(provider, message).await?;
+        serial_data::process(provider, &message).await?;
         return Ok(());
     }
 
     // must be a location event
-    let Some(location) = location::process(&message, provider).await? else {
+    let Some(location) = location::process(provider, &message).await? else {
         return Ok(());
     };
 
-    let (payload, key, suffix) = match location {
-        Location::VehiclePosition(feed) => (serde_json::to_vec(&feed)?, feed.id, topic::GTFS_VP),
-        Location::DeadReckoning(dr) => (serde_json::to_vec(&dr)?, dr.id, topic::DEAD_RECKONING),
+    let (message, key, topic) = match location {
+        Location::VehiclePosition(feed) => (Message::json(&feed)?, feed.id, topic::GTFS_VP),
+        Location::DeadReckoning(dr) => (Message::json(&dr)?, dr.id, topic::DEAD_RECKONING),
     };
 
-    let topic = config::topic(provider, suffix).await;
-
     // publish
-    let mut message = Message::new(&payload);
-    message.headers.insert("key".to_string(), key.clone());
-    Publish::send(provider, &topic, &message).await?;
+    context.publish().send(topic, &message.with_header("key", key)).await?;
 
     Ok(())
 }

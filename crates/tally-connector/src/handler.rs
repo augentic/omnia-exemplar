@@ -1,36 +1,34 @@
 //! Tally APC connector handler.
 
-use acme_common::{config, topic};
-use anyhow::Context as _;
-use omnia_sdk::api::Context;
-use omnia_sdk::{Config, Message, Publish, Result};
+use axum::Json;
+use axum::routing::post;
+use common::topic;
+use omnia_sdk::api::{Context, Handlers};
+use omnia_sdk::{Capabilities, Message, Publish, Result};
 use serde::{Deserialize, Serialize};
 
-use crate::TallyMessage;
+use crate::types::TallyMessage;
 
-/// Forwards a Tally APC message to the tally APC topic, keyed by device site.
-///
-/// # Errors
-///
-/// Returns an error if the message cannot be serialized or publishing fails.
-pub async fn tally<P>(input: TallyRequest, context: Context<P>) -> Result<TallyReply>
+pub(crate) const APC: &str = "/api/apc";
+
+pub(crate) fn handlers<P: Capabilities>() -> Handlers<P> {
+    Handlers::new().route(APC, post(tally))
+}
+
+pub(crate) async fn tally<P>(
+    context: Context<P>, Json(input): Json<TallyRequest>,
+) -> Result<Json<TallyReply>>
 where
-    P: Config + Publish,
+    P: Publish,
 {
-    let provider = context.provider();
     let message = &input.message;
 
     // forward to the tally APC topic
-    let msg_vec = serde_json::to_vec(message).context("failed to serialize TallyMessage")?;
-    let mut msg = Message::new(&msg_vec);
     let site = message.device.as_ref().map_or_else(|| "undefined", |device| &device.site);
-    msg.headers.insert("key".to_string(), site.to_string());
+    let msg = Message::json(message)?.with_header("key", site);
+    context.publish().send(topic::TALLY_APC, &msg).await?;
 
-    let topic = config::topic(provider, topic::TALLY_APC).await;
-
-    Publish::send(provider, &topic, &msg).await?;
-
-    Ok(TallyReply("OK"))
+    Ok(Json(TallyReply("OK")))
 }
 
 /// Tally request

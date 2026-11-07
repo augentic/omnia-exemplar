@@ -1,51 +1,46 @@
 //! Tests for the feature-gated god-mode trip override.
 #![cfg(feature = "god-mode")]
 
+#[expect(dead_code, reason = "shared support helpers are used by `static.rs`")]
 mod support;
 
-use acme_common::config;
-use gtfs_adapter::{SetTripRequest, set_trip};
-use omnia_sdk::api::{Client, Metadata};
-use omnia_test::guest::MapConfig;
+use axum::body::Body;
+use axum::http::{Request, StatusCode};
+use gtfs_adapter::set_trip::SetTripReply;
+use omnia_test::guest::{MapConfig, send};
 use serde_json::Value;
 
-use self::support::provider;
-
-const OWNER: &str = "acme";
+use self::support::{provider, router};
 
 #[tokio::test]
 async fn set_trip_disabled() {
     // `GOD_MODE_ENABLED` is not configured, so the handler must refuse
     let provider = provider();
+    let request = Request::post("/god-mode/set-trip/EM580/TRIP-9")
+        .header(axum::http::header::CONTENT_TYPE, "application/json")
+        .body(Body::from("{}"))
+        .expect("request");
 
-    let request = SetTripRequest {
-        vehicle_id: "EM580".to_string(),
-        trip_id: "TRIP-9".to_string(),
-    };
-    let error = Client::new(OWNER, provider.clone())
-        .call(set_trip, request, &Metadata::default())
-        .await
-        .expect_err("should reject when god mode is disabled");
+    let response = send(&router(&provider), request).await;
 
-    assert!(error.to_string().contains("God mode not enabled"));
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    let body: Value = serde_json::from_slice(response.body()).expect("error JSON");
+    assert!(body["message"].as_str().is_some_and(|msg| msg.contains("God mode not enabled")));
     assert!(provider.storage.state("god_mode:overrides").is_none());
 }
 
 #[tokio::test]
 async fn set_trip_enabled() {
-    let provider = provider().config(
-        MapConfig::default().with([(config::ENV, "dev"), (config::GOD_MODE_ENABLED, "true")]),
-    );
+    let provider = provider().config(MapConfig::default().with([("GOD_MODE_ENABLED", "true")]));
+    let request = Request::post("/god-mode/set-trip/EM580/TRIP-9")
+        .header(axum::http::header::CONTENT_TYPE, "application/json")
+        .body(Body::from("{}"))
+        .expect("request");
 
-    let request = SetTripRequest {
-        vehicle_id: "EM580".to_string(),
-        trip_id: "TRIP-9".to_string(),
-    };
-    let reply = Client::new(OWNER, provider.clone())
-        .call(set_trip, request, &Metadata::default())
-        .await
-        .expect("should succeed");
+    let response = send(&router(&provider), request).await;
 
+    assert_eq!(response.status(), StatusCode::OK);
+    let reply: SetTripReply = serde_json::from_slice(response.body()).expect("reply");
     assert_eq!(reply.message, "Ok");
     assert_eq!(reply.process, 0);
 

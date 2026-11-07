@@ -88,24 +88,78 @@ fn unpinned_crate() {
 }
 
 #[test]
+fn seed_features_drifted() {
+    let replica = Replica::of_repo();
+    let seed = replica.read(SEED_MANIFEST);
+    let pin =
+        seed.lines().find(|line| line.starts_with("serde = ")).expect("the seed pins `serde`");
+    replica.write(
+        SEED_MANIFEST,
+        &seed.replace(pin, "serde = { version = \"1.0.229\", features = [\"derive\", \"rc\"] }"),
+    );
+
+    let failures = template_check::run(replica.root()).expect("contract inputs readable");
+
+    let [features, body] = failures.as_slice() else { panic!("two failures: {failures:#?}") };
+    assert_eq!(
+        features,
+        "templates/guest/core/Cargo.toml: `serde` enables [\"derive\", \"rc\"], the root pins \
+         [\"derive\"]"
+    );
+    assert!(body.ends_with("embeds a body other than its source"), "{body}");
+}
+
+#[test]
 fn patched_crate() {
     let replica = Replica::of_repo();
     let seed = replica.read(SEED_MANIFEST);
-    replica.write(
-        SEED_MANIFEST,
-        &format!(
-            "{seed}\n[patch.crates-io]\nomnia-sdk = {{ git = \"https://github.com/augentic/omnia\" }}\n"
-        ),
-    );
+    let patched = if seed.contains("[patch.crates-io]\n") {
+        seed.replacen(
+            "[patch.crates-io]\n",
+            "[patch.crates-io]\ntokio = { git = \"https://github.com/tokio-rs/tokio\" }\n",
+            1,
+        )
+    } else {
+        format!(
+            "{seed}\n[patch.crates-io]\ntokio = {{ git = \"https://github.com/tokio-rs/tokio\" }}\n"
+        )
+    };
+    replica.write(SEED_MANIFEST, &patched);
 
     let failures = template_check::run(replica.root()).expect("contract inputs readable");
 
     let [patch, body] = failures.as_slice() else { panic!("two failures: {failures:#?}") };
     assert_eq!(
         patch,
-        "templates/guest/core/Cargo.toml: `[patch]` retargets crates behind the pins"
+        "templates/guest/core/Cargo.toml: `[patch.crates-io]` retargets `tokio` behind the pins"
     );
     assert!(body.ends_with("embeds a body other than its source"), "{body}");
+}
+
+#[test]
+fn uncarried_root_patch() {
+    let replica = Replica::of_repo();
+    let root = replica.read("Cargo.toml");
+    let patched = if root.contains("[patch.crates-io]\n") {
+        root.replacen(
+            "[patch.crates-io]\n",
+            "[patch.crates-io]\ntokio = { git = \"https://github.com/tokio-rs/tokio\" }\n",
+            1,
+        )
+    } else {
+        format!(
+            "{root}\n[patch.crates-io]\ntokio = {{ git = \"https://github.com/tokio-rs/tokio\" }}\n"
+        )
+    };
+    replica.write("Cargo.toml", &patched);
+
+    let failures = template_check::run(replica.root()).expect("contract inputs readable");
+
+    assert_eq!(
+        failures,
+        ["templates/guest/core/Cargo.toml: `tokio` is patched in the root workspace \
+             (`[patch.crates-io]`), not in the seed"]
+    );
 }
 
 #[test]
@@ -183,8 +237,40 @@ fn edited_source() {
     );
 }
 
+#[test]
+fn clippy_paths_drift() {
+    let replica = Replica::of_repo();
+    let crates_clippy = replica.read("crates/clippy.toml");
+    replica.write(
+        "crates/clippy.toml",
+        &crates_clippy.replacen(
+            "disallowed-methods = [\n",
+            "disallowed-methods = [\n  { path = \"std::mem::forget\", reason = \"no leaks\" },\n",
+            1,
+        ),
+    );
+
+    let failures = template_check::run(replica.root()).expect("contract inputs readable");
+
+    assert_eq!(
+        failures,
+        ["templates/guest/core/clippy.toml: `disallowed-methods` lacks `std::mem::forget`, \
+             which `crates/clippy.toml` bans"]
+    );
+}
+
+#[test]
+fn clippy_config_unreadable() {
+    let replica = Replica::of_repo();
+    fs::remove_file(replica.root().join("crates/clippy.toml")).expect("removed");
+
+    let failures = template_check::run(replica.root()).expect("contract inputs readable");
+
+    assert_eq!(failures, ["crates/clippy.toml: clippy config unreadable"]);
+}
+
 // The files the gate reads, copied beneath a scratch root a scenario edits:
-// the manifest, its render values, the root manifest the pins are held to,
+// the manifest, the root manifest the pins are held to, `crates/clippy.toml`,
 // and every entry's source.
 struct Replica(PathBuf);
 
@@ -197,7 +283,7 @@ impl Replica {
             process::id(),
             COUNT.fetch_add(1, Ordering::Relaxed)
         )));
-        let gated = ["Cargo.toml", "templates/guest/manifest.yaml", "templates/guest/values.yaml"];
+        let gated = ["Cargo.toml", "crates/clippy.toml", "templates/guest/manifest.yaml"];
         for source in ENTRIES.iter().map(|entry| entry.source).chain(gated) {
             let text = fs::read_to_string(root.join(source))
                 .unwrap_or_else(|err| panic!("`{source}`: {err}"));

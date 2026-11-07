@@ -5,16 +5,21 @@ mod fixture;
 
 use std::fs;
 
-use acme_common::TIMEZONE;
 use chrono::Utc;
-use omnia_sdk::api::{Client, Metadata};
-use pulse_adapter::pulse;
+use common::topic;
+use omnia_sdk::api::Client;
+use omnia_test::guest::deliver;
+use pulse_adapter::pulse::TIMEZONE;
 
 use self::fixture::{Case, Expected};
 
 // Load each test case. For each, present the input to the adapter and compare
 // the output expected.
 #[tokio::test]
+#[expect(
+    clippy::disallowed_methods,
+    reason = "integration test enumerates captured replay fixtures from disk"
+)]
 async fn run() {
     for entry in fs::read_dir("data/replay").expect("should read directory") {
         replay(fixture::load(entry.expect("should read entry").path())).await;
@@ -22,9 +27,8 @@ async fn run() {
 }
 
 async fn replay(case: Case) {
-    let result = Client::new("acme", case.provider.clone())
-        .call(pulse, case.input.clone(), &Metadata::default())
-        .await;
+    let router = pulse_adapter::handlers().with_state(Client::new(case.provider.clone()));
+    let result = deliver(&router, topic::PULSE, case.input.clone()).await;
     let curr_events = case.events();
 
     match &case.expected {
@@ -35,8 +39,6 @@ async fn replay(case: Case) {
         Some(Expected::Success(expected_events)) => {
             assert_eq!(curr_events.len(), expected_events.len());
             expected_events.iter().zip(curr_events).for_each(|(published, mut actual)| {
-                // add 5 seconds to the actual message timestamp the adapter sleeps 5 seconds
-                // before output the first round
                 let now = Utc::now().with_timezone(&TIMEZONE);
                 let diff = now.timestamp() - actual.message_data.timestamp.timestamp();
                 assert!(diff.abs() < 3, "expected vs actual too great: {diff}");
@@ -51,10 +53,11 @@ async fn replay(case: Case) {
             });
         }
         Some(Expected::Failure(expected_error)) => {
-            // Was the error the one defined in the fixture?
-            let actual_error = result.expect_err("should have error");
-            assert_eq!(actual_error.code(), expected_error.code());
-            assert_eq!(actual_error.description(), expected_error.description());
+            let error = result.expect_err("should have error");
+            assert!(
+                fixture::delivery_error_matches(expected_error, &error),
+                "expected {expected_error:?}, got {error:?}"
+            );
         }
     }
 }

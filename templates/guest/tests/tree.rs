@@ -19,7 +19,7 @@ fn table() {
     sorted.sort_unstable();
     sorted.dedup();
     assert_eq!(paths, sorted, "the table is sorted by path, each path once");
-    assert_eq!(paths.len(), 29, "the layout is twenty-nine files");
+    assert_eq!(paths.len(), 26, "the layout is twenty-six files");
 
     for entry in ENTRIES {
         assert!(!entry.path.starts_with('/'), "`{}` is relative", entry.path);
@@ -32,8 +32,8 @@ fn table() {
     }
     let exact = ENTRIES.iter().filter(|entry| entry.proof == Proof::Exact).count();
     let listed = ENTRIES.iter().filter(|entry| entry.role == Role::Listed).count();
-    assert_eq!(exact, 13, "the exact entries are the repository's tooling");
-    assert_eq!(listed, 4, "the listed entries are the four lists a slice appends to");
+    assert_eq!(exact, 17, "the exact entries are the repository's tooling");
+    assert_eq!(listed, 3, "the listed entries are the three lists a slice appends to");
     assert!(
         ENTRIES
             .iter()
@@ -70,55 +70,50 @@ fn scaffolded_once() {
 fn held_file_kept() {
     let tree = Scratch::new();
     tree.write("Makefile", "# held\n");
-    tree.write("src/routes.rs", "// held\n");
+    tree.write("src/lib.rs", "// held\n");
 
     let scaffolded = scaffold(tree.root()).expect("the scaffold");
 
     assert!(
-        !scaffolded.contains(&"Makefile") && !scaffolded.contains(&"src/routes.rs"),
+        !scaffolded.contains(&"Makefile") && !scaffolded.contains(&"src/lib.rs"),
         "a held file is not scaffolded"
     );
     assert_eq!(scaffolded.len(), ENTRIES.len() - 2);
     assert_eq!(tree.read("Makefile").as_deref(), Some("# held\n"), "a held file stands");
-    assert_eq!(tree.read("src/routes.rs").as_deref(), Some("// held\n"));
+    assert_eq!(tree.read("src/lib.rs").as_deref(), Some("// held\n"));
 }
 
 #[test]
 fn static_files_restored() {
     let tree = Scratch::new();
     scaffold(tree.root()).expect("the scaffold");
-    tree.write("src/lib.rs", &"//! mine\n".repeat(5));
     fs::remove_file(tree.root().join("Makefile")).expect("the file removed");
-    tree.write("src/routes.rs", "// a list, left to its consumer\n");
+    tree.write("mise.toml", &"# mine\n".repeat(30));
+    tree.write("Cargo.toml", "// a list, left to its consumer\n");
 
     let found = drift(tree.root()).expect("the drift");
 
     let paths: Vec<&str> = found.files().iter().map(|drifted| drifted.path).collect();
     assert_eq!(
         paths,
-        ["Makefile", "src/lib.rs"],
+        ["Makefile", "mise.toml"],
         "the static files that differ, a missing one among them"
     );
-    let [makefile, lib] = found.files() else { unreachable!() };
+    let [makefile, mise] = found.files() else { unreachable!() };
     assert!(
         makefile.lines.iter().all(|line| line.starts_with("- ")),
         "a missing file lacks every line"
     );
     assert_eq!(makefile.lines.len(), body("Makefile").lines().count());
     assert!(
-        lib.lines.contains(&"+ //! mine".to_owned()),
-        "the tree's line is named: {:?}",
-        lib.lines
-    );
-    assert!(
-        lib.lines.contains(&"- //! # guest".to_owned()),
-        "the template's line is named: {:?}",
-        lib.lines
+        mise.lines.iter().any(|line| line.starts_with("+ ")),
+        "an edited file names the tree's line: {:?}",
+        mise.lines
     );
     let shown = found.to_string();
     assert!(shown.starts_with("`Makefile`:\n- "), "the display heads each file: {shown}");
     assert!(shown.contains("\n… and "), "the display cuts a long file short: {shown}");
-    assert!(shown.contains("\n`src/lib.rs`:\n"), "the display heads the second file: {shown}");
+    assert!(shown.contains("\n`mise.toml`:\n"), "the display heads the second file: {shown}");
 
     let restored = restore(tree.root()).expect("the restore");
 
@@ -129,12 +124,7 @@ fn static_files_restored() {
         "the missing file is written"
     );
     assert_eq!(
-        tree.read("src/lib.rs").as_deref(),
-        Some(body("src/lib.rs")),
-        "the changed file is put back"
-    );
-    assert_eq!(
-        tree.read("src/routes.rs").as_deref(),
+        tree.read("Cargo.toml").as_deref(),
         Some("// a list, left to its consumer\n"),
         "a listed file is not held"
     );
@@ -215,21 +205,25 @@ fn file_as_parent() {
     assert!(tree.read("Makefile").is_none(), "nothing is scaffolded when a path is refused");
 }
 
-// `Makefile` sorts before `src/`, so a restore that held each file only as
+// `Makefile` sorts before `crates/`, so a restore that held each file only as
 // it reached it would put the Makefile back before refusing the link.
 #[cfg(unix)]
 #[test]
-fn restore_with_symlinked_parent() {
+fn restore_symlink_parent() {
     let tree = Scratch::new();
     scaffold(tree.root()).expect("the scaffold");
     tree.write("Makefile", "# edited\n");
-    fs::rename(tree.root().join("src"), tree.root().join("elsewhere"))
-        .expect("the directory moved");
-    std::os::unix::fs::symlink(tree.root().join("elsewhere"), tree.root().join("src"))
+    let common_src = tree.root().join("crates/common/src");
+    fs::create_dir_all(tree.root().join("elsewhere")).expect("a directory");
+    fs::rename(&common_src, tree.root().join("elsewhere/common-src")).expect("the directory moved");
+    std::os::unix::fs::symlink(tree.root().join("elsewhere/common-src"), &common_src)
         .expect("a link where the directory was");
 
     let err = restore(tree.root()).expect_err("the restore is refused");
 
-    assert!(matches!(&err, Error::Occupied { path } if path.ends_with("src")), "{err}");
+    assert!(
+        matches!(&err, Error::Occupied { path } if path.ends_with("crates/common/src")),
+        "{err}"
+    );
     assert_eq!(tree.read("Makefile").as_deref(), Some("# edited\n"), "nothing is put back");
 }

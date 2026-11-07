@@ -3,19 +3,13 @@
 //! Receives Tally passenger count requests and forwards to the
 //! `realtime-tally-apc.v2` topic.
 
-mod handler;
-mod types;
+pub mod handler;
+pub mod types;
 
-use acme_common::Capabilities;
-pub use handler::*;
-use omnia_sdk::api::Client;
-use omnia_sdk::api::http::post;
-pub use types::*;
+use omnia_sdk::Capabilities;
+use omnia_sdk::api::Handlers;
 
-/// Tally passenger-count (APC) ingress.
-pub const APC: &str = "/api/apc";
-
-/// The crate's routes, merged onto the guest's router.
-pub fn router<P: Capabilities>() -> axum::Router<Client<P>> {
-    axum::Router::new().route(APC, post(tally))
+/// The stem's handlers, merged onto the root routers.
+pub fn handlers<P: Capabilities>() -> Handlers<P> {
+    Handlers::from([handler::handlers()])
 }

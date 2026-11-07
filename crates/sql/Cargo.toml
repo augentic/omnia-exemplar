@@ -1,6 +1,6 @@
 [package]
 name = "sql"
-description = "Rich wasi-sql showcase: agency/feed schema exercising the guest ORM builders, a multi-column JOIN entity, and server-assigned ids"
+description = "Rich wasi-sql showcase: agency/feed schema exercising parameterized SQL, a multi-column JOIN, and server-assigned ids"
 readme = "README.md"
 publish = false
 authors.workspace = true
@@ -19,12 +19,12 @@ workspace = true
 crate-type = ["lib"]
 
 [dependencies]
-axum.workspace = true
 anyhow.workspace = true
+axum.workspace = true
 chrono.workspace = true
-omnia-orm.workspace = true
 omnia-sdk.workspace = true
 serde.workspace = true
+serde_json.workspace = true
 
 [dev-dependencies]
 tokio.workspace = true
@@ -32,4 +32,3 @@ tokio.workspace = true
 # Target-gated so the guest's wasm32 dependency graph never sees the doubles.
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 omnia-test = { workspace = true, features = ["guest"] }
-tower.workspace = true

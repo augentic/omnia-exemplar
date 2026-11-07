@@ -8,12 +8,51 @@ Unreleased
 
 ### Changed
 
+- **One `Handlers` list at every level, one `router`, and stems only in the root `[dependencies]`.**
+  The root's `router`, a stem's `handlers`, and a part's `handlers` all
+  register or merge their HTTP routes (`.route`) and messaging topics
+  (`.topic`, `.topic_with`) on `omnia_sdk::api::Handlers<P>`
+  (`Handlers::from([..])`), anchored structurally by `HANDLER_LIST_ANCHOR`
+  (`"Handlers::from(["`) with no comment inside the array,
+  and the root `Cargo.toml` names each stem once in `[dependencies]`
+  (`<stem> = { path = "crates/<stem>" }`), so a slice adds a stem in two
+  lines after `CRATE_LIST_ANCHOR` and `HANDLER_LIST_ANCHOR`
+  (`PATH_LIST_ANCHOR` is removed). `with_state(Client::new(provider))`
+  closes the handlers into one `omnia_sdk::api::Router<P>` (`router`),
+  bound by both `http::export!(router)` and `messaging::export!(router)`.
+  Environment topic prefixing moves to the host messaging backends, so
+  `common::config`, `common::routers`, and `common::topics` are removed.
+- **Parameterized SQL + `common::RowExt` replaces `omnia-orm`, `acme-common`
+  becomes `common`, and stem entries hold composition alone.** `omnia-orm`
+  is removed: `crates/sql` and `crates/pattern/src/place.rs` execute
+  parameterized SQL directly over `TableStore::query` and `TableStore::exec`
+  and map rows through `TryFrom<&Row>` over `common::RowExt` (`get_i64`,
+  `get_opt_i64`, `get_f64`, `get_opt_f64`, `get_bool`, `get_opt_bool`,
+  `get_str`, `get_opt_str`). `crates/common` is renamed from
+  `acme-common` to `common`, shedding `fleet.rs`, `block_mgt.rs`,
+  `TIMEZONE`, and domain config keys to `gtfs-adapter` and `pulse-adapter`
+  so `crates/common/{Cargo.toml,src/lib.rs,src/config.rs}` and
+  `tests/{routes.rs,messaging.rs}` become `exact` template entries (`18`
+  exact entries, `schema-version: 4` with `tokens` and `values.yaml`
+  removed); `common::topics(router, env, [..])` folds a stem's topic
+  registrations in one call; `Capabilities` adds `+ Vault`;
+  `crates/pattern` adds `StateStore::cas` (`409 Conflict` via `QuotaError`
+  with a structured JSON body carrying the observed `current_version`) and
+  `Identity::access_token` vignettes; `pulse_adapter::stops` treats an
+  unreadable cached entry as a miss and refetches; every stem part keeps
+  its handlers, paths, settings, and state keys `pub(crate)` with no root
+  `pub use` re-exports and router-driven tests; the seed pins
+  `chrono-tz`, `quick-xml`, `serde_repr`, `urlencoding`, and
+  `omnia-http-cache` (held with feature parity by `template-check`);
+  `omnia_template::insert_after` inserts stem list lines after their
+  anchors; and the `orders` fixture stem proves all four generated idioms
+  (`placing`, `lookup`, `catalogue`, `dispatch`).
 - **Composition replaces registration.** A stem is one crate exposing
   `router()` and `topics(router, env)`, and the root lists compose them: one
   `router.merge(<stem>::router())` statement per stem in `src/routes.rs`,
   one `<stem>::topics(router, &env)` per stem in `src/messaging.rs`. A
   stem's entry folds its parts through two helpers of `common`,
-  `common::routers([..])` and `common::topics(router, env).parts([..])`,
+  `common::routers([..])` and `common::topics(router, env, [..])`,
   each over a list that may be empty, so the entry is laid the same by
   every slice of the stem and merges line by line. A part's paths,
   settings, and state keys are its own `pub(crate)` constants, its
@@ -134,7 +173,7 @@ Unreleased
   guest-side HTTP cache from `omnia-wasi-http`: `Cache-Control` and
   `If-None-Match` on an outbound request are now plain headers. The exemplar
   restores caching where it was relied on with `omnia-http-cache`
-  ([omnia-extensions](https://github.com/augentic/omnia-extensions), a new
+  ([omnia-ext](https://github.com/augentic/omnia-ext), a new
   git dependency of `acme-common` with a matching `deny.toml` `allow-git`
   entry): `fleet::vehicle` and `block_mgt::cached_allocation` wrap the
   provider in `HttpCache::new(provider, provider)`, gain a `StateStore` bound,
@@ -143,10 +182,10 @@ Unreleased
   uses the etag verbatim as the state-store key. `gtfs_adapter::trip` no
   longer sends `Cache-Control` on its Trip Management `POST` — it carried no
   etag, so it was never cacheable under either implementation.
-- Pinned omnia to `31fb3f0` (omnia #290–#297) and omnia-extensions to
+- Pinned omnia to `31fb3f0` (omnia #290–#297) and omnia-ext to
   `184a1e1`. Omnia removed the guest ORM from `omnia-sdk` — the
   `omnia_sdk::orm` module and the `entity!` macro — and the layer now lives in
-  `omnia-orm` ([omnia-extensions](https://github.com/augentic/omnia-extensions)),
+  `omnia-orm` ([omnia-ext](https://github.com/augentic/omnia-ext)),
   a second git dependency from the same source and revision as
   `omnia-http-cache`. The API is unchanged: `crates/sql` and `crates/pattern`
   depend on `omnia-orm` and read `omnia_orm::{entity, Entity, Filter, Join,

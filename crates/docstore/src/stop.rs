@@ -7,15 +7,53 @@
 //! date) — sorted by name with limit/continuation pagination.
 
 use anyhow::Context as _;
-use omnia_sdk::api::Context;
+use axum::Json;
+use axum::extract::{Path, Query};
+use axum::routing::get;
+use omnia_sdk::api::{Context, Handlers};
 use omnia_sdk::docstore::{Document, Filter, QueryOptions, SortField};
-use omnia_sdk::{DocumentStore, Result, bad_request, not_found};
+use omnia_sdk::{Capabilities, DocumentStore, Result, bad_request, not_found};
+use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 
-use crate::{DocumentRecord, records};
+pub(crate) const STOPS: &str = "/examples/stops";
+pub(crate) const STOP: &str = "/examples/stops/{id}";
+pub(crate) const COLLECTION: &str = "stops";
 
-/// Document collection holding the stops.
-pub const COLLECTION: &str = "stops";
+pub(crate) fn handlers<P: Capabilities>() -> Handlers<P> {
+    Handlers::new()
+        .route(STOPS, get(list_stops).post(create_stop))
+        .route(STOP, get(get_stop).put(upsert_stop).delete(delete_stop))
+}
+
+/// A stored document paired with its id, flattened onto the wire.
+///
+/// Replies use this shape so the id and the document fields share one JSON
+/// object: `{"id": "stop-001", "stop_name": "...", ...}`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DocumentRecord<T> {
+    /// Document id (the collection's primary key).
+    pub id: String,
+    /// The document payload, flattened into the same JSON object.
+    #[serde(flatten)]
+    pub document: T,
+}
+
+/// Deserialize query-result documents into typed records.
+pub(crate) fn records<T: DeserializeOwned>(
+    documents: &[Document],
+) -> anyhow::Result<Vec<DocumentRecord<T>>> {
+    documents
+        .iter()
+        .map(|doc| {
+            let document = serde_json::from_slice(&doc.data).context("deserializing document")?;
+            Ok(DocumentRecord {
+                id: doc.id.clone(),
+                document,
+            })
+        })
+        .collect()
+}
 
 /// A GTFS-like stop stored as one JSON document.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -39,7 +77,7 @@ pub struct Stop {
 }
 
 /// Create a stop with a caller-chosen id (fails when the id exists).
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CreateStopRequest {
     /// Document id for the new stop.
     pub id: String,
@@ -48,15 +86,9 @@ pub struct CreateStopRequest {
     pub stop: Stop,
 }
 
-/// Creates a stop with a caller-chosen id.
-///
-/// # Errors
-///
-/// Returns an error when the stop cannot be serialized or the id already
-/// exists in the collection.
-pub async fn create_stop<P>(
-    input: CreateStopRequest, context: Context<P>,
-) -> Result<DocumentRecord<Stop>>
+pub(crate) async fn create_stop<P>(
+    context: Context<P>, Json(input): Json<CreateStopRequest>,
+) -> Result<Json<DocumentRecord<Stop>>>
 where
     P: DocumentStore,
 {
@@ -66,106 +98,64 @@ where
     };
     DocumentStore::insert(context.provider(), COLLECTION, &document).await?;
 
-    Ok(DocumentRecord {
+    Ok(Json(DocumentRecord {
         id: input.id,
         document: input.stop,
-    })
+    }))
 }
 
-/// Fetch one stop by id.
-#[derive(Debug, Clone, Deserialize)]
-pub struct GetStopRequest {
-    /// Document id (path parameter).
-    pub id: String,
-}
-
-/// Fetches one stop by id.
-///
-/// # Errors
-///
-/// Returns `not_found` when no stop has the id, or an error when the stored
-/// document cannot be deserialized.
-pub async fn get_stop<P>(input: GetStopRequest, context: Context<P>) -> Result<DocumentRecord<Stop>>
+pub(crate) async fn get_stop<P>(
+    context: Context<P>, Path(id): Path<String>,
+) -> Result<Json<DocumentRecord<Stop>>>
 where
     P: DocumentStore,
 {
-    let document = DocumentStore::get(context.provider(), COLLECTION, &input.id)
+    let document = DocumentStore::get(context.provider(), COLLECTION, &id)
         .await?
-        .ok_or_else(|| not_found!("stop {} not found", input.id))?;
+        .ok_or_else(|| not_found!("stop {id} not found"))?;
     let stop = serde_json::from_slice(&document.data).context("deserializing stop")?;
 
-    Ok(DocumentRecord {
+    Ok(Json(DocumentRecord {
         id: document.id,
         document: stop,
-    })
+    }))
 }
 
-/// Upsert one stop by id (creates or replaces the whole document).
-#[derive(Debug, Clone, Deserialize)]
-pub struct UpsertStopRequest {
-    /// Document id (path parameter).
-    pub id: String,
-    /// The replacement stop record from the JSON body.
-    #[serde(flatten)]
-    pub stop: Stop,
-}
-
-/// Upserts one stop by id, creating or replacing the whole document.
-///
-/// # Errors
-///
-/// Returns an error when the stop cannot be serialized or the store rejects
-/// the write.
-pub async fn upsert_stop<P>(
-    input: UpsertStopRequest, context: Context<P>,
-) -> Result<DocumentRecord<Stop>>
+// Creates or replaces the whole document under the path's id.
+pub(crate) async fn upsert_stop<P>(
+    context: Context<P>, Path(id): Path<String>, Json(stop): Json<Stop>,
+) -> Result<Json<DocumentRecord<Stop>>>
 where
     P: DocumentStore,
 {
     let document = Document {
-        id: input.id.clone(),
-        data: serde_json::to_vec(&input.stop).context("serializing stop")?,
+        id: id.clone(),
+        data: serde_json::to_vec(&stop).context("serializing stop")?,
     };
     DocumentStore::put(context.provider(), COLLECTION, &document).await?;
 
-    Ok(DocumentRecord {
-        id: input.id,
-        document: input.stop,
-    })
-}
-
-/// Delete one stop by id.
-#[derive(Debug, Clone, Deserialize)]
-pub struct DeleteStopRequest {
-    /// Document id (path parameter).
-    pub id: String,
+    Ok(Json(DocumentRecord { id, document: stop }))
 }
 
 /// Confirmation of a stop deletion.
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DeleteStopReply {
     /// Id of the removed stop.
     pub id: String,
 }
 
-/// Deletes one stop by id.
-///
-/// # Errors
-///
-/// Returns `not_found` when no stop has the id, or an error when the store
-/// rejects the delete.
-pub async fn delete_stop<P>(
-    input: DeleteStopRequest, context: Context<P>,
-) -> Result<DeleteStopReply>
+pub(crate) async fn delete_stop<P>(
+    context: Context<P>, Path(id): Path<String>,
+) -> Result<Json<DeleteStopReply>>
 where
     P: DocumentStore,
 {
-    let removed = DocumentStore::delete(context.provider(), COLLECTION, &input.id).await?;
+    let removed = DocumentStore::delete(context.provider(), COLLECTION, &id).await?;
     if !removed {
-        return Err(not_found!("stop {} not found", input.id));
+        return Err(not_found!("stop {id} not found"));
     }
 
-    Ok(DeleteStopReply { id: input.id })
+    Ok(Json(DeleteStopReply { id }))
 }
 
 /// Query stops with any combination of the supported filters.
@@ -201,7 +191,7 @@ pub struct ListStopsRequest {
 }
 
 /// One page of matching stops.
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StopsReply {
     /// Matches sorted by `stop_name` ascending.
     pub stops: Vec<DocumentRecord<Stop>>,
@@ -209,14 +199,9 @@ pub struct StopsReply {
     pub continuation: Option<String>,
 }
 
-/// Queries stops with any combination of the supported filters, sorted by
-/// name with limit/continuation pagination.
-///
-/// # Errors
-///
-/// Returns `bad_request` when `updated_on` is not a valid calendar date, or
-/// an error when the query fails or a document cannot be deserialized.
-pub async fn list_stops<P>(input: ListStopsRequest, context: Context<P>) -> Result<StopsReply>
+pub(crate) async fn list_stops<P>(
+    context: Context<P>, Query(input): Query<ListStopsRequest>,
+) -> Result<Json<StopsReply>>
 where
     P: DocumentStore,
 {
@@ -274,8 +259,8 @@ where
     )
     .await?;
 
-    Ok(StopsReply {
+    Ok(Json(StopsReply {
         stops: records(&result.documents)?,
         continuation: result.continuation,
-    })
+    }))
 }

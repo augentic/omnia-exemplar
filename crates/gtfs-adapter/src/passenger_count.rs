@@ -2,28 +2,25 @@
 //!
 //! This module stores occupancy status for a given vehicle and trip.
 
-use omnia_sdk::api::Context;
-use omnia_sdk::{Result, StateStore};
+use common::topic;
+use omnia_sdk::api::{Context, Handlers};
+use omnia_sdk::{Capabilities, Result, StateStore, StateStoreExt as _};
 use serde::{Deserialize, Serialize};
 
 use crate::state_keys;
 
 const OCCUPANCY_STATUS_TTL: u64 = 3 * 60 * 60; // 3 hours
 
-/// Stores the occupancy status for a vehicle on a trip, or clears it when
-/// the message carries no status.
-///
-/// # Errors
-///
-/// Returns an error when the status cannot be serialized or the state store
-/// request fails.
-#[tracing::instrument(skip_all)]
-pub async fn passenger_count<P>(input: PassengerCountMessage, context: Context<P>) -> Result<()>
+pub(crate) fn handlers<P: Capabilities>() -> Handlers<P> {
+    Handlers::new().topic(topic::PASSENGER_COUNT, passenger_count)
+}
+
+pub(crate) async fn passenger_count<P>(
+    context: Context<P>, input: PassengerCountMessage,
+) -> Result<()>
 where
     P: StateStore,
 {
-    let provider = context.provider();
-
     // create state key
     let vehicle_id = &input.vehicle.id;
     let Trip {
@@ -35,10 +32,9 @@ where
 
     // save occupancy status to state if set, otherwise remove
     if let Some(occupancy_status) = input.occupancy_status {
-        let bytes = serde_json::to_vec(&occupancy_status)?;
-        StateStore::set(provider, &key, &bytes, Some(OCCUPANCY_STATUS_TTL)).await?;
+        context.state().set_json(&key, &occupancy_status, Some(OCCUPANCY_STATUS_TTL)).await?;
     } else {
-        StateStore::delete(provider, &key).await?;
+        context.state().delete(&key).await?;
     }
 
     Ok(())

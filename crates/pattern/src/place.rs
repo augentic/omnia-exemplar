@@ -1,49 +1,54 @@
-//! Relational geo queries through `TableStore` and the guest ORM.
+//! Relational geo queries through [`TableStore`], rows decoded by [`FromRow`].
 //!
 //! A radius search does not need a geospatial extension bolted onto the
 //! key-value store: model the rows relationally, pre-filter with an indexable
 //! bounding box, and refine the survivors with a haversine check in Rust.
-//! [`UpsertPlaceRequest`] writes rows with the ORM's `INSERT … ON CONFLICT`
-//! builder; [`NearbyPlacesRequest`] is the `GEORADIUS` replacement.
+//! [`UpsertPlaceRequest`] writes rows with a parameterized `INSERT … ON
+//! CONFLICT` statement; [`NearbyPlacesRequest`] is the `GEORADIUS`
+//! replacement.
 //!
 //! The upsert also demonstrates a structured wire error: [`PlaceError`]
 //! replaces `omnia_sdk::Error` as the handler's error type, and its
-//! [`HttpError`] conversion serializes it as an `application/json` body
-//! that is a superset of the framework's `omnia_sdk::api::ErrorBody`
+//! [`IntoResponse`] implementation serializes it as an `application/json`
+//! body that is a superset of the framework's `omnia_sdk::api::ErrorBody`
 //! envelope — the fixed `error` / `message` pair every omnia transport
 //! emits, plus the variant's own domain fields.
 
-use anyhow::Context as _;
-use http::{HeaderValue, StatusCode};
-use omnia_orm::{Entity as _, Filter, InsertBuilder, SelectBuilder, entity};
-use omnia_sdk::api::Context;
-use omnia_sdk::{Error, HttpError, TableStore};
+use axum::Json;
+use axum::http::StatusCode;
+use axum::response::{IntoResponse, Response};
+use axum::routing::{get, post};
+use omnia_sdk::api::{Context, Handlers};
+use omnia_sdk::sql::{DataType, FromRow};
+use omnia_sdk::{Capabilities, Error, TableStore, TableStoreExt as _};
 use serde::{Deserialize, Serialize};
 
-/// Named connection configured by the host.
-pub const CONNECTION: &str = "db";
+pub(crate) const PLACES: &str = "/examples/patterns/places";
+pub(crate) const NEARBY: &str = "/examples/patterns/nearby";
+pub(crate) const CONNECTION: &str = "db";
 
 /// Mean metres per degree of latitude (and of longitude at the equator).
 const METRES_PER_DEGREE: f64 = 111_320.0;
 
-entity!(
-    table = "places",
-    /// A named point of interest.
-    #[derive(Debug, Clone, Serialize, Deserialize)]
-    pub struct Place {
-        /// Stable identifier (conflict target for upserts).
-        pub id: String,
-        /// Display name.
-        pub name: String,
-        /// Latitude in degrees.
-        pub lat: f64,
-        /// Longitude in degrees.
-        pub lon: f64,
-    }
-);
+pub(crate) fn handlers<P: Capabilities>() -> Handlers<P> {
+    Handlers::new().route(PLACES, post(upsert_place)).route(NEARBY, get(nearby_places))
+}
+
+/// A named point of interest.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, FromRow)]
+pub struct Place {
+    /// Stable identifier (conflict target for upserts).
+    pub id: String,
+    /// Display name.
+    pub name: String,
+    /// Latitude in degrees.
+    pub lat: f64,
+    /// Longitude in degrees.
+    pub lon: f64,
+}
 
 /// Insert a place, or update it in full when the id already exists.
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UpsertPlaceRequest {
     /// Stable identifier (primary key).
     pub id: String,
@@ -56,7 +61,7 @@ pub struct UpsertPlaceRequest {
 }
 
 /// Upsert outcome.
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UpsertPlaceReply {
     /// Rows affected by the statement.
     pub affected: u32,
@@ -67,8 +72,8 @@ pub struct UpsertPlaceReply {
 /// The exemplar for structured error responses: instead of flattening
 /// failures into `omnia_sdk::Error`, whose body is the fixed two-field
 /// `omnia_sdk::api::ErrorBody` (`error`, `message`), the handler keeps its
-/// own error type with domain fields, and the [`HttpError`] conversion below
-/// puts the JSON on the wire. The serde `tag` is `ErrorBody`'s `error`
+/// own error type with domain fields, and the [`IntoResponse`] implementation
+/// below puts the JSON on the wire. The serde `tag` is `ErrorBody`'s `error`
 /// discriminant, `Display` supplies its `message`, and every other field is
 /// domain data — so a client that only knows the framework envelope still
 /// parses the body, and one that knows the route reads the extra fields.
@@ -108,34 +113,13 @@ impl PlaceError {
     }
 }
 
-/// The wire body: omnia's `ErrorBody` fields, then the variant's own.
-#[derive(Serialize)]
-struct Body<'a> {
-    message: String,
-    #[serde(flatten)]
-    error: &'a PlaceError, // `error` tag + domain fields
-}
-
-/// Encode the error as an `application/json` response body.
-///
-/// This conversion is what the HTTP route uses on the error path: handler
-/// errors bypass the route's success encoder, so the wire shape of an error
-/// lives here. `HttpError::with_body` carries the preformatted bytes and
-/// content type to the response unchanged.
-impl From<PlaceError> for HttpError {
-    fn from(error: PlaceError) -> Self {
+impl IntoResponse for PlaceError {
+    fn into_response(self) -> Response {
         let body = Body {
-            message: error.to_string(),
-            error: &error,
+            message: self.to_string(),
+            error: &self,
         };
-        serde_json::to_vec(&body).map_or_else(
-            // Unreachable in practice (a non-finite coordinate is the only
-            // unserializable field); degrade to the plain-text form.
-            |_| Self::new(error.status(), error.to_string()),
-            |body| {
-                Self::with_body(error.status(), HeaderValue::from_static("application/json"), body)
-            },
-        )
+        (self.status(), Json(body)).into_response()
     }
 }
 
@@ -146,6 +130,14 @@ impl From<anyhow::Error> for PlaceError {
             description: format!("{error:#}"),
         }
     }
+}
+
+/// The wire body: omnia's `ErrorBody` fields, then the variant's own.
+#[derive(Serialize)]
+struct Body<'a> {
+    message: String,
+    #[serde(flatten)]
+    error: &'a PlaceError, // `error` tag + domain fields
 }
 
 /// Reject a coordinate outside its inclusive range (`NaN` always fails).
@@ -162,44 +154,35 @@ fn coordinate(field: &'static str, value: f64, min: f64, max: f64) -> Result<(),
     }
 }
 
-/// Inserts a place, or updates it in full when the id already exists.
-///
-/// # Errors
-///
-/// Returns [`PlaceError::InvalidCoordinate`] when a coordinate is out of
-/// range, or [`PlaceError::Storage`] when the statement cannot be built or
-/// executed.
-pub async fn upsert_place<P>(
-    input: UpsertPlaceRequest, context: Context<P>,
-) -> Result<UpsertPlaceReply, PlaceError>
+pub(crate) async fn upsert_place<P>(
+    context: Context<P>, Json(input): Json<UpsertPlaceRequest>,
+) -> Result<Json<UpsertPlaceReply>, PlaceError>
 where
     P: TableStore,
 {
     coordinate("lat", input.lat, -90.0, 90.0)?;
     coordinate("lon", input.lon, -180.0, 180.0)?;
 
-    let place = Place {
-        id: input.id,
-        name: input.name,
-        lat: input.lat,
-        lon: input.lon,
-    };
+    let affected = context
+        .tables()
+        .exec(
+            CONNECTION,
+            "INSERT INTO places (id, name, lat, lon) VALUES ($1, $2, $3, $4) \
+             ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, lat = EXCLUDED.lat, lon = EXCLUDED.lon",
+            &[
+                DataType::Str(Some(input.id)),
+                DataType::Str(Some(input.name)),
+                DataType::Double(Some(input.lat)),
+                DataType::Double(Some(input.lon)),
+            ],
+        )
+        .await?;
 
-    let query = InsertBuilder::from_entity(&place)
-        .on_conflict("id")
-        .do_update_all()
-        .build()
-        .context("building place upsert")?;
-
-    let affected =
-        TableStore::exec(context.provider(), CONNECTION.to_string(), query.sql, query.params)
-            .await?;
-
-    Ok(UpsertPlaceReply { affected })
+    Ok(Json(UpsertPlaceReply { affected }))
 }
 
 /// Find places within a radius of a point.
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NearbyPlacesRequest {
     /// Centre latitude in degrees.
     pub lat: f64,
@@ -210,7 +193,7 @@ pub struct NearbyPlacesRequest {
 }
 
 /// A place with its distance from the query point.
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NearbyPlace {
     /// The matched place.
     pub place: Place,
@@ -219,21 +202,16 @@ pub struct NearbyPlace {
 }
 
 /// Places within the radius, nearest first.
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NearbyPlacesReply {
     /// Matches ordered by ascending distance.
     pub places: Vec<NearbyPlace>,
 }
 
-/// Finds places within a radius of a point, nearest first.
-///
-/// # Errors
-///
-/// Returns an error when the query cannot be built or executed, or a row
-/// cannot be mapped to a [`Place`].
-pub async fn nearby_places<P>(
-    input: NearbyPlacesRequest, context: Context<P>,
-) -> Result<NearbyPlacesReply, Error>
+// A GET with a JSON body: axum's `Json` extractor reads it under any method.
+pub(crate) async fn nearby_places<P>(
+    context: Context<P>, Json(input): Json<NearbyPlacesRequest>,
+) -> Result<Json<NearbyPlacesReply>, Error>
 where
     P: TableStore,
 {
@@ -244,24 +222,24 @@ where
     let lat_delta = input.radius_m / METRES_PER_DEGREE;
     let lon_delta = lat_delta / input.lat.to_radians().cos().abs().max(f64::EPSILON);
 
-    let query = SelectBuilder::<Place>::new()
-        .r#where(Filter::and([
-            Filter::gte("lat", input.lat - lat_delta),
-            Filter::lte("lat", input.lat + lat_delta),
-            Filter::gte("lon", input.lon - lon_delta),
-            Filter::lte("lon", input.lon + lon_delta),
-        ]))
-        .build()
-        .context("building nearby query")?;
+    let candidates: Vec<Place> = context
+        .tables()
+        .query_as(
+            CONNECTION,
+            "SELECT id, name, lat, lon FROM places \
+             WHERE lat >= $1 AND lat <= $2 AND lon >= $3 AND lon <= $4",
+            &[
+                DataType::Double(Some(input.lat - lat_delta)),
+                DataType::Double(Some(input.lat + lat_delta)),
+                DataType::Double(Some(input.lon - lon_delta)),
+                DataType::Double(Some(input.lon + lon_delta)),
+            ],
+        )
+        .await?;
 
-    let rows =
-        TableStore::query(context.provider(), CONNECTION.to_string(), query.sql, query.params)
-            .await?;
-
-    // Refine the box to the true radius in Rust — no GEORADIUS required.
+    // refine the box to the true radius in Rust — no GEORADIUS required
     let mut places = Vec::new();
-    for row in &rows {
-        let place = Place::from_row(row).context("mapping place row")?;
+    for place in candidates {
         let distance_m = haversine_m(input.lat, input.lon, place.lat, place.lon);
         if distance_m <= input.radius_m {
             places.push(NearbyPlace { place, distance_m });
@@ -269,7 +247,7 @@ where
     }
     places.sort_by(|a, b| a.distance_m.total_cmp(&b.distance_m));
 
-    Ok(NearbyPlacesReply { places })
+    Ok(Json(NearbyPlacesReply { places }))
 }
 
 /// Great-circle distance in metres between two WGS-84 points.

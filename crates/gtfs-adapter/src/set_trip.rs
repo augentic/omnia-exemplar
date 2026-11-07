@@ -1,13 +1,22 @@
 //! God-mode trip override.
 
 use anyhow::Context as _;
-use omnia_sdk::api::Context;
-use omnia_sdk::{Config, Result, StateStore, bad_request};
+use axum::Json;
+use axum::extract::Path;
+use axum::routing::post;
+use omnia_sdk::api::{Context, Handlers};
+use omnia_sdk::{Capabilities, Config, Result, StateStore, bad_request};
 use serde::{Deserialize, Serialize};
 
 use crate::god_mode;
 
-/// Request to force a vehicle onto a specific trip.
+pub(crate) const SET_TRIP: &str = "/god-mode/set-trip/{vehicle_id}/{trip_id}";
+
+pub(crate) fn handlers<P: Capabilities>() -> Handlers<P> {
+    Handlers::new().route(SET_TRIP, post(set_trip))
+}
+
+/// Request to force a vehicle onto a specific trip: the route's two path parameters.
 #[derive(Debug, Clone, Deserialize)]
 pub struct SetTripRequest {
     /// The vehicle to override.
@@ -17,7 +26,7 @@ pub struct SetTripRequest {
 }
 
 /// Reply confirming a god-mode trip override.
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct SetTripReply {
     /// Human-readable result.
     pub message: String,
@@ -26,14 +35,9 @@ pub struct SetTripReply {
     pub process: u32,
 }
 
-/// Forces a vehicle onto a specific trip while god mode is enabled.
-///
-/// # Errors
-///
-/// Returns a bad request error when god mode is not enabled, or an error
-/// when the override cannot be stored.
-#[tracing::instrument(skip_all)]
-pub async fn set_trip<P>(input: SetTripRequest, context: Context<P>) -> Result<SetTripReply>
+pub(crate) async fn set_trip<P>(
+    context: Context<P>, Path(input): Path<SetTripRequest>,
+) -> Result<Json<SetTripReply>>
 where
     P: Config + StateStore,
 {
@@ -46,8 +50,8 @@ where
     god_mode::set_vehicle_to_trip(provider, input.vehicle_id, input.trip_id)
         .await
         .context("setting vehicle to trip")?;
-    Ok(SetTripReply {
+    Ok(Json(SetTripReply {
         message: "Ok".to_string(),
         process: 0,
-    })
+    }))
 }

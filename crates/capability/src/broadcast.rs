@@ -4,12 +4,20 @@
 //! broadcast channel — so serving this handler requires no WebSocket
 //! export.
 
-use omnia_sdk::api::Context;
-use omnia_sdk::{Broadcast, Result};
+use axum::Json;
+use axum::routing::post;
+use omnia_sdk::api::{Context, Handlers};
+use omnia_sdk::{Broadcast, Capabilities, Result};
 use serde::{Deserialize, Serialize};
 
+pub(crate) const ALERT: &str = "/examples/alert";
+
+pub(crate) fn handlers<P: Capabilities>() -> Handlers<P> {
+    Handlers::new().route(ALERT, post(alert))
+}
+
 /// Broadcast an alert to a channel.
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct AlertRequest {
     /// Broadcast channel name.
     pub channel: String,
@@ -24,17 +32,13 @@ pub struct AlertRequest {
 #[serde(transparent)]
 pub struct AlertReply(pub &'static str);
 
-/// Broadcasts the alert to the channel, optionally restricted to the given
-/// socket ids.
-///
-/// # Errors
-///
-/// Returns an error when the broadcast fails.
-pub async fn alert<P>(input: AlertRequest, context: Context<P>) -> Result<AlertReply>
+pub(crate) async fn alert<P>(
+    context: Context<P>, Json(input): Json<AlertRequest>,
+) -> Result<Json<AlertReply>>
 where
     P: Broadcast,
 {
     Broadcast::send(context.provider(), &input.channel, input.message.as_bytes(), input.sockets)
         .await?;
-    Ok(AlertReply("OK"))
+    Ok(Json(AlertReply("OK")))
 }

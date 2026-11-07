@@ -6,15 +6,23 @@
 //! (agency + type exclusion — De Morgan negation).
 
 use anyhow::Context as _;
-use omnia_sdk::api::Context;
+use axum::Json;
+use axum::extract::{Path, Query};
+use axum::routing::get;
+use omnia_sdk::api::{Context, Handlers};
 use omnia_sdk::docstore::{Document, Filter, QueryOptions, ScalarValue, SortField};
-use omnia_sdk::{DocumentStore, Result, not_found};
+use omnia_sdk::{Capabilities, DocumentStore, Result, not_found};
 use serde::{Deserialize, Serialize};
 
-use crate::{DocumentRecord, records};
+use crate::stop::{DocumentRecord, records};
 
-/// Document collection holding the routes.
-pub const COLLECTION: &str = "routes";
+pub(crate) const ROUTES: &str = "/examples/routes";
+pub(crate) const ROUTE: &str = "/examples/routes/{id}";
+pub(crate) const COLLECTION: &str = "routes";
+
+pub(crate) fn handlers<P: Capabilities>() -> Handlers<P> {
+    Handlers::new().route(ROUTES, get(list_routes).post(create_route)).route(ROUTE, get(get_route))
+}
 
 /// A GTFS-like route stored as one JSON document.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -32,7 +40,7 @@ pub struct Route {
 }
 
 /// Create a route with a caller-chosen id (fails when the id exists).
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CreateRouteRequest {
     /// Document id for the new route.
     pub id: String,
@@ -41,15 +49,9 @@ pub struct CreateRouteRequest {
     pub route: Route,
 }
 
-/// Creates a route with a caller-chosen id.
-///
-/// # Errors
-///
-/// Returns an error when the route cannot be serialized or the id already
-/// exists in the collection.
-pub async fn create_route<P>(
-    input: CreateRouteRequest, context: Context<P>,
-) -> Result<DocumentRecord<Route>>
+pub(crate) async fn create_route<P>(
+    context: Context<P>, Json(input): Json<CreateRouteRequest>,
+) -> Result<Json<DocumentRecord<Route>>>
 where
     P: DocumentStore,
 {
@@ -59,40 +61,27 @@ where
     };
     DocumentStore::insert(context.provider(), COLLECTION, &document).await?;
 
-    Ok(DocumentRecord {
+    Ok(Json(DocumentRecord {
         id: input.id,
         document: input.route,
-    })
+    }))
 }
 
-/// Fetch one route by id.
-#[derive(Debug, Clone, Deserialize)]
-pub struct GetRouteRequest {
-    /// Document id (path parameter).
-    pub id: String,
-}
-
-/// Fetches one route by id.
-///
-/// # Errors
-///
-/// Returns `not_found` when no route has the id, or an error when the stored
-/// document cannot be deserialized.
-pub async fn get_route<P>(
-    input: GetRouteRequest, context: Context<P>,
-) -> Result<DocumentRecord<Route>>
+pub(crate) async fn get_route<P>(
+    context: Context<P>, Path(id): Path<String>,
+) -> Result<Json<DocumentRecord<Route>>>
 where
     P: DocumentStore,
 {
-    let document = DocumentStore::get(context.provider(), COLLECTION, &input.id)
+    let document = DocumentStore::get(context.provider(), COLLECTION, &id)
         .await?
-        .ok_or_else(|| not_found!("route {} not found", input.id))?;
+        .ok_or_else(|| not_found!("route {id} not found"))?;
     let route = serde_json::from_slice(&document.data).context("deserializing route")?;
 
-    Ok(DocumentRecord {
+    Ok(Json(DocumentRecord {
         id: document.id,
         document: route,
-    })
+    }))
 }
 
 /// Query routes with any combination of the supported filters.
@@ -120,7 +109,7 @@ pub struct ListRoutesRequest {
 }
 
 /// One page of matching routes.
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RoutesReply {
     /// Matches sorted by `route_short_name` ascending.
     pub routes: Vec<DocumentRecord<Route>>,
@@ -128,14 +117,9 @@ pub struct RoutesReply {
     pub continuation: Option<String>,
 }
 
-/// Queries routes with any combination of the supported filters, sorted by
-/// short name with limit/continuation pagination.
-///
-/// # Errors
-///
-/// Returns an error when the query fails or a document cannot be
-/// deserialized.
-pub async fn list_routes<P>(input: ListRoutesRequest, context: Context<P>) -> Result<RoutesReply>
+pub(crate) async fn list_routes<P>(
+    context: Context<P>, Query(input): Query<ListRoutesRequest>,
+) -> Result<Json<RoutesReply>>
 where
     P: DocumentStore,
 {
@@ -188,8 +172,8 @@ where
     )
     .await?;
 
-    Ok(RoutesReply {
+    Ok(Json(RoutesReply {
         routes: records(&result.documents)?,
         continuation: result.continuation,
-    })
+    }))
 }

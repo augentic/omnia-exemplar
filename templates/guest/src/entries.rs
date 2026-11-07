@@ -24,6 +24,12 @@ pub enum Role {
     Listed,
 }
 
+/// The opening delimiter of the `Handlers` list in `src/lib.rs` and each stem's `src/lib.rs`.
+///
+/// A stem's or part's `<name>::handlers()` entry is inserted into the
+/// array opened by this anchor with [`insert_after`](crate::insert_after).
+pub const HANDLER_LIST_ANCHOR: &str = "Handlers::from([";
+
 /// One entry of the manifest: where its body is read from, where it goes, its proof, and its role.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Entry {
@@ -82,11 +88,11 @@ macro_rules! seed {
 /// The tree is the root-package guest this repository teaches:
 ///
 /// - the root package `guest` is the component, exporting WASI HTTP and
-///   WASI Messaging over one provider and building both routers from the
-///   two lists `src/routes.rs` and `src/messaging.rs`, one statement per
-///   stem, each built natively by a rung under `tests/`;
-/// - `crates/common` holds the capability bound, the topic table, and the
-///   environment helpers every stem shares;
+///   WASI Messaging over one provider and building the router from the
+///   handler list in `src/lib.rs`, one entry per stem after
+///   [`HANDLER_LIST_ANCHOR`], built natively by the rungs under `tests/`;
+///   the file is listed, so the rungs rather than the hold pin its router;
+/// - `crates/common` holds the topic table every stem shares;
 /// - `examples/runtime.rs` is the local host behind the `host` feature;
 /// - the rest is the tooling this repository runs under, the toolchain,
 ///   the formatter, lint, deny, and vet configuration, the task runner,
@@ -109,24 +115,21 @@ pub static ENTRIES: &[Entry] = &[
     },
     exact!("Makefile", Role::Static),
     seed!("clippy.toml", Role::Static),
-    seed!("crates/common/Cargo.toml", Role::Static),
-    seed!("crates/common/src/config.rs", Role::Static),
-    seed!("crates/common/src/lib.rs", Role::Static),
+    exact!("crates/common/Cargo.toml", Role::Static),
+    exact!("crates/common/src/lib.rs", Role::Static),
     seed!("crates/common/src/topic.rs", Role::Listed),
     seed!("deny.toml", Role::Static),
     seed!("examples/runtime.rs", Role::Static),
     exact!("mise.toml", Role::Static),
     exact!("rust-toolchain.toml", Role::Static),
     exact!("rustfmt.toml", Role::Static),
-    seed!("src/lib.rs", Role::Static),
-    seed!("src/messaging.rs", Role::Listed),
-    seed!("src/routes.rs", Role::Listed),
+    seed!("src/lib.rs", Role::Listed),
     exact!("supply-chain/README.md", Role::Static),
     seed!("supply-chain/audits.toml", Role::Static),
     seed!("supply-chain/config.toml", Role::Static),
     exact!("taplo.toml", Role::Static),
-    seed!("tests/messaging.rs", Role::Static),
-    seed!("tests/routes.rs", Role::Static),
+    exact!("tests/messaging.rs", Role::Static),
+    exact!("tests/routes.rs", Role::Static),
 ];
 
 /// Returns the entry at `path`, a `/`-separated path relative to the tree's root.

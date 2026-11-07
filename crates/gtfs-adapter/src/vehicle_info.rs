@@ -1,24 +1,28 @@
 //! Vehicle information lookup.
 
-use acme_common::fleet::{self, Vehicle};
-use omnia_sdk::api::Context;
-use omnia_sdk::{Config, HttpRequest, Identity, Result, StateStore};
+use axum::Json;
+use axum::extract::Path;
+use axum::routing::get;
+use omnia_sdk::api::{Context, Handlers};
+use omnia_sdk::{
+    Capabilities, Config, HttpRequest, Identity, Result, StateStore, StateStoreExt as _,
+};
 use serde::{Deserialize, Serialize};
 
+use crate::fleet::{self, Vehicle};
 use crate::state_keys;
 use crate::trip::TripInstance;
 
 const PROCESS_ID: u32 = 0;
 
-/// Request for a vehicle's current trip and fleet information.
-#[derive(Debug, Clone, Deserialize)]
-pub struct VehicleInfoRequest {
-    /// The vehicle to look up.
-    pub vehicle_id: String,
+pub(crate) const VEHICLE_INFO: &str = "/info/{vehicle_id}";
+
+pub(crate) fn handlers<P: Capabilities>() -> Handlers<P> {
+    Handlers::new().route(VEHICLE_INFO, get(vehicle_info))
 }
 
 /// A vehicle's current trip and fleet information.
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct VehicleInfoReply {
     /// Always `0`. Retained solely so the reply shape matches the legacy
@@ -37,41 +41,29 @@ pub struct VehicleInfoReply {
     pub fleet_info: Option<Vehicle>,
 }
 
-/// Assembles a vehicle's current trip, sign-on time, and fleet record.
-///
-/// # Errors
-///
-/// Returns an error when stored state cannot be read or parsed, or the fleet
-/// lookup fails.
-#[tracing::instrument(skip_all)]
-pub async fn vehicle_info<P>(
-    input: VehicleInfoRequest, context: Context<P>,
-) -> Result<VehicleInfoReply>
+pub(crate) async fn vehicle_info<P>(
+    context: Context<P>, Path(vehicle_id): Path<String>,
+) -> Result<Json<VehicleInfoReply>>
 where
     P: Config + HttpRequest + Identity + StateStore,
 {
-    let provider = context.provider();
-    let vehicle_id = input.vehicle_id;
-
     let trip_key = state_keys::trip(&vehicle_id);
-    let trip_info = if let Some(bytes) = StateStore::get(provider, &trip_key).await? {
-        Some(serde_json::from_slice::<TripInstance>(&bytes)?)
-    } else {
-        None
-    };
+    let trip_info: Option<TripInstance> = context.state().get_json(&trip_key).await?;
 
     let sign_on_key = state_keys::sign_on(&vehicle_id);
-    let sign_on_time = StateStore::get(provider, &sign_on_key)
+    let sign_on_time = context
+        .state()
+        .get(&sign_on_key)
         .await?
         .map(|bytes| String::from_utf8_lossy(&bytes).to_string());
 
-    let fleet_info = fleet::vehicle(&vehicle_id, provider).await?;
+    let fleet_info = fleet::vehicle(context.provider(), &vehicle_id).await?;
 
-    Ok(VehicleInfoReply {
+    Ok(Json(VehicleInfoReply {
         pid: PROCESS_ID,
         vehicle_id,
         sign_on_time,
         trip_info,
         fleet_info,
-    })
+    }))
 }

@@ -21,19 +21,20 @@ workspace = true
 god-mode = []
 
 [dependencies]
-axum.workspace = true
-acme-common.workspace = true
 anyhow.workspace = true
+axum.workspace = true
 bytes.workspace = true
 chrono.workspace = true
 chrono-tz.workspace = true
+common.workspace = true
 http.workspace = true
-http-body-util.workspace = true
+omnia-http-cache.workspace = true
 omnia-sdk.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
 tracing.workspace = true
+urlencoding.workspace = true
 uuid.workspace = true
 
 [dev-dependencies]
@@ -43,4 +44,3 @@ tokio.workspace = true
 # Target-gated so the guest's wasm32 dependency graph never sees the doubles.
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 omnia-test = { workspace = true, features = ["guest"] }
-tower.workspace = true

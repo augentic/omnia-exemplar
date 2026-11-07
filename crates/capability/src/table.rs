@@ -1,9 +1,17 @@
 //! Table-store example: record a sensor reading and count the sensor's rows.
 
-use omnia_sdk::api::Context;
+use axum::Json;
+use axum::routing::post;
+use omnia_sdk::api::{Context, Handlers};
 use omnia_sdk::sql::DataType;
-use omnia_sdk::{Result, TableStore};
+use omnia_sdk::{Capabilities, Result, TableStore};
 use serde::{Deserialize, Serialize};
+
+pub(crate) const READING: &str = "/examples/reading";
+
+pub(crate) fn handlers<P: Capabilities>() -> Handlers<P> {
+    Handlers::new().route(READING, post(reading))
+}
 
 /// SQL executed against the readings table.
 pub mod sql {
@@ -15,7 +23,7 @@ pub mod sql {
 }
 
 /// Record a sensor reading.
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct ReadingRequest {
     /// Named connection configured by the host.
     pub connection: String,
@@ -26,7 +34,7 @@ pub struct ReadingRequest {
 }
 
 /// Reading state after the insert.
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct ReadingReply {
     /// Rows affected by the insert.
     pub affected: u32,
@@ -34,35 +42,27 @@ pub struct ReadingReply {
     pub rows: usize,
 }
 
-/// Inserts the reading and counts the rows now stored for the sensor.
-///
-/// # Errors
-///
-/// Returns an error when the insert or the follow-up query fails.
-pub async fn reading<P>(input: ReadingRequest, context: Context<P>) -> Result<ReadingReply>
+pub(crate) async fn reading<P>(
+    context: Context<P>, Json(input): Json<ReadingRequest>,
+) -> Result<Json<ReadingReply>>
 where
     P: TableStore,
 {
-    let provider = context.provider();
+    let tables = context.tables();
 
-    let affected = TableStore::exec(
-        provider,
-        input.connection.clone(),
-        sql::INSERT.to_string(),
-        vec![DataType::Str(Some(input.sensor.clone())), DataType::Double(Some(input.value))],
-    )
-    .await?;
+    let affected = tables
+        .exec(
+            &input.connection,
+            sql::INSERT,
+            &[DataType::Str(Some(input.sensor.clone())), DataType::Double(Some(input.value))],
+        )
+        .await?;
 
-    let rows = TableStore::query(
-        provider,
-        input.connection,
-        sql::SELECT.to_string(),
-        vec![DataType::Str(Some(input.sensor))],
-    )
-    .await?;
+    let rows =
+        tables.query(&input.connection, sql::SELECT, &[DataType::Str(Some(input.sensor))]).await?;
 
-    Ok(ReadingReply {
+    Ok(Json(ReadingReply {
         affected,
         rows: rows.len(),
-    })
+    }))
 }

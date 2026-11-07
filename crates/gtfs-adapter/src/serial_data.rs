@@ -1,11 +1,11 @@
 //! Serial data (sign-on) event processing.
 
-use anyhow::Context as _;
 use chrono::Utc;
-use omnia_sdk::{Config, HttpRequest, Result, StateStore, bad_request};
+use omnia_sdk::{Config, HttpRequest, Result, StateStore, StateStoreExt as _, bad_request};
 
+use crate::motion::{DecodedSerialData, MotionError, MotionMessage};
+use crate::state_keys;
 use crate::trip::{self, TripInstance};
-use crate::{DecodedSerialData, MotionError, MotionMessage, state_keys};
 
 const TTL_TRIP_SERIAL_SECS: u64 = 4 * 60 * 60;
 const TTL_SIGN_ON_SECS: u64 = 24 * 60 * 60;
@@ -13,8 +13,7 @@ const TTL_SERIAL_TIMESTAMP_SECS: u64 = 24 * 60 * 60;
 
 const SERIAL_DATA_THRESHOLD: i64 = 900;
 
-// Processes Motion serial data events, updating allocations and state.
-pub async fn process<P>(message: &MotionMessage, provider: &P) -> Result<()>
+pub async fn process<P>(provider: &P, message: &MotionMessage) -> Result<()>
 where
     P: Config + HttpRequest + StateStore,
 {
@@ -39,7 +38,7 @@ where
         return Err(bad_request!("missing decoded serial data"));
     };
 
-    allocate(vehicle_id, decoded, timestamp, provider).await
+    allocate(provider, vehicle_id, decoded, timestamp).await
 }
 
 // Updates the timestamp if it is newer than the previously stored timestamp.
@@ -47,20 +46,20 @@ async fn update_timestamp(store: &impl StateStore, timestamp: i64, vehicle_id: &
     let key = state_keys::serial_timestamp(vehicle_id);
 
     // check previous timestamp
-    let previous = StateStore::get(store, &key).await?;
-    if serde_json::from_value::<i64>(previous.into()).is_ok_and(|prev| prev >= timestamp) {
+    if let Some(prev) = store.get_json::<i64>(&key).await?
+        && prev >= timestamp
+    {
         return Err(MotionError::BadTime("outdated serial data message".to_string()).into());
     }
 
     // store new timestamp
-    let value = serde_json::to_vec(&timestamp).context("failed to serialize timestamp")?;
-    StateStore::set(store, &key, &value, Some(TTL_SERIAL_TIMESTAMP_SECS)).await?;
+    store.set_json(&key, &timestamp, Some(TTL_SERIAL_TIMESTAMP_SECS)).await?;
 
     Ok(())
 }
 
 async fn allocate<P>(
-    vehicle_id: &str, decoded: &DecodedSerialData, event_timestamp: i64, provider: &P,
+    provider: &P, vehicle_id: &str, decoded: &DecodedSerialData, event_timestamp: i64,
 ) -> Result<()>
 where
     P: Config + HttpRequest + StateStore,
@@ -79,17 +78,17 @@ where
         return Ok(());
     };
 
-    let Some(prev) = StateStore::get(provider, &trip_key).await? else {
+    let Some(prev) = provider.get_json::<TripInstance>(&trip_key).await? else {
         return Ok(());
     };
-    if serde_json::from_slice::<TripInstance>(&prev).is_ok_and(|t| t.trip_id == trip_id) {
+    if prev.trip_id == trip_id {
         return Ok(());
     }
 
-    if let Some(trip) = trip::get_nearest(trip_id, event_timestamp, provider).await?
+    if let Some(trip) = trip::get_nearest(provider, trip_id, event_timestamp).await?
         && !trip.has_error()
     {
-        return save_trip(vehicle_id, event_timestamp, trip, provider).await;
+        return save_trip(provider, vehicle_id, event_timestamp, trip).await;
     }
 
     StateStore::delete(provider, &sign_on_key).await?;
@@ -100,7 +99,7 @@ where
 }
 
 async fn save_trip<P>(
-    vehicle_id: &str, event_timestamp: i64, trip: TripInstance, provider: &P,
+    provider: &P, vehicle_id: &str, event_timestamp: i64, trip: TripInstance,
 ) -> Result<()>
 where
     P: StateStore,
@@ -108,12 +107,8 @@ where
     let trip_key = state_keys::trip(vehicle_id);
     let sign_on_key = state_keys::sign_on(vehicle_id);
 
-    let trip_bytes = serde_json::to_vec(&trip).context("failed to serialize trip")?;
-    StateStore::set(provider, &trip_key, &trip_bytes, Some(TTL_TRIP_SERIAL_SECS)).await?;
-
-    let timestamp_bytes =
-        serde_json::to_vec(&event_timestamp).context("failed to serialize message timestamp")?;
-    StateStore::set(provider, &sign_on_key, &timestamp_bytes, Some(TTL_SIGN_ON_SECS)).await?;
+    provider.set_json(&trip_key, &trip, Some(TTL_TRIP_SERIAL_SECS)).await?;
+    provider.set_json(&sign_on_key, &event_timestamp, Some(TTL_SIGN_ON_SECS)).await?;
 
     Ok(())
 }

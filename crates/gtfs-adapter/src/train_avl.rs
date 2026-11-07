@@ -1,11 +1,16 @@
 //! Train AVL message filtering.
 
-use acme_common::fleet;
-use omnia_sdk::api::Context;
-use omnia_sdk::{Config, HttpRequest, Identity, Publish, Result, StateStore};
+use common::topic;
+use omnia_sdk::api::{Context, Handlers};
+use omnia_sdk::{Capabilities, Config, HttpRequest, Identity, Publish, Result, StateStore};
 use serde::Deserialize;
 
-use crate::handlers::motion::{self, MotionMessage};
+use crate::fleet;
+use crate::motion::{self, MotionMessage};
+
+pub(crate) fn handlers<P: Capabilities>() -> Handlers<P> {
+    Handlers::new().topic(topic::TRAIN_AVL, train_avl)
+}
 
 /// A Motion AVL message that should only be processed for Motion-tagged
 /// train vehicles.
@@ -13,15 +18,7 @@ use crate::handlers::motion::{self, MotionMessage};
 #[serde(transparent)]
 pub struct TrainAvlMessage(pub MotionMessage);
 
-/// Processes a train AVL message, forwarding it to the Motion handler only
-/// when the vehicle's fleet record is tagged `motion`.
-///
-/// # Errors
-///
-/// Returns an error when the fleet lookup fails or the forwarded Motion
-/// message cannot be processed.
-#[tracing::instrument(skip_all)]
-pub async fn train_avl<P>(input: TrainAvlMessage, context: Context<P>) -> Result<()>
+pub(crate) async fn train_avl<P>(context: Context<P>, input: TrainAvlMessage) -> Result<()>
 where
     P: Config + HttpRequest + Identity + Publish + StateStore,
 {
@@ -33,7 +30,7 @@ where
         tracing::debug!("no vehicle identifier found");
         return Ok(());
     };
-    let Some(vehicle) = fleet::vehicle(vehicle_id, provider).await? else {
+    let Some(vehicle) = fleet::vehicle(provider, vehicle_id).await? else {
         tracing::debug!("vehicle info not found for {vehicle_id}");
         return Ok(());
     };
@@ -44,5 +41,5 @@ where
         return Ok(());
     }
 
-    motion::motion(request, context).await
+    motion::motion(context, request).await
 }

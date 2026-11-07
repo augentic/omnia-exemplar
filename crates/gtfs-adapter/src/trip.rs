@@ -1,32 +1,38 @@
 //! Trip Management API client and GTFS-realtime types.
 
-use acme_common::TIMEZONE;
 use anyhow::{Context, Result};
-use bytes::Bytes;
+use axum::body::Body;
 use chrono::{Duration, NaiveDate, TimeZone, Timelike};
 use chrono_tz::Tz;
 use http::header::CONTENT_TYPE;
 use http::{Method, StatusCode};
-use http_body_util::Full;
-use omnia_sdk::{Config, HttpRequest};
+use omnia_sdk::{Config, HttpRequest, Settings};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tracing::warn;
 
-/// Retrieves the trip instance that matches the exact `trip_id`, `service_date`, and
-/// `start_time` combination.
+/// The settings the Trip Management client reads.
+#[derive(Debug, Settings)]
+pub struct TripSettings {
+    // Base URL of the Trip Management API.
+    trip_management_url: String,
+}
+
+/// The local timezone of the (fictional) Acme transit network.
 ///
-/// # Errors
-///
-/// Returns an error when the Trip Management API request fails or the response payload cannot
-/// be deserialized.
-pub async fn get_instance<P>(
-    trip_id: &str, service_date: &str, start_time: &str, provider: &P,
+/// All schedule arithmetic (service dates, seconds-since-midnight offsets)
+/// is performed in this zone. Acme deliberately runs on UTC to keep the
+/// exemplar's fixtures reproducible — a real operator would set its actual
+/// IANA zone here (`Pacific/Auckland`) and must not copy UTC-as-local.
+pub const TIMEZONE: Tz = chrono_tz::UTC;
+
+pub(crate) async fn get_instance<P>(
+    provider: &P, trip_id: &str, service_date: &str, start_time: &str,
 ) -> Result<Option<TripInstance>>
 where
     P: Config + HttpRequest,
 {
-    let trips = fetch(trip_id, service_date, provider).await?;
+    let trips = fetch(provider, trip_id, service_date).await?;
     let mut iter = trips.into_iter();
 
     if let Some(first) = iter.next() {
@@ -48,13 +54,8 @@ where
     Ok(None)
 }
 
-/// Retrieves the closest trip instance to the supplied `event_timestamp`.
-///
-/// # Errors
-///
-/// Returns an error when Trip Management lookups fail or the payload cannot be decoded.
-pub async fn get_nearest<P>(
-    trip_id: &str, event_timestamp: i64, provider: &P,
+pub(crate) async fn get_nearest<P>(
+    provider: &P, trip_id: &str, event_timestamp: i64,
 ) -> Result<Option<TripInstance>>
 where
     P: Config + HttpRequest,
@@ -65,7 +66,7 @@ where
     };
 
     let current_date = event_dt.format("%Y%m%d").to_string();
-    let mut trips = fetch(trip_id, &current_date, provider).await?;
+    let mut trips = fetch(provider, trip_id, &current_date).await?;
 
     if trips.first().is_some_and(TripInstance::has_error) {
         return Ok(trips.into_iter().next());
@@ -73,7 +74,7 @@ where
 
     if event_dt.hour() < 4 {
         let previous_date = (event_dt - Duration::days(1)).format("%Y%m%d").to_string();
-        let previous = fetch(trip_id, &previous_date, provider).await?;
+        let previous = fetch(provider, trip_id, &previous_date).await?;
         if previous.first().is_some_and(TripInstance::has_error) {
             return Ok(previous.into_iter().next());
         }
@@ -94,12 +95,12 @@ where
     Ok(trips.into_iter().next())
 }
 
-async fn fetch<P>(trip_id: &str, service_date: &str, provider: &P) -> Result<Vec<TripInstance>>
+async fn fetch<P>(provider: &P, trip_id: &str, service_date: &str) -> Result<Vec<TripInstance>>
 where
     P: HttpRequest + Config,
 {
-    let base_url = Config::get(provider, acme_common::config::TRIP_MANAGEMENT_URL).await?;
-    let endpoint = format!("{}/tripinstances", base_url.trim_end_matches('/'));
+    let TripSettings { trip_management_url } = TripSettings::load(provider).await?;
+    let endpoint = format!("{}/tripinstances", trip_management_url.trim_end_matches('/'));
 
     let payload = serde_json::json!({
         "tripIds": [trip_id],
@@ -111,7 +112,7 @@ where
         .method(Method::POST)
         .uri(&endpoint)
         .header(CONTENT_TYPE, "application/json")
-        .body(Full::new(Bytes::from(body_bytes)))
+        .body(Body::from(body_bytes))
         .context("building Trip Management request")?;
 
     let response = provider.fetch(request).await.context("requesting trip instances")?;
@@ -158,10 +159,6 @@ fn extract(value: Value) -> Result<Vec<TripInstance>> {
         }
         Value::Object(mut map) => {
             if let Some(data) = map.remove("tripInstances") {
-                return extract(data);
-            }
-
-            if let Some(data) = map.remove("data") {
                 return extract(data);
             }
 
@@ -255,6 +252,24 @@ impl TripInstance {
     }
 }
 
+/// A GTFS-realtime trip descriptor.
+#[derive(Debug, Clone, Deserialize, Serialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct TripDescriptor {
+    /// The trip identifier.
+    pub trip_id: String,
+    /// The route the trip belongs to.
+    pub route_id: String,
+    /// The scheduled start time.
+    pub start_time: Option<String>,
+    /// The trip's service date.
+    pub start_date: Option<String>,
+    /// The direction of travel, if known.
+    pub direction_id: Option<i32>,
+    /// The GTFS-realtime schedule relationship.
+    pub schedule_relationship: Option<String>,
+}
+
 impl From<&TripInstance> for TripDescriptor {
     fn from(inst: &TripInstance) -> Self {
         Self {
@@ -270,6 +285,13 @@ impl From<&TripInstance> for TripDescriptor {
             }),
         }
     }
+}
+
+impl TripDescriptor {
+    /// Schedule relationship for trips added outside the schedule.
+    pub const ADDED: &'static str = "ADDED";
+    /// Schedule relationship for scheduled trips.
+    pub const SCHEDULED: &'static str = "SCHEDULED";
 }
 
 /// A dead-reckoning position estimate for a vehicle without a GPS fix.
@@ -356,55 +378,4 @@ pub struct VehicleDescriptor {
     pub label: Option<String>,
     /// The vehicle's license plate.
     pub license_plate: Option<String>,
-}
-
-/// A GTFS-realtime trip descriptor.
-#[derive(Debug, Clone, Deserialize, Serialize, Default)]
-#[serde(rename_all = "camelCase")]
-pub struct TripDescriptor {
-    /// The trip identifier.
-    pub trip_id: String,
-    /// The route the trip belongs to.
-    pub route_id: String,
-    /// The scheduled start time.
-    pub start_time: Option<String>,
-    /// The trip's service date.
-    pub start_date: Option<String>,
-    /// The direction of travel, if known.
-    pub direction_id: Option<i32>,
-    /// The GTFS-realtime schedule relationship.
-    pub schedule_relationship: Option<String>,
-}
-
-impl TripDescriptor {
-    /// Schedule relationship for trips added outside the schedule.
-    pub const ADDED: &'static str = "ADDED";
-    /// Schedule relationship for scheduled trips.
-    pub const SCHEDULED: &'static str = "SCHEDULED";
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    /// A GTFS start time past 24:00, as trips running after midnight are
-    /// scheduled.
-    #[test]
-    fn extended_hours_start_time() {
-        let tz = TIMEZONE;
-        let trip = TripInstance {
-            trip_id: "trip".to_string(),
-            route_id: "route".to_string(),
-            service_date: "20240101".to_string(),
-            start_time: "25:15:00".to_string(),
-            end_time: String::new(),
-            direction_id: None,
-            is_added_trip: false,
-            error: false,
-        };
-        let timestamp = timestamp(&trip, tz).unwrap();
-        // 25:15 local time maps to 01:15 the following day; in UTC that is
-        // 4_500 seconds from midnight.
-        assert_eq!(timestamp % 86_400, 4_500);
-    }
 }

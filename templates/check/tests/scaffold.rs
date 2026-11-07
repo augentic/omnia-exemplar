@@ -2,16 +2,16 @@
 //! checks a build is held to, bare and with one stem written in, with no
 //! hand edits.
 //!
-//! The scaffold builds against the same omnia the exemplar does: when the
-//! root workspace retargets pins with `[patch]`, that block is carried over;
-//! the root lockfile seeds the scaffold's, so every dependency resolves to
-//! the exemplar's exact revision. The native checks share the
-//! exemplar's target directory so dependencies compile once; both packages
-//! are `guest`, so the `libguest` the exemplar uplifts to `target/debug` is
-//! the scaffold's after a run, which nothing reads. The component is built
-//! under a target directory of its own, since the exemplar's holds no
-//! `wasm32-wasip2` build to share and the one artifact asserted must be
-//! this render's.
+//! The scaffold builds against the same omnia the exemplar does: it is
+//! rendered under the repository's own `target/`, so the repository's cargo
+//! configuration reaches it, and the root lockfile seeds its own, so every
+//! dependency resolves to the exemplar's exact revision. The native checks
+//! share the exemplar's target directory so dependencies compile once; both
+//! packages are `guest`, so the `libguest` the exemplar uplifts to
+//! `target/debug` is the scaffold's after a run, which nothing reads. The
+//! component is built under a target directory of its own, since the
+//! exemplar's holds no `wasm32-wasip2` build to share and the one artifact
+//! asserted must be this render's.
 
 #![cfg(not(miri))]
 
@@ -30,13 +30,12 @@ fn rendered_scaffold() {
     let root = template_check::repo_root();
     let target_dir =
         env::var_os("CARGO_TARGET_DIR").map_or_else(|| root.join("target"), PathBuf::from);
-    let dest = target_dir.join("template-scaffold");
+    let dest = root.join("target/template-scaffold");
     if dest.exists() {
         fs::remove_dir_all(&dest).expect("stale scaffold removed");
     }
 
     template_check::scaffold(&root, &dest).expect("scaffold renders");
-    template_check::carry_patches(&root, &dest).expect("root patches carried");
     fs::copy(root.join("Cargo.lock"), dest.join("Cargo.lock")).expect("lockfile seeded");
     checks(&dest, &target_dir);
 

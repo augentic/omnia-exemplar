@@ -1,14 +1,19 @@
-#![allow(missing_docs, reason = "integration tests, not a published API")]
+//! Static fixture tests for the Pulse position adapter.
 #![cfg(not(miri))]
 
 mod fixture;
 
 use std::ops::Sub;
 
-use acme_common::TIMEZONE;
 use chrono::{Duration, Timelike, Utc};
-use omnia_sdk::api::{Client, Metadata};
-use pulse_adapter::{ChangeType, EventType, PulseMessage, pulse};
+use common::topic;
+use omnia_sdk::api::Client;
+use omnia_sdk::api::messaging::DeliveryError;
+use omnia_test::guest::{Provider, deliver};
+use pulse_adapter::handler::PulseMessage;
+use pulse_adapter::motion::EventType;
+use pulse_adapter::pulse::{ChangeType, TIMEZONE};
+use pulse_adapter::stops::StopInfo;
 
 use self::fixture::{Case, Expected};
 
@@ -27,13 +32,16 @@ async fn deserialize_xml() {
 }
 
 // A train arriving at a mapped station: the event carries the stop's own
-// location.
+// location, and a second delivery reuses the cached stop table.
 #[tokio::test]
 async fn station_arrival() {
     let case = fixture::load("data/static/0001.json");
 
     run(&case).await.expect("should process");
 
+    if let Some(Expected::Success(expected)) = &case.expected {
+        assert!(!expected.is_empty());
+    }
     let events = case.events();
     assert_eq!(events.len(), 2);
 
@@ -44,6 +52,22 @@ async fn station_arrival() {
     assert!(event.location_data.latitude.eq(&-36.12345));
     assert!(event.location_data.longitude.eq(&174.12345));
     assert_eq!(event.remote_data.external_id, "vehicle1");
+    assert!(case.provider.storage.state("pulse:stops").is_some(), "stops table cached");
+}
+
+// A corrupted cache entry is treated as a miss, refetched from the static API,
+// and overwritten in the state store.
+#[tokio::test]
+async fn stale_refetch() {
+    let case = fixture::load("data/static/0001.json");
+    case.provider.storage.insert_state("pulse:stops", b"not valid json");
+
+    run(&case).await.expect("should refetch and process");
+
+    assert_eq!(case.events().len(), 2);
+    let cached = case.provider.storage.state("pulse:stops").expect("stops table rewritten");
+    let stops: Vec<StopInfo> = serde_json::from_slice(&cached).expect("valid cached stops");
+    assert!(!stops.is_empty());
 }
 
 // A train departing a mapped station: the event carries the updated stop
@@ -129,6 +153,24 @@ async fn too_early() {
     expect_error("data/static/0010.json").await;
 }
 
+#[tokio::test]
+async fn undecodable_payload() {
+    let provider = Provider::default();
+    let router = pulse_adapter::handlers().with_state(Client::new(provider.clone()));
+
+    let error = deliver(&router, topic::PULSE, b"not xml").await.expect_err("malformed XML");
+
+    assert!(matches!(error, DeliveryError::Rejected(_)), "{error}");
+    assert!(provider.publish.sent().is_empty());
+}
+
+#[test]
+fn topics() {
+    let router = pulse_adapter::handlers().with_state(Client::new(Provider::default()));
+
+    assert_eq!(router.topics().collect::<Vec<_>>(), [topic::PULSE]);
+}
+
 // Run a fixture that is expected to fail and compare the error with the
 // fixture's expected output.
 async fn expect_error(path: &str) {
@@ -137,15 +179,16 @@ async fn expect_error(path: &str) {
     let Some(Expected::Failure(expected_error)) = &case.expected else {
         panic!("fixture should expect an error");
     };
-    let actual_error = run(&case).await.expect_err("should have error");
-    assert_eq!(actual_error.code(), expected_error.code());
-    assert_eq!(actual_error.description(), expected_error.description());
+    let error = run(&case).await.expect_err("should have error");
+    assert!(
+        fixture::delivery_error_matches(expected_error, &error),
+        "expected {expected_error:?}, got {error:?}"
+    );
 }
 
-async fn run(case: &Case) -> Result<(), omnia_sdk::Error> {
-    Client::new("acme", case.provider.clone())
-        .call(pulse, case.input.clone(), &Metadata::default())
-        .await
+async fn run(case: &Case) -> Result<(), DeliveryError> {
+    let router = pulse_adapter::handlers().with_state(Client::new(case.provider.clone()));
+    deliver(&router, topic::PULSE, case.input.clone()).await
 }
 
 struct XmlBuilder<'a> {
@@ -156,16 +199,7 @@ struct XmlBuilder<'a> {
     update: UpdateType,
 }
 
-#[derive(PartialEq, Eq)]
-#[allow(dead_code, reason = "each variant names a fixture scenario")]
-enum UpdateType {
-    None,
-    Full,
-    NoChanges,
-    NoActualChanges,
-}
-
-#[allow(dead_code, reason = "builder methods chain; not every test uses each setter")]
+#[expect(dead_code, reason = "builder methods chain; not every test uses each setter")]
 impl<'a> XmlBuilder<'a> {
     const fn new() -> Self {
         Self {
@@ -276,6 +310,15 @@ impl<'a> XmlBuilder<'a> {
             </ActualizarDatosTren></CCO>"#
         )
     }
+}
+
+#[derive(PartialEq, Eq)]
+#[expect(dead_code, reason = "each variant names a fixture scenario")]
+enum UpdateType {
+    None,
+    Full,
+    NoChanges,
+    NoActualChanges,
 }
 
 const NO_UPDATE_MSG: &str = r#"<CCO xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" stream="7c104b58-25cb-437a-8c39-297633a6638e" sequence="1214699" xsi:type="CCO">

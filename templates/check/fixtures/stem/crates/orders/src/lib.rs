@@ -1,25 +1,22 @@
-//! # orders
+//! # Orders
 //!
-//! The `orders` stem.
+//! The fixture stem that proves a generated stem compiles and passes its
+//! tests inside a rendered template scaffold.
 
+pub mod catalogue;
+pub mod dispatch;
+pub mod lookup;
 pub mod placing;
 
-use common::Capabilities;
-use omnia_sdk::api::{Client, messaging};
+use omnia_sdk::Capabilities;
+use omnia_sdk::api::Handlers;
 
-/// The stem's routes, merged onto the root router.
-pub fn router<P: Capabilities>() -> axum::Router<Client<P>> {
-    common::routers([
-        // one entry per part with routes, each added at the end
-        placing::routes(),
-    ])
-}
-
-/// The stem's topics, registered on the root messaging router under `env`.
-#[must_use]
-pub fn topics<P: Capabilities>(router: messaging::Router<P>, env: &str) -> messaging::Router<P> {
-    common::topics(router, env).parts([
-        // one entry per part with topics, each added at the end
-        placing::topics,
+/// The stem's handlers, merged onto the root routers.
+pub fn handlers<P: Capabilities>() -> Handlers<P> {
+    Handlers::from([
+        catalogue::handlers(),
+        dispatch::handlers(),
+        lookup::handlers(),
+        placing::handlers(),
     ])
 }

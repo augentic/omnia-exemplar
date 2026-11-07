@@ -9,17 +9,18 @@
 //! because the capture format is this service's, not omnia's, and
 //! `augentic/test` is retired for this repository.
 
-#![allow(dead_code, reason = "each test binary uses a subset of the loader")]
-
-use std::fs::File;
 use std::path::Path;
 
-use acme_common::{TIMEZONE, config};
 use bytes::Bytes;
 use chrono::{Duration, Timelike, Utc};
 use http::{Method, Response};
+use omnia_sdk::api::messaging::DeliveryError;
 use omnia_test::guest::{FixedIdentity, MapConfig, MatchedHttp, Provider};
-use pulse_adapter::{MotionEvent, PulseMessage};
+use pulse_adapter::handler::PulseMessage;
+use pulse_adapter::motion::MotionEvent;
+use pulse_adapter::pulse::TIMEZONE;
+use quick_xml::events::{BytesText, Event};
+use quick_xml::{Reader, Writer};
 use serde::Deserialize;
 use serde_json::Value;
 
@@ -87,10 +88,10 @@ pub enum Expected {
     Failure(omnia_sdk::Error),
 }
 
-/// A fixture ready to drive: the re-anchored input and a seeded provider.
+/// A fixture ready to drive: the re-anchored input XML and a seeded provider.
 pub struct Case {
-    /// The message to hand the handler.
-    pub input: PulseMessage,
+    /// The XML payload to deliver on the Pulse topic.
+    pub input: Vec<u8>,
     /// Doubles seeded with the fixture's HTTP answers.
     pub provider: Provider,
     /// The captured outcome, if the fixture records one.
@@ -121,8 +122,12 @@ impl Case {
 /// # Panics
 ///
 /// Panics when the file is missing, malformed, or has no input.
+#[expect(
+    clippy::disallowed_types,
+    reason = "integration test helper reads captured JSON fixtures from disk"
+)]
 pub fn load(path: impl AsRef<Path>) -> Case {
-    let file = File::open(path.as_ref()).expect("should open fixture");
+    let file = std::fs::File::open(path.as_ref()).expect("should open fixture");
     let def: TestDef = serde_json::from_reader(file).expect("should deserialize fixture");
     prepare(def)
 }
@@ -135,10 +140,9 @@ pub fn load(path: impl AsRef<Path>) -> Case {
 #[must_use]
 pub fn prepare(def: TestDef) -> Case {
     let xml = def.input.expect("fixture has an input");
-    let message = quick_xml::de::from_str(&xml).expect("input is a Pulse message");
     let input = match def.params {
-        Some(params) => shift_time(message, params.delay),
-        None => message,
+        Some(params) => shift_time(&xml, params.delay),
+        None => xml.into_bytes(),
     };
 
     let http = def.http_requests.into_iter().fold(MatchedHttp::default(), |http, fetch| {
@@ -153,10 +157,9 @@ pub fn prepare(def: TestDef) -> Case {
 
     let provider = Provider::default()
         .config(MapConfig::default().with([
-            (config::ENV, "dev"),
-            (config::STATIC_API_URL, BASE_URL),
-            (config::BLOCK_MGT_URL, BASE_URL),
-            (config::API_IDENTITY, "block-mgt"),
+            ("STATIC_API_URL", BASE_URL),
+            ("BLOCK_MGT_URL", BASE_URL),
+            ("API_IDENTITY", "block-mgt"),
         ]))
         .http(http)
         .identity(FixedIdentity::new("test-token"));
@@ -168,27 +171,99 @@ pub fn prepare(def: TestDef) -> Case {
     }
 }
 
-/// Re-anchor the first change's actual time to `delay` seconds before now.
+/// Whether `error` matches `expected`, with a few seconds' slack when the
+/// description embeds a freshness delay computed from `Utc::now()`.
+pub fn delivery_error_matches(expected: &omnia_sdk::Error, error: &DeliveryError) -> bool {
+    let DeliveryError::Rejected(msg) = error else {
+        return false;
+    };
+    if !msg.contains(&expected.code()) {
+        return false;
+    }
+    let desc = expected.description();
+    extract_delay_seconds(&desc).map_or_else(
+        || msg.contains(&desc),
+        |expected_secs| {
+            extract_delay_seconds(msg).is_some_and(|actual| (actual - expected_secs).abs() <= 3)
+        },
+    )
+}
+
+fn extract_delay_seconds(text: &str) -> Option<i64> {
+    for prefix in ["outdated by ", "too early by "] {
+        let Some(rest) = text.split_once(prefix).map(|(_, rest)| rest) else {
+            continue;
+        };
+        let digits: String = rest.chars().take_while(char::is_ascii_digit).collect();
+        if let Ok(secs) = digits.parse() {
+            return Some(secs);
+        }
+    }
+    None
+}
+
+/// Re-anchor the first change's actual time in `xml` to `delay` seconds before now.
 ///
 /// The date and seconds-from-midnight are both derived from the shifted
 /// instant, so a `delay` that reaches back across midnight lands on the
 /// previous date with a positive time-of-day rather than a negative one the
 /// adapter would reject as `no_update`.
-fn shift_time(mut message: PulseMessage, delay: i32) -> PulseMessage {
-    let Some(change) = message.train_update.changes.get_mut(0) else {
-        return message;
+fn shift_time(xml: &str, delay: i32) -> Vec<u8> {
+    let message: PulseMessage = quick_xml::de::from_str(xml).expect("input is a Pulse message");
+    let Some(change) = message.train_update.changes.first() else {
+        return xml.as_bytes().to_vec();
+    };
+    let time_tag: Option<&str> = if change.has_departed {
+        Some("horaSalidaReal")
+    } else if change.has_arrived {
+        Some("horaEntradaReal")
+    } else {
+        None
     };
 
     let event = Utc::now().with_timezone(&TIMEZONE) - Duration::seconds(i64::from(delay));
-    message.train_update.created_date = event.date_naive();
+    let created_date = event.format("%d/%m/%Y").to_string();
+    #[expect(clippy::cast_possible_wrap, reason = "seconds since midnight fit an i32")]
+    let adjusted_secs = (event.num_seconds_from_midnight() as i32).to_string();
 
-    #[allow(clippy::cast_possible_wrap, reason = "seconds since midnight fit an i32")]
-    let adjusted_secs = event.num_seconds_from_midnight() as i32;
+    let mut reader = Reader::from_str(xml);
+    let mut writer = Writer::new(Vec::with_capacity(xml.len()));
+    let mut current_tag: Option<String> = None;
+    let mut paso_index = 0usize;
 
-    if change.has_departed {
-        change.actual_departure_time = adjusted_secs;
-    } else if change.has_arrived {
-        change.actual_arrival_time = adjusted_secs;
+    loop {
+        match reader.read_event().expect("valid XML") {
+            Event::Eof => break,
+            Event::Start(elem) => {
+                let name = elem.name().into_inner().to_owned();
+                if name == "pasoTren" {
+                    paso_index += 1;
+                }
+                current_tag = Some(name);
+                writer.write_event(Event::Start(elem)).expect("write");
+            }
+            Event::End(elem) => {
+                current_tag = None;
+                writer.write_event(Event::End(elem)).expect("write");
+            }
+            Event::Text(text) => {
+                let replacement = if current_tag.as_deref() == Some("fechaCreacion") {
+                    Some(created_date.as_str())
+                } else if paso_index == 1 && current_tag.as_deref() == time_tag {
+                    Some(adjusted_secs.as_str())
+                } else {
+                    None
+                };
+                match replacement {
+                    Some(value) => {
+                        writer.write_event(Event::Text(BytesText::new(value))).expect("write");
+                    }
+                    None => writer.write_event(Event::Text(text)).expect("write"),
+                }
+            }
+            other => writer.write_event(other).expect("write"),
+        }
     }
-    message
+
+    writer.into_inner()
 }

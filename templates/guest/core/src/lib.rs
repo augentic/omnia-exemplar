@@ -1,20 +1,24 @@
 //! # guest
 //!
-//! An Omnia WASI guest: every stem's routes merged onto one HTTP router and
-//! every stem's topics registered on one messaging router, over one
-//! provider. Only the WASI exports are `wasm32`-gated: the routers are
-//! generic over their provider, so `tests/routes.rs` and `tests/messaging.rs`
-//! build the production routers natively under `omnia_test::guest::Provider`
-//! doubles.
+//! An Omnia WASI guest: every stem's handlers merged onto one router over one
+//! provider. Only the WASI exports are `wasm32`-gated: the router is generic
+//! over its provider, so `tests/routes.rs` and `tests/messaging.rs` build the
+//! production router natively under `omnia_test::guest::Provider` doubles.
 
-mod messaging;
-mod routes;
+use omnia_sdk::Capabilities;
+use omnia_sdk::api::{Client, Handlers, Router, http, messaging};
 
-pub use self::messaging::messaging_router;
-pub use self::routes::router;
+/// Build the guest router over one provider-owning [`Client`].
+///
+/// Omnia creates one component instance per request or delivery, so the
+/// router and the client are built inside each call. The list holds one
+/// `<stem>::handlers(),` per stem, each added at the end, in the array
+/// form a stem lists its parts in. Merging panics where two stems serve
+/// one path under one method or consume one topic, so the rungs under
+/// `tests/` hold the list to one handler apiece.
+pub fn router<P: Capabilities>(provider: P) -> Router<P> {
+    Handlers::from([]).with_state(Client::new(provider))
+}
 
-/// The tenant that owns this deployment.
-pub const OWNER: &str = "guest";
-
-omnia_sdk::http!(router(omnia_sdk::WasiProvider));
-omnia_sdk::messaging!(messaging_router(omnia_sdk::WasiProvider));
+http::export!(router);
+messaging::export!(router);

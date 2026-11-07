@@ -1,94 +1,36 @@
 //! # SQL examples
 //!
-//! The rich `wasi-sql` showcase: an agency/feed schema exercising the full
-//! `omnia-orm` surface. Where `pattern::place` uses the ORM for one
-//! upsert-plus-select pattern, this crate restores the complete relational
-//! example that omnia's "Example tidy" trimmed:
+//! The rich `wasi-sql` showcase: an agency/feed schema exercising
+//! parameterized SQL over [`TableStore`], rows decoded through
+//! [`FromRow`] and [`TableStore::query_as`]:
 //!
-//! - [`SelectBuilder`] with `order_by_desc`, `limit`, and `where` filters
-//! - [`InsertBuilder::from_entity`] with server-assigned ids (a max-id
-//!   probe, then max + 1)
-//! - [`UpdateBuilder`] with conditional `.set()`s — only the provided
-//!   fields are written — plus a fetch-after-update reply
-//! - [`DeleteBuilder`] with 404 on zero rows affected
-//! - `entity!` with multi-column JOIN aliasing: [`FeedWithAgency`] selects
+//! - `SELECT` with `ORDER BY ... DESC`, optional `LIMIT`, and `WHERE`
+//!   filters
+//! - `INSERT` with server-assigned ids (a max-id probe, then max + 1)
+//! - Dynamic `UPDATE ... SET` writing only the provided fields, plus a
+//!   fetch-after-update reply
+//! - `DELETE` answering 404 on zero rows affected
+//! - Multi-column `LEFT JOIN` aliasing: [`feed::FeedWithAgency`] selects
 //!   three columns from the joined `agency` table
 //! - Existence checks answering 404, and referential checks rejecting a
 //!   feed for a missing agency
 //!
-//! Schema DDL goes through [`TableStore::exec`](omnia_sdk::TableStore)
-//! rather than the wasm-only `Connection`/`Statement` bindings the pre-trim
-//! example used, so the handlers run unchanged against native mock
-//! providers — see [`schema`].
+//! Schema DDL goes through [`TableStore::exec`] rather than wasm-only
+//! bindings so the handlers run unchanged against native mock providers.
 //!
-//! [`SelectBuilder`]: omnia_orm::SelectBuilder
-//! [`InsertBuilder::from_entity`]: omnia_orm::InsertBuilder::from_entity
-//! [`UpdateBuilder`]: omnia_orm::UpdateBuilder
-//! [`DeleteBuilder`]: omnia_orm::DeleteBuilder
+//! [`FromRow`]: omnia_sdk::sql::FromRow
+//! [`TableStore`]: omnia_sdk::TableStore
+//! [`TableStore::exec`]: omnia_sdk::TableStore::exec
+//! [`TableStore::query_as`]: omnia_sdk::TableStoreExt::query_as
 
 pub mod agency;
 pub mod feed;
-pub mod paths;
-pub mod schema;
+mod schema;
 
-use omnia_sdk::TableStore;
-use omnia_sdk::api::Client;
-use omnia_sdk::api::http::{delete, get, patch, post};
+use omnia_sdk::Capabilities;
+use omnia_sdk::api::Handlers;
 
-pub use crate::agency::{
-    AgenciesReply, Agency, AgencyReply, CreateAgencyRequest, GetAgencyRequest, ListAgenciesRequest,
-    UpdateAgencyRequest, create_agency, get_agency, list_agencies, update_agency,
-};
-pub use crate::feed::{
-    CreateFeedRequest, DeleteFeedReply, DeleteFeedRequest, Feed, FeedReply, FeedWithAgency,
-    FeedsReply, FeedsWithAgencyReply, ListAgencyFeedsRequest, ListAllFeedsRequest, create_feed,
-    delete_feed, list_agency_feeds, list_all_feeds,
-};
-
-/// The crate's routes, merged onto the guest's router.
-pub fn router<P: TableStore + Send + Sync + 'static>() -> axum::Router<Client<P>> {
-    axum::Router::new()
-        .route(paths::AGENCIES, get(list_agencies).merge(post(create_agency)))
-        .route(paths::AGENCY, get(get_agency).merge(patch(update_agency)))
-        .route(paths::AGENCY_FEEDS, get(list_agency_feeds).merge(post(create_feed)))
-        .route(paths::FEEDS, get(list_all_feeds))
-        .route(paths::FEED, delete(delete_feed))
-}
-
-/// Named connection configured by the host.
-pub const CONNECTION: &str = "db";
-
-/// Deserialize an id that may arrive as a JSON number or a numeric string.
-///
-/// The JSON-body route codecs merge path parameters into the body as JSON
-/// *strings*, so `PATCH /examples/agencies/{id}` delivers `id` as `"1"`
-/// while a body field would be `1`. This deserializer accepts both, keeping
-/// the input structs typed as `i64`.
-pub(crate) fn numeric_id<'de, D>(deserializer: D) -> Result<i64, D::Error>
-where
-    D: serde::Deserializer<'de>,
-{
-    struct IdVisitor;
-
-    impl serde::de::Visitor<'_> for IdVisitor {
-        type Value = i64;
-
-        fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-            formatter.write_str("an integer id, as a number or a numeric string")
-        }
-
-        fn visit_i64<E: serde::de::Error>(self, v: i64) -> Result<i64, E> {
-            Ok(v)
-        }
-
-        fn visit_u64<E: serde::de::Error>(self, v: u64) -> Result<i64, E> {
-            i64::try_from(v).map_err(E::custom)
-        }
-
-        fn visit_str<E: serde::de::Error>(self, v: &str) -> Result<i64, E> {
-            v.parse().map_err(E::custom)
-        }
-    }
-
-    deserializer.deserialize_any(IdVisitor)
+/// The stem's handlers, merged onto the root routers.
+pub fn handlers<P: Capabilities>() -> Handlers<P> {
+    Handlers::from([agency::handlers(), feed::handlers()])
 }

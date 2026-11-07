@@ -1,29 +1,10 @@
 [package]
-name = "acme-common"
-description = "Common transit domain logic"
-readme = "README.md"
-publish = false
-authors.workspace = true
-categories.workspace = true
+name = "common"
+description = "The topic table every stem shares"
+publish.workspace = true
 edition.workspace = true
-keywords.workspace = true
-license.workspace = true
-repository.workspace = true
 rust-version.workspace = true
 version.workspace = true
 
 [lints]
 workspace = true
-
-[dependencies]
-anyhow.workspace = true
-bytes.workspace = true
-chrono-tz.workspace = true
-http.workspace = true
-http-body-util.workspace = true
-omnia-http-cache.workspace = true
-omnia-sdk.workspace = true
-serde.workspace = true
-serde_json.workspace = true
-tracing.workspace = true
-urlencoding.workspace = true

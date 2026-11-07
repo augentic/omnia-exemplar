@@ -1,6 +1,6 @@
 [package]
 name = "pattern"
-description = "Composition patterns over the Omnia guest capabilities: cache-aside decoding, config-carried credentials, relational geo queries, and structured JSON error bodies"
+description = "Composition patterns over the Omnia guest capabilities: cache-aside decoding, compare-and-swap optimistic locking, identity access tokens, relational geo queries, and structured JSON error bodies"
 readme = "README.md"
 publish = false
 authors.workspace = true
@@ -19,21 +19,17 @@ workspace = true
 crate-type = ["lib"]
 
 [dependencies]
-axum.workspace = true
 anyhow.workspace = true
-bytes.workspace = true
-http.workspace = true
-http-body-util.workspace = true
-omnia-orm.workspace = true
+axum.workspace = true
 omnia-sdk.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
 
 [dev-dependencies]
+bytes.workspace = true
 tokio.workspace = true
 
 # Target-gated so the guest's wasm32 dependency graph never sees the doubles.
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 omnia-test = { workspace = true, features = ["guest"] }
-tower.workspace = true
