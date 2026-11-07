@@ -148,23 +148,37 @@ fn whole_file_replaced() {
     assert_eq!(tree.read(Manifest::PATH).as_deref(), Some(template()));
 }
 
+// The seed's array is headed by a comment, so an entry lands under it with
+// no comma on the comment, the array stays one entry per line however few
+// it holds, and a one-line array laid by hand is opened out the same way.
 #[test]
 fn handler_list_insertion() {
+    const HEAD: &str = "    Handlers::from([\n        // one `<stem>::handlers(),` per stem, each \
+                        added at the end\n";
     let seed = omnia_template::entry("src/lib.rs").expect("the template holds `src/lib.rs`").body;
+    assert!(
+        seed.contains(&format!("{HEAD}    ])\n    .with_state(Client::new(provider))")),
+        "{seed}"
+    );
 
     let one = insert_after(seed, HANDLER_LIST_ANCHOR, "        orders::handlers(),").expect("one");
-    assert!(one.contains("    Handlers::from([\n        orders::handlers(),\n    ])"), "{one}");
+    assert!(one.contains(&format!("{HEAD}        orders::handlers(),\n    ])")), "{one}");
 
     let two = insert_after(&one, HANDLER_LIST_ANCHOR, "billing::handlers()").expect("two");
     assert!(
-        two.contains(
-            "    Handlers::from([\n        orders::handlers(),\n        billing::handlers(),\n    ])"
-        ),
+        two.contains(&format!(
+            "{HEAD}        orders::handlers(),\n        billing::handlers(),\n    ])"
+        )),
         "{two}"
     );
 
-    let single_line = seed.replace("Handlers::from([])", "Handlers::from([orders::handlers()])");
+    let single_line =
+        "    Handlers::from([orders::handlers()]).with_state(Client::new(provider))\n";
     let after_fmt =
-        insert_after(&single_line, HANDLER_LIST_ANCHOR, "billing::handlers()").expect("formatted");
-    assert_eq!(after_fmt, two);
+        insert_after(single_line, HANDLER_LIST_ANCHOR, "billing::handlers()").expect("formatted");
+    assert_eq!(
+        after_fmt,
+        "    Handlers::from([\n        orders::handlers(),\n        billing::handlers(),\n    \
+         ]).with_state(Client::new(provider))\n"
+    );
 }

@@ -15,9 +15,10 @@ pub const CRATE_LIST_ANCHOR: &str = "omnia-sdk.workspace = true";
 ///
 /// When `anchor` opens a bracketed list (`anchor` ends with `'['`), `line`
 /// is appended to the list before its closing `']'` whether the list is
-/// empty, single-line, or multi-line. Otherwise `line` is placed on a new
-/// line immediately following `anchor`'s line. Returns `None` when `anchor`
-/// (or its closing `']'`) does not appear in `text`.
+/// empty, single-line, or multi-line, and after a comment heading it.
+/// Otherwise `line` is placed on a new line immediately following
+/// `anchor`'s line. Returns `None` when `anchor` (or its closing `']'`)
+/// does not appear in `text`.
 #[must_use]
 pub fn insert_after(text: &str, anchor: &str, line: &str) -> Option<String> {
     let (before, after) = text.split_once(anchor)?;
@@ -41,7 +42,8 @@ pub fn insert_after(text: &str, anchor: &str, line: &str) -> Option<String> {
             Some(format!("{before}{anchor}\n{items}{entry}\n{indent}]{rest}"))
         } else {
             let trimmed = inner.trim_end();
-            let comma = if trimmed.ends_with(',') { "" } else { "," };
+            let last = trimmed.rsplit('\n').next().unwrap_or(trimmed).trim_start();
+            let comma = if trimmed.ends_with(',') || last.starts_with("//") { "" } else { "," };
             Some(format!("{before}{anchor}{trimmed}{comma}\n{entry}\n{indent}]{rest}"))
         }
     } else {
