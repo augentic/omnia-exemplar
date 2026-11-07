@@ -53,5 +53,4 @@ wildcards = "allow"
 [bans.workspace-dependencies]
 duplicates = "deny"
 include-path-dependencies = true
-# `exclude-dev = true` prunes dev-only workspace dependencies from the graph.
 unused = "allow"
