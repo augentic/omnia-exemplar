@@ -15,7 +15,9 @@ use axum::http::{Method, Request};
 use axum::routing::get;
 use common::Capabilities;
 use omnia_sdk::api::{Context, Handlers};
-use omnia_sdk::{Config, HttpRequest, Identity, Result, Settings};
+use omnia_sdk::{
+    Config, HttpRequest, HttpRequestExt as _, Identity, IdentityExt as _, Result, Settings,
+};
 use serde::{Deserialize, Serialize};
 
 pub(crate) const UPSTREAM_STATUS: &str = "/examples/patterns/upstream/{resource}";
@@ -50,7 +52,7 @@ where
     P: Config + HttpRequest + Identity + 'static,
 {
     let settings = IdentitySettings::load(context.config()).await?;
-    let token = context.identity().access_token(settings.upstream_identity).await?;
+    let token = context.identity().access_token(&settings.upstream_identity).await?;
 
     let request = Request::builder()
         .method(Method::GET)

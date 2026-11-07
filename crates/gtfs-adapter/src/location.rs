@@ -2,7 +2,7 @@
 
 use chrono::{Duration, NaiveDate, TimeZone};
 use chrono_tz::Tz;
-use omnia_sdk::{Config, HttpRequest, Identity, Result, StateStore};
+use omnia_sdk::{Config, HttpRequest, Identity, Result, StateStore, StateStoreExt as _};
 use uuid::Uuid;
 
 use crate::block_mgt::{self, BlockInstance};
@@ -26,7 +26,7 @@ pub enum Location {
     DeadReckoning(DeadReckoningMessage),
 }
 
-pub async fn process<P>(message: &MotionMessage, provider: &P) -> Result<Option<Location>>
+pub async fn process<P>(provider: &P, message: &MotionMessage) -> Result<Option<Location>>
 where
     P: Config + HttpRequest + Identity + StateStore,
 {
@@ -48,7 +48,7 @@ where
         tracing::debug!("no vehicle identifier found");
         return Ok(None);
     };
-    let Some(vehicle) = fleet::vehicle(vehicle_id, provider).await? else {
+    let Some(vehicle) = fleet::vehicle(provider, vehicle_id).await? else {
         tracing::debug!("vehicle info not found for {vehicle_id}");
         return Ok(None);
     };
@@ -56,8 +56,8 @@ where
     let timestamp = message.timestamp()?;
 
     if vehicle.is_train() {
-        let allocation = block_mgt::cached_allocation(&vehicle.id, timestamp, provider).await?;
-        allocate(&vehicle, allocation, timestamp, provider).await?;
+        let allocation = block_mgt::cached_allocation(provider, &vehicle.id, timestamp).await?;
+        allocate(provider, &vehicle, allocation, timestamp).await?;
     }
     let trip_inst = current_trip(provider, &vehicle.id, timestamp).await?;
     let trip_desc = trip_inst.as_ref().map(TripDescriptor::from);
@@ -115,7 +115,7 @@ where
 }
 
 async fn allocate<P>(
-    vehicle: &Vehicle, allocation: Option<BlockInstance>, timestamp: i64, provider: &P,
+    provider: &P, vehicle: &Vehicle, allocation: Option<BlockInstance>, timestamp: i64,
 ) -> Result<()>
 where
     P: Config + HttpRequest + StateStore,
@@ -152,7 +152,7 @@ where
 
     // try and get the new trip
     let Some(new_trip) =
-        trip::get_instance(&alloc.trip_id, &alloc.service_date, &alloc.start_time, provider)
+        trip::get_instance(provider, &alloc.trip_id, &alloc.service_date, &alloc.start_time)
             .await?
     else {
         StateStore::delete(provider, &sign_on_key).await?;

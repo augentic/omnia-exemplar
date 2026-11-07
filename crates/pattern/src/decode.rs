@@ -15,7 +15,9 @@ use axum::http::{Method, Request};
 use axum::routing::post;
 use common::Capabilities;
 use omnia_sdk::api::{Context, Handlers};
-use omnia_sdk::{Config, HttpRequest, Result, Settings, StateStore};
+use omnia_sdk::{
+    Config, HttpRequest, HttpRequestExt as _, Result, Settings, StateStore, StateStoreExt as _,
+};
 use serde::{Deserialize, Serialize};
 
 pub(crate) const DECODE: &str = "/examples/patterns/decode";

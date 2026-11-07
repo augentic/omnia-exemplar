@@ -11,7 +11,8 @@ use http::header::AUTHORIZATION;
 use omnia_sdk::api::messaging::Delivery;
 use omnia_sdk::api::{Context, DecodeError, Handlers};
 use omnia_sdk::{
-    Config, Error, HttpRequest, Identity, Message, Publish, Result, Settings, StateStore,
+    Config, Error, HttpRequest, HttpRequestExt as _, Identity, IdentityExt, Message, Publish,
+    Result, Settings, StateStore,
 };
 use serde::Deserialize;
 use thiserror::Error;
@@ -114,7 +115,6 @@ impl PulseMessage {
     }
 }
 
-#[tracing::instrument(skip_all)]
 pub(crate) async fn pulse<P>(context: Context<P>, input: PulseMessage) -> Result<()>
 where
     P: Config + HttpRequest + Identity + Publish + StateStore,
@@ -164,7 +164,7 @@ impl TrainUpdate {
         };
 
         // get train allocations for this trip
-        let allocated = trip_allocations(&self.train_id(), provider).await?;
+        let allocated = trip_allocations(provider, &self.train_id()).await?;
 
         // publish Motion events
         let mut events = Vec::new();
@@ -186,7 +186,7 @@ impl TrainUpdate {
     }
 }
 
-async fn trip_allocations<P>(external_ref_id: &str, provider: &P) -> Result<Vec<String>>
+async fn trip_allocations<P>(provider: &P, external_ref_id: &str) -> Result<Vec<String>>
 where
     P: Config + HttpRequest + Identity,
 {
@@ -194,7 +194,7 @@ where
         block_mgt_url: url,
         api_identity: identity,
     } = PulseSettings::load(provider).await?;
-    let token = Identity::access_token(provider, identity).await?;
+    let token = IdentityExt::access_token(provider, &identity).await?;
 
     let request = http::Request::builder()
         .method(Method::GET)

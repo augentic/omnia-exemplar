@@ -41,7 +41,6 @@ impl From<MotionError> for Error {
     }
 }
 
-#[tracing::instrument(skip_all)]
 pub(crate) async fn motion<P>(context: Context<P>, input: MotionMessage) -> Result<()>
 where
     P: Config + HttpRequest + Identity + Publish + StateStore,
@@ -52,13 +51,13 @@ where
     // serial data event
     if message.event_type == EventType::SerialData {
         #[cfg(feature = "god-mode")]
-        let message = crate::god_mode::apply_overrides(message, provider).await?;
-        serial_data::process(&message, provider).await?;
+        let message = crate::god_mode::apply_overrides(provider, message).await?;
+        serial_data::process(provider, &message).await?;
         return Ok(());
     }
 
     // must be a location event
-    let Some(location) = location::process(&message, provider).await? else {
+    let Some(location) = location::process(provider, &message).await? else {
         return Ok(());
     };
 

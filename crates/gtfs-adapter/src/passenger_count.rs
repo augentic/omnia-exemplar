@@ -4,7 +4,7 @@
 
 use common::{Capabilities, topic};
 use omnia_sdk::api::{Context, Handlers};
-use omnia_sdk::{Result, StateStore};
+use omnia_sdk::{Result, StateStore, StateStoreExt as _};
 use serde::{Deserialize, Serialize};
 
 use crate::state_keys;
@@ -15,7 +15,6 @@ pub(crate) fn handlers<P: Capabilities>() -> Handlers<P> {
     Handlers::new().topic(topic::PASSENGER_COUNT, passenger_count)
 }
 
-#[tracing::instrument(skip_all)]
 pub(crate) async fn passenger_count<P>(
     context: Context<P>, input: PassengerCountMessage,
 ) -> Result<()>

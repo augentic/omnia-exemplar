@@ -4,24 +4,13 @@
 #[expect(dead_code, reason = "shared support helpers are used by `static.rs`")]
 mod support;
 
-use axum::body::{Body, to_bytes};
+use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use gtfs_adapter::set_trip::SetTripReply;
-use omnia_sdk::api::Client;
-use omnia_test::guest::{MapConfig, Provider};
+use omnia_test::guest::{MapConfig, send};
 use serde_json::Value;
-use tower::ServiceExt as _;
 
-use self::support::provider;
-
-async fn send(provider: Provider, request: Request<Body>) -> (StatusCode, Value) {
-    let router = gtfs_adapter::handlers().with_state(Client::new(provider));
-    let response = router.oneshot(request).await.expect("response");
-    let status = response.status();
-    let bytes = to_bytes(response.into_body(), usize::MAX).await.expect("body");
-    let body = serde_json::from_slice(&bytes).unwrap_or(Value::Null);
-    (status, body)
-}
+use self::support::{provider, router};
 
 #[tokio::test]
 async fn set_trip_disabled() {
@@ -32,9 +21,10 @@ async fn set_trip_disabled() {
         .body(Body::from("{}"))
         .expect("request");
 
-    let (status, body) = send(provider.clone(), request).await;
+    let response = send(&router(&provider), request).await;
 
-    assert_eq!(status, StatusCode::BAD_REQUEST);
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    let body: Value = serde_json::from_slice(response.body()).expect("error JSON");
     assert!(body["message"].as_str().is_some_and(|msg| msg.contains("God mode not enabled")));
     assert!(provider.storage.state("god_mode:overrides").is_none());
 }
@@ -47,10 +37,10 @@ async fn set_trip_enabled() {
         .body(Body::from("{}"))
         .expect("request");
 
-    let (status, body) = send(provider.clone(), request).await;
+    let response = send(&router(&provider), request).await;
 
-    assert_eq!(status, StatusCode::OK);
-    let reply: SetTripReply = serde_json::from_value(body).expect("reply");
+    assert_eq!(response.status(), StatusCode::OK);
+    let reply: SetTripReply = serde_json::from_slice(response.body()).expect("reply");
     assert_eq!(reply.message, "Ok");
     assert_eq!(reply.process, 0);
 

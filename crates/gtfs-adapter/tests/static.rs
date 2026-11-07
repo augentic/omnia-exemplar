@@ -7,18 +7,16 @@
 
 mod support;
 
-use axum::body::{Body, to_bytes};
+use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use chrono::{DateTime, Utc};
 use common::topic;
 use gtfs_adapter::vehicle_info::VehicleInfoReply;
-use omnia_sdk::api::messaging::{Delivery, DeliveryError};
-use omnia_sdk::api::{Client, Router};
-use omnia_test::guest::{MatchedHttp, Provider};
+use omnia_sdk::api::messaging::DeliveryError;
+use omnia_test::guest::{MatchedHttp, deliver, send};
 use serde_json::{Value, json};
-use tower::ServiceExt as _;
 
-use self::support::{allocation_query, fleet_query, ok, provider, trip_instances};
+use self::support::{allocation_query, fleet_query, ok, provider, router, trip_instances};
 
 #[expect(
     clippy::disallowed_macros,
@@ -40,27 +38,6 @@ const TRAIN_AVL: &[u8] = include_bytes!("../data/realtime-train-avl.v1.json");
     reason = "integration test loads captured fixture JSON from disk"
 )]
 const PASSENGER_COUNT: &[u8] = include_bytes!("../data/realtime-passenger-count.v1.json");
-
-fn router(provider: &Provider) -> Router<Provider> {
-    gtfs_adapter::handlers().with_state(Client::new(provider.clone()))
-}
-
-fn delivery(topic: &str, payload: impl Into<Vec<u8>>) -> Delivery {
-    Delivery {
-        topic: Some(topic.to_string()),
-        payload: payload.into(),
-        ..Delivery::default()
-    }
-}
-
-async fn send(provider: Provider, request: Request<Body>) -> (StatusCode, Value) {
-    let router = gtfs_adapter::handlers().with_state(Client::new(provider));
-    let response = router.oneshot(request).await.expect("response");
-    let status = response.status();
-    let bytes = to_bytes(response.into_body(), usize::MAX).await.expect("body");
-    let body = serde_json::from_slice(&bytes).unwrap_or(Value::Null);
-    (status, body)
-}
 
 /// Extract the `value` payload of the fixture record at `index`.
 fn fixture_value(raw: &[u8], index: usize) -> Value {
@@ -102,8 +79,7 @@ async fn motion_location() {
         ),
     );
 
-    router(&provider)
-        .handle(delivery(topic::PULSE_TO_MOTION, value.to_string()))
+    deliver(&router(&provider), topic::PULSE_TO_MOTION, value.to_string())
         .await
         .expect("should succeed");
 
@@ -149,8 +125,7 @@ async fn motion_without_gps() {
         &serde_json::to_vec(&trip_instance("TRIP-7")).expect("should serialize"),
     );
 
-    router(&provider)
-        .handle(delivery(topic::PULSE_TO_MOTION, value.to_string()))
+    deliver(&router(&provider), topic::PULSE_TO_MOTION, value.to_string())
         .await
         .expect("should succeed");
 
@@ -175,8 +150,7 @@ async fn motion_unknown_event() {
         "messageData": { "timestamp": "2025-11-19T22:38:16.559Z" },
     });
 
-    router(&provider)
-        .handle(delivery(topic::PULSE_TO_MOTION, value.to_string()))
+    deliver(&router(&provider), topic::PULSE_TO_MOTION, value.to_string())
         .await
         .expect("should succeed");
 
@@ -194,10 +168,7 @@ async fn train_avl_non_motion() {
     ));
     let value = fixture_value(TRAIN_AVL, 0);
 
-    router(&provider)
-        .handle(delivery(topic::TRAIN_AVL, value.to_string()))
-        .await
-        .expect("should succeed");
+    deliver(&router(&provider), topic::TRAIN_AVL, value.to_string()).await.expect("should succeed");
 
     assert!(provider.publish.sent().is_empty());
 }
@@ -218,10 +189,7 @@ async fn train_avl_motion() {
             ),
     );
 
-    router(&provider)
-        .handle(delivery(topic::TRAIN_AVL, value.to_string()))
-        .await
-        .expect("should succeed");
+    deliver(&router(&provider), topic::TRAIN_AVL, value.to_string()).await.expect("should succeed");
 
     let published = provider.publish.sent();
     assert_eq!(published.len(), 1);
@@ -237,8 +205,7 @@ async fn pax_occupancy() {
 
     let value = fixture_value(PASSENGER_COUNT, 0);
 
-    router(&provider)
-        .handle(delivery(topic::PASSENGER_COUNT, value.to_string()))
+    deliver(&router(&provider), topic::PASSENGER_COUNT, value.to_string())
         .await
         .expect("should succeed");
 
@@ -249,8 +216,7 @@ async fn pax_occupancy() {
     let mut value = value;
     value.as_object_mut().expect("object").remove("occupancyStatus");
 
-    router(&provider)
-        .handle(delivery(topic::PASSENGER_COUNT, value.to_string()))
+    deliver(&router(&provider), topic::PASSENGER_COUNT, value.to_string())
         .await
         .expect("should succeed");
 
@@ -293,8 +259,7 @@ async fn serial_data_sign_on() {
         },
     });
 
-    router(&provider)
-        .handle(delivery(topic::PULSE_TO_MOTION, value.to_string()))
+    deliver(&router(&provider), topic::PULSE_TO_MOTION, value.to_string())
         .await
         .expect("should succeed");
 
@@ -320,8 +285,7 @@ async fn serial_data_future() {
         },
     });
 
-    let error = router(&provider)
-        .handle(delivery(topic::PULSE_TO_MOTION, value.to_string()))
+    let error = deliver(&router(&provider), topic::PULSE_TO_MOTION, value.to_string())
         .await
         .expect_err("should reject future-dated message");
     assert!(error.to_string().contains("bad_time"));
@@ -347,8 +311,7 @@ async fn serial_data_outdated() {
         },
     });
 
-    let error = router(&provider)
-        .handle(delivery(topic::PULSE_TO_MOTION, value.to_string()))
+    let error = deliver(&router(&provider), topic::PULSE_TO_MOTION, value.to_string())
         .await
         .expect_err("should reject outdated message");
     assert!(matches!(&error, DeliveryError::Rejected(msg) if msg.contains("bad_time")), "{error}");
@@ -368,10 +331,10 @@ async fn vehicle_info_state() {
     provider.storage.insert_state("motionGtfs:vehicle:signOn:EMP484", b"1763592000");
 
     let request = Request::get("/info/EMP484").body(Body::empty()).expect("request");
-    let (status, body) = send(provider, request).await;
+    let response = send(&router(&provider), request).await;
 
-    assert_eq!(status, StatusCode::OK);
-    let reply: VehicleInfoReply = serde_json::from_value(body).expect("reply");
+    assert_eq!(response.status(), StatusCode::OK);
+    let reply: VehicleInfoReply = serde_json::from_slice(response.body()).expect("reply");
     assert_eq!(reply.pid, 0);
     assert_eq!(reply.vehicle_id, "EMP484");
     assert_eq!(reply.sign_on_time.as_deref(), Some("1763592000"));

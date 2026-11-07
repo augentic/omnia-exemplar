@@ -12,11 +12,10 @@ use axum::http::{Request, StatusCode};
 use axum::response::IntoResponse as _;
 use omnia_sdk::api::Client;
 use omnia_sdk::sql::{DataType, Field, Row};
-use omnia_test::guest::{Provider, ScriptedTables, Statement};
+use omnia_test::guest::{self, Provider, ScriptedTables, Statement};
 use pattern::place::{
     NearbyPlacesReply, NearbyPlacesRequest, PlaceError, UpsertPlaceReply, UpsertPlaceRequest,
 };
-use tower::ServiceExt as _;
 
 /// A `places` row as the nearby query maps it.
 fn place_row(id: &str, name: &str, lat: f64, lon: f64) -> Row {
@@ -69,10 +68,8 @@ fn upserted_id(statement: &Statement) -> Option<&str> {
 
 async fn send(provider: &Provider, request: Request<Body>) -> (StatusCode, Vec<u8>) {
     let router = pattern::handlers().with_state(Client::new(provider.clone()));
-    let response = router.oneshot(request).await.expect("response");
-    let status = response.status();
-    let bytes = to_bytes(response.into_body(), usize::MAX).await.expect("body");
-    (status, bytes.to_vec())
+    let response = guest::send(&router, request).await;
+    (response.status(), response.into_body().to_vec())
 }
 
 async fn upsert(provider: &Provider, id: &str, name: &str, lat: f64, lon: f64) {

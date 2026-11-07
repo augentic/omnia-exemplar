@@ -1,13 +1,12 @@
 //! Querying the catalogue over `TableStore` into `FromRow` items, with a
 //! `StateStore` cache-aside in front of it.
 
-use axum::body::{Body, to_bytes};
+use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use omnia_sdk::api::Client;
 use omnia_sdk::sql::{DataType, Field, Row};
-use omnia_test::guest::{Provider, ScriptedTables};
+use omnia_test::guest::{Provider, ScriptedTables, send};
 use orders::catalogue::{CatalogueItem, CatalogueReply};
-use tower::ServiceExt as _;
 
 fn item_row(sku: &str, cents: i64, in_stock: bool) -> Row {
     Row {
@@ -32,10 +31,9 @@ fn item_row(sku: &str, cents: i64, in_stock: bool) -> Row {
 async fn get_catalogue(provider: &Provider) -> CatalogueReply {
     let request = Request::get("/catalogue").body(Body::empty()).expect("request");
     let router = orders::handlers().with_state(Client::new(provider.clone()));
-    let response = router.oneshot(request).await.expect("response");
+    let response = send(&router, request).await;
     assert_eq!(response.status(), StatusCode::OK);
-    let bytes = to_bytes(response.into_body(), usize::MAX).await.expect("body");
-    serde_json::from_slice(&bytes).expect("catalogue reply")
+    serde_json::from_slice(response.body()).expect("catalogue reply")
 }
 
 #[tokio::test]

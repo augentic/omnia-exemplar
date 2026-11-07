@@ -5,7 +5,9 @@ use axum::body::Body;
 use http::Method;
 use http::header::{AUTHORIZATION, CACHE_CONTROL, IF_NONE_MATCH};
 use omnia_http_cache::HttpCache;
-use omnia_sdk::{Config, HttpRequest, Identity, Result, Settings, StateStore, bad_gateway};
+use omnia_sdk::{
+    Config, HttpRequest, Identity, IdentityExt, Result, Settings, StateStore, bad_gateway,
+};
 use serde::{Deserialize, Serialize};
 
 /// The settings the Block Management client reads.
@@ -20,7 +22,7 @@ pub struct BlockMgtSettings {
 // Responses are cached for twenty seconds through the provider's
 // `StateStore` under the quoted, namespaced etag `"allocation:<vehicle_id>"`.
 pub(crate) async fn cached_allocation<P>(
-    vehicle_id: &str, timestamp: i64, provider: &P,
+    provider: &P, vehicle_id: &str, timestamp: i64,
 ) -> Result<Option<BlockInstance>>
 where
     P: Config + HttpRequest + Identity + StateStore,
@@ -30,7 +32,7 @@ where
         api_identity: identity,
     } = BlockMgtSettings::load(provider).await?;
 
-    let token = Identity::access_token(provider, identity).await?;
+    let token = IdentityExt::access_token(provider, &identity).await?;
     let endpoint = format!(
         "{url}/allocations/vehicles/{vehicle_id}?currentTrip=true&siblings=true&nowUnixTimeSeconds={timestamp}"
     );

@@ -93,8 +93,6 @@ fn fixture_value(raw: &[u8], index: usize) -> Vec<u8> {
 /// broker through the example's `wasi:messaging` host.
 #[tokio::test]
 async fn http_export() {
-    // The generated `main` and `run` stay untouched; only `Hooks` is driven.
-    let _ = (production::main, production::run);
     let (backends, runtime) = boot().await;
     // The in-memory broker fans out only to live subscribers: subscribe
     // before the guest publishes, or the message is dropped.
@@ -105,7 +103,6 @@ async fn http_export() {
 
     // `Host` is required: the handler answers a request without an authority
     // with `400` before the guest sees it.
-    assert_eq!(gtfs_adapter::trip::TIMEZONE, pulse_adapter::pulse::TIMEZONE);
     let request = Request::post("/api/apc")
         .header(HOST, "guest.test")
         .header(CONTENT_TYPE, "application/json")
@@ -149,4 +146,11 @@ async fn messaging_export() {
     assert_eq!(entry, b"\"FEW_SEATS_AVAILABLE\"");
 
     runtime.shutdown();
+}
+
+// The pulse adapter stamps a service day and the GTFS adapter reads it back;
+// the two zones must agree or a trip crosses midnight between them.
+#[test]
+fn pipeline_timezone() {
+    assert_eq!(gtfs_adapter::trip::TIMEZONE, pulse_adapter::pulse::TIMEZONE);
 }

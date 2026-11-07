@@ -8,7 +8,7 @@ use axum::response::{IntoResponse, Response};
 use axum::routing::get;
 use common::Capabilities;
 use omnia_sdk::api::{Context, Handlers};
-use omnia_sdk::{StateStore, not_found};
+use omnia_sdk::{StateStore, StateStoreExt as _, not_found};
 use serde::{Deserialize, Serialize};
 
 // The paths the part serves.

@@ -1,7 +1,7 @@
 //! Integration tests for the docstore collections and filters, driven
 //! through the stem's router.
 
-use axum::body::{Body, to_bytes};
+use axum::body::Body;
 use axum::http::header::CONTENT_TYPE;
 use axum::http::{Method, Request, StatusCode};
 use docstore::route::{CreateRouteRequest, Route, RoutesReply};
@@ -9,11 +9,10 @@ use docstore::stop::{CreateStopRequest, DeleteStopReply, DocumentRecord, Stop, S
 use docstore::stop_time::{CreateStopTimeRequest, StopTime, StopTimesReply};
 use omnia_sdk::DocumentStore as _;
 use omnia_sdk::api::Client;
-use omnia_test::guest::Provider;
+use omnia_test::guest::{self, Provider};
 use serde::Serialize;
 use serde::de::DeserializeOwned;
 use serde_json::Value;
-use tower::ServiceExt as _;
 
 fn stop(
     name: &str, coords: (f64, f64), zone: Option<&str>, wheelchair: i32, location: i32,
@@ -63,11 +62,9 @@ async fn send(
     }
     .expect("request");
     let router = docstore::handlers().with_state(Client::new(provider.clone()));
-    let response = router.oneshot(request).await.expect("response");
-    let status = response.status();
-    let bytes = to_bytes(response.into_body(), usize::MAX).await.expect("body");
-    let json = serde_json::from_slice(&bytes).unwrap_or(Value::Null);
-    (status, json)
+    let response = guest::send(&router, request).await;
+    let json = serde_json::from_slice(response.body()).unwrap_or(Value::Null);
+    (response.status(), json)
 }
 
 async fn ok<T: DeserializeOwned>(

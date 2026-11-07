@@ -1,7 +1,7 @@
 //! Integration tests driving each capability example through its router and
 //! `omnia_test` doubles.
 
-use axum::body::{Body, to_bytes};
+use axum::body::Body;
 use axum::http::header::CONTENT_TYPE;
 use axum::http::{Request, StatusCode};
 use capability::blob::{ArchiveReply, ArchiveRequest};
@@ -11,10 +11,9 @@ use capability::table::{ReadingReply, ReadingRequest, sql};
 use omnia_sdk::DocumentStore as _;
 use omnia_sdk::api::Client;
 use omnia_sdk::sql::{DataType, Field, Row};
-use omnia_test::guest::{Broadcasted, Provider, ScriptedTables};
+use omnia_test::guest::{Broadcasted, Provider, ScriptedTables, send};
 use serde::Serialize;
 use serde::de::DeserializeOwned;
-use tower::ServiceExt as _;
 
 async fn post<I: Serialize + Sync, O: DeserializeOwned>(
     provider: &Provider, path: &str, input: &I,
@@ -24,10 +23,9 @@ async fn post<I: Serialize + Sync, O: DeserializeOwned>(
         .body(Body::from(serde_json::to_vec(input).expect("serialize")))
         .expect("request");
     let router = capability::handlers().with_state(Client::new(provider.clone()));
-    let response = router.oneshot(request).await.expect("response");
+    let response = send(&router, request).await;
     assert_eq!(response.status(), StatusCode::OK);
-    let bytes = to_bytes(response.into_body(), usize::MAX).await.expect("body");
-    serde_json::from_slice(&bytes).expect("deserialize")
+    serde_json::from_slice(response.body()).expect("deserialize")
 }
 
 #[tokio::test]

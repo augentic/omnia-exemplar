@@ -4,6 +4,7 @@
 use bytes::Bytes;
 use chrono::{DateTime, Utc};
 use http::Response;
+use omnia_sdk::api::{Client, Router};
 use omnia_test::guest::{FixedIdentity, MapConfig, Provider};
 
 pub const FLEET_BASE: &str = "http://fleet.test";
@@ -20,6 +21,11 @@ pub fn provider() -> Provider {
             ("API_IDENTITY", "test-identity"),
         ]))
         .identity(FixedIdentity::new("mock_access_token"))
+}
+
+/// The stem's router over `provider`.
+pub fn router(provider: &Provider) -> Router<Provider> {
+    gtfs_adapter::handlers().with_state(Client::new(provider.clone()))
 }
 
 /// The Fleet API lookup `gtfs_adapter::fleet::vehicle` makes for `vehicle_id`.

@@ -36,7 +36,6 @@ pub struct SetTripReply {
     pub process: u32,
 }
 
-#[tracing::instrument(skip_all)]
 pub(crate) async fn set_trip<P>(
     context: Context<P>, Path(input): Path<SetTripRequest>,
 ) -> Result<Json<SetTripReply>>

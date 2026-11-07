@@ -1,7 +1,10 @@
 //! Station-to-stop mapping and stop location lookups.
 
 use axum::body::Body;
-use omnia_sdk::{Config, HttpRequest, Result, Settings, StateStore, server_error};
+use omnia_sdk::{
+    Config, HttpRequest, HttpRequestExt as _, Result, Settings, StateStore, StateStoreExt as _,
+    server_error,
+};
 use serde::{Deserialize, Serialize};
 
 /// The settings the stop lookup reads.

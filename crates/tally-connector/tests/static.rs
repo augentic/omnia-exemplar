@@ -1,13 +1,12 @@
 //! Static tests for the Tally APC connector driven through its router.
 
-use axum::body::{Body, to_bytes};
+use axum::body::Body;
 use axum::http::header::CONTENT_TYPE;
 use axum::http::{Request, StatusCode};
 use common::topic;
 use omnia_sdk::api::Client;
-use omnia_test::guest::Provider;
+use omnia_test::guest::{Provider, send};
 use tally_connector::types::TallyMessage;
-use tower::ServiceExt as _;
 
 #[expect(
     clippy::disallowed_macros,
@@ -31,10 +30,9 @@ async fn forward(provider: &Provider, payload: &'static [u8]) {
         .body(Body::from(payload))
         .expect("request");
     let router = tally_connector::handlers().with_state(Client::new(provider.clone()));
-    let response = router.oneshot(request).await.expect("response");
+    let response = send(&router, request).await;
     assert_eq!(response.status(), StatusCode::OK);
-    let body = to_bytes(response.into_body(), usize::MAX).await.expect("body");
-    assert_eq!(body.as_ref(), br#""OK""#);
+    assert_eq!(response.body().as_ref(), br#""OK""#);
 }
 
 #[tokio::test]

@@ -328,7 +328,6 @@ dependencies = [
  "serde",
  "serde_json",
  "tokio",
- "tower",
 ]
 
 [[package]]
@@ -1003,7 +1002,6 @@ dependencies = [
  "serde",
  "serde_json",
  "tokio",
- "tower",
 ]
 
 [[package]]
@@ -1385,7 +1383,6 @@ dependencies = [
  "serde_json",
  "thiserror 2.0.21",
  "tokio",
- "tower",
  "tracing",
  "urlencoding",
  "uuid",
@@ -1425,7 +1422,6 @@ dependencies = [
  "sql",
  "tally-connector",
  "tokio",
- "tower",
 ]
 
 [[package]]
@@ -2452,6 +2448,7 @@ dependencies = [
  "omnia-wasi-websocket",
  "tempfile",
  "tokio",
+ "tower",
 ]
 
 [[package]]
@@ -2821,7 +2818,6 @@ dependencies = [
  "serde_json",
  "thiserror 2.0.21",
  "tokio",
- "tower",
 ]
 
 [[package]]
@@ -3053,7 +3049,6 @@ dependencies = [
  "serde",
  "thiserror 2.0.21",
  "tokio",
- "tower",
  "tracing",
 ]
 
@@ -3952,7 +3947,6 @@ dependencies = [
  "serde",
  "serde_json",
  "tokio",
- "tower",
 ]
 
 [[package]]
@@ -4084,7 +4078,6 @@ dependencies = [
  "serde",
  "serde_json",
  "tokio",
- "tower",
 ]
 
 [[package]]

@@ -21,7 +21,7 @@ use axum::routing::{get, post};
 use common::Capabilities;
 use omnia_sdk::api::{Context, Handlers};
 use omnia_sdk::sql::{DataType, FromRow};
-use omnia_sdk::{Error, TableStore};
+use omnia_sdk::{Error, TableStore, TableStoreExt as _};
 use serde::{Deserialize, Serialize};
 
 pub(crate) const PLACES: &str = "/examples/patterns/places";

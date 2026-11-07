@@ -18,7 +18,6 @@ pub(crate) fn handlers<P: Capabilities>() -> Handlers<P> {
 #[serde(transparent)]
 pub struct TrainAvlMessage(pub MotionMessage);
 
-#[tracing::instrument(skip_all)]
 pub(crate) async fn train_avl<P>(context: Context<P>, input: TrainAvlMessage) -> Result<()>
 where
     P: Config + HttpRequest + Identity + Publish + StateStore,
@@ -31,7 +30,7 @@ where
         tracing::debug!("no vehicle identifier found");
         return Ok(());
     };
-    let Some(vehicle) = fleet::vehicle(vehicle_id, provider).await? else {
+    let Some(vehicle) = fleet::vehicle(provider, vehicle_id).await? else {
         tracing::debug!("vehicle info not found for {vehicle_id}");
         return Ok(());
     };

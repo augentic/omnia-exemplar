@@ -12,7 +12,7 @@ use chrono::Utc;
 use common::Capabilities;
 use omnia_sdk::api::{Context, Handlers};
 use omnia_sdk::sql::{DataType, FromRow};
-use omnia_sdk::{Result, TableStore, not_found};
+use omnia_sdk::{Result, TableStore, TableStoreExt as _, not_found};
 use serde::{Deserialize, Serialize};
 
 use crate::agency::fetch_agency;

@@ -1,20 +1,21 @@
 //! Consuming XML dispatch notices through `route_with`.
 
 use omnia_sdk::api::Client;
-use omnia_sdk::api::messaging::{Delivery, DeliveryError};
-use omnia_test::guest::Provider;
+use omnia_sdk::api::messaging::DeliveryError;
+use omnia_test::guest::{Provider, deliver};
 
 #[tokio::test]
 async fn records_carrier_from_xml() {
     let provider = Provider::default();
     let router = orders::handlers().with_state(Client::new(provider.clone()));
-    let delivery = Delivery {
-        topic: Some("order-dispatched".to_string()),
-        payload: b"<Dispatched><id>ord-7</id><carrier>NZP</carrier></Dispatched>".to_vec(),
-        ..Delivery::default()
-    };
 
-    router.handle(delivery).await.expect("dispatch notice handled");
+    deliver(
+        &router,
+        "order-dispatched",
+        b"<Dispatched><id>ord-7</id><carrier>NZP</carrier></Dispatched>",
+    )
+    .await
+    .expect("dispatch notice handled");
 
     assert_eq!(
         provider.storage.state("orders/dispatched/ord-7").as_deref(),
@@ -26,13 +27,10 @@ async fn records_carrier_from_xml() {
 async fn rejects_malformed_xml() {
     let provider = Provider::default();
     let router = orders::handlers().with_state(Client::new(provider.clone()));
-    let delivery = Delivery {
-        topic: Some("order-dispatched".to_string()),
-        payload: b"<Dispatched><unclosed>".to_vec(),
-        ..Delivery::default()
-    };
 
-    let error = router.handle(delivery).await.expect_err("malformed XML rejected");
+    let error = deliver(&router, "order-dispatched", b"<Dispatched><unclosed>")
+        .await
+        .expect_err("malformed XML rejected");
 
     assert!(matches!(error, DeliveryError::Rejected(_)), "{error}");
     assert!(provider.storage.is_empty());

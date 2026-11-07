@@ -6,8 +6,7 @@
 
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
-use omnia_test::guest::Provider;
-use tower::ServiceExt as _;
+use omnia_test::guest::{Provider, send};
 
 #[test]
 fn merges() {
@@ -18,7 +17,7 @@ fn merges() {
 async fn unknown_path() {
     let request = Request::get("/nothing-here").body(Body::empty()).expect("request");
 
-    let response = guest::router(Provider::default()).oneshot(request).await.expect("response");
+    let response = send(&guest::router(Provider::default()), request).await;
 
     assert_eq!(response.status(), StatusCode::NOT_FOUND);
 }

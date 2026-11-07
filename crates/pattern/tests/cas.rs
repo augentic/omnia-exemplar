@@ -1,14 +1,13 @@
 //! Tests for the `StateStore::cas` optimistic-concurrency quota update,
 //! driven through the stem's router.
 
-use axum::body::{Body, to_bytes};
+use axum::body::Body;
 use axum::http::header::CONTENT_TYPE;
 use axum::http::{Request, StatusCode};
 use omnia_sdk::api::Client;
-use omnia_test::guest::Provider;
+use omnia_test::guest::{Provider, send};
 use pattern::cas::QuotaRecord;
 use serde_json::{Value, json};
-use tower::ServiceExt as _;
 
 async fn put_quota(
     provider: &Provider, tenant: &str, expected_version: u64, limit: u64,
@@ -24,15 +23,13 @@ async fn put_quota(
         ))
         .expect("request");
     let router = pattern::handlers().with_state(Client::new(provider.clone()));
-    let response = router.oneshot(request).await.expect("response");
+    let response = send(&router, request).await;
     assert_eq!(
         response.headers().get(CONTENT_TYPE).and_then(|value| value.to_str().ok()),
         Some("application/json")
     );
-    let status = response.status();
-    let bytes = to_bytes(response.into_body(), usize::MAX).await.expect("body");
-    let value = serde_json::from_slice(&bytes).expect("JSON body");
-    (status, value)
+    let value = serde_json::from_slice(response.body()).expect("JSON body");
+    (response.status(), value)
 }
 
 #[tokio::test]

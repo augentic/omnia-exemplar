@@ -1,15 +1,14 @@
 //! Tests for the decode-through-cache handler, driven through the stem's
 //! router, with the outbound request recorded by `MatchedHttp`.
 
-use axum::body::{Body, to_bytes};
+use axum::body::Body;
 use axum::http::header::CONTENT_TYPE;
 use axum::http::{HeaderValue, Method, Request, Response, StatusCode};
 use bytes::Bytes;
 use omnia_sdk::api::Client;
-use omnia_test::guest::{MapConfig, MatchedHttp, Provider};
+use omnia_test::guest::{MapConfig, MatchedHttp, Provider, send};
 use pattern::decode::{DecodeSegmentReply, Segment};
 use serde_json::json;
-use tower::ServiceExt as _;
 
 const DECODER: &str = "https://decoder.test/decode";
 #[expect(
@@ -39,10 +38,9 @@ async fn decode(provider: &Provider, code: &str) -> DecodeSegmentReply {
         .body(Body::from(json!({ "code": code }).to_string()))
         .expect("request");
     let router = pattern::handlers().with_state(Client::new(provider.clone()));
-    let response = router.oneshot(request).await.expect("response");
+    let response = send(&router, request).await;
     assert_eq!(response.status(), StatusCode::OK);
-    let bytes = to_bytes(response.into_body(), usize::MAX).await.expect("body");
-    serde_json::from_slice(&bytes).expect("reply")
+    serde_json::from_slice(response.body()).expect("reply")
 }
 
 #[tokio::test]

@@ -13,7 +13,7 @@
 use std::collections::HashMap;
 
 use anyhow::Result;
-use omnia_sdk::{Config, StateStore};
+use omnia_sdk::{Config, StateStore, StateStoreExt as _};
 use serde::{Deserialize, Serialize};
 
 use crate::motion::{EventType, MotionMessage};
@@ -46,7 +46,7 @@ pub(crate) async fn set_vehicle_to_trip(
     save_state(state_store, &state).await
 }
 
-pub(crate) async fn apply_overrides<P>(event: MotionMessage, provider: &P) -> Result<MotionMessage>
+pub(crate) async fn apply_overrides<P>(provider: &P, event: MotionMessage) -> Result<MotionMessage>
 where
     P: Config + StateStore,
 {

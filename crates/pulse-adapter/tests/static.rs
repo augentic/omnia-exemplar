@@ -8,8 +8,8 @@ use std::ops::Sub;
 use chrono::{Duration, Timelike, Utc};
 use common::topic;
 use omnia_sdk::api::Client;
-use omnia_sdk::api::messaging::{Delivery, DeliveryError};
-use omnia_test::guest::Provider;
+use omnia_sdk::api::messaging::DeliveryError;
+use omnia_test::guest::{Provider, deliver};
 use pulse_adapter::handler::PulseMessage;
 use pulse_adapter::motion::EventType;
 use pulse_adapter::pulse::{ChangeType, TIMEZONE};
@@ -157,13 +157,8 @@ async fn too_early() {
 async fn undecodable_payload() {
     let provider = Provider::default();
     let router = pulse_adapter::handlers().with_state(Client::new(provider.clone()));
-    let delivery = Delivery {
-        topic: Some(topic::PULSE.to_string()),
-        payload: b"not xml".to_vec(),
-        ..Delivery::default()
-    };
 
-    let error = router.handle(delivery).await.expect_err("malformed XML");
+    let error = deliver(&router, topic::PULSE, b"not xml").await.expect_err("malformed XML");
 
     assert!(matches!(error, DeliveryError::Rejected(_)), "{error}");
     assert!(provider.publish.sent().is_empty());
@@ -194,12 +189,7 @@ async fn expect_error(path: &str) {
 
 async fn run(case: &Case) -> Result<(), DeliveryError> {
     let router = pulse_adapter::handlers().with_state(Client::new(case.provider.clone()));
-    let delivery = Delivery {
-        topic: Some(topic::PULSE.to_string()),
-        payload: case.input.clone(),
-        ..Delivery::default()
-    };
-    router.handle(delivery).await
+    deliver(&router, topic::PULSE, case.input.clone()).await
 }
 
 struct XmlBuilder<'a> {

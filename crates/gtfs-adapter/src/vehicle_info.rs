@@ -5,7 +5,7 @@ use axum::extract::Path;
 use axum::routing::get;
 use common::Capabilities;
 use omnia_sdk::api::{Context, Handlers};
-use omnia_sdk::{Config, HttpRequest, Identity, Result, StateStore};
+use omnia_sdk::{Config, HttpRequest, Identity, Result, StateStore, StateStoreExt as _};
 use serde::{Deserialize, Serialize};
 
 use crate::fleet::{self, Vehicle};
@@ -40,7 +40,6 @@ pub struct VehicleInfoReply {
     pub fleet_info: Option<Vehicle>,
 }
 
-#[tracing::instrument(skip_all)]
 pub(crate) async fn vehicle_info<P>(
     context: Context<P>, Path(vehicle_id): Path<String>,
 ) -> Result<Json<VehicleInfoReply>>
@@ -57,7 +56,7 @@ where
         .await?
         .map(|bytes| String::from_utf8_lossy(&bytes).to_string());
 
-    let fleet_info = fleet::vehicle(&vehicle_id, context.provider()).await?;
+    let fleet_info = fleet::vehicle(context.provider(), &vehicle_id).await?;
 
     Ok(Json(VehicleInfoReply {
         pid: PROCESS_ID,

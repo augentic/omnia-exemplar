@@ -1,15 +1,13 @@
 //! Placing an order through the stem's routers, over the guest doubles.
 
-use axum::body::{Body, to_bytes};
+use axum::body::Body;
 use axum::http::header::CONTENT_TYPE;
 use axum::http::{Request, StatusCode};
 use common::topic;
 use omnia_sdk::StateStore;
 use omnia_sdk::api::Client;
-use omnia_sdk::api::messaging::Delivery;
-use omnia_test::guest::{MapConfig, Provider};
+use omnia_test::guest::{MapConfig, Provider, deliver, send};
 use orders::placing::Placed;
-use tower::ServiceExt as _;
 
 fn provider() -> Provider {
     Provider::default().config(MapConfig::default().with([("ORDERS_LIMIT", "2")]))
@@ -21,10 +19,8 @@ async fn place(provider: &Provider, body: &'static str) -> (StatusCode, Vec<u8>)
         .body(Body::from(body))
         .expect("request");
     let router = orders::handlers().with_state(Client::new(provider.clone()));
-    let response = router.oneshot(request).await.expect("response");
-    let status = response.status();
-    let body = to_bytes(response.into_body(), usize::MAX).await.expect("body");
-    (status, body.to_vec())
+    let response = send(&router, request).await;
+    (response.status(), response.into_body().to_vec())
 }
 
 #[tokio::test]
@@ -59,12 +55,8 @@ async fn placements_counted() {
     let router = orders::handlers().with_state(Client::new(provider.clone()));
 
     for lines in [1, 2] {
-        let delivery = Delivery {
-            topic: Some("order-placed".to_string()),
-            payload: serde_json::to_vec(&Placed { lines }).expect("a placement"),
-            ..Delivery::default()
-        };
-        router.handle(delivery).await.expect("a placement is counted");
+        let payload = serde_json::to_vec(&Placed { lines }).expect("a placement");
+        deliver(&router, "order-placed", payload).await.expect("a placement is counted");
     }
 
     let total = StateStore::increment(&provider, "orders/lines-placed", 0).await.expect("the count");

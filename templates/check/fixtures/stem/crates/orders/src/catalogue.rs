@@ -7,7 +7,7 @@ use axum::routing::get;
 use common::Capabilities;
 use omnia_sdk::api::{Context, Handlers};
 use omnia_sdk::sql::{DataType, FromRow};
-use omnia_sdk::{Result, StateStore, TableStore};
+use omnia_sdk::{Result, StateStore, StateStoreExt as _, TableStore, TableStoreExt as _};
 use serde::{Deserialize, Serialize};
 
 // The paths the part serves.

@@ -27,12 +27,12 @@ pub struct TripSettings {
 pub const TIMEZONE: Tz = chrono_tz::UTC;
 
 pub(crate) async fn get_instance<P>(
-    trip_id: &str, service_date: &str, start_time: &str, provider: &P,
+    provider: &P, trip_id: &str, service_date: &str, start_time: &str,
 ) -> Result<Option<TripInstance>>
 where
     P: Config + HttpRequest,
 {
-    let trips = fetch(trip_id, service_date, provider).await?;
+    let trips = fetch(provider, trip_id, service_date).await?;
     let mut iter = trips.into_iter();
 
     if let Some(first) = iter.next() {
@@ -55,7 +55,7 @@ where
 }
 
 pub(crate) async fn get_nearest<P>(
-    trip_id: &str, event_timestamp: i64, provider: &P,
+    provider: &P, trip_id: &str, event_timestamp: i64,
 ) -> Result<Option<TripInstance>>
 where
     P: Config + HttpRequest,
@@ -66,7 +66,7 @@ where
     };
 
     let current_date = event_dt.format("%Y%m%d").to_string();
-    let mut trips = fetch(trip_id, &current_date, provider).await?;
+    let mut trips = fetch(provider, trip_id, &current_date).await?;
 
     if trips.first().is_some_and(TripInstance::has_error) {
         return Ok(trips.into_iter().next());
@@ -74,7 +74,7 @@ where
 
     if event_dt.hour() < 4 {
         let previous_date = (event_dt - Duration::days(1)).format("%Y%m%d").to_string();
-        let previous = fetch(trip_id, &previous_date, provider).await?;
+        let previous = fetch(provider, trip_id, &previous_date).await?;
         if previous.first().is_some_and(TripInstance::has_error) {
             return Ok(previous.into_iter().next());
         }
@@ -95,7 +95,7 @@ where
     Ok(trips.into_iter().next())
 }
 
-async fn fetch<P>(trip_id: &str, service_date: &str, provider: &P) -> Result<Vec<TripInstance>>
+async fn fetch<P>(provider: &P, trip_id: &str, service_date: &str) -> Result<Vec<TripInstance>>
 where
     P: HttpRequest + Config,
 {

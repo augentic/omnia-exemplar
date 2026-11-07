@@ -8,7 +8,8 @@ use std::fs;
 use chrono::Utc;
 use common::topic;
 use omnia_sdk::api::Client;
-use omnia_sdk::api::messaging::{Delivery, DeliveryError};
+use omnia_sdk::api::messaging::DeliveryError;
+use omnia_test::guest::deliver;
 use pulse_adapter::pulse::TIMEZONE;
 
 use self::fixture::{Case, Expected};
@@ -28,12 +29,7 @@ async fn run() {
 
 async fn replay(case: Case) {
     let router = pulse_adapter::handlers().with_state(Client::new(case.provider.clone()));
-    let delivery = Delivery {
-        topic: Some(topic::PULSE.to_string()),
-        payload: case.input.clone(),
-        ..Delivery::default()
-    };
-    let result = router.handle(delivery).await;
+    let result = deliver(&router, topic::PULSE, case.input.clone()).await;
     let curr_events = case.events();
 
     match &case.expected {

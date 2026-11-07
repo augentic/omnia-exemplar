@@ -20,7 +20,7 @@ pub struct FleetSettings {
 
 // Responses are cached for five minutes through the provider's `StateStore`
 // under the quoted, namespaced etag `"fleet:<query>"`.
-pub(crate) async fn vehicle<P>(vehicle_id: &str, provider: &P) -> Result<Option<Vehicle>>
+pub(crate) async fn vehicle<P>(provider: &P, vehicle_id: &str) -> Result<Option<Vehicle>>
 where
     P: Config + HttpRequest + Identity + StateStore,
 {

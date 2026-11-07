@@ -1,7 +1,7 @@
 //! Serial data (sign-on) event processing.
 
 use chrono::Utc;
-use omnia_sdk::{Config, HttpRequest, Result, StateStore, bad_request};
+use omnia_sdk::{Config, HttpRequest, Result, StateStore, StateStoreExt as _, bad_request};
 
 use crate::motion::{DecodedSerialData, MotionError, MotionMessage};
 use crate::state_keys;
@@ -13,7 +13,7 @@ const TTL_SERIAL_TIMESTAMP_SECS: u64 = 24 * 60 * 60;
 
 const SERIAL_DATA_THRESHOLD: i64 = 900;
 
-pub async fn process<P>(message: &MotionMessage, provider: &P) -> Result<()>
+pub async fn process<P>(provider: &P, message: &MotionMessage) -> Result<()>
 where
     P: Config + HttpRequest + StateStore,
 {
@@ -38,7 +38,7 @@ where
         return Err(bad_request!("missing decoded serial data"));
     };
 
-    allocate(vehicle_id, decoded, timestamp, provider).await
+    allocate(provider, vehicle_id, decoded, timestamp).await
 }
 
 // Updates the timestamp if it is newer than the previously stored timestamp.
@@ -59,7 +59,7 @@ async fn update_timestamp(store: &impl StateStore, timestamp: i64, vehicle_id: &
 }
 
 async fn allocate<P>(
-    vehicle_id: &str, decoded: &DecodedSerialData, event_timestamp: i64, provider: &P,
+    provider: &P, vehicle_id: &str, decoded: &DecodedSerialData, event_timestamp: i64,
 ) -> Result<()>
 where
     P: Config + HttpRequest + StateStore,
@@ -85,10 +85,10 @@ where
         return Ok(());
     }
 
-    if let Some(trip) = trip::get_nearest(trip_id, event_timestamp, provider).await?
+    if let Some(trip) = trip::get_nearest(provider, trip_id, event_timestamp).await?
         && !trip.has_error()
     {
-        return save_trip(vehicle_id, event_timestamp, trip, provider).await;
+        return save_trip(provider, vehicle_id, event_timestamp, trip).await;
     }
 
     StateStore::delete(provider, &sign_on_key).await?;
@@ -99,7 +99,7 @@ where
 }
 
 async fn save_trip<P>(
-    vehicle_id: &str, event_timestamp: i64, trip: TripInstance, provider: &P,
+    provider: &P, vehicle_id: &str, event_timestamp: i64, trip: TripInstance,
 ) -> Result<()>
 where
     P: StateStore,

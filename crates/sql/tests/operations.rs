@@ -1,17 +1,16 @@
 //! Integration tests for the agency and feed SQL handlers, driven through
 //! the stem's router.
 
-use axum::body::{Body, to_bytes};
+use axum::body::Body;
 use axum::http::header::CONTENT_TYPE;
 use axum::http::{Method, Request, StatusCode};
 use omnia_sdk::api::Client;
 use omnia_sdk::sql::{DataType, Field, Row};
-use omnia_test::guest::{Provider, ScriptedTables, Statement};
+use omnia_test::guest::{self, Provider, ScriptedTables, Statement};
 use serde::de::DeserializeOwned;
 use serde_json::{Value, json};
 use sql::agency::{AgenciesReply, AgencyReply};
 use sql::feed::{DeleteFeedReply, FeedReply, FeedsReply, FeedsWithAgencyReply};
-use tower::ServiceExt as _;
 
 fn field_int(name: &str, value: i64) -> Field {
     Field {
@@ -117,11 +116,9 @@ async fn send(
     }
     .expect("request");
     let router = sql::handlers().with_state(Client::new(provider.clone()));
-    let response = router.oneshot(request).await.expect("response");
-    let status = response.status();
-    let bytes = to_bytes(response.into_body(), usize::MAX).await.expect("body");
-    let json = serde_json::from_slice(&bytes).unwrap_or(Value::Null);
-    (status, json)
+    let response = guest::send(&router, request).await;
+    let json = serde_json::from_slice(response.body()).unwrap_or(Value::Null);
+    (response.status(), json)
 }
 
 async fn ok<T: DeserializeOwned>(

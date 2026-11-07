@@ -94,6 +94,17 @@ Two shapes of service repeat throughout the pipeline:
 
 Start a new service from the closest template.
 
+Three words recur through this guide:
+
+- A **stem** is one crate under `crates/`, one service of the pipeline
+  above, exposing its `handlers()`.
+- A **part** is one module of a stem, binding its routes and topics in its
+  own `handlers()`, which the stem's `handlers()` merges.
+- A **rung** is one of the three test tiers under [Testing](#testing).
+
+The guest template's own terms, a *slice* and *drift*, are defined in
+[`templates/guest/README.md`](templates/guest/README.md).
+
 ## Guest packaging
 
 The root `Cargo.toml` is both the workspace and the deployable guest package
@@ -334,7 +345,13 @@ which implements every capability trait over one default double each —
 `FixedIdentity`. The handler's bounds pick out which doubles a test seeds
 through the same-named builders (`.config(..)`, `.http(..)`, `.tables(..)`),
 and assertions read the `pub` fields (`provider.publish.sent()`). There is no
-hand-written mock provider anywhere in the workspace.
+hand-written mock provider anywhere in the workspace. A test builds the
+stem's router once, `handlers().with_state(Client::new(provider.clone()))`,
+and drives it with `omnia_test::guest::send(&router, request)` for one request
+(the reply comes back with its body collected) or
+`omnia_test::guest::deliver(&router, topic, payload)` for one delivery; a
+file's own helper, where it has one, builds the request shape its scenarios
+share and calls `send` inside.
 
 - `tests/routes.rs`, `tests/messaging.rs` — the root guest's production
   routers built natively under the production capability list as doubles.
