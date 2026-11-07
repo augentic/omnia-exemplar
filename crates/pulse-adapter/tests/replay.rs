@@ -8,7 +8,6 @@ use std::fs;
 use chrono::Utc;
 use common::topic;
 use omnia_sdk::api::Client;
-use omnia_sdk::api::messaging::DeliveryError;
 use omnia_test::guest::deliver;
 use pulse_adapter::pulse::TIMEZONE;
 
@@ -56,9 +55,7 @@ async fn replay(case: Case) {
         Some(Expected::Failure(expected_error)) => {
             let error = result.expect_err("should have error");
             assert!(
-                matches!(&error, DeliveryError::Rejected(msg)
-                    if msg.contains(&expected_error.code())
-                        && msg.contains(&expected_error.description())),
+                fixture::delivery_error_matches(expected_error, &error),
                 "expected {expected_error:?}, got {error:?}"
             );
         }

@@ -14,6 +14,7 @@ use std::path::Path;
 use bytes::Bytes;
 use chrono::{Duration, Timelike, Utc};
 use http::{Method, Response};
+use omnia_sdk::api::messaging::DeliveryError;
 use omnia_test::guest::{FixedIdentity, MapConfig, MatchedHttp, Provider};
 use pulse_adapter::handler::PulseMessage;
 use pulse_adapter::motion::MotionEvent;
@@ -168,6 +169,36 @@ pub fn prepare(def: TestDef) -> Case {
         provider,
         expected: def.output,
     }
+}
+
+/// Whether `error` matches `expected`, with a few seconds' slack when the
+/// description embeds a freshness delay computed from `Utc::now()`.
+pub fn delivery_error_matches(expected: &omnia_sdk::Error, error: &DeliveryError) -> bool {
+    let DeliveryError::Rejected(msg) = error else {
+        return false;
+    };
+    if !msg.contains(&expected.code()) {
+        return false;
+    }
+    let desc = expected.description();
+    match extract_delay_seconds(&desc) {
+        Some(expected_secs) => extract_delay_seconds(msg)
+            .is_some_and(|actual| (actual - expected_secs).abs() <= 3),
+        None => msg.contains(&desc),
+    }
+}
+
+fn extract_delay_seconds(text: &str) -> Option<i64> {
+    for prefix in ["outdated by ", "too early by "] {
+        let Some(rest) = text.split_once(prefix).map(|(_, rest)| rest) else {
+            continue;
+        };
+        let digits: String = rest.chars().take_while(|c| c.is_ascii_digit()).collect();
+        if let Ok(secs) = digits.parse() {
+            return Some(secs);
+        }
+    }
+    None
 }
 
 /// Re-anchor the first change's actual time in `xml` to `delay` seconds before now.

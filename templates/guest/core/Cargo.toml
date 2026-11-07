@@ -10,7 +10,6 @@ version.workspace = true
 workspace = true
 
 [lib]
-# `rlib` lets the native rungs under `tests/` link the routers; `cdylib` is the WASI component.
 crate-type = ["cdylib", "rlib"]
 
 [features]
@@ -46,11 +45,14 @@ omnia-wasi-otel = { workspace = true, optional = true }
 omnia-wasi-sql = { workspace = true, optional = true }
 omnia-wasi-websocket = { workspace = true, optional = true }
 
-# Target-gated so the guest's wasm32 dependency graph never sees the doubles.
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 axum.workspace = true
 omnia-test = { workspace = true, features = ["guest"] }
 tokio.workspace = true
+
+[dependencies]
+common.workspace = true
+omnia-sdk.workspace = true
 
 [workspace]
 members = ["crates/*"]
@@ -88,14 +90,11 @@ print_stderr = "warn"
 print_stdout = "warn"
 unused_result_ok = "warn"
 
-# The host boundary, spelled in `clippy.toml`: forbidden, so no crate lifts it
-# with an `allow` or an `expect`, and the repair is the capability the lint names.
 allow_attributes = "forbid"
 disallowed_macros = "forbid"
 disallowed_methods = "forbid"
 disallowed_types = "forbid"
 infinite_loop = "warn"
-# The guest links what omnia pins; duplicate crates beneath them are omnia's.
 multiple_crate_versions = "allow"
 
 [workspace.dependencies]
@@ -116,9 +115,6 @@ tracing = "0.1.44"
 urlencoding = "2.1.3"
 uuid = { version = "1.29.1", features = ["serde", "v4"] }
 
-# Every `omnia-*` line below moves together: bump them to the same release in
-# one change, and keep the shared pins above at the versions omnia itself pins
-# so the guest links one copy of each.
 omnia = "0.38.0"
 omnia-sdk = "0.38.0"
 omnia-test = "0.38.0"
@@ -133,10 +129,7 @@ omnia-wasi-otel = "0.38.0"
 omnia-wasi-sql = "0.38.0"
 omnia-wasi-websocket = "0.38.0"
 
-# omnia-ext
 omnia-http-cache = "0.36.0"
-
-# Shared by every stem of this tree.
 common = { path = "crates/common" }
 
 [patch.crates-io]
@@ -155,7 +148,3 @@ omnia-wasi-sql = { git = "https://github.com/augentic/omnia" }
 omnia-wasi-websocket = { git = "https://github.com/augentic/omnia" }
 omnia-http-cache = { git = "https://github.com/augentic/omnia-ext" }
 
-# What the guest wires: the two below, then one line per stem, each added at the end.
-[dependencies]
-common.workspace = true
-omnia-sdk.workspace = true

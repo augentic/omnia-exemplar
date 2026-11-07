@@ -181,8 +181,7 @@ async fn expect_error(path: &str) {
     };
     let error = run(&case).await.expect_err("should have error");
     assert!(
-        matches!(&error, DeliveryError::Rejected(msg)
-            if msg.contains(&expected_error.code()) && msg.contains(&expected_error.description())),
+        fixture::delivery_error_matches(expected_error, &error),
         "expected {expected_error:?}, got {error:?}"
     );
 }
