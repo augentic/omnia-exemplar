@@ -88,14 +88,14 @@ publishes or consumes is one constant appended to
 `crates/common/src/topic.rs`; nothing else of the seed is edited.
 
 The seed's `clippy.toml` and the `[workspace.lints]` of its `Cargo.toml`
-carry the host boundary: `disallowed-methods`, `disallowed-types`, and
-`disallowed-macros` name what a guest never reaches on its own — the
-environment, the file system, the network, the clock, threads and
-tasks, the process, state kept across calls, a file compiled in — and
-each entry's `reason` names the capability to reach instead. The lints
-are `forbid`, so no crate lifts them with an `allow` or an `expect`, and
-`allow_attributes` is forbidden beside them. `clippy.toml` is a static
-file: a project adds a `doc-valid-idents` entry by editing the seed here.
+carry the host boundary: `disallowed-methods` and `disallowed-types`
+name what a guest never reaches on its own — the environment, the file
+system, the network, the clock, threads and tasks, the process, state
+kept across calls — and each entry's `reason` names the capability to
+reach instead. The lints are `forbid`, so no crate lifts them with an
+`allow` or an `expect`, and `allow_attributes` is forbidden beside them.
+`clippy.toml` is a static file: a project adds a `doc-valid-idents`
+entry by editing the seed here.
 
 Project-specific root policy — concrete crate names, private
 registries, supply-chain exemptions, release-branch details — stays

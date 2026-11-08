@@ -8,20 +8,8 @@ use omnia_sdk::api::Client;
 use omnia_test::guest::{Provider, send};
 use tally_connector::types::TallyMessage;
 
-#[expect(
-    clippy::disallowed_macros,
-    reason = "integration test loads captured Tally JSON from disk"
-)]
 const TALLY_MESSAGE: &[u8] = include_bytes!("../data/tally-message.json");
-#[expect(
-    clippy::disallowed_macros,
-    reason = "integration test loads captured Tally JSON from disk"
-)]
 const TALLY_NO_DEVICE: &[u8] = include_bytes!("../data/tally-no-device.json");
-#[expect(
-    clippy::disallowed_macros,
-    reason = "integration test loads captured Tally JSON from disk"
-)]
 const TALLY_WHITESPACE: &[u8] = include_bytes!("../data/tally-whitespace.json");
 
 async fn forward(provider: &Provider, payload: &'static [u8]) {

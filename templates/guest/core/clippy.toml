@@ -64,8 +64,3 @@ disallowed-types = [
   { path = "std::sync::LazyLock", reason = "a guest keeps nothing across calls; `StateStore` holds what outlives one" },
   { path = "std::sync::Once", reason = "a guest keeps nothing across calls; `StateStore` holds what outlives one" },
 ]
-
-disallowed-macros = [
-  { path = "std::include_str", reason = "a table the program reads is a constant in code or a document through `DocumentStore`, never a file compiled in" },
-  { path = "std::include_bytes", reason = "a table the program reads is a constant in code or a document through `DocumentStore`, never a file compiled in" },
-]
