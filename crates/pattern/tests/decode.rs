@@ -11,10 +11,6 @@ use pattern::decode::{DecodeSegmentReply, Segment};
 use serde_json::json;
 
 const DECODER: &str = "https://decoder.test/decode";
-#[expect(
-    clippy::disallowed_macros,
-    reason = "integration test loads captured segment JSON from disk"
-)]
 const SEGMENT: &[u8] = include_bytes!("../data/segment.json");
 
 fn provider() -> Provider {

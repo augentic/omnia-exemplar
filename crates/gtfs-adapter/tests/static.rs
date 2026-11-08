@@ -18,25 +18,9 @@ use serde_json::{Value, json};
 
 use self::support::{allocation_query, fleet_query, ok, provider, router, trip_instances};
 
-#[expect(
-    clippy::disallowed_macros,
-    reason = "integration test loads captured fixture JSON from disk"
-)]
 const FLEET_QUERY: &[u8] = include_bytes!("../data/fleet-query.json");
-#[expect(
-    clippy::disallowed_macros,
-    reason = "integration test loads captured fixture JSON from disk"
-)]
 const PULSE_TO_MOTION: &[u8] = include_bytes!("../data/realtime-pulse-to-motion.v1.json");
-#[expect(
-    clippy::disallowed_macros,
-    reason = "integration test loads captured fixture JSON from disk"
-)]
 const TRAIN_AVL: &[u8] = include_bytes!("../data/realtime-train-avl.v1.json");
-#[expect(
-    clippy::disallowed_macros,
-    reason = "integration test loads captured fixture JSON from disk"
-)]
 const PASSENGER_COUNT: &[u8] = include_bytes!("../data/realtime-passenger-count.v1.json");
 
 /// Extract the `value` payload of the fixture record at `index`.

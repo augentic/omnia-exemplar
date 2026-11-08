@@ -8,7 +8,6 @@ use omnia_sdk::api::Client;
 use omnia_test::guest::{Provider, send};
 use pulse_connector::handler::PulseRequest;
 
-#[expect(clippy::disallowed_macros, reason = "integration test loads captured SOAP XML from disk")]
 const RECEIVE_MESSAGE: &[u8] = include_bytes!("../data/receive-message.xml");
 
 async fn post(provider: Provider, body: &'static [u8]) -> Response<Bytes> {
