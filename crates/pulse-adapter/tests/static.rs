@@ -77,7 +77,7 @@ async fn no_changes() {
 
 // the first change has neither arrived nor departed
 #[tokio::test]
-async fn no_actual_changes() {
+async fn no_arrival_or_departure() {
     expect_error("data/static/0008.json").await;
 }
 

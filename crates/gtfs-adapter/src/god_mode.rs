@@ -19,7 +19,7 @@ use serde::{Deserialize, Serialize};
 use crate::motion::{EventType, MotionMessage};
 
 #[derive(Debug, Default, Serialize, Deserialize)]
-struct GodModeState {
+struct State {
     overrides: HashMap<String, String>,
 }
 
@@ -31,15 +31,15 @@ pub(crate) async fn set_vehicle_to_trip(
     save_state(state_store, &state).await
 }
 
-const KEY_GOD_MODE: &str = "god_mode:overrides";
-const TTL_GOD_MODE: u64 = 24 * 60 * 60; // 24 hours
+const KEY_OVERRIDES: &str = "god_mode:overrides";
+const TTL_OVERRIDES: u64 = 24 * 60 * 60; // 24 hours
 
-async fn load_state(state_store: &impl StateStore) -> Result<GodModeState> {
-    Ok(state_store.get_json(KEY_GOD_MODE).await?.unwrap_or_default())
+async fn load_state(state_store: &impl StateStore) -> Result<State> {
+    Ok(state_store.get_json(KEY_OVERRIDES).await?.unwrap_or_default())
 }
 
-async fn save_state(state_store: &impl StateStore, state: &GodModeState) -> Result<()> {
-    state_store.set_json(KEY_GOD_MODE, state, Some(TTL_GOD_MODE)).await
+async fn save_state(state_store: &impl StateStore, state: &State) -> Result<()> {
+    state_store.set_json(KEY_OVERRIDES, state, Some(TTL_OVERRIDES)).await
 }
 
 pub(crate) async fn apply_overrides<P>(provider: &P, event: MotionMessage) -> Result<MotionMessage>

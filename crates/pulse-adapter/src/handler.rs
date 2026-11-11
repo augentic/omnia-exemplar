@@ -31,10 +31,10 @@ pub struct PulseSettings {
 }
 
 pub(crate) fn handlers<P: Capabilities>() -> Handlers<P> {
-    Handlers::new().topic_with(topic::PULSE, pulse, decode_pulse_xml)
+    Handlers::new().topic_with(topic::PULSE, pulse, decode_xml)
 }
 
-fn decode_pulse_xml(delivery: &Delivery) -> std::result::Result<PulseMessage, DecodeError> {
+fn decode_xml(delivery: &Delivery) -> std::result::Result<PulseMessage, DecodeError> {
     PulseMessage::from_xml(&delivery.payload).map_err(|error| DecodeError::new(error.to_string()))
 }
 

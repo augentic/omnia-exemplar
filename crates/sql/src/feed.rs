@@ -121,7 +121,7 @@ where
     }
 
     let feed = Feed {
-        feed_id: next_feed_id(tables).await?,
+        feed_id: next_id(tables).await?,
         agency_id,
         description: input.description,
         created_at: Utc::now().format("%Y-%m-%d %H:%M:%S").to_string(),
@@ -143,7 +143,7 @@ where
     Ok(Json(FeedReply { feed }))
 }
 
-async fn next_feed_id<P: TableStore>(tables: &P) -> Result<i64> {
+async fn next_id<P: TableStore>(tables: &P) -> Result<i64> {
     let rows = tables
         .query(CONNECTION, "SELECT feed_id FROM feed ORDER BY feed_id DESC LIMIT 1", &[])
         .await?;

@@ -138,7 +138,7 @@ const AGENCY_FILTER: &str = "WHERE agency_id = $1";
 // The max-id probe SQL is the same for an empty and a populated table, so
 // each table state is its own scripted store.
 #[tokio::test]
-async fn create_agency_empty_pop() {
+async fn create_agency() {
     // Empty table: the first agency takes id 1.
     let empty = provider(
         tables()
@@ -203,21 +203,20 @@ async fn list_agencies_limit() {
 }
 
 #[tokio::test]
-async fn get_agency_by_id() {
-    let provider =
-        provider(tables().on_query(agency_fetch_matches(1), vec![agency_row(1, "Ritchies")]));
+async fn get_agency() {
+    let provider = provider(tables().on_query(agency_fetch(1), vec![agency_row(1, "Ritchies")]));
 
     let _: AgencyReply = ok(&provider, Method::GET, "/examples/agencies/1", None).await;
 }
 
-fn agency_fetch_matches(id: i64) -> impl Fn(&str, &[DataType]) -> bool + use<> {
+fn agency_fetch(id: i64) -> impl Fn(&str, &[DataType]) -> bool + use<> {
     move |sql, params| sql.contains(AGENCY_FILTER) && int_param(params, 0) == Some(id)
 }
 
 // Only the agency lookup is scripted, so a write after it panics.
 #[tokio::test]
 async fn missing_agency() {
-    let provider = provider(tables().on_query(agency_fetch_matches(99), vec![]));
+    let provider = provider(tables().on_query(agency_fetch(99), vec![]));
     let patch = json!({ "name": "Ghost" });
     let feed = json!({ "description": "Orphan feed" });
 
@@ -270,8 +269,7 @@ async fn update_agency_partial() {
 // No `UPDATE` rule is scripted, so a write before the rejection panics.
 #[tokio::test]
 async fn empty_patch() {
-    let provider =
-        provider(tables().on_query(agency_fetch_matches(1), vec![agency_row(1, "Ritchies")]));
+    let provider = provider(tables().on_query(agency_fetch(1), vec![agency_row(1, "Ritchies")]));
 
     let (status, body) =
         send(&provider, Method::PATCH, "/examples/agencies/1", Some(json!({}))).await;
@@ -283,7 +281,7 @@ async fn empty_patch() {
 async fn create_feed_existing() {
     let provider = provider(
         tables()
-            .on_query(agency_fetch_matches(1), vec![agency_row(1, "Ritchies")])
+            .on_query(agency_fetch(1), vec![agency_row(1, "Ritchies")])
             .on_query(
                 |sql, params| is_max_id_probe("feed", sql, params),
                 vec![feed_row(1, 1, "Bus routes and schedules")],

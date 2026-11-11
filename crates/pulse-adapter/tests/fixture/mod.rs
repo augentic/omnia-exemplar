@@ -181,15 +181,15 @@ pub fn delivery_error_matches(expected: &omnia_sdk::Error, error: &DeliveryError
         return false;
     }
     let desc = expected.description();
-    extract_delay_seconds(&desc).map_or_else(
+    delay_seconds(&desc).map_or_else(
         || msg.contains(&desc),
         |expected_secs| {
-            extract_delay_seconds(msg).is_some_and(|actual| (actual - expected_secs).abs() <= 3)
+            delay_seconds(msg).is_some_and(|actual| (actual - expected_secs).abs() <= 3)
         },
     )
 }
 
-fn extract_delay_seconds(text: &str) -> Option<i64> {
+fn delay_seconds(text: &str) -> Option<i64> {
     for prefix in ["outdated by ", "too early by "] {
         let Some(rest) = text.split_once(prefix).map(|(_, rest)| rest) else {
             continue;

@@ -82,7 +82,7 @@ where
     };
 
     let occupancy_status = if let Some(trip) = trip_desc.as_ref() {
-        get_occupancy_status(provider, &vehicle, trip).await?
+        occupancy(provider, &vehicle, trip).await?
     } else {
         None
     };
@@ -148,8 +148,7 @@ where
 
     // try and get the new trip
     let Some(new_trip) =
-        trip::get_instance(provider, &alloc.trip_id, &alloc.service_date, &alloc.start_time)
-            .await?
+        trip::instance(provider, &alloc.trip_id, &alloc.service_date, &alloc.start_time).await?
     else {
         StateStore::delete(provider, &sign_on_key).await?;
         StateStore::delete(provider, &trip_key).await?;
@@ -218,7 +217,7 @@ fn time_to_timestamp(date: &str, time: &str, tz: Tz) -> Option<i64> {
     Some((datetime + Duration::seconds(hours * 3_600 + minutes * 60 + seconds)).timestamp())
 }
 
-async fn get_occupancy_status<P>(
+async fn occupancy<P>(
     provider: &P, vehicle: &Vehicle, trip: &TripDescriptor,
 ) -> Result<Option<String>>
 where

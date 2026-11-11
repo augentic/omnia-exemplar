@@ -26,7 +26,7 @@ pub struct TripSettings {
 /// IANA zone here (`Pacific/Auckland`) and must not copy UTC-as-local.
 pub const TIMEZONE: Tz = chrono_tz::UTC;
 
-pub(crate) async fn get_instance<P>(
+pub(crate) async fn instance<P>(
     provider: &P, trip_id: &str, service_date: &str, start_time: &str,
 ) -> Result<Option<TripInstance>>
 where
@@ -54,7 +54,7 @@ where
     Ok(None)
 }
 
-pub(crate) async fn get_nearest<P>(
+pub(crate) async fn nearest<P>(
     provider: &P, trip_id: &str, event_timestamp: i64,
 ) -> Result<Option<TripInstance>>
 where

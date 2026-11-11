@@ -29,17 +29,17 @@ async fn run() {
 async fn replay(case: Case) {
     let router = pulse_adapter::handlers().with_state(Client::new(case.provider.clone()));
     let result = deliver(&router, topic::PULSE, case.input.clone()).await;
-    let curr_events = case.events();
+    let events = case.events();
 
     match &case.expected {
         None => {
             assert!(result.is_ok(), "{result:?}");
-            assert!(curr_events.is_empty());
+            assert!(events.is_empty());
         }
         Some(Expected::Success(expected_events)) => {
             assert!(result.is_ok(), "{result:?}");
-            assert_eq!(curr_events.len(), expected_events.len());
-            expected_events.iter().zip(curr_events).for_each(|(published, mut actual)| {
+            assert_eq!(events.len(), expected_events.len());
+            expected_events.iter().zip(events).for_each(|(published, mut actual)| {
                 let now = Utc::now().with_timezone(&TIMEZONE);
                 let diff = now.timestamp() - actual.message_data.timestamp.timestamp();
                 assert!(diff.abs() < 3, "expected vs actual too great: {diff}");

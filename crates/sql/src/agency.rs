@@ -116,7 +116,7 @@ where
     schema::ensure(tables).await?;
 
     let agency = Agency {
-        agency_id: next_agency_id(tables).await?,
+        agency_id: next_id(tables).await?,
         name: input.name,
         url: input.url,
         timezone: input.timezone,
@@ -142,7 +142,7 @@ where
 
 // A concurrent create simply fails on the primary key — acceptable for an
 // example; production code would use a database sequence.
-async fn next_agency_id<P: TableStore>(tables: &P) -> Result<i64> {
+async fn next_id<P: TableStore>(tables: &P) -> Result<i64> {
     let rows = tables
         .query(CONNECTION, "SELECT agency_id FROM agency ORDER BY agency_id DESC LIMIT 1", &[])
         .await?;
