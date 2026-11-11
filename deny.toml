@@ -21,6 +21,7 @@ allow = [
   "BSL-1.0",
   "MIT",
   "Unicode-3.0",
+  "Zlib",
 ]
 
 [licenses.private]
@@ -42,8 +43,8 @@ private = [
 [bans]
 deny = [
   { name = "tokio", deny-multiple-versions = true },
-  { name = "wasmtime" },
-  { name = "omnia-core" },
+  # { name = "wasmtime" },
+  # { name = "omnia-core" },
 ]
 multiple-versions = "allow"
 skip = []

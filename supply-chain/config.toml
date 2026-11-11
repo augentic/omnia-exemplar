@@ -38,7 +38,7 @@ version = "0.1.6"
 criteria = "safe-to-deploy"
 
 [[exemptions.annotate-snippets]]
-version = "0.12.17"
+version = "0.12.18"
 criteria = "safe-to-deploy"
 
 [[exemptions.anstyle]]
@@ -170,7 +170,7 @@ version = "1.19.3"
 criteria = "safe-to-deploy"
 
 [[exemptions.const-oid]]
-version = "0.10.2"
+version = "0.10.3"
 criteria = "safe-to-deploy"
 
 [[exemptions.const_format]]
@@ -194,7 +194,7 @@ version = "0.2.17"
 criteria = "safe-to-deploy"
 
 [[exemptions.crc32fast]]
-version = "1.5.4"
+version = "1.5.5"
 criteria = "safe-to-deploy"
 
 [[exemptions.crossbeam-channel]]
@@ -326,7 +326,7 @@ version = "0.1.15"
 criteria = "safe-to-deploy"
 
 [[exemptions.fixedbitset]]
-version = "0.5.7"
+version = "0.5.9"
 criteria = "safe-to-deploy"
 
 [[exemptions.flagset]]
@@ -502,7 +502,7 @@ version = "0.14.0"
 criteria = "safe-to-deploy"
 
 [[exemptions.itoa]]
-version = "1.0.18"
+version = "1.0.19"
 criteria = "safe-to-deploy"
 
 [[exemptions.jni]]
@@ -730,15 +730,15 @@ version = "1.12.0"
 criteria = "safe-to-deploy"
 
 [[exemptions.prost]]
-version = "0.14.4"
+version = "0.14.5"
 criteria = "safe-to-deploy"
 
 [[exemptions.prost-derive]]
-version = "0.14.4"
+version = "0.14.5"
 criteria = "safe-to-deploy"
 
 [[exemptions.prost-types]]
-version = "0.14.4"
+version = "0.14.5"
 criteria = "safe-to-deploy"
 
 [[exemptions.quick-xml]]
@@ -818,7 +818,7 @@ version = "0.17.14"
 criteria = "safe-to-deploy"
 
 [[exemptions.rsqlite-vfs]]
-version = "0.1.1"
+version = "0.2.0"
 criteria = "safe-to-deploy"
 
 [[exemptions.rusqlite]]
@@ -846,7 +846,7 @@ version = "0.8.5"
 criteria = "safe-to-deploy"
 
 [[exemptions.rustls-pki-types]]
-version = "1.15.1"
+version = "1.16.0"
 criteria = "safe-to-deploy"
 
 [[exemptions.rustls-platform-verifier]]
@@ -986,7 +986,7 @@ version = "0.8.1"
 criteria = "safe-to-deploy"
 
 [[exemptions.sqlite-wasm-rs]]
-version = "0.5.5"
+version = "0.6.3"
 criteria = "safe-to-deploy"
 
 [[exemptions.stable_deref_trait]]
@@ -998,7 +998,7 @@ version = "2.0.119"
 criteria = "safe-to-deploy"
 
 [[exemptions.syn]]
-version = "3.0.9"
+version = "3.0.10"
 criteria = "safe-to-deploy"
 
 [[exemptions.synstructure]]
@@ -1166,7 +1166,7 @@ version = "2.1.3"
 criteria = "safe-to-deploy"
 
 [[exemptions.uuid]]
-version = "1.29.1"
+version = "1.29.2"
 criteria = "safe-to-deploy"
 
 [[exemptions.version_check]]
@@ -1221,8 +1221,12 @@ criteria = "safe-to-deploy"
 version = "0.3.107"
 criteria = "safe-to-deploy"
 
+[[exemptions.webpki-root-certs]]
+version = "1.0.12"
+criteria = "safe-to-deploy"
+
 [[exemptions.webpki-roots]]
-version = "0.26.1"
+version = "1.0.12"
 criteria = "safe-to-deploy"
 
 [[exemptions.winapi-util]]
