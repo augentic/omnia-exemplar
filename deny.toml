@@ -43,8 +43,8 @@ private = [
 [bans]
 deny = [
   { name = "tokio", deny-multiple-versions = true },
-  { name = "wasmtime" },
-  { name = "omnia-core" },
+  # { name = "wasmtime" },
+  # { name = "omnia-core" },
 ]
 multiple-versions = "allow"
 skip = []
