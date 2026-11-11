@@ -277,24 +277,6 @@ pub enum ChangeType {
     ScheduleChange = 11,
 }
 
-impl Display for ChangeType {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::ReachedFinalDestination => write!(f, "ReachedFinalDestination"),
-            Self::ArrivedAtStation => write!(f, "ArrivedAtStation"),
-            Self::ExitedFirstStation => write!(f, "ExitedFirstStation"),
-            Self::ExitedStation => write!(f, "ExitedStation"),
-            Self::PassedStationWithoutStopping => write!(f, "PassedStationWithoutStopping"),
-            Self::DetainedInPark => write!(f, "DetainedInPark"),
-            Self::DetainedAtStation => write!(f, "DetainedAtStation"),
-            Self::StationNoLongerPartOfTheRun => write!(f, "StationNoLongerPartOfTheRun"),
-            Self::PlatformChange => write!(f, "PlatformChange"),
-            Self::ExitLineChange => write!(f, "ExitLineChange"),
-            Self::ScheduleChange => write!(f, "ScheduleChange"),
-        }
-    }
-}
-
 impl ChangeType {
     /// Whether the change relates to trip progress.
     #[must_use]
@@ -314,6 +296,24 @@ impl ChangeType {
     #[must_use]
     pub const fn is_arrival(&self) -> bool {
         matches!(self, Self::ArrivedAtStation | Self::ReachedFinalDestination)
+    }
+}
+
+impl Display for ChangeType {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::ReachedFinalDestination => write!(f, "ReachedFinalDestination"),
+            Self::ArrivedAtStation => write!(f, "ArrivedAtStation"),
+            Self::ExitedFirstStation => write!(f, "ExitedFirstStation"),
+            Self::ExitedStation => write!(f, "ExitedStation"),
+            Self::PassedStationWithoutStopping => write!(f, "PassedStationWithoutStopping"),
+            Self::DetainedInPark => write!(f, "DetainedInPark"),
+            Self::DetainedAtStation => write!(f, "DetainedAtStation"),
+            Self::StationNoLongerPartOfTheRun => write!(f, "StationNoLongerPartOfTheRun"),
+            Self::PlatformChange => write!(f, "PlatformChange"),
+            Self::ExitLineChange => write!(f, "ExitLineChange"),
+            Self::ScheduleChange => write!(f, "ScheduleChange"),
+        }
     }
 }
 

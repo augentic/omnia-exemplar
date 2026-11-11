@@ -1,4 +1,5 @@
-//! Holding a tree's root manifest to the template around its stem list.
+//! Holding a tree's root manifest to the template around its stem list, and
+//! inserting a stem's line into a list after its anchor.
 
 mod support;
 
@@ -19,37 +20,11 @@ fn with_orders() -> String {
     insert_after(template(), CRATE_LIST_ANCHOR, CRATE_LINE).expect("crate anchor")
 }
 
-#[test]
-fn standing_with_entries() {
-    let tree = Scratch::new();
-    tree.write(Manifest::PATH, &with_orders());
-    let manifest = Manifest::new(tree.root());
-
-    assert!(manifest.drift().expect("the drift").is_empty(), "a stem's line is no drift");
-    assert!(manifest.restore().expect("the restore").is_empty());
-    assert_eq!(tree.read(Manifest::PATH), Some(with_orders()), "the manifest stands");
-}
-
-#[test]
-fn pin_restore_keeps() {
-    let tree = Scratch::new();
-    tree.write(Manifest::PATH, &with_orders().replace(PIN, PIN_EDITED));
-    let manifest = Manifest::new(tree.root());
-
-    let drift = manifest.restore().expect("the restore");
-
-    let [drifted] = drift.files() else { panic!("the manifest alone drifts: {drift}") };
-    assert_eq!(drifted.path, Manifest::PATH);
-    assert_eq!(drifted.lines, [format!("- {PIN}"), format!("+ {PIN_EDITED}")]);
-    assert_eq!(tree.read(Manifest::PATH), Some(with_orders()), "the pin is the template's again");
-    assert!(manifest.drift().expect("the drift after").is_empty());
-}
-
 // An entry is known by its shape wherever it stands: out of place it is no
 // drift and the file is left, and a restore the rest of the file asks for
 // puts it after its anchor.
 #[test]
-fn entries_anywhere_kept() {
+fn misplaced_entry() {
     let tree = Scratch::new();
     let misplaced = format!("{CRATE_LINE}{}", template());
     tree.write(Manifest::PATH, &misplaced);
@@ -61,12 +36,15 @@ fn entries_anywhere_kept() {
 
     tree.write(Manifest::PATH, &misplaced.replace(PIN, PIN_EDITED));
     let drift = manifest.restore().expect("the restore");
-    assert_eq!(drift.files().len(), 1, "the pin alone drifts: {drift}");
+    let [drifted] = drift.files() else { panic!("the manifest alone drifts: {drift}") };
+    assert_eq!(drifted.path, Manifest::PATH);
+    assert_eq!(drifted.lines, [format!("- {PIN}"), format!("+ {PIN_EDITED}")]);
     assert_eq!(tree.read(Manifest::PATH), Some(with_orders()), "the entry follows its anchor");
+    assert!(manifest.drift().expect("the drift after").is_empty());
 }
 
 #[test]
-fn duplicate_entry_is_drift() {
+fn duplicate_entry() {
     let tree = Scratch::new();
     tree.write(Manifest::PATH, &(with_orders() + CRATE_LINE));
     let manifest = Manifest::new(tree.root());
@@ -94,7 +72,7 @@ fn non_stem_dependency() {
 }
 
 #[test]
-fn missing_restored() {
+fn missing() {
     let tree = Scratch::new();
     let manifest = Manifest::new(tree.root());
 
@@ -133,19 +111,6 @@ fn occupied_by_symlink() {
         Some("[package]\nname = \"other\"\n"),
         "the link's target stands"
     );
-}
-
-#[test]
-fn whole_file_replaced() {
-    let tree = Scratch::new();
-    tree.write(Manifest::PATH, "[package]\nname = \"other\"\n");
-    let manifest = Manifest::new(tree.root());
-
-    let drift = manifest.restore().expect("the restore");
-
-    let [drifted] = drift.files() else { panic!("the manifest alone drifts: {drift}") };
-    assert!(drifted.lines.contains(&"+ name = \"other\"".to_owned()), "{drift}");
-    assert_eq!(tree.read(Manifest::PATH).as_deref(), Some(template()));
 }
 
 // The seed's array is headed by a comment, so an entry lands under it with

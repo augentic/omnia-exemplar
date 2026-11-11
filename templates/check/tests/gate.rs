@@ -18,58 +18,39 @@ fn contract() {
     assert!(failures.is_empty(), "template contract violated:\n{}", failures.join("\n"));
 }
 
+// The pin keeps the root's version, so the key alone retargets the crate.
 #[test]
 fn retargeted_pin() {
-    let replica = Replica::of_repo();
-    let seed = replica.read(SEED_MANIFEST);
-    let pin = seed
-        .lines()
-        .find(|line| line.starts_with("omnia-sdk = "))
-        .expect("the seed pins `omnia-sdk`");
-    replica.write(
-        SEED_MANIFEST,
-        &seed.replace(pin, "omnia-sdk = { git = \"https://github.com/augentic/omnia\" }"),
-    );
+    for (key, value) in [("git", "https://github.com/augentic/omnia"), ("package", "omnia-test")] {
+        let replica = Replica::of_repo();
+        let seed = replica.read(SEED_MANIFEST);
+        let pin = seed
+            .lines()
+            .find(|line| line.starts_with("omnia-sdk = "))
+            .expect("the seed pins `omnia-sdk`");
+        let version = pin.trim_start_matches("omnia-sdk = ");
+        replica.write(
+            SEED_MANIFEST,
+            &seed.replace(
+                pin,
+                &format!("omnia-sdk = {{ version = {version}, {key} = \"{value}\" }}"),
+            ),
+        );
 
-    let failures = template_check::run(replica.root()).expect("contract inputs readable");
+        let failures = template_check::run(replica.root()).expect("contract inputs readable");
 
-    let [pin, body] = failures.as_slice() else { panic!("two failures: {failures:#?}") };
-    assert_eq!(
-        pin,
-        "templates/guest/core/Cargo.toml: `omnia-sdk` sets `git`, which a seed dependency never \
-         does"
-    );
-    assert_eq!(
-        body,
-        "omnia-template: `templates/guest/core/Cargo.toml` -> `Cargo.toml` embeds a body other \
-         than its source"
-    );
-}
-
-// The version reads as the root's pin while `package` fetches another crate
-// under the familiar name.
-#[test]
-fn renamed_package() {
-    let replica = Replica::of_repo();
-    let seed = replica.read(SEED_MANIFEST);
-    let pin = seed
-        .lines()
-        .find(|line| line.starts_with("omnia-sdk = "))
-        .expect("the seed pins `omnia-sdk`");
-    replica.write(
-        SEED_MANIFEST,
-        &seed.replace(pin, "omnia-sdk = { version = \"0.36.0\", package = \"omnia-test\" }"),
-    );
-
-    let failures = template_check::run(replica.root()).expect("contract inputs readable");
-
-    let [pin, body] = failures.as_slice() else { panic!("two failures: {failures:#?}") };
-    assert_eq!(
-        pin,
-        "templates/guest/core/Cargo.toml: `omnia-sdk` sets `package`, which a seed dependency \
-         never does"
-    );
-    assert!(body.ends_with("embeds a body other than its source"), "{body}");
+        let [retarget, body] = failures.as_slice() else {
+            panic!("two failures for `{key}`: {failures:#?}")
+        };
+        assert_eq!(
+            retarget,
+            &format!(
+                "templates/guest/core/Cargo.toml: `omnia-sdk` sets `{key}`, which a seed \
+                 dependency never does"
+            )
+        );
+        assert!(body.ends_with("embeds a body other than its source"), "{body}");
+    }
 }
 
 // A build dependency runs on the consumer's build host, and the root never
@@ -88,7 +69,7 @@ fn unpinned_crate() {
 }
 
 #[test]
-fn seed_features_drifted() {
+fn seed_features() {
     let replica = Replica::of_repo();
     let seed = replica.read(SEED_MANIFEST);
     let pin =
@@ -113,17 +94,12 @@ fn seed_features_drifted() {
 fn patched_crate() {
     let replica = Replica::of_repo();
     let seed = replica.read(SEED_MANIFEST);
-    let patched = if seed.contains("[patch.crates-io]\n") {
-        seed.replacen(
-            "[patch.crates-io]\n",
-            "[patch.crates-io]\ntokio = { git = \"https://github.com/tokio-rs/tokio\" }\n",
-            1,
-        )
-    } else {
-        format!(
-            "{seed}\n[patch.crates-io]\ntokio = {{ git = \"https://github.com/tokio-rs/tokio\" }}\n"
-        )
-    };
+    let patched = seed.replacen(
+        "[patch.crates-io]\n",
+        "[patch.crates-io]\ntokio = { git = \"https://github.com/tokio-rs/tokio\" }\n",
+        1,
+    );
+    assert_ne!(patched, seed, "the seed has a `[patch.crates-io]` table");
     replica.write(SEED_MANIFEST, &patched);
 
     let failures = template_check::run(replica.root()).expect("contract inputs readable");
@@ -140,17 +116,12 @@ fn patched_crate() {
 fn uncarried_root_patch() {
     let replica = Replica::of_repo();
     let root = replica.read("Cargo.toml");
-    let patched = if root.contains("[patch.crates-io]\n") {
-        root.replacen(
-            "[patch.crates-io]\n",
-            "[patch.crates-io]\ntokio = { git = \"https://github.com/tokio-rs/tokio\" }\n",
-            1,
-        )
-    } else {
-        format!(
-            "{root}\n[patch.crates-io]\ntokio = {{ git = \"https://github.com/tokio-rs/tokio\" }}\n"
-        )
-    };
+    let patched = root.replacen(
+        "[patch.crates-io]\n",
+        "[patch.crates-io]\ntokio = { git = \"https://github.com/tokio-rs/tokio\" }\n",
+        1,
+    );
+    assert_ne!(patched, root, "the root has a `[patch.crates-io]` table");
     replica.write("Cargo.toml", &patched);
 
     let failures = template_check::run(replica.root()).expect("contract inputs readable");
@@ -181,18 +152,17 @@ fn unshared_source() {
     assert!(body.ends_with("embeds a body other than its source"), "{body}");
 }
 
-// Cargo reads `.cargo/config.toml` or `.cargo/config` behind every manifest,
-// so a source replacement there retargets crates the manifests pin
-// honestly, and a case-insensitive volume reads either under any spelling.
-// Each spelling has a replica of its own, since on such a volume two would
-// share one directory and the orphan walk would see the other's file.
+// Cargo reads `.cargo/config.toml` behind every manifest, so a source
+// replacement there retargets crates the manifests pin honestly, and a
+// case-insensitive volume reads it under any spelling. Each spelling has a
+// replica of its own, since on such a volume two would share one directory
+// and the orphan walk would see the other's file.
 #[test]
 fn cargo_config_scaffolded() {
-    for (dir, file) in [(".cargo", "config.toml"), (".Cargo", "config.toml"), (".CARGO", "config")]
-    {
+    for dir in [".cargo", ".Cargo"] {
         let replica = Replica::of_repo();
-        let source = format!("templates/guest/core/{dir}/{file}");
-        let target = format!("{dir}/{file}");
+        let source = format!("templates/guest/core/{dir}/config.toml");
+        let target = format!("{dir}/config.toml");
         replica.write(
             &source,
             "[source.crates-io]\nreplace-with = \"mirror\"\n\n[source.mirror]\nregistry = \
@@ -238,7 +208,7 @@ fn edited_source() {
 }
 
 #[test]
-fn clippy_paths_drift() {
+fn clippy_paths() {
     let replica = Replica::of_repo();
     let crates_clippy = replica.read("crates/clippy.toml");
     replica.write(
@@ -260,7 +230,7 @@ fn clippy_paths_drift() {
 }
 
 #[test]
-fn clippy_config_unreadable() {
+fn clippy_config_missing() {
     let replica = Replica::of_repo();
     fs::remove_file(replica.root().join("crates/clippy.toml")).expect("removed");
 

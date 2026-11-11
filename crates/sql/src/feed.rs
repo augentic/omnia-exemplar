@@ -63,14 +63,6 @@ pub struct FeedWithAgency {
     pub agency_timezone: Option<String>,
 }
 
-async fn next_feed_id<P: TableStore>(tables: &P) -> Result<i64> {
-    let rows = tables
-        .query(CONNECTION, "SELECT feed_id FROM feed ORDER BY feed_id DESC LIMIT 1", &[])
-        .await?;
-    let newest: Option<i64> = rows.first().map(|row| row.get("feed_id")).transpose()?;
-    Ok(newest.map_or(1, |id| id + 1))
-}
-
 /// Feeds sorted by creation time, newest first.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FeedsReply {
@@ -129,7 +121,7 @@ where
     }
 
     let feed = Feed {
-        feed_id: next_feed_id(tables).await?,
+        feed_id: next_id(tables).await?,
         agency_id,
         description: input.description,
         created_at: Utc::now().format("%Y-%m-%d %H:%M:%S").to_string(),
@@ -149,6 +141,14 @@ where
         .await?;
 
     Ok(Json(FeedReply { feed }))
+}
+
+async fn next_id<P: TableStore>(tables: &P) -> Result<i64> {
+    let rows = tables
+        .query(CONNECTION, "SELECT feed_id FROM feed ORDER BY feed_id DESC LIMIT 1", &[])
+        .await?;
+    let newest: Option<i64> = rows.first().map(|row| row.get("feed_id")).transpose()?;
+    Ok(newest.map_or(1, |id| id + 1))
 }
 
 /// List all feeds joined with their agency details.

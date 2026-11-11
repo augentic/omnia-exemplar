@@ -18,6 +18,10 @@ use serde::{Deserialize, Serialize};
 
 pub(crate) const PULSE_XML: &str = "/inbound/xml";
 
+pub(crate) fn handlers<P: Capabilities>() -> Handlers<P> {
+    Handlers::new().route(PULSE_XML, post(pulse))
+}
+
 /// The SOAP fault envelope answering requests that cannot be parsed or
 /// fail validation.
 const BAD_REQUEST_FAULT: Fault = Fault {
@@ -34,10 +38,6 @@ const SERVER_FAULT: Fault = Fault {
         message: "Internal Server Error",
     },
 };
-
-pub(crate) fn handlers<P: Capabilities>() -> Handlers<P> {
-    Handlers::new().route(PULSE_XML, post(pulse))
-}
 
 // The handler takes the raw body and parses the SOAP envelope itself, so a
 // malformed body is answered with the vendor's XML `<Fault>` rather than an
@@ -111,15 +111,6 @@ pub struct ReceiveMessage {
 #[serde(rename = "Return")]
 pub struct PulseReply(pub &'static str);
 
-impl IntoResponse for PulseReply {
-    fn into_response(self) -> Response {
-        match self.to_xml() {
-            Ok(xml) => ([(CONTENT_TYPE, "text/xml")], xml).into_response(),
-            Err(error) => Error::from(error).into_response(),
-        }
-    }
-}
-
 impl PulseReply {
     /// Serialize the reply into an XML body.
     ///
@@ -129,6 +120,15 @@ impl PulseReply {
     pub fn to_xml(&self) -> anyhow::Result<Vec<u8>> {
         let xml = quick_xml::se::to_string(&self).context("serializing PulseReply")?;
         Ok(xml.into_bytes())
+    }
+}
+
+impl IntoResponse for PulseReply {
+    fn into_response(self) -> Response {
+        match self.to_xml() {
+            Ok(xml) => ([(CONTENT_TYPE, "text/xml")], xml).into_response(),
+            Err(error) => Error::from(error).into_response(),
+        }
     }
 }
 

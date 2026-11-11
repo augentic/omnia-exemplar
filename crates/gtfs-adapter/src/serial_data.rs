@@ -85,7 +85,7 @@ where
         return Ok(());
     }
 
-    if let Some(trip) = trip::get_nearest(provider, trip_id, event_timestamp).await?
+    if let Some(trip) = trip::nearest(provider, trip_id, event_timestamp).await?
         && !trip.has_error()
     {
         return save_trip(provider, vehicle_id, event_timestamp, trip).await;

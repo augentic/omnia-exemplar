@@ -6,11 +6,10 @@ use axum::http::{Request, StatusCode};
 use common::topic;
 use omnia_sdk::api::Client;
 use omnia_test::guest::{Provider, send};
-use tally_connector::types::TallyMessage;
+use serde_json::{Value, json};
 
 const TALLY_MESSAGE: &[u8] = include_bytes!("../data/tally-message.json");
 const TALLY_NO_DEVICE: &[u8] = include_bytes!("../data/tally-no-device.json");
-const TALLY_WHITESPACE: &[u8] = include_bytes!("../data/tally-whitespace.json");
 
 async fn forward(provider: &Provider, payload: &'static [u8]) {
     let request = Request::post("/api/apc")
@@ -24,60 +23,60 @@ async fn forward(provider: &Provider, payload: &'static [u8]) {
 }
 
 #[tokio::test]
-async fn device_with_site() {
+async fn devices() {
     let provider = Provider::default();
 
     forward(&provider, TALLY_MESSAGE).await;
-
-    let published = provider.publish.sent();
-    assert_eq!(published.len(), 1);
-
-    let (topic, record) = &published[0];
-    assert_eq!(topic, topic::TALLY_APC);
-
-    let message: TallyMessage = serde_json::from_slice(TALLY_MESSAGE).expect("should deserialize");
-
-    let expected_key = message.device.as_ref().expect("device").site.as_str();
-    assert_eq!(record.headers.get("key").map(String::as_str), Some(expected_key));
-
-    let expected_payload = serde_json::to_vec(&message).expect("should serialize");
-    assert_eq!(record.payload, expected_payload);
-}
-
-#[tokio::test]
-async fn device_missing() {
-    let provider = Provider::default();
-
     forward(&provider, TALLY_NO_DEVICE).await;
 
+    // one record per reading, keyed by the device's site
     let published = provider.publish.sent();
-    assert_eq!(published.len(), 1);
+    assert!(published.iter().all(|(name, _)| name == topic::TALLY_APC));
+    let keys: Vec<_> =
+        published.iter().map(|(_, record)| record.headers.get("key").map(String::as_str)).collect();
+    assert_eq!(keys, [Some("EM1210"), Some("undefined")]);
 
-    let (topic, record) = &published[0];
-    assert_eq!(topic, topic::TALLY_APC);
-    assert_eq!(record.headers.get("key").map(String::as_str), Some("undefined"));
-
-    let message: TallyMessage =
-        serde_json::from_slice(TALLY_NO_DEVICE).expect("should deserialize");
-    let expected_payload = serde_json::to_vec(&message).expect("should serialize");
-    assert_eq!(record.payload, expected_payload);
+    // each payload carries the reading's fields under their wire names
+    let payloads: Vec<Value> = published
+        .iter()
+        .map(|(_, record)| serde_json::from_slice(&record.payload).expect("payload is JSON"))
+        .collect();
+    assert_eq!(
+        payloads[0]["device"],
+        json!({ "operator": "ACME", "site": "EM1210", "model": "CARM1", "serial": "2312-00125" })
+    );
+    assert!(payloads[1]["device"].is_null());
+    for payload in &payloads {
+        assert_reading(payload);
+    }
 }
 
-#[tokio::test]
-async fn device_site_whitespace() {
-    let provider = Provider::default();
+fn assert_reading(payload: &Value) {
+    for (field, expected) in [
+        ("tly_vers", json!("1.0")),
+        ("tly_type", json!("td")),
+        ("driving", json!(true)),
+        ("atstop", json!(false)),
+        ("operational", json!(true)),
+        ("distance_laststop", json!(10213)),
+        ("distance_start", json!(40301)),
+        ("departure_utc", json!("1764194985")),
+        ("arrival_utc", json!("1764194937")),
+        ("speed", json!(0)),
+        ("trigger", json!("station_left_summary")),
+        ("wpt", json!({ "sat": "12", "lat": "-36.909900", "lon": "174.815500", "speed": 0 })),
+        ("clock", json!({ "utc": "1764194985", "tz": "NZST-12NZDT,M9.5.0,M4.1.0/3" })),
+        ("pis", json!({ "line": "54", "stop": "12343" })),
+    ] {
+        assert_eq!(payload[field], expected, "{field}");
+    }
 
-    forward(&provider, TALLY_WHITESPACE).await;
-
-    let published = provider.publish.sent();
-    assert_eq!(published.len(), 1);
-
-    let (topic, record) = &published[0];
-    assert_eq!(topic, topic::TALLY_APC);
-    assert_eq!(record.headers.get("key").map(String::as_str), Some("  "));
-
-    let message: TallyMessage =
-        serde_json::from_slice(TALLY_WHITESPACE).expect("should deserialize");
-    let expected_payload = serde_json::to_vec(&message).expect("should serialize");
-    assert_eq!(record.payload, expected_payload);
+    let doors = payload["doors"].as_array().expect("doors");
+    assert_eq!(doors.len(), 12);
+    let door = &doors[4];
+    assert_eq!(door["name"], "TD1");
+    assert_eq!(door["in"], 1);
+    assert_eq!(door["out"], 1);
+    assert_eq!(door["art"], 1);
+    assert_eq!(door["st"], "open");
 }

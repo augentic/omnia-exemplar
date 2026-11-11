@@ -27,9 +27,6 @@ pub(crate) const PLACES: &str = "/examples/patterns/places";
 pub(crate) const NEARBY: &str = "/examples/patterns/nearby";
 pub(crate) const CONNECTION: &str = "db";
 
-/// Mean metres per degree of latitude (and of longitude at the equator).
-const METRES_PER_DEGREE: f64 = 111_320.0;
-
 pub(crate) fn handlers<P: Capabilities>() -> Handlers<P> {
     Handlers::new().route(PLACES, post(upsert_place)).route(NEARBY, get(nearby_places))
 }
@@ -140,20 +137,6 @@ struct Body<'a> {
     error: &'a PlaceError, // `error` tag + domain fields
 }
 
-/// Reject a coordinate outside its inclusive range (`NaN` always fails).
-fn coordinate(field: &'static str, value: f64, min: f64, max: f64) -> Result<(), PlaceError> {
-    if (min..=max).contains(&value) {
-        Ok(())
-    } else {
-        Err(PlaceError::InvalidCoordinate {
-            field,
-            value,
-            min,
-            max,
-        })
-    }
-}
-
 pub(crate) async fn upsert_place<P>(
     context: Context<P>, Json(input): Json<UpsertPlaceRequest>,
 ) -> Result<Json<UpsertPlaceReply>, PlaceError>
@@ -179,6 +162,20 @@ where
         .await?;
 
     Ok(Json(UpsertPlaceReply { affected }))
+}
+
+/// Reject a coordinate outside its inclusive range (`NaN` always fails).
+fn coordinate(field: &'static str, value: f64, min: f64, max: f64) -> Result<(), PlaceError> {
+    if (min..=max).contains(&value) {
+        Ok(())
+    } else {
+        Err(PlaceError::InvalidCoordinate {
+            field,
+            value,
+            min,
+            max,
+        })
+    }
 }
 
 /// Find places within a radius of a point.
@@ -207,6 +204,9 @@ pub struct NearbyPlacesReply {
     /// Matches ordered by ascending distance.
     pub places: Vec<NearbyPlace>,
 }
+
+/// Mean metres per degree of latitude (and of longitude at the equator).
+const METRES_PER_DEGREE: f64 = 111_320.0;
 
 // A GET with a JSON body: axum's `Json` extractor reads it under any method.
 pub(crate) async fn nearby_places<P>(

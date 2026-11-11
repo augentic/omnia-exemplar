@@ -53,16 +53,6 @@ pub(crate) async fn fetch_agency<P: TableStore>(tables: &P, id: i64) -> Result<O
     Ok(agencies.into_iter().next())
 }
 
-// A concurrent create simply fails on the primary key — acceptable for an
-// example; production code would use a database sequence.
-async fn next_agency_id<P: TableStore>(tables: &P) -> Result<i64> {
-    let rows = tables
-        .query(CONNECTION, "SELECT agency_id FROM agency ORDER BY agency_id DESC LIMIT 1", &[])
-        .await?;
-    let newest: Option<i64> = rows.first().map(|row| row.get("agency_id")).transpose()?;
-    Ok(newest.map_or(1, |id| id + 1))
-}
-
 /// List agencies, newest first.
 #[derive(Debug, Clone, Default, Deserialize)]
 pub struct ListAgenciesRequest {
@@ -126,7 +116,7 @@ where
     schema::ensure(tables).await?;
 
     let agency = Agency {
-        agency_id: next_agency_id(tables).await?,
+        agency_id: next_id(tables).await?,
         name: input.name,
         url: input.url,
         timezone: input.timezone,
@@ -148,6 +138,16 @@ where
         .await?;
 
     Ok(Json(AgencyReply { agency }))
+}
+
+// A concurrent create simply fails on the primary key — acceptable for an
+// example; production code would use a database sequence.
+async fn next_id<P: TableStore>(tables: &P) -> Result<i64> {
+    let rows = tables
+        .query(CONNECTION, "SELECT agency_id FROM agency ORDER BY agency_id DESC LIMIT 1", &[])
+        .await?;
+    let newest: Option<i64> = rows.first().map(|row| row.get("agency_id")).transpose()?;
+    Ok(newest.map_or(1, |id| id + 1))
 }
 
 pub(crate) async fn get_agency<P>(

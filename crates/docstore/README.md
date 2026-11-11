@@ -1,8 +1,8 @@
 # Docstore examples
 
 The rich `wasi:docstore` showcase: three GTFS-like collections — stops,
-routes, and stop times — exercising full CRUD and every portable filter type
-through combined query endpoints, plus sorting and limit/continuation
+routes, and stop times — exercising full CRUD and a broad set of portable
+filters through combined query endpoints, plus sorting and limit/continuation
 pagination. This crate restores the full docstore example that omnia's
 "Example tidy" trimmed, rewritten in this repository's typed-handler style:
 `pub async fn` handlers over `P: DocumentStore`, mounted by the root guest
@@ -168,13 +168,13 @@ curl -s "http://localhost:8080/examples/stop-times?trip=trip-nex-0800&min_seq=1&
 The pre-trim example verified its behaviour with a bash script of `curl` +
 `jq` assertions; that script is now the native test suite. The tests in
 [`tests/operations.rs`](tests/operations.rs) seed the same five stops, four
-routes, and five stop times through `Client::call` and assert the exact
-result count of every filter combination, page 2 via the continuation token,
-and the CRUD round trips. `omnia_test::guest::MemoryDocs` is the
+routes, and five stop times, drive each route through `guest::send`, and
+assert the exact result count of every filter, page 2 via the continuation
+token, and the CRUD round trips. `omnia_test::guest::MemoryDocs` is the
 `DocumentStore` double that makes this possible natively: it *evaluates* the
 filter tree over the stored JSON documents and honours `order_by`, `limit`,
 and continuation, rather than canning responses.
 
 ```shell
-cargo nextest run -p docstore-examples
+cargo nextest run -p docstore
 ```

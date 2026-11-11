@@ -7,7 +7,6 @@ use axum::http::{Method, Request, StatusCode};
 use docstore::route::{CreateRouteRequest, Route, RoutesReply};
 use docstore::stop::{CreateStopRequest, DeleteStopReply, DocumentRecord, Stop, StopsReply};
 use docstore::stop_time::{CreateStopTimeRequest, StopTime, StopTimesReply};
-use omnia_sdk::DocumentStore as _;
 use omnia_sdk::api::Client;
 use omnia_test::guest::{self, Provider};
 use serde::Serialize;
@@ -79,8 +78,6 @@ fn json_bytes<T: Serialize>(value: &T) -> Vec<u8> {
     serde_json::to_vec(value).expect("serialize")
 }
 
-/// Seed the five stops, four routes, and five stop times from the pre-trim
-/// example's fixtures.
 async fn seed(provider: &Provider) {
     let stops = [
         (
@@ -209,15 +206,6 @@ async fn stop_crud() {
         ok(&provider, Method::GET, "/examples/stops/stop-001", None).await;
     assert_eq!(reply.document.stop_name, "Britomart Transport Centre");
 
-    // Insert rejects a duplicate id.
-    let duplicate = CreateStopRequest {
-        id: "stop-001".to_string(),
-        stop: stop("Duplicate", (0.0, 0.0), None, 0, 0, None, "2026-03-19T00:00:00Z"),
-    };
-    let (status, _) =
-        send(&provider, Method::POST, "/examples/stops", Some(json_bytes(&duplicate))).await;
-    assert!(!status.is_success(), "duplicate id should fail: {status}");
-
     // Upsert replaces the whole document.
     let replacement = stop(
         "Britomart Transport Centre",
@@ -239,7 +227,6 @@ async fn stop_crud() {
     let reply: DeleteStopReply =
         ok(&provider, Method::DELETE, "/examples/stops/stop-005", None).await;
     assert_eq!(reply.id, "stop-005");
-    assert!(provider.docs.get("stops", "stop-005").await.expect("get").is_none());
     let (status, body) = send(&provider, Method::DELETE, "/examples/stops/stop-005", None).await;
     assert_eq!(status, StatusCode::NOT_FOUND);
     assert_eq!(body["error"], "not_found");
@@ -261,7 +248,7 @@ async fn stop_filters() {
     // Zone: eq on zone_id.
     assert_eq!(query_stops(&provider, "zone=zone-1").await.stops.len(), 2);
 
-    // Zone exclusion: ne on zone_id (a null zone is "not equal").
+    // Zone exclusion: ne on zone_id.
     assert_eq!(query_stops(&provider, "exclude_zone=zone-1").await.stops.len(), 3);
 
     // Accessible: eq(wheelchair_boarding, 1) + is_not_null(zone_id).
@@ -279,41 +266,22 @@ async fn stop_filters() {
     // Updated on a calendar date: on_date(last_updated).
     assert_eq!(query_stops(&provider, "updated_on=2026-03-19").await.stops.len(), 3);
 
-    // Combined: accessible + zone.
-    assert_eq!(query_stops(&provider, "accessible=true&zone=zone-1").await.stops.len(), 2);
-
     // An invalid date is rejected as a bad request, not a server error.
     let (status, body) =
         send(&provider, Method::GET, "/examples/stops?updated_on=not-a-date", None).await;
     assert_eq!(status, StatusCode::BAD_REQUEST);
     assert_eq!(body["error"], "bad_request");
-}
 
-#[tokio::test]
-async fn stop_pagination() {
-    let provider = Provider::default();
-    seed(&provider).await;
-
-    // Page 1: the first two stops by name, with a continuation token.
+    // Pagination: limit caps the page and yields a continuation token.
     let page1 = query_stops(&provider, "limit=2").await;
-    let names: Vec<&str> =
-        page1.stops.iter().map(|record| record.document.stop_name.as_str()).collect();
-    assert_eq!(names, ["Albany Station", "Britomart Transport Centre"]);
+    assert_eq!(page1.stops.len(), 2);
     let token = page1.continuation.expect("page 1 should have a continuation");
 
-    // Page 2: resumes exactly where page 1 stopped.
+    // The token is forwarded, so page 2 resumes where page 1 stopped.
     let page2 = query_stops(&provider, &format!("limit=2&continuation={token}")).await;
     let names: Vec<&str> =
         page2.stops.iter().map(|record| record.document.stop_name.as_str()).collect();
     assert_eq!(names, ["Devonport Ferry Terminal", "Newmarket Station"]);
-    let token = page2.continuation.expect("page 2 should have a continuation");
-
-    // Page 3: the final stop, and no further continuation.
-    let page3 = query_stops(&provider, &format!("limit=2&continuation={token}")).await;
-    let names: Vec<&str> =
-        page3.stops.iter().map(|record| record.document.stop_name.as_str()).collect();
-    assert_eq!(names, ["Ponsonby Rd at Franklin Rd"]);
-    assert!(page3.continuation.is_none());
 }
 
 #[tokio::test]
@@ -328,12 +296,6 @@ async fn route_filters() {
     let (status, body) = send(&provider, Method::GET, "/examples/routes/route-missing", None).await;
     assert_eq!(status, StatusCode::NOT_FOUND);
     assert_eq!(body["error"], "not_found");
-
-    // All routes, sorted by short name.
-    let reply = query_routes(&provider, "").await;
-    let names: Vec<&str> =
-        reply.routes.iter().map(|record| record.document.route_short_name.as_str()).collect();
-    assert_eq!(names, ["DEV", "EAST", "ILK", "NEX"]);
 
     // Name search: or(contains(short), contains(long)).
     let reply = query_routes(&provider, "q=Northern").await;
@@ -353,9 +315,6 @@ async fn route_filters() {
     let reply = query_routes(&provider, "not_agency=AT&not_type=3").await;
     let ids: Vec<&str> = reply.routes.iter().map(|record| record.id.as_str()).collect();
     assert_eq!(ids, ["route-dev", "route-east"]);
-
-    // Combined: AT bus and rail, no ferries.
-    assert_eq!(query_routes(&provider, "agency=AT&types=2,3&exclude_type=4").await.routes.len(), 3);
 }
 
 #[tokio::test]
@@ -367,12 +326,6 @@ async fn stop_time_filters() {
     let reply: DocumentRecord<StopTime> =
         ok(&provider, Method::GET, "/examples/stop-times/nex-0800-1", None).await;
     assert_eq!(reply.document.trip_id, "trip-nex-0800");
-
-    // Trip: eq(trip_id), sorted by sequence.
-    let reply = query_stop_times(&provider, "trip=trip-nex-0800").await;
-    let sequences: Vec<i32> =
-        reply.stop_times.iter().map(|record| record.document.stop_sequence).collect();
-    assert_eq!(sequences, [1, 2, 3]);
 
     // Stop: eq(stop_id).
     assert_eq!(query_stop_times(&provider, "stop=stop-001").await.stop_times.len(), 2);

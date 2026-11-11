@@ -26,7 +26,7 @@ pub struct TripSettings {
 /// IANA zone here (`Pacific/Auckland`) and must not copy UTC-as-local.
 pub const TIMEZONE: Tz = chrono_tz::UTC;
 
-pub(crate) async fn get_instance<P>(
+pub(crate) async fn instance<P>(
     provider: &P, trip_id: &str, service_date: &str, start_time: &str,
 ) -> Result<Option<TripInstance>>
 where
@@ -54,7 +54,7 @@ where
     Ok(None)
 }
 
-pub(crate) async fn get_nearest<P>(
+pub(crate) async fn nearest<P>(
     provider: &P, trip_id: &str, event_timestamp: i64,
 ) -> Result<Option<TripInstance>>
 where
@@ -132,6 +132,14 @@ where
         .with_context(|| format!("deserializing trip instances for {trip_id} on {service_date}"))
 }
 
+fn error_trip(service_date: &str) -> TripInstance {
+    TripInstance {
+        service_date: service_date.to_string(),
+        error: true,
+        ..TripInstance::default()
+    }
+}
+
 fn decode(payload: &[u8]) -> Result<Vec<TripInstance>> {
     if payload.is_empty() {
         return Ok(Vec::new());
@@ -204,14 +212,6 @@ fn parse_time(time: &str) -> Option<i64> {
     Some(hours * 3_600 + minutes * 60 + seconds)
 }
 
-fn error_trip(service_date: &str) -> TripInstance {
-    TripInstance {
-        service_date: service_date.to_string(),
-        error: true,
-        ..TripInstance::default()
-    }
-}
-
 /// A single scheduled instance of a trip on a service date.
 #[derive(Debug, Clone, Deserialize, Serialize, Default, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
@@ -270,6 +270,13 @@ pub struct TripDescriptor {
     pub schedule_relationship: Option<String>,
 }
 
+impl TripDescriptor {
+    /// Schedule relationship for trips added outside the schedule.
+    pub const ADDED: &'static str = "ADDED";
+    /// Schedule relationship for scheduled trips.
+    pub const SCHEDULED: &'static str = "SCHEDULED";
+}
+
 impl From<&TripInstance> for TripDescriptor {
     fn from(inst: &TripInstance) -> Self {
         Self {
@@ -285,13 +292,6 @@ impl From<&TripInstance> for TripDescriptor {
             }),
         }
     }
-}
-
-impl TripDescriptor {
-    /// Schedule relationship for trips added outside the schedule.
-    pub const ADDED: &'static str = "ADDED";
-    /// Schedule relationship for scheduled trips.
-    pub const SCHEDULED: &'static str = "SCHEDULED";
 }
 
 /// A dead-reckoning position estimate for a vehicle without a GPS fix.

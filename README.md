@@ -25,7 +25,7 @@ This repository is the application-scale complement to the
 service instead of twenty snippets. The guest is built on the `omnia-sdk`
 SDK (async handler fns behind capability traits) and exercises
 `wasi:http`, `wasi:messaging`, `wasi:keyvalue`, `wasi:config`,
-`wasi:identity`, and — through the `crates/capability-examples` routes the
+`wasi:identity`, and — through the `crates/capability` routes the
 root guest mounts under `/examples/*` — blobstore, websocket broadcast,
 docstore, and SQL. Two capabilities get a deeper treatment:
 `crates/docstore` and `crates/sql` rebuild the rich
@@ -174,7 +174,7 @@ consumer is out of scope for the exemplar.
 | `crates/tally-connector` | HTTP ingress for the vendor "Tally" passenger-count feed |
 | `crates/gtfs-adapter` | Converts Motion events into GTFS-realtime vehicle positions |
 | `crates/capability` | Domain-free handlers proving the remaining capabilities: `BlobStore`, `Broadcast`, `DocumentStore`, `TableStore`; mounted by the guest at `POST /examples/{archive,alert,note,reading}` |
-| `crates/docstore` | Rich `wasi:docstore` showcase: GTFS-like collections exercising every portable filter type, sorting, and continuation pagination |
+| `crates/docstore` | Rich `wasi:docstore` showcase: GTFS-like collections exercising a broad set of portable filters, sorting, and continuation pagination |
 | `crates/sql` | Rich `wasi-sql` showcase: agency/feed schema exercising parameterized SQL, `FromRow` records through `query_as`, a JOIN entity, and server-assigned ids |
 | `crates/pattern` | Composition patterns: decode-through-cache, `StateStore::cas` optimistic concurrency (`409`), `Identity::access_token` bearer auth, relational geo queries, and structured JSON error bodies |
 | root package (`guest`) | Typed-router HTTP + exact-topic messaging WASM guest binary |
@@ -330,7 +330,7 @@ mise run test              # cargo nextest run --workspace --all-features --lock
 
 The suite is laid out as omnia's three rungs (see omnia's
 [Testing Omnia-Based Code](https://github.com/augentic/omnia/blob/main/docs/guides/testing-omnia-code.md)
-guide) plus a build gate for the example host. Everything runs under
+guide). Everything runs under
 `mise run test`: nothing is `#[ignore]`d, and nothing needs installing
 beyond `rust-toolchain.toml`, which carries the `wasm32-wasip2` target the
 component rung compiles for. Unit tests belong beside the logic they cover
@@ -371,16 +371,18 @@ share and calls `send` inside.
 - `crates/capability/tests` — one provider covering
   `BlobStore`/`Broadcast`/`DocumentStore`/`TableStore`
 - `crates/docstore/tests` — `MemoryDocs`, the filter-evaluating
-  `DocumentStore` double, covering every portable filter type, sorting,
-  continuation pagination, and the CRUD round-trip
+  `DocumentStore` double, covering how each list handler maps its query
+  parameters onto filters, the stop name sort, continuation forwarding, and
+  the CRUD round-trip
 - `crates/sql/tests` — `ScriptedTables` scripting each parameterized SQL
   query's rows and recording every statement, covering `SELECT`, `INSERT`,
-  dynamic `UPDATE`, `DELETE` with 404-on-zero-rows, the JOIN listing, and
-  server-assigned ids
-- `crates/pattern/tests` — `MatchedHttp` and `Memory` covering the decode
-  cache (hit and miss), `StateStore::cas` optimistic locking (`409`),
-  `Identity::access_token` bearer auth, the nearby query, and the
-  structured-error upsert rejection
+  dynamic `UPDATE`, `DELETE` with 404-on-zero-rows, the missing-agency 404s,
+  the JOIN listing, and server-assigned ids
+- `crates/pattern/tests` — `MatchedHttp`, `Memory`, `ScriptedTables`,
+  `FixedIdentity`, and `MapConfig` covering the decode cache (hit and miss),
+  the versioned quota write's stale-version `409`, `Identity::access_token`
+  bearer auth, the nearby query, and the upsert with its structured-error
+  rejection
 - `templates/guest/tests` — the template crate's contract: a tree
   scaffolded once, its static files held and restored, its root manifest
   held around its stem list
@@ -409,18 +411,14 @@ effect on the backends, leaving payload semantics to the handler rung:
   `/api/apc` and requires exactly one message on the broker, on
   `realtime-tally-apc.v2`
 - `component::messaging_export` — `MessagingHandler` delivers a
-  passenger-count record and reads the occupancy status back from the
-  `wasi:keyvalue` bucket through `Backends::state`
+  passenger-count record and requires an occupancy-status entry in the
+  `wasi:keyvalue` bucket, read through `Backends::state`
 
 No port opens and no `.env` is read: `Backends::defaults()` reads no
 environment variable and connects nothing, so the rung is deterministic.
-
-### Examples gate
-
-`tests/examples.rs::build` runs `cargo build --locked --examples` from the
-package root. The example host (`examples/runtime.rs`) is a server that never
-exits, so it is compiled, not run; the component rung is where its wiring is
-exercised.
+The example host (`examples/runtime.rs`) is a server that never exits, so
+it is compiled, not run: here as the `production` module, and as an example
+target by `make lint`.
 
 ## Guest template contract
 
@@ -479,8 +477,8 @@ mise run check  # local advisories: audit, fmt (in place), lint, outdated, deps
 ```
 
 `mise run ci` is the whole gate and runs exactly the jobs of the CI workflow:
-every rung above, including the component rung, the examples gate and the
-template contract gate, runs inside `mise run test`. `mise tasks` lists
+every rung above, including the component rung and the template contract
+gate, runs inside `mise run test`. `mise tasks` lists
 everything else; the generic Rust tasks are included from
 [`augentic/toolkit`](https://github.com/augentic/toolkit/blob/main/mise/rust.toml)
 by `mise.toml`, which adds only the `wasm` release build of the guest.
