@@ -140,20 +140,6 @@ struct Body<'a> {
     error: &'a PlaceError, // `error` tag + domain fields
 }
 
-/// Reject a coordinate outside its inclusive range (`NaN` always fails).
-fn coordinate(field: &'static str, value: f64, min: f64, max: f64) -> Result<(), PlaceError> {
-    if (min..=max).contains(&value) {
-        Ok(())
-    } else {
-        Err(PlaceError::InvalidCoordinate {
-            field,
-            value,
-            min,
-            max,
-        })
-    }
-}
-
 pub(crate) async fn upsert_place<P>(
     context: Context<P>, Json(input): Json<UpsertPlaceRequest>,
 ) -> Result<Json<UpsertPlaceReply>, PlaceError>
@@ -179,6 +165,20 @@ where
         .await?;
 
     Ok(Json(UpsertPlaceReply { affected }))
+}
+
+/// Reject a coordinate outside its inclusive range (`NaN` always fails).
+fn coordinate(field: &'static str, value: f64, min: f64, max: f64) -> Result<(), PlaceError> {
+    if (min..=max).contains(&value) {
+        Ok(())
+    } else {
+        Err(PlaceError::InvalidCoordinate {
+            field,
+            value,
+            min,
+            max,
+        })
+    }
 }
 
 /// Find places within a radius of a point.

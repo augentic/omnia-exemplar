@@ -111,15 +111,6 @@ pub struct ReceiveMessage {
 #[serde(rename = "Return")]
 pub struct PulseReply(pub &'static str);
 
-impl IntoResponse for PulseReply {
-    fn into_response(self) -> Response {
-        match self.to_xml() {
-            Ok(xml) => ([(CONTENT_TYPE, "text/xml")], xml).into_response(),
-            Err(error) => Error::from(error).into_response(),
-        }
-    }
-}
-
 impl PulseReply {
     /// Serialize the reply into an XML body.
     ///
@@ -129,6 +120,15 @@ impl PulseReply {
     pub fn to_xml(&self) -> anyhow::Result<Vec<u8>> {
         let xml = quick_xml::se::to_string(&self).context("serializing PulseReply")?;
         Ok(xml.into_bytes())
+    }
+}
+
+impl IntoResponse for PulseReply {
+    fn into_response(self) -> Response {
+        match self.to_xml() {
+            Ok(xml) => ([(CONTENT_TYPE, "text/xml")], xml).into_response(),
+            Err(error) => Error::from(error).into_response(),
+        }
     }
 }
 

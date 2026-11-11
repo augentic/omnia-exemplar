@@ -30,20 +30,20 @@ struct GodModeState {
     overrides: HashMap<String, String>,
 }
 
-async fn load_state(state_store: &impl StateStore) -> Result<GodModeState> {
-    Ok(state_store.get_json(KEY_GOD_MODE).await?.unwrap_or_default())
-}
-
-async fn save_state(state_store: &impl StateStore, state: &GodModeState) -> Result<()> {
-    state_store.set_json(KEY_GOD_MODE, state, Some(TTL_GOD_MODE)).await
-}
-
 pub(crate) async fn set_vehicle_to_trip(
     state_store: &impl StateStore, vehicle_id: impl Into<String>, trip_id: impl Into<String>,
 ) -> Result<()> {
     let mut state = load_state(state_store).await?;
     state.overrides.insert(vehicle_id.into(), trip_id.into());
     save_state(state_store, &state).await
+}
+
+async fn load_state(state_store: &impl StateStore) -> Result<GodModeState> {
+    Ok(state_store.get_json(KEY_GOD_MODE).await?.unwrap_or_default())
+}
+
+async fn save_state(state_store: &impl StateStore, state: &GodModeState) -> Result<()> {
+    state_store.set_json(KEY_GOD_MODE, state, Some(TTL_GOD_MODE)).await
 }
 
 pub(crate) async fn apply_overrides<P>(provider: &P, event: MotionMessage) -> Result<MotionMessage>

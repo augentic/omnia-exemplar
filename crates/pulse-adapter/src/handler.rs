@@ -30,18 +30,6 @@ pub struct PulseSettings {
     api_identity: String,
 }
 
-/// Each Motion event is published this many times: the downstream schedule
-/// adherence process treats the repeated location event as confirmation that
-/// the train has departed the station, so a single publish would leave
-/// departures unsignalled.
-///
-/// The legacy system spaced the repeats five seconds apart with a blocking
-/// `thread::sleep`. Do not copy that pattern — blocking stalls the entire
-/// WASM guest. If spacing between publishes ever matters, use a scheduled or
-/// delayed message, or debounce in the consumer, instead of sleeping in the
-/// handler.
-const PUBLISH_REPEATS: usize = 2;
-
 pub(crate) fn handlers<P: Capabilities>() -> Handlers<P> {
     Handlers::new().topic_with(topic::PULSE, pulse, decode_pulse_xml)
 }
@@ -111,6 +99,18 @@ impl PulseMessage {
         quick_xml::de::from_reader(input).context("deserializing PulseMessage").map_err(Into::into)
     }
 }
+
+/// Each Motion event is published this many times: the downstream schedule
+/// adherence process treats the repeated location event as confirmation that
+/// the train has departed the station, so a single publish would leave
+/// departures unsignalled.
+///
+/// The legacy system spaced the repeats five seconds apart with a blocking
+/// `thread::sleep`. Do not copy that pattern — blocking stalls the entire
+/// WASM guest. If spacing between publishes ever matters, use a scheduled or
+/// delayed message, or debounce in the consumer, instead of sleeping in the
+/// handler.
+const PUBLISH_REPEATS: usize = 2;
 
 pub(crate) async fn pulse<P>(context: Context<P>, input: PulseMessage) -> Result<()>
 where

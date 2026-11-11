@@ -14,9 +14,6 @@ pub struct StopsSettings {
     static_api_url: String,
 }
 
-const STOPS_CACHE_KEY: &str = "pulse:stops";
-const STOPS_TTL_SECS: u64 = 300;
-
 /// Stop information from GTFS
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub struct StopInfo {
@@ -56,6 +53,21 @@ where
     Ok(Some(stop_info))
 }
 
+const ACTIVE_STATIONS: &[u32] = &[0, 19, 40];
+
+/// Map a station to its GTFS stop code.
+const fn station_stop(station: u32) -> Option<&'static str> {
+    match station {
+        0 => Some("133"),
+        19 => Some("9218"),
+        40 => Some("134"),
+        _ => None,
+    }
+}
+
+const STOPS_CACHE_KEY: &str = "pulse:stops";
+const STOPS_TTL_SECS: u64 = 300;
+
 async fn cached_stops<P>(provider: &P) -> Result<Vec<StopInfo>>
 where
     P: Config + HttpRequest + StateStore,
@@ -77,18 +89,6 @@ where
     let stops: Vec<StopInfo> = provider.fetch_json(request).await?;
     provider.set_json(STOPS_CACHE_KEY, &stops, Some(STOPS_TTL_SECS)).await?;
     Ok(stops)
-}
-
-const ACTIVE_STATIONS: &[u32] = &[0, 19, 40];
-
-/// Map a station to its GTFS stop code.
-const fn station_stop(station: u32) -> Option<&'static str> {
-    match station {
-        0 => Some("133"),
-        19 => Some("9218"),
-        40 => Some("134"),
-        _ => None,
-    }
 }
 
 /// Correct stops that have separate departure and arrival locations.

@@ -115,12 +115,6 @@ pub enum Identifier {
     Id(String),
 }
 
-impl Default for Identifier {
-    fn default() -> Self {
-        Self::Id(String::new())
-    }
-}
-
 impl Identifier {
     /// Render the identifier as a Fleet API query string.
     #[must_use]
@@ -129,6 +123,12 @@ impl Identifier {
             Self::Label(label) => format!("label={}", urlencoding::encode(label)),
             Self::Id(id) => format!("id={}", urlencoding::encode(id)),
         }
+    }
+}
+
+impl Default for Identifier {
+    fn default() -> Self {
+        Self::Id(String::new())
     }
 }
 

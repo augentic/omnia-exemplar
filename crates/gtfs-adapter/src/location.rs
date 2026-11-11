@@ -17,10 +17,6 @@ use crate::trip::{
 const TTL_TRIP_TRAIN: Duration = Duration::seconds(3 * 60 * 60);
 const TTL_SIGN_ON: Duration = Duration::seconds(24 * 60 * 60);
 
-const fn duration_secs(duration: Duration) -> u64 {
-    duration.num_seconds().unsigned_abs()
-}
-
 pub enum Location {
     VehiclePosition(FeedEntity),
     DeadReckoning(DeadReckoningMessage),
@@ -171,6 +167,10 @@ where
     Ok(())
 }
 
+const fn duration_secs(duration: Duration) -> u64 {
+    duration.num_seconds().unsigned_abs()
+}
+
 async fn current_trip<P>(
     provider: &P, vehicle_id: &str, timestamp: i64,
 ) -> Result<Option<TripInstance>>
@@ -199,24 +199,6 @@ where
     Ok(Some(instance))
 }
 
-async fn get_occupancy_status<P>(
-    provider: &P, vehicle: &Vehicle, trip: &TripDescriptor,
-) -> Result<Option<String>>
-where
-    P: StateStore,
-{
-    let Some(start_date) = trip.start_date.as_ref() else {
-        return Ok(None);
-    };
-
-    let Some(start_time) = trip.start_time.as_ref() else {
-        return Ok(None);
-    };
-
-    let key = state_keys::occupancy_status(&vehicle.id, &trip.trip_id, start_date, start_time);
-    Ok(provider.get_json(&key).await?)
-}
-
 fn time_to_timestamp(date: &str, time: &str, tz: Tz) -> Option<i64> {
     if date.is_empty() || time.is_empty() {
         return None;
@@ -234,4 +216,22 @@ fn time_to_timestamp(date: &str, time: &str, tz: Tz) -> Option<i64> {
     let base = date.and_hms_opt(0, 0, 0)?;
     let datetime = tz.from_local_datetime(&base).single()?;
     Some((datetime + Duration::seconds(hours * 3_600 + minutes * 60 + seconds)).timestamp())
+}
+
+async fn get_occupancy_status<P>(
+    provider: &P, vehicle: &Vehicle, trip: &TripDescriptor,
+) -> Result<Option<String>>
+where
+    P: StateStore,
+{
+    let Some(start_date) = trip.start_date.as_ref() else {
+        return Ok(None);
+    };
+
+    let Some(start_time) = trip.start_time.as_ref() else {
+        return Ok(None);
+    };
+
+    let key = state_keys::occupancy_status(&vehicle.id, &trip.trip_id, start_date, start_time);
+    Ok(provider.get_json(&key).await?)
 }
