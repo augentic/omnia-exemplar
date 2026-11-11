@@ -18,6 +18,10 @@ use serde::{Deserialize, Serialize};
 
 pub(crate) const PULSE_XML: &str = "/inbound/xml";
 
+pub(crate) fn handlers<P: Capabilities>() -> Handlers<P> {
+    Handlers::new().route(PULSE_XML, post(pulse))
+}
+
 /// The SOAP fault envelope answering requests that cannot be parsed or
 /// fail validation.
 const BAD_REQUEST_FAULT: Fault = Fault {
@@ -34,10 +38,6 @@ const SERVER_FAULT: Fault = Fault {
         message: "Internal Server Error",
     },
 };
-
-pub(crate) fn handlers<P: Capabilities>() -> Handlers<P> {
-    Handlers::new().route(PULSE_XML, post(pulse))
-}
 
 // The handler takes the raw body and parses the SOAP envelope itself, so a
 // malformed body is answered with the vendor's XML `<Fault>` rather than an

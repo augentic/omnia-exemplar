@@ -13,8 +13,6 @@ use crate::fleet::{self, Vehicle};
 use crate::state_keys;
 use crate::trip::TripInstance;
 
-const PROCESS_ID: u32 = 0;
-
 pub(crate) const VEHICLE_INFO: &str = "/info/{vehicle_id}";
 
 pub(crate) fn handlers<P: Capabilities>() -> Handlers<P> {
@@ -40,6 +38,8 @@ pub struct VehicleInfoReply {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub fleet_info: Option<Vehicle>,
 }
+
+const PROCESS_ID: u32 = 0;
 
 pub(crate) async fn vehicle_info<P>(
     context: Context<P>, Path(vehicle_id): Path<String>,

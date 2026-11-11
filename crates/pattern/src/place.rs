@@ -27,9 +27,6 @@ pub(crate) const PLACES: &str = "/examples/patterns/places";
 pub(crate) const NEARBY: &str = "/examples/patterns/nearby";
 pub(crate) const CONNECTION: &str = "db";
 
-/// Mean metres per degree of latitude (and of longitude at the equator).
-const METRES_PER_DEGREE: f64 = 111_320.0;
-
 pub(crate) fn handlers<P: Capabilities>() -> Handlers<P> {
     Handlers::new().route(PLACES, post(upsert_place)).route(NEARBY, get(nearby_places))
 }
@@ -207,6 +204,9 @@ pub struct NearbyPlacesReply {
     /// Matches ordered by ascending distance.
     pub places: Vec<NearbyPlace>,
 }
+
+/// Mean metres per degree of latitude (and of longitude at the equator).
+const METRES_PER_DEGREE: f64 = 111_320.0;
 
 // A GET with a JSON body: axum's `Json` extractor reads it under any method.
 pub(crate) async fn nearby_places<P>(
