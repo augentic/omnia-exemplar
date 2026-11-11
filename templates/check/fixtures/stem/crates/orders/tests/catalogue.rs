@@ -65,7 +65,7 @@ async fn queries_cache_serve() {
     );
     assert_eq!(provider.tables.statements().len(), 1);
 
-    // The second call is answered from `StateStore` without another SQL query.
+    // the second call served from the cache
     let second = get_catalogue(&provider).await;
     assert_eq!(second, first);
     assert_eq!(provider.tables.statements().len(), 1);

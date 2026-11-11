@@ -32,11 +32,12 @@ async fn replay(case: Case) {
     let curr_events = case.events();
 
     match &case.expected {
-        None => assert!(curr_events.is_empty()),
-        Some(Expected::Success(expected_events)) if expected_events.is_empty() => {
+        None => {
+            assert!(result.is_ok(), "{result:?}");
             assert!(curr_events.is_empty());
         }
         Some(Expected::Success(expected_events)) => {
+            assert!(result.is_ok(), "{result:?}");
             assert_eq!(curr_events.len(), expected_events.len());
             expected_events.iter().zip(curr_events).for_each(|(published, mut actual)| {
                 let now = Utc::now().with_timezone(&TIMEZONE);

@@ -37,14 +37,12 @@ include!(concat!(env!("OUT_DIR"), "/gen.rs"));
 #[path = "../examples/runtime.rs"]
 mod production;
 
-/// A closed loopback port: every upstream call is refused immediately.
+// A closed loopback port, so every upstream call is refused at once.
 const CLOSED_UPSTREAM: &str = "http://127.0.0.1:9";
 
-/// The `wasi:config` keys the guest reads, one `Settings` per part, so a
-/// setting added to a part cannot be left out here. Host-side settings the
-/// example host reads from its environment (identity credentials, the
-/// websocket bind address) have no counterpart: `Backends::defaults()`
-/// connects nothing.
+// One `Settings::KEYS` per part, so a setting added to a part cannot be left
+// out here. The example host's own environment settings have no counterpart
+// because `Backends::defaults()` connects nothing.
 const GUEST_KEYS: &[&[&str]] = &[
     gtfs_adapter::block_mgt::BlockMgtSettings::KEYS,
     gtfs_adapter::fleet::FleetSettings::KEYS,
@@ -55,14 +53,10 @@ const GUEST_KEYS: &[&[&str]] = &[
     pattern::identity::IdentitySettings::KEYS,
 ];
 
-/// A dummy value for a guest setting: upstreams point at a closed port so
-/// handlers that call out fail fast, everything else is a marker string.
 fn guest_value(key: &str) -> &'static str {
     if key.ends_with("_URL") { CLOSED_UPSTREAM } else { "component-test" }
 }
 
-/// Assemble the shipped component over fresh in-memory backends through the
-/// example host's `Hooks`, returning the bundle for reading state back.
 async fn boot() -> (Backends, Runtime<Backends>) {
     let config = GUEST_KEYS.iter().flat_map(|keys| keys.iter().map(|key| (*key, guest_value(key))));
     let backends = Backends::defaults().await.config(config);
@@ -74,23 +68,21 @@ async fn boot() -> (Backends, Runtime<Backends>) {
     (backends, runtime)
 }
 
-/// The bound on every wait for the broker: long enough for a cold
-/// instantiation, short enough that a dropped publish fails fast.
+// Long enough for a cold instantiation, short enough that a dropped publish
+// fails fast.
 const BROKER_WAIT: Duration = Duration::from_secs(5);
 
 const TALLY_MESSAGE: &[u8] = include_bytes!("../crates/tally-connector/data/tally-message.json");
 const PASSENGER_COUNT: &[u8] =
     include_bytes!("../crates/gtfs-adapter/data/realtime-passenger-count.v1.json");
 
-/// The `value` of the fixture record at `index`, as the guest receives it.
+// A fixture file holds broker records; the guest receives only a record's
+// `value`.
 fn fixture_value(raw: &[u8], index: usize) -> Vec<u8> {
     let records: Value = serde_json::from_slice(raw).expect("fixture parses");
     records[index]["value"].to_string().into_bytes()
 }
 
-/// The `wasi:http` export end to end: a request through the trigger's
-/// handler reaches the guest's router, and the guest's publish reaches the
-/// broker through the example's `wasi:messaging` host.
 #[tokio::test]
 async fn http_export() {
     let (backends, runtime) = boot().await;
@@ -125,9 +117,6 @@ async fn http_export() {
     runtime.shutdown();
 }
 
-/// The `wasi:messaging` export end to end: a delivery through the trigger's
-/// handler reaches the guest's topic router, and the guest's state write
-/// reaches the bucket through the example's `wasi:keyvalue` host.
 #[tokio::test]
 async fn messaging_export() {
     let (backends, runtime) = boot().await;
@@ -139,11 +128,10 @@ async fn messaging_export() {
     message.topic = topic::PASSENGER_COUNT.to_owned();
     handler.handle(message).await.expect("handled");
 
-    // The guest's `StateStore` writes the occupancy under its composite key
-    // into the bucket `Backends::state` reads.
+    // The guest's `StateStore` writes under its composite key into the bucket
+    // `Backends::state` reads. The stored value is `gtfs-adapter`'s to assert.
     let key = "motionGtfs:occupancyStatus:32161:1347-05004-41400-2-89c4020e:20251120:11:30:00";
-    let entry = backends.state(key).await.expect("the occupancy status is stored");
-    assert_eq!(entry, b"\"FEW_SEATS_AVAILABLE\"");
+    assert!(backends.state(key).await.is_some(), "an entry is stored under {key}");
 
     runtime.shutdown();
 }

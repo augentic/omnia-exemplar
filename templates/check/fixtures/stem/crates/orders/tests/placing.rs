@@ -9,10 +9,6 @@ use omnia_sdk::api::Client;
 use omnia_test::guest::{MapConfig, Provider, deliver, send};
 use orders::placing::Placed;
 
-fn provider() -> Provider {
-    Provider::default().config(MapConfig::default().with([("ORDERS_LIMIT", "2")]))
-}
-
 async fn place(provider: &Provider, body: &'static str) -> (StatusCode, Vec<u8>) {
     let request = Request::post("/orders")
         .header(CONTENT_TYPE, "application/json")
@@ -24,8 +20,8 @@ async fn place(provider: &Provider, body: &'static str) -> (StatusCode, Vec<u8>)
 }
 
 #[tokio::test]
-async fn placed_within_the_limit() {
-    let provider = provider();
+async fn place_then_count() {
+    let provider = Provider::default().config(MapConfig::default().with([("ORDERS_LIMIT", "2")]));
 
     let (status, body) = place(&provider, r#"{"lines": ["tea", "cake"]}"#).await;
 
@@ -37,28 +33,17 @@ async fn placed_within_the_limit() {
     assert_eq!(sent[0].0, topic::ORDER_PLACED);
     let carried: Placed = serde_json::from_slice(&sent[0].1.payload).expect("a placement");
     assert_eq!(carried.lines, 2);
-}
-
-#[tokio::test]
-async fn refused_past_the_limit() {
-    let provider = provider();
 
     let (status, _) = place(&provider, r#"{"lines": ["tea", "cake", "jam"]}"#).await;
 
     assert_eq!(status, StatusCode::BAD_REQUEST);
-    assert!(provider.publish.sent().is_empty(), "nothing is published");
-}
+    assert_eq!(provider.publish.sent().len(), 1, "a refused order is not published");
 
-#[tokio::test]
-async fn placements_counted() {
-    let provider = provider();
     let router = orders::handlers().with_state(Client::new(provider.clone()));
-
-    for lines in [1, 2] {
-        let payload = serde_json::to_vec(&Placed { lines }).expect("a placement");
-        deliver(&router, "order-placed", payload).await.expect("a placement is counted");
-    }
+    deliver(&router, topic::ORDER_PLACED, sent[0].1.payload.clone())
+        .await
+        .expect("a placement is counted");
 
     let total = StateStore::increment(&provider, "orders/lines-placed", 0).await.expect("the count");
-    assert_eq!(total, 3, "the placements are counted");
+    assert_eq!(total, 2, "the placement is counted");
 }

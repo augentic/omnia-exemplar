@@ -3,7 +3,7 @@
 //!
 //! `ScriptedTables` answers statements, it does not evaluate them: the
 //! bounding-box `SELECT` is scripted with the candidate rows and its bound
-//! parameters asserted, and the upserts are asserted as the statements the
+//! parameters asserted, and the upsert is asserted as the statement the
 //! handler issued.
 
 use axum::body::{Body, to_bytes};
@@ -17,7 +17,6 @@ use pattern::place::{
     NearbyPlacesReply, NearbyPlacesRequest, PlaceError, UpsertPlaceReply, UpsertPlaceRequest,
 };
 
-/// A `places` row as the nearby query maps it.
 fn place_row(id: &str, name: &str, lat: f64, lon: f64) -> Row {
     let field = |name: &str, value: DataType| Field {
         name: name.to_string(),
@@ -34,17 +33,8 @@ fn place_row(id: &str, name: &str, lat: f64, lon: f64) -> Row {
     }
 }
 
-/// Upserts succeed; the bounding-box query returns `candidates`.
-fn provider(candidates: Vec<Row>) -> Provider {
-    Provider::default().tables(
-        ScriptedTables::default()
-            .on_exec(|sql, params| sql.starts_with("INSERT") && params.len() == 4, 1)
-            .on_query(|sql, params| sql.starts_with("SELECT") && params.len() == 4, candidates),
-    )
-}
-
-/// The four bounds of a `SELECT`, in the order the handler binds them:
-/// `lat >=`, `lat <=`, `lon >=`, `lon <=`.
+// The handler binds the bounds in this order: `lat >=`, `lat <=`, `lon >=`,
+// `lon <=`.
 fn bounds(statement: &Statement) -> [f64; 4] {
     let [
         DataType::Double(Some(lat_min)),
@@ -58,7 +48,6 @@ fn bounds(statement: &Statement) -> [f64; 4] {
     [*lat_min, *lat_max, *lon_min, *lon_max]
 }
 
-/// The id of an upsert statement, its first bound parameter.
 fn upserted_id(statement: &Statement) -> Option<&str> {
     match statement.params.first() {
         Some(DataType::Str(Some(id))) if statement.sql.starts_with("INSERT") => Some(id),
@@ -72,7 +61,9 @@ async fn send(provider: &Provider, request: Request<Body>) -> (StatusCode, Vec<u
     (response.status(), response.into_body().to_vec())
 }
 
-async fn upsert(provider: &Provider, id: &str, name: &str, lat: f64, lon: f64) {
+async fn upsert(
+    provider: &Provider, id: &str, name: &str, lat: f64, lon: f64,
+) -> (StatusCode, Vec<u8>) {
     let payload = UpsertPlaceRequest {
         id: id.to_string(),
         name: name.to_string(),
@@ -83,10 +74,7 @@ async fn upsert(provider: &Provider, id: &str, name: &str, lat: f64, lon: f64) {
         .header(CONTENT_TYPE, "application/json")
         .body(Body::from(serde_json::to_vec(&payload).expect("serialize")))
         .expect("request");
-    let (status, body) = send(provider, request).await;
-    assert_eq!(status, StatusCode::OK);
-    let reply: UpsertPlaceReply = serde_json::from_slice(&body).expect("reply");
-    assert_eq!(reply.affected, 1);
+    send(provider, request).await
 }
 
 async fn nearby(provider: &Provider, lat: f64, lon: f64, radius_m: f64) -> NearbyPlacesReply {
@@ -102,68 +90,61 @@ async fn nearby(provider: &Provider, lat: f64, lon: f64, radius_m: f64) -> Nearb
 
 #[tokio::test]
 async fn radius() {
-    let provider = provider(vec![
-        place_row("airport", "Airport", -37.0082, 174.7850), // ~18 km away
-        place_row("ferry", "Ferry Terminal", -36.8429, 174.7668), // ~700 m away
-        place_row("cbd", "City Centre", -36.8485, 174.7633),
-    ]);
+    const CORNER: (f64, f64) = (-36.8335, 174.7813);
+    let provider = Provider::default().tables(ScriptedTables::default().on_query(
+        |sql, params| sql.starts_with("SELECT") && params.len() == 4,
+        vec![
+            // ~2.3 km to the north-east: inside the 2 km bounding box but
+            // outside the true radius.
+            place_row("corner", "Corner", CORNER.0, CORNER.1),
+            place_row("ferry", "Ferry Terminal", -36.8429, 174.7668), // ~700 m away
+            place_row("cbd", "City Centre", -36.8485, 174.7633),
+        ],
+    ));
 
     let reply = nearby(&provider, -36.8485, 174.7633, 2_000.0).await;
 
     let ids: Vec<&str> = reply.places.iter().map(|found| found.place.id.as_str()).collect();
-    assert_eq!(ids, ["cbd", "ferry"]);
+    assert_eq!(ids, ["cbd", "ferry"], "haversine refinement should drop the box corner");
     assert!(reply.places[0].distance_m < 1.0);
     assert!((500.0..2_000.0).contains(&reply.places[1].distance_m));
 
-    // The box the database was asked for brackets the centre on both axes.
+    // The box the database was asked for brackets the centre on both axes
+    // and reaches the corner, so only Rust dropped it.
     let statements = provider.tables.statements();
     assert_eq!(statements.len(), 1);
     assert_eq!(statements[0].connection, "db");
     let [lat_min, lat_max, lon_min, lon_max] = bounds(&statements[0]);
     assert!(lat_min < -36.8485 && -36.8485 < lat_max);
     assert!(lon_min < 174.7633 && 174.7633 < lon_max);
+    assert!((lat_min..=lat_max).contains(&CORNER.0) && (lon_min..=lon_max).contains(&CORNER.1));
 }
 
 #[tokio::test]
-async fn bounding_box() {
-    let provider = provider(vec![
-        // ~557 m due north: inside the radius.
-        place_row("near", "Near", 0.005, 0.0),
-        // ~1,259 m to the north-east corner: inside the 1 km *bounding box*
-        // (which spans ~0.009 degrees each way) but outside the true radius.
-        place_row("corner", "Corner", 0.008, 0.008),
-    ]);
+async fn upserts() {
+    let provider = Provider::default().tables(
+        ScriptedTables::default()
+            .on_exec(|sql, params| sql.starts_with("INSERT") && params.len() == 4, 1),
+    );
 
-    let reply = nearby(&provider, 0.0, 0.0, 1_000.0).await;
+    let (status, body) = upsert(&provider, "cbd", "City Centre", -36.8485, 174.7633).await;
+    assert_eq!(status, StatusCode::OK);
+    let reply: UpsertPlaceReply = serde_json::from_slice(&body).expect("reply");
+    assert_eq!(reply.affected, 1);
 
-    let ids: Vec<&str> = reply.places.iter().map(|found| found.place.id.as_str()).collect();
-    assert_eq!(ids, ["near"], "haversine refinement should drop the box corner");
-
-    // The corner is inside the box the handler asked for; only Rust dropped it.
-    let [lat_min, lat_max, lon_min, lon_max] = bounds(&provider.tables.statements()[0]);
-    assert!((lat_min..=lat_max).contains(&0.008) && (lon_min..=lon_max).contains(&0.008));
-}
-
-#[tokio::test]
-async fn upsert_out_of_range() {
-    let provider = provider(vec![]);
-
-    let payload = UpsertPlaceRequest {
-        id: "bad".to_string(),
-        name: "Nowhere".to_string(),
-        lat: 123.4,
-        lon: 0.0,
+    // The write is the conflict-updating statement, keyed on the id.
+    let statements = provider.tables.statements();
+    let [statement] = statements.as_slice() else {
+        panic!("expected one upsert, got {statements:?}");
     };
-    let request = Request::post("/examples/patterns/places")
-        .header(CONTENT_TYPE, "application/json")
-        .body(Body::from(serde_json::to_vec(&payload).expect("serialize")))
-        .expect("request");
-    let (status, bytes) = send(&provider, request).await;
-    assert!(provider.tables.statements().is_empty(), "rejected row must not reach the store");
+    assert!(statement.sql.contains("ON CONFLICT"), "{}", statement.sql);
+    assert_eq!(upserted_id(statement), Some("cbd"));
+    assert!(matches!(&statement.params[1], DataType::Str(Some(name)) if name == "City Centre"));
 
-    // The response the HTTP route puts on the wire via `PlaceError`'s
-    // `IntoResponse`: omnia's `ErrorBody` envelope (`error`, `message`) plus
-    // the variant's domain fields.
+    // An out-of-range coordinate is the structured 400: omnia's `ErrorBody`
+    // envelope plus the variant's domain fields, with nothing written.
+    let (status, bytes) = upsert(&provider, "bad", "Nowhere", 123.4, 0.0).await;
+    assert_eq!(provider.tables.statements().len(), 1, "rejected row must not reach the store");
     assert_eq!(status, StatusCode::BAD_REQUEST);
     let body: serde_json::Value = serde_json::from_slice(&bytes).expect("body is JSON");
     assert_eq!(
@@ -179,20 +160,17 @@ async fn upsert_out_of_range() {
     );
 }
 
-/// A storage failure is exactly the framework envelope: its `Display` text
-/// travels as `message`, never as a leaked `description` field.
+// Exact equality pins that no `description` field leaks beside `message`.
 #[tokio::test]
 async fn storage_error_body() {
     let error = PlaceError::from(anyhow::anyhow!("connection refused").context("executing upsert"));
     let message = error.to_string();
-    assert_eq!(message, "executing upsert: connection refused");
 
     let (status, body) = wire(error).await;
     assert_eq!(status, StatusCode::INTERNAL_SERVER_ERROR);
     assert_eq!(body, serde_json::json!({ "error": "storage", "message": message }));
 }
 
-/// Render the error as the HTTP route would and decode its JSON body.
 async fn wire(error: PlaceError) -> (StatusCode, serde_json::Value) {
     let response = error.into_response();
     assert_eq!(
@@ -202,29 +180,4 @@ async fn wire(error: PlaceError) -> (StatusCode, serde_json::Value) {
     let status = response.status();
     let bytes = to_bytes(response.into_body(), usize::MAX).await.expect("body collects");
     (status, serde_json::from_slice(&bytes).expect("body is JSON"))
-}
-
-#[tokio::test]
-async fn conflicting_upsert() {
-    let provider = provider(vec![]);
-
-    upsert(&provider, "cbd", "City Centre", -36.8485, 174.7633).await;
-    upsert(&provider, "cbd", "Downtown", -36.8486, 174.7634).await;
-
-    // Both writes are the same conflict-updating statement on the same id,
-    // so the store keeps one row and the second write wins.
-    let statements = provider.tables.statements();
-    assert_eq!(statements.len(), 2);
-    assert_eq!(statements[0].sql, statements[1].sql);
-    assert!(statements[0].sql.contains("ON CONFLICT"), "{}", statements[0].sql);
-    assert_eq!(upserted_id(&statements[0]), Some("cbd"));
-    assert_eq!(upserted_id(&statements[1]), Some("cbd"));
-    assert!(matches!(&statements[1].params[1], DataType::Str(Some(name)) if name == "Downtown"));
-}
-
-#[tokio::test]
-async fn nearby_body() {
-    let provider = provider(vec![]);
-    let reply = nearby(&provider, -36.8485, 174.7633, 1_000.0).await;
-    assert!(reply.places.is_empty());
 }

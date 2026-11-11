@@ -1,11 +1,10 @@
-//! Consuming XML dispatch notices through `route_with`.
+//! Consuming XML dispatch notices through `topic_with`.
 
 use omnia_sdk::api::Client;
-use omnia_sdk::api::messaging::DeliveryError;
 use omnia_test::guest::{Provider, deliver};
 
 #[tokio::test]
-async fn records_carrier_from_xml() {
+async fn xml_notice() {
     let provider = Provider::default();
     let router = orders::handlers().with_state(Client::new(provider.clone()));
 
@@ -21,17 +20,4 @@ async fn records_carrier_from_xml() {
         provider.storage.state("orders/dispatched/ord-7").as_deref(),
         Some(b"NZP".as_slice())
     );
-}
-
-#[tokio::test]
-async fn rejects_malformed_xml() {
-    let provider = Provider::default();
-    let router = orders::handlers().with_state(Client::new(provider.clone()));
-
-    let error = deliver(&router, "order-dispatched", b"<Dispatched><unclosed>")
-        .await
-        .expect_err("malformed XML rejected");
-
-    assert!(matches!(error, DeliveryError::Rejected(_)), "{error}");
-    assert!(provider.storage.is_empty());
 }

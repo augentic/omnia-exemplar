@@ -6,9 +6,17 @@ use axum::http::{Request, Response, StatusCode};
 use common::topic;
 use omnia_sdk::api::Client;
 use omnia_test::guest::{Provider, send};
-use pulse_connector::handler::PulseRequest;
 
 const RECEIVE_MESSAGE: &[u8] = include_bytes!("../data/receive-message.xml");
+
+const NO_TRAIN_UPDATE: &[u8] = br#"<?xml version="1.0" encoding="utf-8"?>
+    <soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+      <soap:Body>
+        <ReceiveMessage>
+          <AXMLMessage>not a train update</AXMLMessage>
+        </ReceiveMessage>
+      </soap:Body>
+    </soap:Envelope>"#;
 
 async fn post(provider: Provider, body: &'static [u8]) -> Response<Bytes> {
     let request = Request::post("/inbound/xml")
@@ -27,9 +35,6 @@ fn content_type(response: &Response<Bytes>) -> &str {
 async fn train_update() {
     let provider = Provider::default();
 
-    let request = PulseRequest::from_xml(RECEIVE_MESSAGE).expect("should deserialize");
-    let expected_payload = request.body.receive_message.axml_message;
-
     let response = post(provider.clone(), RECEIVE_MESSAGE).await;
 
     // the connector acknowledges in the vendor's XML shape
@@ -38,53 +43,43 @@ async fn train_update() {
     let reply_xml = response.into_body();
     assert_eq!(reply_xml.as_ref(), b"<Return>OK</Return>");
 
-    // the embedded train update is forwarded verbatim
+    // the fixture's CDATA train update is forwarded verbatim
+    let fixture = std::str::from_utf8(RECEIVE_MESSAGE).expect("fixture is UTF-8");
+    let (_, cdata) = fixture.split_once("<![CDATA[").expect("fixture opens a CDATA section");
+    let (expected, _) = cdata.split_once("]]>").expect("fixture closes the CDATA section");
+
     let published = provider.publish.sent();
     assert_eq!(published.len(), 1);
 
     let (topic, record) = &published[0];
     assert_eq!(topic, topic::PULSE);
-    assert_eq!(record.payload, expected_payload.as_bytes());
+    let forwarded = std::str::from_utf8(&record.payload).expect("forwarded payload is UTF-8");
+    assert!(forwarded.contains("<ActualizarDatosTren>"), "{forwarded}");
+    assert_eq!(forwarded.trim(), expected.trim());
 }
 
 #[tokio::test]
-async fn without_train_update() {
+async fn bad_requests() {
     let provider = Provider::default();
 
-    let xml = br#"<?xml version="1.0" encoding="utf-8"?>
-        <soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
-          <soap:Body>
-            <ReceiveMessage>
-              <AXMLMessage>not a train update</AXMLMessage>
-            </ReceiveMessage>
-          </soap:Body>
-        </soap:Envelope>"#;
+    // parsing happens inside the handler, so an unparseable body is answered
+    // with the same SOAP fault as a parsed one, not an extractor's plain-text
+    // 400
+    for body in [NO_TRAIN_UPDATE, b"not xml at all".as_slice()] {
+        let request = String::from_utf8_lossy(body);
+        let response = post(provider.clone(), body).await;
 
-    let response = post(provider.clone(), xml).await;
-
-    // the rejection is the vendor's SOAP fault envelope
-    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
-    assert!(content_type(&response).starts_with("text/xml"), "{:?}", content_type(&response));
-    let body = response.into_body();
-    assert_eq!(
-        body.as_ref(),
-        b"<Fault><StatusCode>400</StatusCode><Response><Message>Bad Request</Message></Response></Fault>"
-    );
-    assert!(provider.publish.sent().is_empty());
-}
-
-#[tokio::test]
-async fn malformed_envelope() {
-    let provider = Provider::default();
-
-    // parsing happens inside the handler, so even an unparseable body is
-    // answered with the vendor's SOAP fault rather than an extractor's
-    // plain-text 400
-    let response = post(provider.clone(), b"not xml at all").await;
-
-    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
-    assert!(content_type(&response).starts_with("text/xml"), "{:?}", content_type(&response));
-    let body = response.into_body();
-    assert!(String::from_utf8_lossy(&body).contains("<Fault>"));
-    assert!(provider.publish.sent().is_empty());
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST, "{request}");
+        assert!(
+            content_type(&response).starts_with("text/xml"),
+            "{request}: {:?}",
+            content_type(&response)
+        );
+        assert_eq!(
+            response.into_body().as_ref(),
+            b"<Fault><StatusCode>400</StatusCode><Response><Message>Bad Request</Message></Response></Fault>",
+            "{request}"
+        );
+        assert!(provider.publish.sent().is_empty(), "{request}");
+    }
 }

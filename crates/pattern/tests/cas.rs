@@ -33,7 +33,7 @@ async fn put_quota(
 }
 
 #[tokio::test]
-async fn create_then_update_quota() {
+async fn stale_version() {
     let provider = Provider::default();
 
     let (status, body) = put_quota(&provider, "metro", 0, 1_000).await;
@@ -59,19 +59,8 @@ async fn create_then_update_quota() {
             limit: 2_500,
         }
     );
-}
 
-#[tokio::test]
-async fn stale_version() {
-    let provider = Provider::default();
-    let (status, _) = put_quota(&provider, "metro", 0, 1_000).await;
-    assert_eq!(status, StatusCode::OK);
-
-    // A second writer advances the record to version 2…
-    let (status, _) = put_quota(&provider, "metro", 1, 2_000).await;
-    assert_eq!(status, StatusCode::OK);
-
-    // …so a caller still holding version 1 is rejected with 409 Conflict
+    // A caller still holding version 1 is rejected with 409 Conflict
     // carrying the stored version to retry with.
     let (status, body) = put_quota(&provider, "metro", 1, 1_500).await;
     assert_eq!(status, StatusCode::CONFLICT);

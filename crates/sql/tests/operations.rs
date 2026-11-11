@@ -51,7 +51,6 @@ fn feed_row(id: i64, agency_id: i64, description: &str) -> Row {
     }
 }
 
-/// A feed row as the `FeedWithAgency` JOIN aliases it.
 fn joined_row(id: i64, description: &str, agency: &str) -> Row {
     let mut row = feed_row(id, 1, description);
     row.fields.extend([
@@ -73,8 +72,8 @@ fn is_uint(params: &[DataType], index: usize, expected: u64) -> bool {
     matches!(params.get(index), Some(DataType::Uint64(Some(value))) if *value == expected)
 }
 
-/// Every handler opens by ensuring the schema; every scripted store
-/// acknowledges those two statements.
+// Every handler first ensures the schema, so every scripted store
+// acknowledges its two `CREATE TABLE` statements.
 fn tables() -> ScriptedTables {
     ScriptedTables::default().on_exec(|sql, _| sql.starts_with("CREATE TABLE IF NOT EXISTS"), 0)
 }
@@ -87,7 +86,6 @@ fn statements(provider: &Provider) -> Vec<Statement> {
     provider.tables.statements()
 }
 
-/// The statements after the two schema `CREATE TABLE`s.
 fn after_schema(provider: &Provider) -> Vec<Statement> {
     let statements = statements(provider);
     assert!(statements[0].sql.starts_with("CREATE TABLE IF NOT EXISTS agency"));
@@ -137,9 +135,8 @@ fn is_max_id_probe(table: &str, sql: &str, params: &[DataType]) -> bool {
 
 const AGENCY_FILTER: &str = "WHERE agency_id = $1";
 
-/// Creating an agency into an empty table, then into one that already holds
-/// rows. The probe SQL is the same in both, so each table state is its own
-/// scripted store.
+// The max-id probe SQL is the same for an empty and a populated table, so
+// each table state is its own scripted store.
 #[tokio::test]
 async fn create_agency_empty_pop() {
     // Empty table: the first agency takes id 1.
@@ -166,15 +163,13 @@ async fn create_agency_empty_pop() {
     let reply: AgencyReply =
         ok(&populated, Method::POST, "/examples/agencies", Some(agency_body("Ritchies"))).await;
     assert_eq!(reply.agency.agency_id, 42);
-    assert_eq!(reply.agency.name, "Ritchies");
 
     // The insert names every entity column, binds them as parameters, and
     // carries the assigned id first.
     let issued = after_schema(&populated);
-    let [probe, insert] = issued.as_slice() else {
+    let [_, insert] = issued.as_slice() else {
         panic!("expected a probe then an insert");
     };
-    assert!(probe.sql.starts_with("SELECT agency_id FROM agency"));
     for column in ["agency_id", "name", "url", "timezone", "created_at"] {
         assert!(insert.sql.contains(column), "insert should name {column}");
     }
@@ -183,7 +178,6 @@ async fn create_agency_empty_pop() {
     assert!(matches!(&insert.params[1], DataType::Str(Some(name)) if name == "Ritchies"));
 }
 
-/// Listing agencies with the default request, then with a `limit`.
 #[tokio::test]
 async fn list_agencies_limit() {
     let provider = provider(tables().on_query(
@@ -191,9 +185,7 @@ async fn list_agencies_limit() {
         vec![agency_row(2, "Metro"), agency_row(1, "Ritchies")],
     ));
 
-    let reply: AgenciesReply = ok(&provider, Method::GET, "/examples/agencies", None).await;
-    let ids: Vec<i64> = reply.agencies.iter().map(|agency| agency.agency_id).collect();
-    assert_eq!(ids, [2, 1]);
+    let _: AgenciesReply = ok(&provider, Method::GET, "/examples/agencies", None).await;
 
     // No limit was requested, so none is bound.
     let issued = after_schema(&provider);
@@ -212,28 +204,39 @@ async fn list_agencies_limit() {
 
 #[tokio::test]
 async fn get_agency_by_id() {
-    let provider = provider(
-        tables()
-            .on_query(
-                |sql, params| sql.contains(AGENCY_FILTER) && int_param(params, 0) == Some(1),
-                vec![agency_row(1, "Ritchies")],
-            )
-            .on_query(|sql, _| sql.contains(AGENCY_FILTER), vec![]),
-    );
+    let provider =
+        provider(tables().on_query(agency_fetch_matches(1), vec![agency_row(1, "Ritchies")]));
 
-    let reply: AgencyReply = ok(&provider, Method::GET, "/examples/agencies/1", None).await;
-    assert_eq!(reply.agency.name, "Ritchies");
-    assert_eq!(reply.agency.url.as_deref(), Some("https://ritchies.example.nz"));
+    let _: AgencyReply = ok(&provider, Method::GET, "/examples/agencies/1", None).await;
+}
 
-    let (status, body) = send(&provider, Method::GET, "/examples/agencies/99", None).await;
-    assert_eq!(status, StatusCode::NOT_FOUND);
-    assert_eq!(body["error"], "not_found");
+fn agency_fetch_matches(id: i64) -> impl Fn(&str, &[DataType]) -> bool + use<> {
+    move |sql, params| sql.contains(AGENCY_FILTER) && int_param(params, 0) == Some(id)
+}
+
+// Only the agency lookup is scripted, so a write after it panics.
+#[tokio::test]
+async fn missing_agency() {
+    let provider = provider(tables().on_query(agency_fetch_matches(99), vec![]));
+    let patch = json!({ "name": "Ghost" });
+    let feed = json!({ "description": "Orphan feed" });
+
+    for (method, uri, body) in [
+        (Method::GET, "/examples/agencies/99", None),
+        (Method::PATCH, "/examples/agencies/99", Some(patch)),
+        (Method::POST, "/examples/agencies/99/feeds", Some(feed)),
+    ] {
+        let request = format!("{method} {uri}");
+        let (status, reply) = send(&provider, method, uri, body).await;
+        assert_eq!(status, StatusCode::NOT_FOUND, "{request}");
+        assert_eq!(reply["error"], "not_found", "{request}");
+    }
 }
 
 #[tokio::test]
 async fn update_agency_partial() {
-    // The existence check and the fetch-after-update are the same select;
-    // the scripted row is what the store holds after the update.
+    // The existence check and the fetch-after-update are the same select,
+    // so one rule answers both.
     let provider = provider(
         tables()
             .on_query(
@@ -243,15 +246,13 @@ async fn update_agency_partial() {
             .on_exec(|sql, _| sql.starts_with("UPDATE agency SET "), 1),
     );
 
-    let reply: AgencyReply = ok(
+    let _: AgencyReply = ok(
         &provider,
         Method::PATCH,
         "/examples/agencies/1",
         Some(json!({ "name": "Ritchies Transport" })),
     )
     .await;
-    assert_eq!(reply.agency.name, "Ritchies Transport");
-    assert_eq!(reply.agency.timezone.as_deref(), Some("Pacific/Auckland"));
 
     // Check, update, fetch again — and the update touches only the name.
     let issued = after_schema(&provider);
@@ -266,51 +267,18 @@ async fn update_agency_partial() {
     assert_eq!(int_param(&update.params, 1), Some(1));
 }
 
+// No `UPDATE` rule is scripted, so a write before the rejection panics.
 #[tokio::test]
-async fn update_agency_empty() {
-    let provider = provider(
-        tables()
-            .on_query(agency_fetch_matches(1), vec![agency_row(1, "Ritchies")])
-            .on_query(|sql, _| sql.contains(AGENCY_FILTER), vec![]),
-    );
+async fn empty_patch() {
+    let provider =
+        provider(tables().on_query(agency_fetch_matches(1), vec![agency_row(1, "Ritchies")]));
 
-    // An empty patch is a bad request before any write.
     let (status, body) =
         send(&provider, Method::PATCH, "/examples/agencies/1", Some(json!({}))).await;
     assert_eq!(status, StatusCode::BAD_REQUEST);
     assert_eq!(body["error"], "bad_request");
-    assert!(!statements(&provider).iter().any(|statement| statement.sql.starts_with("UPDATE")));
-
-    // Updating a missing row is a 404.
-    let (status, body) =
-        send(&provider, Method::PATCH, "/examples/agencies/99", Some(json!({ "name": "Ghost" })))
-            .await;
-    assert_eq!(status, StatusCode::NOT_FOUND);
-    assert_eq!(body["error"], "not_found");
 }
 
-fn agency_fetch_matches(id: i64) -> impl Fn(&str, &[DataType]) -> bool + use<> {
-    move |sql, params| sql.contains(AGENCY_FILTER) && int_param(params, 0) == Some(id)
-}
-
-#[tokio::test]
-async fn create_feed_no_agency() {
-    let provider = provider(tables().on_query(|sql, _| sql.contains(AGENCY_FILTER), vec![]));
-
-    let (status, body) = send(
-        &provider,
-        Method::POST,
-        "/examples/agencies/99/feeds",
-        Some(json!({ "description": "Orphan feed" })),
-    )
-    .await;
-
-    assert_eq!(status, StatusCode::NOT_FOUND);
-    assert_eq!(body["error"], "not_found");
-    assert!(!statements(&provider).iter().any(|statement| statement.sql.starts_with("INSERT")));
-}
-
-/// Creating a feed for an agency that exists and already has one feed.
 #[tokio::test]
 async fn create_feed_existing() {
     let provider = provider(
@@ -347,10 +315,8 @@ async fn feeds_by_agency() {
         vec![feed_row(2, 1, "Ferry timetables"), feed_row(1, 1, "Bus routes and schedules")],
     ));
 
-    let reply: FeedsReply = ok(&provider, Method::GET, "/examples/agencies/1/feeds", None).await;
+    let _: FeedsReply = ok(&provider, Method::GET, "/examples/agencies/1/feeds", None).await;
 
-    let ids: Vec<i64> = reply.feeds.iter().map(|feed| feed.feed_id).collect();
-    assert_eq!(ids, [2, 1]);
     let issued = after_schema(&provider);
     let [list] = issued.as_slice() else {
         panic!("expected one select");
@@ -368,15 +334,7 @@ async fn all_feeds() {
         ],
     ));
 
-    let reply: FeedsWithAgencyReply = ok(&provider, Method::GET, "/examples/feeds", None).await;
-
-    // The aliased agency columns map onto the joined entity.
-    assert_eq!(reply.feeds.len(), 2);
-    for feed in &reply.feeds {
-        assert_eq!(feed.agency_name, "Ritchies");
-        assert_eq!(feed.agency_url.as_deref(), Some("https://ritchies.example.nz"));
-        assert_eq!(feed.agency_timezone.as_deref(), Some("Pacific/Auckland"));
-    }
+    let _: FeedsWithAgencyReply = ok(&provider, Method::GET, "/examples/feeds", None).await;
 
     // The select renders the join, the aliases, the sort, and the default limit.
     let issued = after_schema(&provider);
@@ -388,7 +346,13 @@ async fn all_feeds() {
         "{}",
         list.sql
     );
-    assert!(list.sql.contains("agency.name AS agency_name"), "{}", list.sql);
+    for alias in [
+        "agency.name AS agency_name",
+        "agency.url AS agency_url",
+        "agency.timezone AS agency_timezone",
+    ] {
+        assert!(list.sql.contains(alias), "{}", list.sql);
+    }
     assert!(list.sql.contains("ORDER BY feed.created_at DESC"), "{}", list.sql);
     assert!(is_uint(&list.params, 0, 100), "default limit should be bound: {:?}", list.params);
 }

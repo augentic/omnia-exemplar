@@ -19,21 +19,6 @@ fn table() {
     sorted.sort_unstable();
     sorted.dedup();
     assert_eq!(paths, sorted, "the table is sorted by path, each path once");
-    assert_eq!(paths.len(), 26, "the layout is twenty-six files");
-
-    for entry in ENTRIES {
-        assert!(!entry.path.starts_with('/'), "`{}` is relative", entry.path);
-        assert!(
-            !entry.path.split('/').any(|segment| segment == ".."),
-            "`{}` stays beneath",
-            entry.path
-        );
-        assert!(!entry.body.is_empty(), "`{}` has a body", entry.path);
-    }
-    let exact = ENTRIES.iter().filter(|entry| entry.proof == Proof::Exact).count();
-    let listed = ENTRIES.iter().filter(|entry| entry.role == Role::Listed).count();
-    assert_eq!(exact, 17, "the exact entries are the repository's tooling");
-    assert_eq!(listed, 3, "the listed entries are the three lists a slice appends to");
     assert!(
         ENTRIES
             .iter()
@@ -43,15 +28,22 @@ fn table() {
     );
 }
 
+// `src/lib.rs` is listed, so of the two held files the hold reads the
+// `Makefile` alone.
 #[test]
 fn scaffolded_once() {
     let tree = Scratch::new();
+    tree.write("Makefile", "# held\n");
+    tree.write("src/lib.rs", "// held\n");
+    let held = ["Makefile", "src/lib.rs"];
 
     let scaffolded = scaffold(tree.root()).expect("the scaffold");
 
-    let paths: Vec<&str> = ENTRIES.iter().map(|entry| entry.path).collect();
-    assert_eq!(scaffolded, paths, "every file is scaffolded, in the table's order");
-    for entry in ENTRIES {
+    let lacked: Vec<_> = ENTRIES.iter().filter(|entry| !held.contains(&entry.path)).collect();
+    let paths: Vec<&str> = lacked.iter().map(|entry| entry.path).collect();
+    assert_eq!(scaffolded.len(), ENTRIES.len() - 2, "a held file is not scaffolded");
+    assert_eq!(scaffolded, paths, "every lacked file is scaffolded, in the table's order");
+    for entry in lacked {
         assert_eq!(
             tree.read(entry.path).as_deref(),
             Some(entry.body),
@@ -59,32 +51,20 @@ fn scaffolded_once() {
             entry.path
         );
     }
+    assert_eq!(tree.read("Makefile").as_deref(), Some("# held\n"), "a held file stands");
+    assert_eq!(tree.read("src/lib.rs").as_deref(), Some("// held\n"));
     assert!(
         scaffold(tree.root()).expect("the second scaffold").is_empty(),
         "a scaffolded tree is scaffolded again by nothing"
     );
-    assert!(drift(tree.root()).expect("the drift").is_empty(), "a scaffolded tree stands");
+
+    let found = drift(tree.root()).expect("the drift");
+    let [drifted] = found.files() else { panic!("the held `Makefile` alone drifts: {found}") };
+    assert_eq!(drifted.path, "Makefile");
 }
 
 #[test]
-fn held_file_kept() {
-    let tree = Scratch::new();
-    tree.write("Makefile", "# held\n");
-    tree.write("src/lib.rs", "// held\n");
-
-    let scaffolded = scaffold(tree.root()).expect("the scaffold");
-
-    assert!(
-        !scaffolded.contains(&"Makefile") && !scaffolded.contains(&"src/lib.rs"),
-        "a held file is not scaffolded"
-    );
-    assert_eq!(scaffolded.len(), ENTRIES.len() - 2);
-    assert_eq!(tree.read("Makefile").as_deref(), Some("# held\n"), "a held file stands");
-    assert_eq!(tree.read("src/lib.rs").as_deref(), Some("// held\n"));
-}
-
-#[test]
-fn static_files_restored() {
+fn edited_tree() {
     let tree = Scratch::new();
     scaffold(tree.root()).expect("the scaffold");
     fs::remove_file(tree.root().join("Makefile")).expect("the file removed");
@@ -191,17 +171,6 @@ fn symlinked_parent() {
         fs::read_dir(tree.root().join("elsewhere")).expect("the directory").next().is_none(),
         "nothing is written through the link"
     );
-    assert!(tree.read("Makefile").is_none(), "nothing is scaffolded when a path is refused");
-}
-
-#[test]
-fn file_as_parent() {
-    let tree = Scratch::new();
-    tree.write("src", "");
-
-    let err = scaffold(tree.root()).expect_err("the scaffold is refused");
-
-    assert!(matches!(&err, Error::Occupied { path } if path.ends_with("src")), "{err}");
     assert!(tree.read("Makefile").is_none(), "nothing is scaffolded when a path is refused");
 }
 

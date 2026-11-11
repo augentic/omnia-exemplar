@@ -110,8 +110,9 @@ Two things to note:
 
 The crate-level tests (`tests/`) drive every route through `pattern::handlers()`
 over a mock provider that *records* outbound HTTP requests and SQL statements
-as well as answering them. Tests assert on the request shape — method, path,
-and the `Client-Cert` or `Authorization` header — and on the exact number of
-calls, which is how the cache tests prove a hit never reaches HTTP. Recording
+as well as answering them. `MatchedHttp` answers only the exact method and
+URL a test seeds, so the tests assert on the `Client-Cert` or
+`Authorization` header and on the exact number of calls, which is how the
+cache tests prove a hit never reaches HTTP. Recording
 in the capability mock is the cheapest way to verify *what left the guest*
 without a real network.

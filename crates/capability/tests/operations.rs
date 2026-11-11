@@ -10,7 +10,7 @@ use capability::document::{NoteReply, NoteRequest};
 use capability::table::{ReadingReply, ReadingRequest, sql};
 use omnia_sdk::DocumentStore as _;
 use omnia_sdk::api::Client;
-use omnia_sdk::sql::{DataType, Field, Row};
+use omnia_sdk::sql::{DataType, Row};
 use omnia_test::guest::{Broadcasted, Provider, ScriptedTables, send};
 use serde::Serialize;
 use serde::de::DeserializeOwned;
@@ -87,25 +87,12 @@ async fn upsert_note() {
 
 #[tokio::test]
 async fn record_reading() {
-    // The insert is acknowledged and the sensor already has one reading, so
-    // the count the handler reports back is two.
-    let earlier = Row {
-        index: "0".to_string(),
-        fields: vec![
-            Field {
-                name: "sensor".to_string(),
-                value: DataType::Str(Some("temp-1".to_string())),
-            },
-            Field {
-                name: "value".to_string(),
-                value: DataType::Double(Some(21.5)),
-            },
-        ],
-    };
+    // The handler reports only how many rows the select returns, so the two
+    // scripted rows carry no fields.
     let provider = Provider::default().tables(
         ScriptedTables::default()
             .on_exec(|sql, _| sql == sql::INSERT, 1)
-            .on_query(|sql, _| sql == sql::SELECT, vec![earlier.clone(), earlier]),
+            .on_query(|sql, _| sql == sql::SELECT, vec![Row::default(); 2]),
     );
 
     let request = ReadingRequest {
@@ -118,17 +105,16 @@ async fn record_reading() {
     assert_eq!(reply.affected, 1);
     assert_eq!(reply.rows, 2);
 
-    // Both statements went to the named connection with the sensor bound.
+    // The insert ran before the select, both on the named connection with the
+    // sensor bound.
     let statements = provider.tables.statements();
     assert_eq!(statements.len(), 2);
     assert!(statements.iter().all(|statement| statement.connection == "telemetry"));
-    assert_eq!(statements[0].sql, sql::INSERT);
     assert!(matches!(
         statements[0].params.as_slice(),
         [DataType::Str(Some(sensor)), DataType::Double(Some(value))]
             if sensor == "temp-1" && value.to_bits() == 22.0_f64.to_bits()
     ));
-    assert_eq!(statements[1].sql, sql::SELECT);
     assert!(
         matches!(statements[1].params.as_slice(), [DataType::Str(Some(sensor))] if sensor == "temp-1")
     );

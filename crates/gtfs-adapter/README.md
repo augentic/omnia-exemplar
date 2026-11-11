@@ -26,5 +26,6 @@ key catalog.
   seeds the provider and declares the exact upstream URLs each test seeds
   on `MatchedHttp`), covering vehicle positions, dead reckoning, sign-on, tag
   filtering, occupancy status, and vehicle info.
-- `tests/god_mode.rs` — the feature-gated override, disabled and enabled
-  (run with `--features god-mode`).
+- `tests/god_mode.rs` — the feature-gated override: refused when disabled,
+  and, when enabled, applied to the next sign-on (run with
+  `--features god-mode`).
