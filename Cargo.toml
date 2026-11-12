@@ -23,16 +23,16 @@ god-mode = ["gtfs-adapter/god-mode"]
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-capability = { path = "crates/capability" }
+capability.workspace = true
 common.workspace = true
-docstore = { path = "crates/docstore" }
-gtfs-adapter = { path = "crates/gtfs-adapter" }
+docstore.workspace = true
+gtfs-adapter.workspace = true
 omnia-sdk.workspace = true
-pattern = { path = "crates/pattern" }
-pulse-adapter = { path = "crates/pulse-adapter" }
-pulse-connector = { path = "crates/pulse-connector" }
-sql = { path = "crates/sql" }
-tally-connector = { path = "crates/tally-connector" }
+pattern.workspace = true
+pulse-adapter.workspace = true
+pulse-connector.workspace = true
+sql.workspace = true
+tally-connector.workspace = true
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 anyhow.workspace = true
@@ -154,7 +154,16 @@ omnia-wasi-websocket = "0.38.0"
 
 omnia-http-cache = "0.36.0"
 
+capability = { path = "crates/capability" }
 common = { path = "crates/common" }
+docstore = { path = "crates/docstore" }
+gtfs-adapter = { path = "crates/gtfs-adapter" }
+omnia-template = { path = "templates/guest" }
+pattern = { path = "crates/pattern" }
+pulse-adapter = { path = "crates/pulse-adapter" }
+pulse-connector = { path = "crates/pulse-connector" }
+sql = { path = "crates/sql" }
+tally-connector = { path = "crates/tally-connector" }
 
 [patch.crates-io]
 omnia = { git = "https://github.com/augentic/omnia" }

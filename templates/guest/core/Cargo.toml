@@ -130,7 +130,7 @@ omnia-wasi-sql = "0.38.0"
 omnia-wasi-websocket = "0.38.0"
 
 omnia-http-cache = "0.36.0"
-common = { path = "crates/common" }
+common.workspace = true
 
 [patch.crates-io]
 omnia = { git = "https://github.com/augentic/omnia" }
