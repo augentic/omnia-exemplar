@@ -1,6 +1,6 @@
 [package]
 name = "docstore"
-description = "Rich wasi:docstore showcase: GTFS-like collections exercising every portable filter type, sorting, and continuation pagination"
+description = "Rich wasi:docstore showcase: GTFS-like collections exercising portable and optional filters, sorting, and continuation pagination"
 readme = "README.md"
 publish = false
 authors.workspace = true

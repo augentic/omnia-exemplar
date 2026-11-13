@@ -30,8 +30,8 @@ root guest mounts under `/examples/*` — blobstore, websocket broadcast,
 docstore, and SQL. Two capabilities get a deeper treatment:
 `crates/docstore` and `crates/sql` rebuild the rich
 docstore and SQL examples that omnia trimmed from its own `examples/` tree
-(commit `c4666ca`, "Example tidy"), rewritten as typed handlers — every
-portable docstore filter type, parameterized SQL queries into `FromRow` records,
+(commit `c4666ca`, "Example tidy"), rewritten as typed handlers — portable
+and optional docstore filters, parameterized SQL queries into `FromRow` records,
 a JOIN entity, and server-assigned ids. The example host (`examples/runtime.rs`) is a single
 `omnia::runtime!` invocation wiring every capability the guest imports —
 including `WasiBlobStore` and `WasiWebSocket` — to the in-tree default
@@ -176,7 +176,7 @@ consumer is out of scope for the exemplar.
 | `crates/tally-connector` | HTTP ingress for the vendor "Tally" passenger-count feed |
 | `crates/gtfs-adapter` | Converts Motion events into GTFS-realtime vehicle positions |
 | `crates/capability` | Domain-free handlers proving the remaining capabilities: `BlobStore`, `WebSockets`, `DocumentDb`, `SqlDb`; mounted by the guest at `POST /examples/{archive,alert,note,reading}` |
-| `crates/docstore` | Rich `wasi:docstore` showcase: GTFS-like collections exercising a broad set of portable filters, sorting, and continuation pagination |
+| `crates/docstore` | Rich `wasi:docstore` showcase: GTFS-like collections exercising portable and optional filters, sorting, and continuation pagination |
 | `crates/sql` | Rich `wasi-sql` showcase: agency/feed schema exercising parameterized SQL, `FromRow` records through `query_as`, a JOIN entity, and server-assigned ids |
 | `crates/pattern` | Composition patterns: decode-through-cache, `StateStore::compare_and_swap` optimistic concurrency (`409`), named-identity bearer auth, relational geo queries, and structured JSON error bodies |
 | root package (`guest`) | Typed-router HTTP + exact-topic messaging WASM guest binary |
@@ -255,10 +255,12 @@ for the full catalog and key builders. God-mode overrides live under a
 separate `god_mode.` prefix so operational overrides never mix with pipeline
 state.
 
-Every key is portable: `.`-separated segments of ASCII letters, digits, `_`,
-and `-`. A request value that becomes a segment is checked first, and one
+A key built from an HTTP request value is portable: `.`-separated segments
+of ASCII letters, digits, `_`, and `-`. The value is checked first, and one
 that is not portable is refused with a `400` (`gtfs_adapter::vehicle_info`,
-`pattern::cas`, `pattern::decode`).
+`pattern::cas`, `pattern::decode`). The messaging handlers build keys from
+the feeds' identifiers unchecked, so a store that holds only portable keys
+may refuse one with `invalid`.
 
 ## Copy this, not that
 

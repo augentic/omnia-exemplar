@@ -10,7 +10,7 @@ use omnia_sdk::capability::Result;
 
 pub mod sql {
     pub const CREATE_AGENCY: &str = "CREATE TABLE IF NOT EXISTS agency (
-        agency_id INTEGER PRIMARY KEY,
+        agency_id BIGINT PRIMARY KEY,
         name TEXT NOT NULL,
         url TEXT,
         timezone TEXT,
@@ -18,8 +18,8 @@ pub mod sql {
     )";
 
     pub const CREATE_FEED: &str = "CREATE TABLE IF NOT EXISTS feed (
-        feed_id INTEGER PRIMARY KEY,
-        agency_id INTEGER NOT NULL,
+        feed_id BIGINT PRIMARY KEY,
+        agency_id BIGINT NOT NULL,
         description TEXT NOT NULL,
         created_at TEXT NOT NULL
     )";

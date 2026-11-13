@@ -8,6 +8,7 @@ use docstore::route::{CreateRouteRequest, Route, RoutesReply};
 use docstore::stop::{CreateStopRequest, DeleteStopReply, DocumentRecord, Stop, StopsReply};
 use docstore::stop_time::{CreateStopTimeRequest, StopTime, StopTimesReply};
 use omnia_sdk::api::Client;
+use omnia_sdk::docstore::Filter;
 use omnia_test::guest::{self, Provider};
 use serde::Serialize;
 use serde::de::DeserializeOwned;
@@ -318,6 +319,13 @@ async fn route_filters() {
 
     // Route types: in_list(route_type, [2, 3]).
     assert_eq!(query_routes(&provider, "types=2,3").await.routes.len(), 3);
+
+    // More route types than an in_list holds is a bad request, not a server error.
+    let types = vec!["3"; Filter::MAX_LIST_LEN + 1].join(",");
+    let (status, body) =
+        send(&provider, Method::GET, &format!("/examples/routes?types={types}"), None).await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    assert_eq!(body["error"], "bad_request");
 
     // Agency: eq(agency_id).
     assert_eq!(query_routes(&provider, "agency=AT").await.routes.len(), 3);

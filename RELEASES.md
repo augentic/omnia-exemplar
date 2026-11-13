@@ -38,6 +38,14 @@ Unreleased
     `u64`.
   - `deny.toml` bans `wasmtime` and `omnia-core` on the native non-dev graph
     again.
+  - `list_routes` answers `400` to more route types than
+    `Filter::MAX_LIST_LEN`, where the query failed.
+  - The `sql` schema declares its `i64` ids `BIGINT`, the column type an
+    `int64` binds to on every backend. A table created before keeps its
+    `INTEGER` columns.
+  - The docstore stem names the optional query features it uses beside the
+    portable subset. A backend that serves only that subset, such as Azure
+    Table, fails its list queries with `unsupported`.
 - **One `Handlers` list at every level, one `router`, and stems only in the root `[dependencies]`.**
   The root's `router`, a stem's `handlers`, and a part's `handlers` all
   register or merge their HTTP routes (`.route`) and messaging topics

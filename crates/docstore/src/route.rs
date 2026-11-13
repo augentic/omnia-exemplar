@@ -10,7 +10,7 @@ use axum::extract::{Path, Query};
 use axum::routing::get;
 use omnia_sdk::api::{Context, Handlers};
 use omnia_sdk::docstore::{Document, Exists, Filter, ScalarValue, SortField};
-use omnia_sdk::{DocumentDb, Result, not_found};
+use omnia_sdk::{DocumentDb, Result, bad_request, not_found};
 use serde::{Deserialize, Serialize};
 
 use crate::stop::{CreateError, DocumentRecord, records};
@@ -93,6 +93,8 @@ pub struct ListRoutesRequest {
     /// Name search: `or(contains(route_short_name), contains(route_long_name))`.
     pub q: Option<String>,
     /// Comma-separated route types: `in_list` on `route_type`.
+    ///
+    /// More than [`Filter::MAX_LIST_LEN`] types is a `400`.
     pub types: Option<String>,
     /// Operating agency: `eq` on `agency_id`.
     pub agency: Option<String>,
@@ -137,6 +139,9 @@ where
             .filter_map(|value| value.trim().parse::<i32>().ok())
             .map(ScalarValue::from)
             .collect();
+        if values.len() > Filter::MAX_LIST_LEN {
+            return Err(bad_request!("at most {} route types", Filter::MAX_LIST_LEN));
+        }
         if !values.is_empty() {
             filters.push(Filter::in_list("route_type", values));
         }
