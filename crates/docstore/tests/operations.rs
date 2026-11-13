@@ -206,6 +206,20 @@ async fn stop_crud() {
         ok(&provider, Method::GET, "/examples/stops/stop-001", None).await;
     assert_eq!(reply.document.stop_name, "Britomart Transport Centre");
 
+    // A create under a stored id is a 409 and leaves the stored stop as it was.
+    let duplicate = CreateStopRequest {
+        id: "stop-001".to_string(),
+        stop: stop("Imposter", (0.0, 0.0), None, 0, 0, None, "2026-03-20T00:00:00Z"),
+    };
+    let (status, body) =
+        send(&provider, Method::POST, "/examples/stops", Some(json_bytes(&duplicate))).await;
+    assert_eq!(status, StatusCode::CONFLICT);
+    assert_eq!(body["error"], "conflict");
+    assert_eq!(body["id"], "stop-001");
+    let reply: DocumentRecord<Stop> =
+        ok(&provider, Method::GET, "/examples/stops/stop-001", None).await;
+    assert_eq!(reply.document.stop_name, "Britomart Transport Centre");
+
     // Upsert replaces the whole document.
     let replacement = stop(
         "Britomart Transport Centre",

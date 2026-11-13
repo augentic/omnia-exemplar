@@ -5,9 +5,10 @@ routes, and stop times — exercising full CRUD and a broad set of portable
 filters through combined query endpoints, plus sorting and limit/continuation
 pagination. This crate restores the full docstore example that omnia's
 "Example tidy" trimmed, rewritten in this repository's typed-handler style:
-`pub async fn` handlers over `P: DocumentStore`, mounted by the root guest
+`pub async fn` handlers over `P: DocumentDb`, mounted by the root guest
 under `/examples/*`, and tested natively against the filter-evaluating
-`MemoryDocs` double from `omnia-test`.
+`MemoryDocs` double from `omnia-test`. A create whose id is already stored
+answers `409 Conflict` through `stop::CreateError`.
 
 ## Quick start
 
@@ -170,8 +171,9 @@ The pre-trim example verified its behaviour with a bash script of `curl` +
 [`tests/operations.rs`](tests/operations.rs) seed the same five stops, four
 routes, and five stop times, drive each route through `guest::send`, and
 assert the exact result count of every filter, page 2 via the continuation
-token, and the CRUD round trips. `omnia_test::guest::MemoryDocs` is the
-`DocumentStore` double that makes this possible natively: it *evaluates* the
+token, and the CRUD round trips with the duplicate create's `409`.
+`omnia_test::guest::MemoryDocs` is the
+`DocumentDb` double that makes this possible natively: it *evaluates* the
 filter tree over the stored JSON documents and honours `order_by`, `limit`,
 and continuation, rather than canning responses.
 

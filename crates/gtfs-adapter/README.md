@@ -16,8 +16,9 @@ Also provides an HTTP vehicle info lookup, and — behind the off-by-default
 `god-mode` cargo feature — an operational override that forces a vehicle onto
 a trip via the state store.
 
-State lives under the `motionGtfs:` prefix; see `src/state_keys.rs` for the
-key catalog.
+State lives under the `motionGtfs.` prefix; see `src/state_keys.rs` for the
+key catalog. A vehicle id that is not a portable key segment is refused with
+`400` before any key is built from it.
 
 ## Tests
 

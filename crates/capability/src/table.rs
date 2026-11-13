@@ -1,31 +1,31 @@
-//! Table-store example: record a sensor reading and count the sensor's rows.
+//! SQL example: record a sensor reading and count the sensor's rows.
 
 use axum::Json;
 use axum::routing::post;
 use omnia_sdk::api::{Context, Handlers};
-use omnia_sdk::sql::DataType;
-use omnia_sdk::{Capabilities, Result, TableStore};
+use omnia_sdk::sql::Value;
+use omnia_sdk::{Result, SqlDb};
 use serde::{Deserialize, Serialize};
 
 pub(crate) const READING: &str = "/examples/reading";
 
-pub(crate) fn handlers<P: Capabilities>() -> Handlers<P> {
+pub(crate) fn handlers<P: crate::Requires>() -> Handlers<P> {
     Handlers::new().route(READING, post(reading))
 }
 
 /// SQL executed against the readings table.
 pub mod sql {
     /// Insert one reading.
-    pub const INSERT: &str = "INSERT INTO readings (sensor, value) VALUES (?, ?)";
+    pub const INSERT: &str = "INSERT INTO readings (sensor, value) VALUES ($1, $2)";
 
     /// Select every reading for one sensor.
-    pub const SELECT: &str = "SELECT sensor, value FROM readings WHERE sensor = ?";
+    pub const SELECT: &str = "SELECT sensor, value FROM readings WHERE sensor = $1";
 }
 
 /// Record a sensor reading.
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct ReadingRequest {
-    /// Named connection configured by the host.
+    /// Database binding declared by the deployment.
     pub connection: String,
     /// Sensor identifier.
     pub sensor: String,
@@ -37,7 +37,7 @@ pub struct ReadingRequest {
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct ReadingReply {
     /// Rows affected by the insert.
-    pub affected: u32,
+    pub affected: u64,
     /// Total rows now stored for the sensor.
     pub rows: usize,
 }
@@ -46,20 +46,14 @@ pub(crate) async fn reading<P>(
     context: Context<P>, Json(input): Json<ReadingRequest>,
 ) -> Result<Json<ReadingReply>>
 where
-    P: TableStore,
+    P: SqlDb,
 {
-    let tables = context.tables();
+    let db = context.sql().named(&input.connection);
 
-    let affected = tables
-        .exec(
-            &input.connection,
-            sql::INSERT,
-            &[DataType::Str(Some(input.sensor.clone())), DataType::Double(Some(input.value))],
-        )
+    let affected = db
+        .execute(sql::INSERT, &[Value::from(input.sensor.as_str()), Value::from(input.value)])
         .await?;
-
-    let rows =
-        tables.query(&input.connection, sql::SELECT, &[DataType::Str(Some(input.sensor))]).await?;
+    let rows = db.query(sql::SELECT, &[Value::from(input.sensor)]).await?;
 
     Ok(Json(ReadingReply {
         affected,

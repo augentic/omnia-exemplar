@@ -1,8 +1,10 @@
 //! Station-to-stop mapping and stop location lookups.
 
-use axum::body::Body;
+use std::time::Duration;
+
+use axum::body::Bytes;
 use omnia_sdk::{
-    Config, HttpRequest, HttpRequestExt as _, Result, Settings, StateStore, StateStoreExt as _,
+    Config, HttpClient, HttpClientExt as _, Result, Settings, StateStore, StateStoreExt as _,
     server_error,
 };
 use serde::{Deserialize, Serialize};
@@ -29,7 +31,7 @@ pub(crate) async fn stop_info<P>(
     provider: &P, station: u32, is_arrival: bool,
 ) -> Result<Option<StopInfo>>
 where
-    P: Config + HttpRequest + StateStore,
+    P: Config + HttpClient + StateStore,
 {
     if !ACTIVE_STATIONS.contains(&station) {
         return Ok(None);
@@ -65,12 +67,12 @@ const fn station_stop(station: u32) -> Option<&'static str> {
     }
 }
 
-const STOPS_CACHE_KEY: &str = "pulse:stops";
-const STOPS_TTL_SECS: u64 = 300;
+const STOPS_CACHE_KEY: &str = "pulse.stops";
+const STOPS_TTL: Duration = Duration::from_mins(5);
 
 async fn cached_stops<P>(provider: &P) -> Result<Vec<StopInfo>>
 where
-    P: Config + HttpRequest + StateStore,
+    P: Config + HttpClient + StateStore,
 {
     if let Some(bytes) = StateStore::get(provider, STOPS_CACHE_KEY).await? {
         match serde_json::from_slice(&bytes) {
@@ -84,10 +86,10 @@ where
     let StopsSettings { static_api_url } = StopsSettings::load(provider).await?;
     let request = http::Request::builder()
         .uri(format!("{static_api_url}/gtfs/stops?fields=stop_code,stop_lon,stop_lat"))
-        .body(Body::empty())
+        .body(Bytes::new())
         .map_err(|error| server_error!("building stops request: {error}"))?;
     let stops: Vec<StopInfo> = provider.fetch_json(request).await?;
-    provider.set_json(STOPS_CACHE_KEY, &stops, Some(STOPS_TTL_SECS)).await?;
+    provider.set_json(STOPS_CACHE_KEY, &stops, Some(STOPS_TTL)).await?;
     Ok(stops)
 }
 

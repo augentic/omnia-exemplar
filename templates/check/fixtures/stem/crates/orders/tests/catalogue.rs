@@ -1,28 +1,27 @@
-//! Querying the catalogue over `TableStore` into `FromRow` items, with a
+//! Querying the catalogue over `SqlDb` into `FromRow` items, with a
 //! `StateStore` cache-aside in front of it.
 
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use omnia_sdk::api::Client;
-use omnia_sdk::sql::{DataType, Field, Row};
+use omnia_sdk::sql::{Field, Row, Value};
 use omnia_test::guest::{Provider, ScriptedTables, send};
 use orders::catalogue::{CatalogueItem, CatalogueReply};
 
 fn item_row(sku: &str, cents: i64, in_stock: bool) -> Row {
     Row {
-        index: sku.to_string(),
         fields: vec![
             Field {
                 name: "sku".to_string(),
-                value: DataType::Str(Some(sku.to_string())),
+                value: Value::Str(Some(sku.to_string())),
             },
             Field {
                 name: "cents".to_string(),
-                value: DataType::Int64(Some(cents)),
+                value: Value::Int64(Some(cents)),
             },
             Field {
                 name: "in_stock".to_string(),
-                value: DataType::Boolean(Some(in_stock)),
+                value: Value::Boolean(Some(in_stock)),
             },
         ],
     }
@@ -41,11 +40,11 @@ async fn queries_cache_serve() {
     let tables = ScriptedTables::default().on_query(
         |sql, params| {
             sql.starts_with("SELECT sku, cents, in_stock FROM catalogue")
-                && matches!(params, [DataType::Int64(Some(0))])
+                && matches!(params, [Value::Int64(Some(0))])
         },
         vec![item_row("cake", 450, true), item_row("tea", 300, false)],
     );
-    let provider = Provider::default().tables(tables);
+    let provider = Provider::default().sql(tables);
 
     let first = get_catalogue(&provider).await;
     assert_eq!(
@@ -63,10 +62,10 @@ async fn queries_cache_serve() {
             },
         ]
     );
-    assert_eq!(provider.tables.statements().len(), 1);
+    assert_eq!(provider.sql.statements().len(), 1);
 
     // the second call served from the cache
     let second = get_catalogue(&provider).await;
     assert_eq!(second, first);
-    assert_eq!(provider.tables.statements().len(), 1);
+    assert_eq!(provider.sql.statements().len(), 1);
 }

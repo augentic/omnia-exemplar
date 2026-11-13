@@ -4,18 +4,17 @@ use axum::Json;
 use axum::routing::post;
 use common::topic;
 use omnia_sdk::api::{Context, Handlers};
-use omnia_sdk::{
-    Capabilities, Config, Message, Publish, Result, Settings, StateStore, bad_request,
-};
+use omnia_sdk::messaging::Message;
+use omnia_sdk::{Config, Publisher, Result, Settings, StateStore, bad_request};
 use serde::{Deserialize, Serialize};
 
 // The paths the part serves.
 pub(crate) const ORDERS: &str = "/orders";
 
 // The state key of the running count of lines placed.
-pub(crate) const LINES_PLACED: &str = "orders/lines-placed";
+pub(crate) const LINES_PLACED: &str = "orders.lines-placed";
 
-pub(crate) fn handlers<P: Capabilities>() -> Handlers<P> {
+pub(crate) fn handlers<P: crate::Requires>() -> Handlers<P> {
     Handlers::new().route(ORDERS, post(place)).topic(topic::ORDER_PLACED, on_placed)
 }
 
@@ -44,7 +43,7 @@ pub(crate) async fn place<P>(
     context: Context<P>, Json(input): Json<PlaceOrder>,
 ) -> Result<Json<Placed>>
 where
-    P: Config + Publish,
+    P: Config + Publisher,
 {
     let settings = PlacingSettings::load(context.config()).await?;
     if input.lines.is_empty() {
@@ -57,7 +56,7 @@ where
     let placed = Placed {
         lines: input.lines.len(),
     };
-    context.publish().send(topic::ORDER_PLACED, &Message::json(&placed)?).await?;
+    context.publisher().publish(topic::ORDER_PLACED, &Message::json(&placed)?).await?;
     Ok(Json(placed))
 }
 
@@ -66,7 +65,7 @@ where
     P: StateStore,
 {
     let delta = i64::try_from(input.lines).map_err(|error| bad_request!("{error}"))?;
-    let total = context.state().increment(LINES_PLACED, delta).await?;
+    let total = context.state().increment(LINES_PLACED, delta, None).await?;
     tracing::info!(lines = input.lines, total, "order placed");
     Ok(())
 }

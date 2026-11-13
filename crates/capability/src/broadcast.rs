@@ -1,33 +1,30 @@
-//! Broadcast example: push an alert to connected WebSocket clients.
+//! WebSocket example: push an alert to connected WebSocket clients.
 //!
-//! [`Broadcast::send`] is client-side only — the guest connects out to the
-//! broadcast channel — so serving this handler requires no WebSocket
-//! export.
+//! A [`WebSockets`] send is outbound only, so serving this handler
+//! requires no WebSocket export.
 
 use axum::Json;
 use axum::routing::post;
 use omnia_sdk::api::{Context, Handlers};
-use omnia_sdk::{Broadcast, Capabilities, Result};
+use omnia_sdk::{Result, WebSockets};
 use serde::{Deserialize, Serialize};
 
 pub(crate) const ALERT: &str = "/examples/alert";
 
-pub(crate) fn handlers<P: Capabilities>() -> Handlers<P> {
+pub(crate) fn handlers<P: crate::Requires>() -> Handlers<P> {
     Handlers::new().route(ALERT, post(alert))
 }
 
-/// Broadcast an alert to a channel.
+/// Send an alert to connected WebSocket clients.
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct AlertRequest {
-    /// Broadcast channel name.
-    pub channel: String,
     /// Alert text sent to connected clients.
     pub message: String,
-    /// Restrict delivery to these socket ids; `None` broadcasts to all.
+    /// Restrict delivery to these socket ids; `None` sends to every socket.
     pub sockets: Option<Vec<String>>,
 }
 
-/// Broadcast acknowledgement.
+/// Alert acknowledgement.
 #[derive(Debug, Clone, Serialize)]
 #[serde(transparent)]
 pub struct AlertReply(pub &'static str);
@@ -36,9 +33,17 @@ pub(crate) async fn alert<P>(
     context: Context<P>, Json(input): Json<AlertRequest>,
 ) -> Result<Json<AlertReply>>
 where
-    P: Broadcast,
+    P: WebSockets,
 {
-    Broadcast::send(context.provider(), &input.channel, input.message.as_bytes(), input.sockets)
-        .await?;
+    let websockets = context.websockets();
+    let data = input.message.as_bytes();
+
+    match &input.sockets {
+        Some(sockets) => {
+            let sockets: Vec<&str> = sockets.iter().map(String::as_str).collect();
+            websockets.send_to(&sockets, data).await?;
+        }
+        None => websockets.broadcast(data).await?,
+    }
     Ok(Json(AlertReply("OK")))
 }

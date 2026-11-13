@@ -30,10 +30,9 @@ async fn devices() {
     forward(&provider, TALLY_NO_DEVICE).await;
 
     // one record per reading, keyed by the device's site
-    let published = provider.publish.sent();
+    let published = provider.publisher.sent();
     assert!(published.iter().all(|(name, _)| name == topic::TALLY_APC));
-    let keys: Vec<_> =
-        published.iter().map(|(_, record)| record.headers.get("key").map(String::as_str)).collect();
+    let keys: Vec<_> = published.iter().map(|(_, record)| record.key.as_deref()).collect();
     assert_eq!(keys, [Some("EM1210"), Some("undefined")]);
 
     // each payload carries the reading's fields under their wire names

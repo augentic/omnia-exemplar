@@ -28,13 +28,17 @@ fn provider() -> Provider {
         ))
 }
 
-async fn decode(provider: &Provider, code: &str) -> DecodeSegmentReply {
+async fn post(provider: &Provider, code: &str) -> Response<Bytes> {
     let request = Request::post("/examples/patterns/decode")
         .header(CONTENT_TYPE, "application/json")
         .body(Body::from(json!({ "code": code }).to_string()))
         .expect("request");
     let router = pattern::handlers().with_state(Client::new(provider.clone()));
-    let response = send(&router, request).await;
+    send(&router, request).await
+}
+
+async fn decode(provider: &Provider, code: &str) -> DecodeSegmentReply {
+    let response = post(provider, code).await;
     assert_eq!(response.status(), StatusCode::OK);
     serde_json::from_slice(response.body()).expect("reply")
 }
@@ -56,7 +60,7 @@ async fn miss() {
     );
 
     // The decoded segment is written back under the code's cache key.
-    let cached = provider.storage.state("pattern:segment:seg-1").expect("segment cached");
+    let cached = provider.storage.state("pattern.segment.seg-1").expect("segment cached");
     let _: Segment = serde_json::from_slice(&cached).expect("valid cached JSON");
 }
 
@@ -67,11 +71,23 @@ async fn hit() {
     let segment = json!({ "code": "seg-2", "points": [[0.0, 0.0]] });
     provider
         .storage
-        .insert_state("pattern:segment:seg-2", &serde_json::to_vec(&segment).expect("serialize"));
+        .insert_state("pattern.segment.seg-2", &serde_json::to_vec(&segment).expect("serialize"));
 
     let reply = decode(&provider, "seg-2").await;
 
     assert!(reply.cached);
     assert_eq!(reply.segment.code, "seg-2");
     assert!(provider.http.requests().is_empty());
+}
+
+// No config seeded and no route scripted: a miss past the check would fail.
+#[tokio::test]
+async fn non_portable_code() {
+    let provider = Provider::default();
+
+    let response = post(&provider, "seg:3").await;
+
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    let body: serde_json::Value = serde_json::from_slice(response.body()).expect("JSON body");
+    assert_eq!(body["error"], "bad_request");
 }

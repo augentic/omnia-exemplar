@@ -55,13 +55,13 @@ async fn motion_location() {
         .await
         .expect("should succeed");
 
-    let published = provider.publish.sent();
+    let published = provider.publisher.sent();
     assert_eq!(published.len(), 1);
 
     let (topic, record) = &published[0];
     assert_eq!(topic, topic::GTFS_VP);
     // the key is the fleet identifier resolved from the message's external id
-    assert_eq!(record.headers.get("key").map(String::as_str), Some("59144"));
+    assert_eq!(record.key.as_deref(), Some("59144"));
 
     let entity: Value = serde_json::from_slice(&record.payload).expect("should parse payload");
     assert_eq!(entity["id"], "59144");
@@ -92,7 +92,7 @@ async fn motion_without_gps() {
         ),
     );
     provider.storage.insert_state(
-        "motionGtfs:trip:vehicle:59144",
+        "motionGtfs.trip.vehicle.59144",
         &serde_json::to_vec(&trip_instance("TRIP-7")).expect("should serialize"),
     );
 
@@ -100,7 +100,7 @@ async fn motion_without_gps() {
         .await
         .expect("should succeed");
 
-    let published = provider.publish.sent();
+    let published = provider.publisher.sent();
     assert_eq!(published.len(), 1);
 
     let (topic, record) = &published[0];
@@ -125,7 +125,7 @@ async fn motion_unknown_event() {
         .await
         .expect("should succeed");
 
-    assert!(provider.publish.sent().is_empty());
+    assert_eq!(provider.publisher.sent(), []);
     assert!(provider.http.requests().is_empty());
 }
 
@@ -156,13 +156,13 @@ async fn train_avl() {
             .expect("should succeed");
     }
 
-    assert_eq!(provider.publish.sent().len(), 1);
+    assert_eq!(provider.publisher.sent().len(), 1);
 }
 
 #[tokio::test]
 async fn pax_occupancy() {
     let provider = provider();
-    let key = "motionGtfs:occupancyStatus:32161:1347-05004-41400-2-89c4020e:20251120:11:30:00";
+    let key = "motionGtfs.occupancyStatus.32161.1347-05004-41400-2-89c4020e.20251120.113000";
 
     let value = fixture_value(PASSENGER_COUNT, 0);
 
@@ -204,7 +204,7 @@ async fn serial_data_sign_on() {
 
     // the vehicle is currently on a different trip
     provider.storage.insert_state(
-        "motionGtfs:trip:vehicle:EM580",
+        "motionGtfs.trip.vehicle.EM580",
         &serde_json::to_vec(&trip_instance("TRIP-0")).expect("serialize"),
     );
 
@@ -214,11 +214,11 @@ async fn serial_data_sign_on() {
         .await
         .expect("should succeed");
 
-    let trip = provider.storage.state("motionGtfs:trip:vehicle:EM580").expect("trip stored");
+    let trip = provider.storage.state("motionGtfs.trip.vehicle.EM580").expect("trip stored");
     let trip: Value = serde_json::from_slice(&trip).expect("should parse trip");
     assert_eq!(trip["tripId"], "TRIP-1");
     assert_eq!(
-        provider.storage.state("motionGtfs:vehicle:signOn:EM580"),
+        provider.storage.state("motionGtfs.vehicle.signOn.EM580"),
         Some(signed_on.timestamp().to_string().into_bytes())
     );
 
@@ -226,7 +226,10 @@ async fn serial_data_sign_on() {
     let error = deliver(&router(&provider), topic::PULSE_TO_MOTION, message)
         .await
         .expect_err("should reject outdated message");
-    assert!(matches!(&error, DeliveryError::Rejected(msg) if msg.contains("outdated")), "{error}");
+    assert!(
+        matches!(&error, DeliveryError::Failed { message, .. } if message.contains("outdated")),
+        "{error}"
+    );
 
     // the future check is against the wall clock
     let future = serial_data("EM580", "TRIP-1", Utc::now() + chrono::Duration::seconds(3_600));
@@ -234,7 +237,7 @@ async fn serial_data_sign_on() {
         .await
         .expect_err("should reject future-dated message");
     assert!(
-        matches!(&error, DeliveryError::Rejected(msg) if msg.contains("future-dated")),
+        matches!(&error, DeliveryError::Failed { message, .. } if message.contains("future-dated")),
         "{error}"
     );
 
@@ -250,10 +253,10 @@ async fn vehicle_info_state() {
         ok(FLEET_QUERY),
     ));
     provider.storage.insert_state(
-        "motionGtfs:trip:vehicle:EMP484",
+        "motionGtfs.trip.vehicle.EMP484",
         &serde_json::to_vec(&trip_instance("TRIP-7")).expect("serialize"),
     );
-    provider.storage.insert_state("motionGtfs:vehicle:signOn:EMP484", b"1763592000");
+    provider.storage.insert_state("motionGtfs.vehicle.signOn.EMP484", b"1763592000");
 
     let request = Request::get("/info/EMP484").body(Body::empty()).expect("request");
     let response = send(&router(&provider), request).await;
@@ -263,4 +266,19 @@ async fn vehicle_info_state() {
     assert_eq!(reply.sign_on_time.as_deref(), Some("1763592000"));
     assert_eq!(reply.trip_info.expect("trip info").trip_id, "TRIP-7");
     assert_eq!(reply.fleet_info.expect("fleet info").id, "59144");
+}
+
+// a `:` cannot sit in a state key segment, so the id never reaches a key
+#[tokio::test]
+async fn non_portable_vehicle_id() {
+    let provider = provider();
+
+    let request = Request::get("/info/EMP:484").body(Body::empty()).expect("request");
+    let response = send(&router(&provider), request).await;
+
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    let body: Value = serde_json::from_slice(response.body()).expect("error JSON");
+    assert_eq!(body["error"], "bad_request");
+    assert!(body["message"].as_str().is_some_and(|msg| msg.contains("EMP:484")), "{body}");
+    assert!(provider.http.requests().is_empty());
 }

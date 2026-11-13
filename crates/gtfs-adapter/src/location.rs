@@ -2,7 +2,7 @@
 
 use chrono::{Duration, NaiveDate, TimeZone};
 use chrono_tz::Tz;
-use omnia_sdk::{Config, HttpRequest, Identity, Result, StateStore, StateStoreExt as _};
+use omnia_sdk::{Config, HttpClient, Identity, Result, StateStore, StateStoreExt as _};
 use uuid::Uuid;
 
 use crate::block_mgt::{self, BlockInstance};
@@ -14,8 +14,8 @@ use crate::trip::{
     TripInstance, VehicleDescriptor, VehicleDr, VehiclePosition,
 };
 
-const TTL_TRIP_TRAIN: Duration = Duration::seconds(3 * 60 * 60);
-const TTL_SIGN_ON: Duration = Duration::seconds(24 * 60 * 60);
+const TTL_TRIP_TRAIN: std::time::Duration = std::time::Duration::from_hours(3);
+const TTL_SIGN_ON: std::time::Duration = std::time::Duration::from_hours(24);
 
 pub enum Location {
     VehiclePosition(FeedEntity),
@@ -24,7 +24,7 @@ pub enum Location {
 
 pub async fn process<P>(provider: &P, message: &MotionMessage) -> Result<Option<Location>>
 where
-    P: Config + HttpRequest + Identity + StateStore,
+    P: Config + HttpClient + Identity + StateStore,
 {
     // check for location event
     if message.event_type != EventType::Location {
@@ -114,7 +114,7 @@ async fn allocate<P>(
     provider: &P, vehicle: &Vehicle, allocation: Option<BlockInstance>, timestamp: i64,
 ) -> Result<()>
 where
-    P: Config + HttpRequest + StateStore,
+    P: Config + HttpClient + StateStore,
 {
     let trip_key = state_keys::trip(&vehicle.id);
     let sign_on_key = state_keys::sign_on(&vehicle.id);
@@ -160,14 +160,10 @@ where
     }
 
     // save the new trip
-    provider.set_json(&trip_key, &new_trip, Some(duration_secs(TTL_TRIP_TRAIN))).await?;
-    provider.set_json(&sign_on_key, &timestamp, Some(duration_secs(TTL_SIGN_ON))).await?;
+    provider.set_json(&trip_key, &new_trip, Some(TTL_TRIP_TRAIN)).await?;
+    provider.set_json(&sign_on_key, &timestamp, Some(TTL_SIGN_ON)).await?;
 
     Ok(())
-}
-
-const fn duration_secs(duration: Duration) -> u64 {
-    duration.num_seconds().unsigned_abs()
 }
 
 async fn current_trip<P>(

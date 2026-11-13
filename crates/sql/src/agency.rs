@@ -10,18 +10,18 @@ use axum::extract::{Path, Query};
 use axum::routing::get;
 use chrono::Utc;
 use omnia_sdk::api::{Context, Handlers};
-use omnia_sdk::sql::{DataType, FromRow};
-use omnia_sdk::{Capabilities, Result, TableStore, TableStoreExt as _, bad_request, not_found};
+use omnia_sdk::sql::{FromRow, Value};
+use omnia_sdk::{Result, SqlDb, SqlDbExt as _, bad_request, not_found};
 use serde::{Deserialize, Serialize};
 
-use crate::schema::{self, CONNECTION};
+use crate::schema;
 
 pub(crate) const AGENCIES: &str = "/examples/agencies";
 pub(crate) const AGENCY: &str = "/examples/agencies/{id}";
 
 const AGENCY_COLUMNS: &str = "agency_id, name, url, timezone, created_at";
 
-pub(crate) fn handlers<P: Capabilities>() -> Handlers<P> {
+pub(crate) fn handlers<P: crate::Requires>() -> Handlers<P> {
     Handlers::new()
         .route(AGENCIES, get(list_agencies).post(create_agency))
         .route(AGENCY, get(get_agency).patch(update_agency))
@@ -42,12 +42,11 @@ pub struct Agency {
     pub created_at: String,
 }
 
-pub(crate) async fn fetch_agency<P: TableStore>(tables: &P, id: i64) -> Result<Option<Agency>> {
-    let agencies: Vec<Agency> = tables
+pub(crate) async fn fetch_agency<P: SqlDb>(db: &P, id: i64) -> Result<Option<Agency>> {
+    let agencies: Vec<Agency> = db
         .query_as(
-            CONNECTION,
             &format!("SELECT {AGENCY_COLUMNS} FROM agency WHERE agency_id = $1"),
-            &[DataType::Int64(Some(id))],
+            &[Value::from(id)],
         )
         .await?;
     Ok(agencies.into_iter().next())
@@ -57,7 +56,7 @@ pub(crate) async fn fetch_agency<P: TableStore>(tables: &P, id: i64) -> Result<O
 #[derive(Debug, Clone, Default, Deserialize)]
 pub struct ListAgenciesRequest {
     /// Optional cap on the number of rows returned.
-    pub limit: Option<u64>,
+    pub limit: Option<u32>,
 }
 
 /// Agencies sorted by creation time, newest first.
@@ -71,19 +70,19 @@ pub(crate) async fn list_agencies<P>(
     context: Context<P>, Query(input): Query<ListAgenciesRequest>,
 ) -> Result<Json<AgenciesReply>>
 where
-    P: TableStore,
+    P: SqlDb,
 {
-    let tables = context.tables();
-    schema::ensure(tables).await?;
+    let db = context.sql();
+    schema::ensure(db).await?;
 
     let mut sql = format!("SELECT {AGENCY_COLUMNS} FROM agency ORDER BY created_at DESC");
     let mut params = Vec::new();
     if let Some(limit) = input.limit {
         sql.push_str(" LIMIT $1");
-        params.push(DataType::Uint64(Some(limit)));
+        params.push(Value::from(i64::from(limit)));
     }
 
-    let agencies = tables.query_as(CONNECTION, &sql, &params).await?;
+    let agencies = db.query_as(&sql, &params).await?;
 
     Ok(Json(AgenciesReply { agencies }))
 }
@@ -110,42 +109,39 @@ pub(crate) async fn create_agency<P>(
     context: Context<P>, Json(input): Json<CreateAgencyRequest>,
 ) -> Result<Json<AgencyReply>>
 where
-    P: TableStore,
+    P: SqlDb,
 {
-    let tables = context.tables();
-    schema::ensure(tables).await?;
+    let db = context.sql();
+    schema::ensure(db).await?;
 
     let agency = Agency {
-        agency_id: next_id(tables).await?,
+        agency_id: next_id(db).await?,
         name: input.name,
         url: input.url,
         timezone: input.timezone,
         created_at: Utc::now().format("%Y-%m-%d %H:%M:%S").to_string(),
     };
 
-    tables
-        .exec(
-            CONNECTION,
-            &format!("INSERT INTO agency ({AGENCY_COLUMNS}) VALUES ($1, $2, $3, $4, $5)"),
-            &[
-                DataType::Int64(Some(agency.agency_id)),
-                DataType::Str(Some(agency.name.clone())),
-                DataType::Str(agency.url.clone()),
-                DataType::Str(agency.timezone.clone()),
-                DataType::Str(Some(agency.created_at.clone())),
-            ],
-        )
-        .await?;
+    db.execute(
+        &format!("INSERT INTO agency ({AGENCY_COLUMNS}) VALUES ($1, $2, $3, $4, $5)"),
+        &[
+            Value::from(agency.agency_id),
+            Value::from(agency.name.as_str()),
+            Value::from(agency.url.clone()),
+            Value::from(agency.timezone.clone()),
+            Value::from(agency.created_at.as_str()),
+        ],
+    )
+    .await?;
 
     Ok(Json(AgencyReply { agency }))
 }
 
 // A concurrent create simply fails on the primary key — acceptable for an
 // example; production code would use a database sequence.
-async fn next_id<P: TableStore>(tables: &P) -> Result<i64> {
-    let rows = tables
-        .query(CONNECTION, "SELECT agency_id FROM agency ORDER BY agency_id DESC LIMIT 1", &[])
-        .await?;
+async fn next_id<P: SqlDb>(db: &P) -> Result<i64> {
+    let rows =
+        db.query("SELECT agency_id FROM agency ORDER BY agency_id DESC LIMIT 1", &[]).await?;
     let newest: Option<i64> = rows.first().map(|row| row.get("agency_id")).transpose()?;
     Ok(newest.map_or(1, |id| id + 1))
 }
@@ -154,13 +150,12 @@ pub(crate) async fn get_agency<P>(
     context: Context<P>, Path(id): Path<i64>,
 ) -> Result<Json<AgencyReply>>
 where
-    P: TableStore,
+    P: SqlDb,
 {
-    let tables = context.tables();
-    schema::ensure(tables).await?;
+    let db = context.sql();
+    schema::ensure(db).await?;
 
-    let agency =
-        fetch_agency(tables, id).await?.ok_or_else(|| not_found!("agency {id} not found"))?;
+    let agency = fetch_agency(db, id).await?.ok_or_else(|| not_found!("agency {id} not found"))?;
 
     Ok(Json(AgencyReply { agency }))
 }
@@ -180,12 +175,12 @@ pub(crate) async fn update_agency<P>(
     context: Context<P>, Path(id): Path<i64>, Json(input): Json<UpdateAgencyRequest>,
 ) -> Result<Json<AgencyReply>>
 where
-    P: TableStore,
+    P: SqlDb,
 {
-    let tables = context.tables();
-    schema::ensure(tables).await?;
+    let db = context.sql();
+    schema::ensure(db).await?;
 
-    if fetch_agency(tables, id).await?.is_none() {
+    if fetch_agency(db, id).await?.is_none() {
         return Err(not_found!("agency {id} not found"));
     }
 
@@ -195,7 +190,7 @@ where
     for (column, value) in [("name", input.name), ("url", input.url), ("timezone", input.timezone)]
     {
         if let Some(value) = value {
-            params.push(DataType::Str(Some(value)));
+            params.push(Value::from(value));
             assignments.push(format!("{column} = ${}", params.len()));
         }
     }
@@ -203,13 +198,13 @@ where
         return Err(bad_request!("update sets no columns"));
     }
 
-    params.push(DataType::Int64(Some(id)));
+    params.push(Value::from(id));
     let sql =
         format!("UPDATE agency SET {} WHERE agency_id = ${}", assignments.join(", "), params.len());
-    tables.exec(CONNECTION, &sql, &params).await?;
+    db.execute(&sql, &params).await?;
 
     // fetch after update so the reply reflects what was stored
-    let agency = fetch_agency(tables, id)
+    let agency = fetch_agency(db, id)
         .await?
         .ok_or_else(|| not_found!("agency {id} not found after update"))?;
 

@@ -7,18 +7,18 @@ use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use axum::routing::get;
 use omnia_sdk::api::{Context, Handlers};
-use omnia_sdk::{Capabilities, StateStore, StateStoreExt as _, not_found};
+use omnia_sdk::{StateStore, StateStoreExt as _, capability, not_found};
 use serde::{Deserialize, Serialize};
 
 // The paths the part serves.
 pub(crate) const ORDER: &str = "/orders/{id}";
 
-pub(crate) fn handlers<P: Capabilities>() -> Handlers<P> {
+pub(crate) fn handlers<P: crate::Requires>() -> Handlers<P> {
     Handlers::new().route(ORDER, get(lookup))
 }
 
 pub(crate) fn order_key(id: &str) -> String {
-    format!("orders/order/{id}")
+    format!("orders.order.{id}")
 }
 
 /// Stored state of an order.
@@ -46,6 +46,12 @@ pub enum LookupError {
 
 impl From<anyhow::Error> for LookupError {
     fn from(error: anyhow::Error) -> Self {
+        Self::Host(error.into())
+    }
+}
+
+impl From<capability::Error> for LookupError {
+    fn from(error: capability::Error) -> Self {
         Self::Host(error.into())
     }
 }

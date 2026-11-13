@@ -43,10 +43,12 @@ as both the workspace and the deployable package, `crate-type =
 ["cdylib", "rlib"]`, every pin under `[workspace.dependencies]`, the
 `wasm32`-excluded `omnia-test` dev-dependency (`features = ["guest"]`)
 and the `host` feature; `src/lib.rs` with `router`, a
-provider-generic router composed from the single list of one entry per
-stem after the anchor `HANDLER_LIST_ANCHOR` names, laid one entry per line
-under the comment that heads the array so two stems listed in one merge
-land as two lines, and bound over
+provider-generic router with two lists of one line per stem: its `where`
+list holds one `P: <stem>::Requires,` predicate per stem after the
+standing bound `REQUIRES_LIST_ANCHOR` names, and its handler list composes
+one entry per stem after the anchor `HANDLER_LIST_ANCHOR` names, laid one
+entry per line under the comment that heads the array, so two stems listed
+in one merge land as two lines in each; the router is bound over
 `omnia_sdk::WasiProvider` by `http::export!(router)` and
 `messaging::export!(router)`; `tests/routes.rs` and `tests/messaging.rs`, one native rung each
 that builds the composed router over `omnia_test::guest::Provider`, so
@@ -64,26 +66,29 @@ writes one: its crate whole and its line in each list.
 A stem is one crate under `crates/<stem>/`, and the fixture stem
 `orders` (`placing`, `lookup`, `catalogue`, `dispatch`) is its proof and
 the shape a generated stem copies. Its
-`src/lib.rs` is the crate doc, one `pub mod <part>;` line per part, and
-the function the root list composes, written whatever parts the stem has:
-`pub fn handlers<P: Capabilities>() -> Handlers<P>` over
-`omnia_sdk::Capabilities`,
+`src/lib.rs` is the crate doc, one `pub mod <part>;` line per part,
+`pub trait Requires` with its blanket impl, bounding every capability
+trait the stem's handlers reach plus `Send + Sync + 'static`, and the
+function the root list composes, written whatever parts the stem has:
+`pub fn handlers<P: Requires>() -> Handlers<P>`,
 `Handlers::from([..])` over one `<part>::handlers(),` entry per part. The array is a list
-opened by `HANDLER_LIST_ANCHOR`, empty for a stem with no part yet, so every
-line of the entry outside its two lists is the same whichever slice
-writes it, two slices writing one stem at once merge line by line, and
-the root lists every stem once. A
-part is one module: its paths, its settings' keys, and its state keys
-as `pub(crate) const`, its handlers `pub(crate)`, and `pub(crate) fn
-handlers()` registering them, so a part the stem's list does not name
-is dead code. Its tests under
+opened by `HANDLER_LIST_ANCHOR`, empty for a stem with no part yet. Every
+line of the entry outside its two lists and its `Requires` bound is the
+same whichever slice writes it, so two slices writing one stem at once
+merge line by line unless both widen `Requires`, and the root lists every
+stem once. A
+part is one module: its paths, its settings' keys, and its portable state
+keys as `pub(crate) const`, its handlers `pub(crate)`, and `pub(crate) fn
+handlers<P: crate::Requires>()` registering them, so a part the stem's
+list does not name is dead code. Its tests under
 `tests/<part>.rs` drive the stem's `handlers()`, closed with
 `with_state(Client::new(provider))` over the doubles, so a
 route or a topic is asserted as the wire reaches it. The
 root `Cargo.toml` names the crate in its `[dependencies]`
-(`<stem> = { path = "crates/<stem>" }`), and `src/lib.rs` lists its
-`handlers()`, one line in the list of `router`, after the anchors
-`CRATE_LIST_ANCHOR` and `HANDLER_LIST_ANCHOR` name; a topic the stem
+(`<stem> = { path = "crates/<stem>" }`) after the anchor
+`CRATE_LIST_ANCHOR` names, and `src/lib.rs` bounds `router` with its
+`Requires`, one predicate after `REQUIRES_LIST_ANCHOR`, and lists its
+`handlers()`, one line after `HANDLER_LIST_ANCHOR`; a topic the stem
 publishes or consumes is one constant appended to
 `crates/common/src/topic.rs`; nothing else of the seed is edited.
 

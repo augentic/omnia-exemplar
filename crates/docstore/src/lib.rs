@@ -4,8 +4,10 @@
 //! routes, and stop times — exercising full CRUD and every portable filter
 //! type through combined query endpoints, plus sorting and
 //! limit/continuation pagination. Where `capability::document`
-//! proves the [`DocumentStore`] capability with one upsert, this crate
-//! shows what a document-backed service actually looks like.
+//! proves the [`DocumentDb`] capability with one upsert, this crate
+//! shows what a document-backed service actually looks like. A create
+//! whose id is already stored answers `409 Conflict` through
+//! [`stop::CreateError`].
 //!
 //! Filter coverage across the three list handlers:
 //!
@@ -21,20 +23,23 @@
 //!   [`route::ListRoutesRequest::not_type`] (De Morgan negation)
 //! - `gte`/`lte` ranges — [`stop_time::ListStopTimesRequest`] time and sequence bounds
 //!
-//! Each handler is generic over `P: DocumentStore`, so the same code runs
+//! Each handler is generic over `P: DocumentDb`, so the same code runs
 //! inside the WASM guest (served by [`handlers`]) and against the
 //! filter-evaluating `MemoryDocs` double in the crate-level tests.
-//!
-//! [`DocumentStore`]: omnia_sdk::DocumentStore
 
 pub mod route;
 pub mod stop;
 pub mod stop_time;
 
-use omnia_sdk::Capabilities;
+use omnia_sdk::DocumentDb;
 use omnia_sdk::api::Handlers;
 
+/// The capabilities the stem's handlers reach, implemented by every provider that has them.
+pub trait Requires: DocumentDb + Send + Sync + 'static {}
+
+impl<P> Requires for P where P: DocumentDb + Send + Sync + 'static {}
+
 /// The stem's handlers, merged onto the root routers.
-pub fn handlers<P: Capabilities>() -> Handlers<P> {
+pub fn handlers<P: Requires>() -> Handlers<P> {
     Handlers::from([route::handlers(), stop::handlers(), stop_time::handlers()])
 }

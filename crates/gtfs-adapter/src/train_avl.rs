@@ -2,13 +2,13 @@
 
 use common::topic;
 use omnia_sdk::api::{Context, Handlers};
-use omnia_sdk::{Capabilities, Config, HttpRequest, Identity, Publish, Result, StateStore};
+use omnia_sdk::{Config, HttpClient, Identity, Publisher, Result, StateStore};
 use serde::Deserialize;
 
 use crate::fleet;
 use crate::motion::{self, MotionMessage};
 
-pub(crate) fn handlers<P: Capabilities>() -> Handlers<P> {
+pub(crate) fn handlers<P: crate::Requires>() -> Handlers<P> {
     Handlers::new().topic(topic::TRAIN_AVL, train_avl)
 }
 
@@ -20,7 +20,7 @@ pub struct TrainAvlMessage(pub MotionMessage);
 
 pub(crate) async fn train_avl<P>(context: Context<P>, input: TrainAvlMessage) -> Result<()>
 where
-    P: Config + HttpRequest + Identity + Publish + StateStore,
+    P: Config + HttpClient + Identity + Publisher + StateStore,
 {
     let provider = context.provider();
     let request = input.0;

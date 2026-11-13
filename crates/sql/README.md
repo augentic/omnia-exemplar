@@ -1,15 +1,16 @@
 # SQL examples
 
 The rich `wasi-sql` showcase: a two-table agency/feed schema exercising
-parameterized SQL over `omnia_sdk::TableStore` (`TableStore::query_as`,
-`TableStore::exec`) into `#[derive(FromRow)]` records — `SELECT` with
+parameterized SQL over `omnia_sdk::SqlDb` on the provider's `default`
+database (`SqlDbExt::query_as`, `SqlDb::execute`) into
+`#[derive(FromRow)]` records — `SELECT` with
 `ORDER BY` and optional `LIMIT`, `INSERT`
 with server-assigned ids, dynamic `UPDATE ... SET` writing only provided
 fields, `DELETE` answering 404 on zero rows affected, and a multi-column
 `LEFT JOIN` with aliased columns.
 
 One deliberate deviation from the pre-trim original: schema DDL goes through
-`TableStore::exec` instead of the wasm-only `Connection`/`Statement`/
+`SqlDb::execute` instead of the wasm-only `Connection`/`Statement`/
 `readwrite` bindings, so the handlers run unchanged against native mock
 providers (see `src/schema.rs`).
 
@@ -76,7 +77,7 @@ curl -s -X DELETE http://localhost:8080/examples/feeds/1
 
 - **Typed row decoding (`FromRow`)** — `Agency`, `Feed`, and
   `FeedWithAgency` derive `omnia_sdk::sql::FromRow`, one field per column
-  (`Option<T>` for a nullable one), and `TableStore::query_as` returns them
+  (`Option<T>` for a nullable one), and `SqlDbExt::query_as` returns them
   directly; a lone column is `row.get::<i64>("agency_id")?`
 - **JOINs** — `FeedWithAgency` selects `agency.name AS agency_name`,
   `agency.url AS agency_url`, and `agency.timezone AS agency_timezone`
@@ -89,12 +90,13 @@ curl -s -X DELETE http://localhost:8080/examples/feeds/1
   an empty patch rejected as 400, and a fetch-after-update reply
 - **Delete semantics** — `DELETE` answering 404 when zero rows are affected
 - **Parameterized SQL** — every statement binds values as `$1, $2, ...`
-  placeholders over `omnia_sdk::sql::DataType`
+  placeholders over `omnia_sdk::sql::Value`, with a page limit bound as
+  `Int64` since the portable dialect has no unsigned type
 
 ## Testing
 
 [`tests/operations.rs`](tests/operations.rs) drives `sql::handlers()` over
-`omnia_test::guest::ScriptedTables`, a responder-only `TableStore` double:
+`omnia_test::guest::ScriptedTables`, a responder-only `SqlDb` double:
 every scenario scripts the rows the `SELECT` should see and asserts the
 recorded statements — SQL text and bound parameters — for id assignment,
 partial update, the referential check, the JOIN listing, and delete-with-404.

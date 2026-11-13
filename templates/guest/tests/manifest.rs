@@ -3,7 +3,9 @@
 
 mod support;
 
-use omnia_template::{CRATE_LIST_ANCHOR, Error, HANDLER_LIST_ANCHOR, Manifest, insert_after};
+use omnia_template::{
+    CRATE_LIST_ANCHOR, Error, HANDLER_LIST_ANCHOR, Manifest, REQUIRES_LIST_ANCHOR, insert_after,
+};
 
 use self::support::Scratch;
 
@@ -145,5 +147,23 @@ fn handler_list_insertion() {
         after_fmt,
         "    Handlers::from([\n        orders::handlers(),\n        billing::handlers(),\n    \
          ]).with_state(Client::new(provider))\n"
+    );
+}
+
+// Each predicate lands on the line under the standing bound, so a later
+// stem's precedes an earlier one's; a `where` list's order is immaterial.
+#[test]
+fn requires_list_insertion() {
+    const HEAD: &str = "where\n    P: Send + Sync + 'static,\n";
+    let seed = omnia_template::entry("src/lib.rs").expect("the template holds `src/lib.rs`").body;
+    assert!(seed.contains(&format!("{HEAD}{{\n")), "{seed}");
+
+    let one = insert_after(seed, REQUIRES_LIST_ANCHOR, "    P: orders::Requires,").expect("one");
+    assert!(one.contains(&format!("{HEAD}    P: orders::Requires,\n{{\n")), "{one}");
+
+    let two = insert_after(&one, REQUIRES_LIST_ANCHOR, "    P: billing::Requires,").expect("two");
+    assert!(
+        two.contains(&format!("{HEAD}    P: billing::Requires,\n    P: orders::Requires,\n{{\n")),
+        "{two}"
     );
 }

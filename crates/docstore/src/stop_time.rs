@@ -4,22 +4,21 @@
 //! both a string field (arrival time) and a numeric field (stop sequence),
 //! sorted by sequence.
 
-use anyhow::Context as _;
 use axum::Json;
 use axum::extract::{Path, Query};
 use axum::routing::get;
 use omnia_sdk::api::{Context, Handlers};
-use omnia_sdk::docstore::{Document, Filter, QueryOptions, SortField};
-use omnia_sdk::{Capabilities, DocumentStore, Result, not_found};
+use omnia_sdk::docstore::{Document, Exists, Filter, SortField};
+use omnia_sdk::{DocumentDb, Result, not_found};
 use serde::{Deserialize, Serialize};
 
-use crate::stop::{DocumentRecord, records};
+use crate::stop::{CreateError, DocumentRecord, records};
 
 pub(crate) const STOP_TIMES: &str = "/examples/stop-times";
 pub(crate) const STOP_TIME: &str = "/examples/stop-times/{id}";
 pub(crate) const COLLECTION: &str = "stop_times";
 
-pub(crate) fn handlers<P: Capabilities>() -> Handlers<P> {
+pub(crate) fn handlers<P: crate::Requires>() -> Handlers<P> {
     Handlers::new()
         .route(STOP_TIMES, get(list_stop_times).post(create_stop_time))
         .route(STOP_TIME, get(get_stop_time))
@@ -44,7 +43,7 @@ pub struct StopTime {
     pub drop_off_type: Option<i32>,
 }
 
-/// Create a stop time with a caller-chosen id (fails when the id exists).
+/// Create a stop time with a caller-chosen id (`409 Conflict` when the id exists).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CreateStopTimeRequest {
     /// Document id for the new stop time.
@@ -56,15 +55,14 @@ pub struct CreateStopTimeRequest {
 
 pub(crate) async fn create_stop_time<P>(
     context: Context<P>, Json(input): Json<CreateStopTimeRequest>,
-) -> Result<Json<DocumentRecord<StopTime>>>
+) -> std::result::Result<Json<DocumentRecord<StopTime>>, CreateError>
 where
-    P: DocumentStore,
+    P: DocumentDb,
 {
-    let document = Document {
-        id: input.id.clone(),
-        data: serde_json::to_vec(&input.stop_time).context("serializing stop time")?,
-    };
-    DocumentStore::insert(context.provider(), COLLECTION, &document).await?;
+    let document = Document::json(&input.id, &input.stop_time)?;
+    if context.docs().insert(COLLECTION, &document).await? == Err(Exists) {
+        return Err(CreateError::Exists { id: input.id });
+    }
 
     Ok(Json(DocumentRecord {
         id: input.id,
@@ -76,12 +74,14 @@ pub(crate) async fn get_stop_time<P>(
     context: Context<P>, Path(id): Path<String>,
 ) -> Result<Json<DocumentRecord<StopTime>>>
 where
-    P: DocumentStore,
+    P: DocumentDb,
 {
-    let document = DocumentStore::get(context.provider(), COLLECTION, &id)
+    let document = context
+        .docs()
+        .get(COLLECTION, &id)
         .await?
         .ok_or_else(|| not_found!("stop time {id} not found"))?;
-    let stop_time = serde_json::from_slice(&document.data).context("deserializing stop time")?;
+    let stop_time = document.decode()?;
 
     Ok(Json(DocumentRecord {
         id: document.id,
@@ -126,7 +126,7 @@ pub(crate) async fn list_stop_times<P>(
     context: Context<P>, Query(input): Query<ListStopTimesRequest>,
 ) -> Result<Json<StopTimesReply>>
 where
-    P: DocumentStore,
+    P: DocumentDb,
 {
     let mut filters = Vec::new();
 
@@ -151,24 +151,20 @@ where
 
     let filter = if filters.is_empty() { None } else { Some(Filter::and(filters)) };
 
-    let result = DocumentStore::query(
-        context.provider(),
-        COLLECTION,
-        QueryOptions {
-            filter,
-            order_by: vec![SortField {
-                field: "stop_sequence".to_string(),
-                descending: false,
-            }],
-            limit: input.limit,
-            continuation: input.continuation,
-            ..Default::default()
-        },
-    )
-    .await?;
+    let query = omnia_sdk::docstore::Query {
+        filter,
+        order_by: vec![SortField {
+            field: "stop_sequence".to_string(),
+            descending: false,
+        }],
+        limit: input.limit,
+        after: input.continuation,
+        ..Default::default()
+    };
+    let page = context.docs().query(COLLECTION, &query).await?;
 
     Ok(Json(StopTimesReply {
-        stop_times: records(&result.documents)?,
-        continuation: result.continuation,
+        stop_times: records(&page.items)?,
+        continuation: page.next,
     }))
 }

@@ -1,13 +1,12 @@
-//! Schema DDL through the [`TableStore`] capability.
+//! Schema DDL through the [`SqlDb`] capability.
 //!
 //! The pre-trim omnia example created its tables through the wasm-only
 //! `Connection`/`Statement`/`readwrite` bindings. Routing the DDL through
-//! [`TableStore::exec`] instead keeps the handlers runnable against native
+//! [`SqlDb::execute`] instead keeps the handlers runnable against native
 //! `omnia-test` doubles — a deliberate, documented deviation.
 
-use omnia_sdk::TableStore;
-
-pub const CONNECTION: &str = "db";
+use omnia_sdk::SqlDb;
+use omnia_sdk::capability::Result;
 
 pub mod sql {
     pub const CREATE_AGENCY: &str = "CREATE TABLE IF NOT EXISTS agency (
@@ -29,8 +28,8 @@ pub mod sql {
 // Called at the top of every handler: omnia creates one guest instance per
 // request, so there is no process-lifetime initialisation hook. The
 // `IF NOT EXISTS` guard keeps the repeat cheap.
-pub async fn ensure<P: TableStore>(tables: &P) -> anyhow::Result<()> {
-    tables.exec(CONNECTION, sql::CREATE_AGENCY, &[]).await?;
-    tables.exec(CONNECTION, sql::CREATE_FEED, &[]).await?;
+pub async fn ensure<P: SqlDb>(db: &P) -> Result<()> {
+    db.execute(sql::CREATE_AGENCY, &[]).await?;
+    db.execute(sql::CREATE_FEED, &[]).await?;
     Ok(())
 }

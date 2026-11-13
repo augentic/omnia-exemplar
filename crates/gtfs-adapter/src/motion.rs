@@ -3,17 +3,15 @@
 use chrono::{DateTime, Utc};
 use common::topic;
 use omnia_sdk::api::{Context, Handlers};
-use omnia_sdk::{
-    Capabilities, Config, Error, HttpRequest, Identity, Message, Publish, Result, StateStore,
-    bad_request,
-};
+use omnia_sdk::messaging::Message;
+use omnia_sdk::{Config, Error, HttpClient, Identity, Publisher, Result, StateStore, bad_request};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 use crate::location::Location;
 use crate::{location, serial_data};
 
-pub(crate) fn handlers<P: Capabilities>() -> Handlers<P> {
+pub(crate) fn handlers<P: crate::Requires>() -> Handlers<P> {
     Handlers::new().topic(topic::PULSE_TO_MOTION, motion)
 }
 
@@ -41,7 +39,7 @@ impl From<MotionError> for Error {
 
 pub(crate) async fn motion<P>(context: Context<P>, input: MotionMessage) -> Result<()>
 where
-    P: Config + HttpRequest + Identity + Publish + StateStore,
+    P: Config + HttpClient + Identity + Publisher + StateStore,
 {
     let provider = context.provider();
     let message = input;
@@ -65,7 +63,7 @@ where
     };
 
     // publish
-    context.publish().send(topic, &message.with_header("key", key)).await?;
+    context.publisher().publish(topic, &message.with_key(key)).await?;
 
     Ok(())
 }

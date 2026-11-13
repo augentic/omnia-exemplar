@@ -26,7 +26,7 @@ async fn lookup() {
     };
     provider
         .storage
-        .insert_state("orders/order/ord-1", &serde_json::to_vec(&order).expect("serialize"));
+        .insert_state("orders.order.ord-1", &serde_json::to_vec(&order).expect("serialize"));
 
     let (status, body) = get_order(&provider, "ord-1").await;
 
@@ -37,7 +37,7 @@ async fn lookup() {
     order.locked = true;
     provider
         .storage
-        .insert_state("orders/order/ord-1", &serde_json::to_vec(&order).expect("serialize"));
+        .insert_state("orders.order.ord-1", &serde_json::to_vec(&order).expect("serialize"));
 
     let (status, body) = get_order(&provider, "ord-1").await;
 

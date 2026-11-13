@@ -3,19 +3,19 @@
 use common::topic;
 use omnia_sdk::api::messaging::Delivery;
 use omnia_sdk::api::{Context, DecodeError, Handlers};
-use omnia_sdk::{Capabilities, Result, StateStore, bad_request};
+use omnia_sdk::{Result, StateStore, bad_request};
 use serde::{Deserialize, Serialize};
 
-pub(crate) fn handlers<P: Capabilities>() -> Handlers<P> {
+pub(crate) fn handlers<P: crate::Requires>() -> Handlers<P> {
     Handlers::new().topic_with(topic::ORDER_DISPATCHED, on_dispatched, decode_dispatch_xml)
 }
 
 pub(crate) fn dispatched_key(id: &str) -> String {
-    format!("orders/dispatched/{id}")
+    format!("orders.dispatched.{id}")
 }
 
 fn decode_dispatch_xml(delivery: &Delivery) -> std::result::Result<Dispatched, DecodeError> {
-    quick_xml::de::from_reader(delivery.payload.as_slice())
+    quick_xml::de::from_reader(&delivery.payload[..])
         .map_err(|error| DecodeError::new(format!("malformed dispatch XML: {error}")))
 }
 

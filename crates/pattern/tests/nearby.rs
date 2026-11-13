@@ -11,36 +11,35 @@ use axum::http::header::CONTENT_TYPE;
 use axum::http::{Request, StatusCode};
 use axum::response::IntoResponse as _;
 use omnia_sdk::api::Client;
-use omnia_sdk::sql::{DataType, Field, Row};
-use omnia_test::guest::{self, Provider, ScriptedTables, Statement};
+use omnia_sdk::sql::{Field, Row, Value};
+use omnia_test::guest::{self, Executed, Provider, ScriptedTables};
 use pattern::place::{
     NearbyPlacesReply, NearbyPlacesRequest, PlaceError, UpsertPlaceReply, UpsertPlaceRequest,
 };
 
 fn place_row(id: &str, name: &str, lat: f64, lon: f64) -> Row {
-    let field = |name: &str, value: DataType| Field {
+    let field = |name: &str, value: Value| Field {
         name: name.to_string(),
         value,
     };
     Row {
-        index: id.to_string(),
         fields: vec![
-            field("id", DataType::Str(Some(id.to_string()))),
-            field("name", DataType::Str(Some(name.to_string()))),
-            field("lat", DataType::Double(Some(lat))),
-            field("lon", DataType::Double(Some(lon))),
+            field("id", Value::from(id)),
+            field("name", Value::from(name)),
+            field("lat", Value::from(lat)),
+            field("lon", Value::from(lon)),
         ],
     }
 }
 
 // The handler binds the bounds in this order: `lat >=`, `lat <=`, `lon >=`,
 // `lon <=`.
-fn bounds(statement: &Statement) -> [f64; 4] {
+fn bounds(statement: &Executed) -> [f64; 4] {
     let [
-        DataType::Double(Some(lat_min)),
-        DataType::Double(Some(lat_max)),
-        DataType::Double(Some(lon_min)),
-        DataType::Double(Some(lon_max)),
+        Value::Double(Some(lat_min)),
+        Value::Double(Some(lat_max)),
+        Value::Double(Some(lon_min)),
+        Value::Double(Some(lon_max)),
     ] = statement.params.as_slice()
     else {
         panic!("expected four double bounds, got {:?}", statement.params);
@@ -48,9 +47,9 @@ fn bounds(statement: &Statement) -> [f64; 4] {
     [*lat_min, *lat_max, *lon_min, *lon_max]
 }
 
-fn upserted_id(statement: &Statement) -> Option<&str> {
+fn upserted_id(statement: &Executed) -> Option<&str> {
     match statement.params.first() {
-        Some(DataType::Str(Some(id))) if statement.sql.starts_with("INSERT") => Some(id),
+        Some(Value::Str(Some(id))) if statement.sql.starts_with("INSERT") => Some(id),
         _ => None,
     }
 }
@@ -91,7 +90,7 @@ async fn nearby(provider: &Provider, lat: f64, lon: f64, radius_m: f64) -> Nearb
 #[tokio::test]
 async fn radius() {
     const CORNER: (f64, f64) = (-36.8335, 174.7813);
-    let provider = Provider::default().tables(ScriptedTables::default().on_query(
+    let provider = Provider::default().sql(ScriptedTables::default().on_query(
         |sql, params| sql.starts_with("SELECT") && params.len() == 4,
         vec![
             // ~2.3 km to the north-east: inside the 2 km bounding box but
@@ -111,9 +110,9 @@ async fn radius() {
 
     // The box the database was asked for brackets the centre on both axes
     // and reaches the corner, so only Rust dropped it.
-    let statements = provider.tables.statements();
+    let statements = provider.sql.statements();
     assert_eq!(statements.len(), 1);
-    assert_eq!(statements[0].connection, "db");
+    assert_eq!(statements[0].binding, "default");
     let [lat_min, lat_max, lon_min, lon_max] = bounds(&statements[0]);
     assert!(lat_min < -36.8485 && -36.8485 < lat_max);
     assert!(lon_min < 174.7633 && 174.7633 < lon_max);
@@ -122,7 +121,7 @@ async fn radius() {
 
 #[tokio::test]
 async fn upserts() {
-    let provider = Provider::default().tables(
+    let provider = Provider::default().sql(
         ScriptedTables::default()
             .on_exec(|sql, params| sql.starts_with("INSERT") && params.len() == 4, 1),
     );
@@ -133,18 +132,18 @@ async fn upserts() {
     assert_eq!(reply.affected, 1);
 
     // The write is the conflict-updating statement, keyed on the id.
-    let statements = provider.tables.statements();
+    let statements = provider.sql.statements();
     let [statement] = statements.as_slice() else {
         panic!("expected one upsert, got {statements:?}");
     };
     assert!(statement.sql.contains("ON CONFLICT"), "{}", statement.sql);
     assert_eq!(upserted_id(statement), Some("cbd"));
-    assert!(matches!(&statement.params[1], DataType::Str(Some(name)) if name == "City Centre"));
+    assert_eq!(statement.params[1], Value::from("City Centre"));
 
     // An out-of-range coordinate is the structured 400: omnia's `ErrorBody`
     // envelope plus the variant's domain fields, with nothing written.
     let (status, bytes) = upsert(&provider, "bad", "Nowhere", 123.4, 0.0).await;
-    assert_eq!(provider.tables.statements().len(), 1, "rejected row must not reach the store");
+    assert_eq!(provider.sql.statements().len(), 1, "rejected row must not reach the store");
     assert_eq!(status, StatusCode::BAD_REQUEST);
     let body: serde_json::Value = serde_json::from_slice(&bytes).expect("body is JSON");
     assert_eq!(

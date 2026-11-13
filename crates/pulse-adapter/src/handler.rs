@@ -3,16 +3,17 @@
 //! Transform a Pulse XML message into Motion events.
 
 use anyhow::Context as _;
-use axum::body::Body;
+use axum::body::Bytes;
 use chrono::Utc;
 use common::topic;
 use http::Method;
 use http::header::AUTHORIZATION;
 use omnia_sdk::api::messaging::Delivery;
 use omnia_sdk::api::{Context, DecodeError, Handlers};
+use omnia_sdk::messaging::Message;
 use omnia_sdk::{
-    Capabilities, Config, Error, HttpRequest, HttpRequestExt as _, Identity, IdentityExt, Message,
-    Publish, Result, Settings, StateStore,
+    Config, Error, HttpClient, HttpClientExt as _, Identity, IdentityExt as _, Publisher, Result,
+    Settings, StateStore,
 };
 use serde::Deserialize;
 use thiserror::Error;
@@ -30,7 +31,7 @@ pub struct PulseSettings {
     api_identity: String,
 }
 
-pub(crate) fn handlers<P: Capabilities>() -> Handlers<P> {
+pub(crate) fn handlers<P: crate::Requires>() -> Handlers<P> {
     Handlers::new().topic_with(topic::PULSE, pulse, decode_xml)
 }
 
@@ -114,7 +115,7 @@ const PUBLISH_REPEATS: usize = 2;
 
 pub(crate) async fn pulse<P>(context: Context<P>, input: PulseMessage) -> Result<()>
 where
-    P: Config + HttpRequest + Identity + Publish + StateStore,
+    P: Config + HttpClient + Identity + Publisher + StateStore,
 {
     // validate message
     let update = input.train_update;
@@ -128,9 +129,8 @@ where
         for event in &events {
             tracing::info!(monotonic_counter.motion_events_published = 1);
 
-            let message =
-                Message::json(event)?.with_header("key", event.remote_data.external_id.clone());
-            context.publish().send(topic::PULSE_TO_MOTION, &message).await?;
+            let message = Message::json(event)?.with_key(event.remote_data.external_id.clone());
+            context.publisher().publish(topic::PULSE_TO_MOTION, &message).await?;
         }
     }
 
@@ -141,7 +141,7 @@ impl TrainUpdate {
     /// Transform the Pulse message to Motion events
     async fn into_events<P>(self, provider: &P) -> Result<Vec<MotionEvent>>
     where
-        P: Config + HttpRequest + Identity + Publish + StateStore,
+        P: Config + HttpClient + Identity + StateStore,
     {
         let changes = &self.changes;
         let change_type = changes[0].r#type;
@@ -185,19 +185,19 @@ impl TrainUpdate {
 
 async fn trip_allocations<P>(provider: &P, external_ref_id: &str) -> Result<Vec<String>>
 where
-    P: Config + HttpRequest + Identity,
+    P: Config + HttpClient + Identity,
 {
     let PulseSettings {
         block_mgt_url: url,
         api_identity: identity,
     } = PulseSettings::load(provider).await?;
-    let token = IdentityExt::access_token(provider, &identity).await?;
+    let token = Identity::named(provider, &identity).access_token().await?;
 
     let request = http::Request::builder()
         .method(Method::GET)
         .uri(format!("{url}/allocations/trips?externalRefId={external_ref_id}"))
         .header(AUTHORIZATION, format!("Bearer {token}"))
-        .body(Body::empty())
+        .body(Bytes::new())
         .context("building trip allocations request")?;
 
     provider.fetch_json(request).await

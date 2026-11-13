@@ -8,9 +8,9 @@ use capability::blob::{ArchiveReply, ArchiveRequest};
 use capability::broadcast::AlertRequest;
 use capability::document::{NoteReply, NoteRequest};
 use capability::table::{ReadingReply, ReadingRequest, sql};
-use omnia_sdk::DocumentStore as _;
+use omnia_sdk::DocumentDb as _;
 use omnia_sdk::api::Client;
-use omnia_sdk::sql::{DataType, Row};
+use omnia_sdk::sql::{Row, Value};
 use omnia_test::guest::{Broadcasted, Provider, ScriptedTables, send};
 use serde::Serialize;
 use serde::de::DeserializeOwned;
@@ -49,22 +49,32 @@ async fn archive_object() {
 #[tokio::test]
 async fn broadcast_alert() {
     let provider = Provider::default();
-    let request = AlertRequest {
-        channel: "ops".to_string(),
+    let targeted = AlertRequest {
         message: "service degraded".to_string(),
         sockets: Some(vec!["socket-1".to_string()]),
     };
+    let everyone = AlertRequest {
+        message: "service restored".to_string(),
+        sockets: None,
+    };
 
-    let reply: String = post(&provider, "/examples/alert", &request).await;
-
+    let reply: String = post(&provider, "/examples/alert", &targeted).await;
     assert_eq!(reply, "OK");
+    let reply: String = post(&provider, "/examples/alert", &everyone).await;
+    assert_eq!(reply, "OK");
+
     assert_eq!(
-        provider.broadcast.broadcasts(),
-        [Broadcasted {
-            name: "ops".to_string(),
-            data: b"service degraded".to_vec(),
-            sockets: Some(vec!["socket-1".to_string()]),
-        }]
+        provider.websockets.broadcasts(),
+        [
+            Broadcasted {
+                data: b"service degraded".to_vec(),
+                sockets: Some(vec!["socket-1".to_string()]),
+            },
+            Broadcasted {
+                data: b"service restored".to_vec(),
+                sockets: None,
+            },
+        ]
     );
 }
 
@@ -89,14 +99,14 @@ async fn upsert_note() {
 async fn record_reading() {
     // The handler reports only how many rows the select returns, so the two
     // scripted rows carry no fields.
-    let provider = Provider::default().tables(
+    let provider = Provider::default().sql(
         ScriptedTables::default()
             .on_exec(|sql, _| sql == sql::INSERT, 1)
             .on_query(|sql, _| sql == sql::SELECT, vec![Row::default(); 2]),
     );
 
     let request = ReadingRequest {
-        connection: "telemetry".to_string(),
+        connection: "default".to_string(),
         sensor: "temp-1".to_string(),
         value: 22.0,
     };
@@ -105,17 +115,11 @@ async fn record_reading() {
     assert_eq!(reply.affected, 1);
     assert_eq!(reply.rows, 2);
 
-    // The insert ran before the select, both on the named connection with the
+    // The insert ran before the select, both on the named binding with the
     // sensor bound.
-    let statements = provider.tables.statements();
+    let statements = provider.sql.statements();
     assert_eq!(statements.len(), 2);
-    assert!(statements.iter().all(|statement| statement.connection == "telemetry"));
-    assert!(matches!(
-        statements[0].params.as_slice(),
-        [DataType::Str(Some(sensor)), DataType::Double(Some(value))]
-            if sensor == "temp-1" && value.to_bits() == 22.0_f64.to_bits()
-    ));
-    assert!(
-        matches!(statements[1].params.as_slice(), [DataType::Str(Some(sensor))] if sensor == "temp-1")
-    );
+    assert!(statements.iter().all(|statement| statement.binding == "default"));
+    assert_eq!(statements[0].params, [Value::from("temp-1"), Value::from(22.0)]);
+    assert_eq!(statements[1].params, [Value::from("temp-1")]);
 }

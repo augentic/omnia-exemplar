@@ -1,9 +1,9 @@
-//! Optimistic-concurrency update over [`StateStore::cas`].
+//! Optimistic-concurrency update over [`StateStore::compare_and_swap`].
 //!
 //! Demonstrates compare-and-swap state updates where a concurrent write is
 //! rejected with `409 Conflict`. Because `omnia_sdk::Error` covers only
 //! `400`, `404`, `500`, and `502`, the handler answers `Result<Json<QuotaRecord>,
-//! QuotaError>` and maps [`CasError::Conflict`] to [`StatusCode::CONFLICT`]
+//! QuotaError>` and maps a swap's [`Conflict`] to [`StatusCode::CONFLICT`]
 //! in [`QuotaError`]'s [`IntoResponse`] implementation.
 
 use axum::Json;
@@ -12,17 +12,16 @@ use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use axum::routing::put;
 use omnia_sdk::api::{Context, Handlers};
-use omnia_sdk::{Capabilities, CasError, StateStore, not_found, server_error};
+use omnia_sdk::keyvalue::Conflict;
+use omnia_sdk::{StateStore, bad_request, capability, not_found, server_error};
 use serde::{Deserialize, Serialize};
+
+use crate::state_keys;
 
 pub(crate) const QUOTA: &str = "/examples/patterns/quotas/{tenant}";
 
-pub(crate) fn handlers<P: Capabilities>() -> Handlers<P> {
+pub(crate) fn handlers<P: crate::Requires>() -> Handlers<P> {
     Handlers::new().route(QUOTA, put(update_quota))
-}
-
-pub(crate) fn quota_key(tenant: &str) -> String {
-    format!("pattern:quota:{tenant}")
 }
 
 /// A versioned quota record stored in [`StateStore`].
@@ -67,6 +66,12 @@ impl From<anyhow::Error> for QuotaError {
     }
 }
 
+impl From<capability::Error> for QuotaError {
+    fn from(error: capability::Error) -> Self {
+        Self::Host(error.into())
+    }
+}
+
 // The conflict body is omnia's `ErrorBody` pair plus the domain fields; a
 // host failure is the framework envelope at its own status.
 impl IntoResponse for QuotaError {
@@ -95,7 +100,12 @@ pub(crate) async fn update_quota<P>(
 where
     P: StateStore,
 {
-    let key = quota_key(&tenant);
+    if !state_keys::is_portable(&tenant) {
+        return Err(
+            bad_request!("tenant `{tenant}` may hold only letters, digits, `_`, and `-`").into()
+        );
+    }
+    let key = state_keys::quota(&tenant);
     let current = context.state().get(&key).await?;
 
     let expected_bytes = match (&current, input.expected_version) {
@@ -112,7 +122,7 @@ where
                     current_version: Some(record.version),
                 });
             }
-            Some(bytes.as_slice())
+            Some(&bytes[..])
         }
     };
 
@@ -124,10 +134,10 @@ where
     let next_bytes =
         serde_json::to_vec(&next).map_err(|err| server_error!("serializing quota: {err}"))?;
 
-    match context.state().cas(&key, expected_bytes, &next_bytes).await {
+    match context.state().compare_and_swap(&key, expected_bytes, &next_bytes, None).await? {
         Ok(()) => Ok(Json(next)),
-        Err(CasError::Conflict(observed)) => {
-            let current_version = observed
+        Err(Conflict { current }) => {
+            let current_version = current
                 .as_deref()
                 .and_then(|bytes| serde_json::from_slice::<QuotaRecord>(bytes).ok())
                 .map(|record| record.version);
@@ -136,6 +146,5 @@ where
                 current_version,
             })
         }
-        Err(CasError::Store(err)) => Err(server_error!("{err}").into()),
     }
 }

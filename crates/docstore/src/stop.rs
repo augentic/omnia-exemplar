@@ -6,13 +6,14 @@
 //! (top-level stops), `gte`/`lte` (bounding box), and `on_date` (update
 //! date) — sorted by name with limit/continuation pagination.
 
-use anyhow::Context as _;
 use axum::Json;
 use axum::extract::{Path, Query};
+use axum::http::StatusCode;
+use axum::response::{IntoResponse, Response};
 use axum::routing::get;
 use omnia_sdk::api::{Context, Handlers};
-use omnia_sdk::docstore::{Document, Filter, QueryOptions, SortField};
-use omnia_sdk::{Capabilities, DocumentStore, Result, bad_request, not_found};
+use omnia_sdk::docstore::{Document, Exists, Filter, SortField};
+use omnia_sdk::{DocumentDb, Result, bad_request, capability, not_found};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 
@@ -20,7 +21,7 @@ pub(crate) const STOPS: &str = "/examples/stops";
 pub(crate) const STOP: &str = "/examples/stops/{id}";
 pub(crate) const COLLECTION: &str = "stops";
 
-pub(crate) fn handlers<P: Capabilities>() -> Handlers<P> {
+pub(crate) fn handlers<P: crate::Requires>() -> Handlers<P> {
     Handlers::new()
         .route(STOPS, get(list_stops).post(create_stop))
         .route(STOP, get(get_stop).put(upsert_stop).delete(delete_stop))
@@ -42,17 +43,54 @@ pub struct DocumentRecord<T> {
 /// Deserialize query-result documents into typed records.
 pub(crate) fn records<T: DeserializeOwned>(
     documents: &[Document],
-) -> anyhow::Result<Vec<DocumentRecord<T>>> {
+) -> capability::Result<Vec<DocumentRecord<T>>> {
     documents
         .iter()
         .map(|doc| {
-            let document = serde_json::from_slice(&doc.data).context("deserializing document")?;
             Ok(DocumentRecord {
                 id: doc.id.clone(),
-                document,
+                document: doc.decode()?,
             })
         })
         .collect()
+}
+
+/// Why a create handler could not store its document.
+#[derive(Debug, thiserror::Error)]
+pub enum CreateError {
+    /// A document with the requested id is already stored.
+    #[error("document `{id}` already exists")]
+    Exists {
+        /// The id already stored.
+        id: String,
+    },
+    /// The host or a precondition failed.
+    #[error(transparent)]
+    Host(#[from] omnia_sdk::Error),
+}
+
+impl From<capability::Error> for CreateError {
+    fn from(error: capability::Error) -> Self {
+        Self::Host(error.into())
+    }
+}
+
+// The conflict body is omnia's `ErrorBody` pair plus the stored id; a host
+// failure is the framework envelope at its own status.
+impl IntoResponse for CreateError {
+    fn into_response(self) -> Response {
+        match self {
+            Self::Exists { ref id } => {
+                let body = serde_json::json!({
+                    "error": "conflict",
+                    "message": self.to_string(),
+                    "id": id,
+                });
+                (StatusCode::CONFLICT, Json(body)).into_response()
+            }
+            Self::Host(inner) => inner.into_response(),
+        }
+    }
 }
 
 /// A GTFS-like stop stored as one JSON document.
@@ -76,7 +114,7 @@ pub struct Stop {
     pub last_updated: Option<String>,
 }
 
-/// Create a stop with a caller-chosen id (fails when the id exists).
+/// Create a stop with a caller-chosen id (`409 Conflict` when the id exists).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CreateStopRequest {
     /// Document id for the new stop.
@@ -88,15 +126,14 @@ pub struct CreateStopRequest {
 
 pub(crate) async fn create_stop<P>(
     context: Context<P>, Json(input): Json<CreateStopRequest>,
-) -> Result<Json<DocumentRecord<Stop>>>
+) -> std::result::Result<Json<DocumentRecord<Stop>>, CreateError>
 where
-    P: DocumentStore,
+    P: DocumentDb,
 {
-    let document = Document {
-        id: input.id.clone(),
-        data: serde_json::to_vec(&input.stop).context("serializing stop")?,
-    };
-    DocumentStore::insert(context.provider(), COLLECTION, &document).await?;
+    let document = Document::json(&input.id, &input.stop)?;
+    if context.docs().insert(COLLECTION, &document).await? == Err(Exists) {
+        return Err(CreateError::Exists { id: input.id });
+    }
 
     Ok(Json(DocumentRecord {
         id: input.id,
@@ -108,12 +145,14 @@ pub(crate) async fn get_stop<P>(
     context: Context<P>, Path(id): Path<String>,
 ) -> Result<Json<DocumentRecord<Stop>>>
 where
-    P: DocumentStore,
+    P: DocumentDb,
 {
-    let document = DocumentStore::get(context.provider(), COLLECTION, &id)
+    let document = context
+        .docs()
+        .get(COLLECTION, &id)
         .await?
         .ok_or_else(|| not_found!("stop {id} not found"))?;
-    let stop = serde_json::from_slice(&document.data).context("deserializing stop")?;
+    let stop = document.decode()?;
 
     Ok(Json(DocumentRecord {
         id: document.id,
@@ -126,13 +165,9 @@ pub(crate) async fn upsert_stop<P>(
     context: Context<P>, Path(id): Path<String>, Json(stop): Json<Stop>,
 ) -> Result<Json<DocumentRecord<Stop>>>
 where
-    P: DocumentStore,
+    P: DocumentDb,
 {
-    let document = Document {
-        id: id.clone(),
-        data: serde_json::to_vec(&stop).context("serializing stop")?,
-    };
-    DocumentStore::put(context.provider(), COLLECTION, &document).await?;
+    context.docs().put(COLLECTION, &Document::json(&id, &stop)?).await?;
 
     Ok(Json(DocumentRecord { id, document: stop }))
 }
@@ -148,9 +183,9 @@ pub(crate) async fn delete_stop<P>(
     context: Context<P>, Path(id): Path<String>,
 ) -> Result<Json<DeleteStopReply>>
 where
-    P: DocumentStore,
+    P: DocumentDb,
 {
-    let removed = DocumentStore::delete(context.provider(), COLLECTION, &id).await?;
+    let removed = context.docs().delete(COLLECTION, &id).await?;
     if !removed {
         return Err(not_found!("stop {id} not found"));
     }
@@ -203,7 +238,7 @@ pub(crate) async fn list_stops<P>(
     context: Context<P>, Query(input): Query<ListStopsRequest>,
 ) -> Result<Json<StopsReply>>
 where
-    P: DocumentStore,
+    P: DocumentDb,
 {
     let mut filters = Vec::new();
 
@@ -243,24 +278,20 @@ where
 
     let filter = if filters.is_empty() { None } else { Some(Filter::and(filters)) };
 
-    let result = DocumentStore::query(
-        context.provider(),
-        COLLECTION,
-        QueryOptions {
-            filter,
-            order_by: vec![SortField {
-                field: "stop_name".to_string(),
-                descending: false,
-            }],
-            limit: input.limit,
-            continuation: input.continuation,
-            ..Default::default()
-        },
-    )
-    .await?;
+    let query = omnia_sdk::docstore::Query {
+        filter,
+        order_by: vec![SortField {
+            field: "stop_name".to_string(),
+            descending: false,
+        }],
+        limit: input.limit,
+        after: input.continuation,
+        ..Default::default()
+    };
+    let page = context.docs().query(COLLECTION, &query).await?;
 
     Ok(Json(StopsReply {
-        stops: records(&result.documents)?,
-        continuation: result.continuation,
+        stops: records(&page.items)?,
+        continuation: page.next,
     }))
 }

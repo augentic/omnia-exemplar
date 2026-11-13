@@ -7,10 +7,11 @@
 //! `god-mode` cargo feature is enabled, and does nothing at runtime unless
 //! the `GOD_MODE_ENABLED` configuration key is set to a truthy value.
 //!
-//! Overrides live in the state store under the `god_mode:` prefix, separate
-//! from the `motionGtfs:` pipeline state (see `state_keys`).
+//! Overrides live in the state store under the `god_mode.` prefix, separate
+//! from the `motionGtfs.` pipeline state (see `state_keys`).
 
 use std::collections::HashMap;
+use std::time::Duration;
 
 use anyhow::Result;
 use omnia_sdk::{Config, StateStore, StateStoreExt as _};
@@ -31,15 +32,15 @@ pub(crate) async fn set_vehicle_to_trip(
     save_state(state_store, &state).await
 }
 
-const KEY_OVERRIDES: &str = "god_mode:overrides";
-const TTL_OVERRIDES: u64 = 24 * 60 * 60; // 24 hours
+const KEY_OVERRIDES: &str = "god_mode.overrides";
+const TTL_OVERRIDES: Duration = Duration::from_hours(24);
 
 async fn load_state(state_store: &impl StateStore) -> Result<State> {
     Ok(state_store.get_json(KEY_OVERRIDES).await?.unwrap_or_default())
 }
 
 async fn save_state(state_store: &impl StateStore, state: &State) -> Result<()> {
-    state_store.set_json(KEY_OVERRIDES, state, Some(TTL_OVERRIDES)).await
+    Ok(state_store.set_json(KEY_OVERRIDES, state, Some(TTL_OVERRIDES)).await?)
 }
 
 pub(crate) async fn apply_overrides<P>(provider: &P, event: MotionMessage) -> Result<MotionMessage>
@@ -95,7 +96,7 @@ async fn preprocess(state_store: &impl StateStore, event: &mut MotionMessage) ->
 pub(crate) const GOD_MODE_ENABLED: &str = "GOD_MODE_ENABLED";
 
 pub(crate) async fn is_enabled(provider: &impl Config) -> Result<bool> {
-    Ok(Config::get(provider, GOD_MODE_ENABLED).await.is_ok_and(|value| {
+    Ok(Config::get(provider, GOD_MODE_ENABLED).await?.is_some_and(|value| {
         let normalized = value.trim().to_ascii_lowercase();
         matches!(normalized.as_str(), "1" | "true" | "yes" | "on")
     }))

@@ -17,7 +17,7 @@ async fn xml_notice() {
     .expect("dispatch notice handled");
 
     assert_eq!(
-        provider.storage.state("orders/dispatched/ord-7").as_deref(),
+        provider.storage.state("orders.dispatched.ord-7").as_deref(),
         Some(b"NZP".as_slice())
     );
 }

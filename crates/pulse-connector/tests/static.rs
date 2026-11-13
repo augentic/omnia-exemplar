@@ -48,7 +48,7 @@ async fn train_update() {
     let (_, cdata) = fixture.split_once("<![CDATA[").expect("fixture opens a CDATA section");
     let (expected, _) = cdata.split_once("]]>").expect("fixture closes the CDATA section");
 
-    let published = provider.publish.sent();
+    let published = provider.publisher.sent();
     assert_eq!(published.len(), 1);
 
     let (topic, record) = &published[0];
@@ -80,6 +80,6 @@ async fn bad_requests() {
             b"<Fault><StatusCode>400</StatusCode><Response><Message>Bad Request</Message></Response></Fault>",
             "{request}"
         );
-        assert!(provider.publish.sent().is_empty(), "{request}");
+        assert!(provider.publisher.sent().is_empty(), "{request}");
     }
 }

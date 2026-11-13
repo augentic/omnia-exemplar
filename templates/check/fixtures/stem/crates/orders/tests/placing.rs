@@ -28,7 +28,7 @@ async fn place_then_count() {
     assert_eq!(status, StatusCode::OK, "{}", String::from_utf8_lossy(&body));
     let placed: Placed = serde_json::from_slice(&body).expect("a placement");
     assert_eq!(placed.lines, 2);
-    let sent = provider.publish.sent();
+    let sent = provider.publisher.sent();
     assert_eq!(sent.len(), 1, "the placement is published once");
     assert_eq!(sent[0].0, topic::ORDER_PLACED);
     let carried: Placed = serde_json::from_slice(&sent[0].1.payload).expect("a placement");
@@ -37,13 +37,14 @@ async fn place_then_count() {
     let (status, _) = place(&provider, r#"{"lines": ["tea", "cake", "jam"]}"#).await;
 
     assert_eq!(status, StatusCode::BAD_REQUEST);
-    assert_eq!(provider.publish.sent().len(), 1, "a refused order is not published");
+    assert_eq!(provider.publisher.sent().len(), 1, "a refused order is not published");
 
     let router = orders::handlers().with_state(Client::new(provider.clone()));
     deliver(&router, topic::ORDER_PLACED, sent[0].1.payload.clone())
         .await
         .expect("a placement is counted");
 
-    let total = StateStore::increment(&provider, "orders/lines-placed", 0).await.expect("the count");
+    let total =
+        StateStore::increment(&provider, "orders.lines-placed", 0, None).await.expect("the count");
     assert_eq!(total, 2, "the placement is counted");
 }

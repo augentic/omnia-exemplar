@@ -10,21 +10,21 @@ use axum::extract::{Path, Query};
 use axum::routing::{delete, get};
 use chrono::Utc;
 use omnia_sdk::api::{Context, Handlers};
-use omnia_sdk::sql::{DataType, FromRow};
-use omnia_sdk::{Capabilities, Result, TableStore, TableStoreExt as _, not_found};
+use omnia_sdk::sql::{FromRow, Value};
+use omnia_sdk::{Result, SqlDb, SqlDbExt as _, not_found};
 use serde::{Deserialize, Serialize};
 
 use crate::agency::fetch_agency;
-use crate::schema::{self, CONNECTION};
+use crate::schema;
 
 pub(crate) const AGENCY_FEEDS: &str = "/examples/agencies/{agency_id}/feeds";
 pub(crate) const FEEDS: &str = "/examples/feeds";
 pub(crate) const FEED: &str = "/examples/feeds/{id}";
 
 const FEED_COLUMNS: &str = "feed_id, agency_id, description, created_at";
-const DEFAULT_LIMIT: u64 = 100;
+const DEFAULT_LIMIT: u32 = 100;
 
-pub(crate) fn handlers<P: Capabilities>() -> Handlers<P> {
+pub(crate) fn handlers<P: crate::Requires>() -> Handlers<P> {
     Handlers::new()
         .route(AGENCY_FEEDS, get(list_agency_feeds).post(create_feed))
         .route(FEEDS, get(list_all_feeds))
@@ -74,18 +74,17 @@ pub(crate) async fn list_agency_feeds<P>(
     context: Context<P>, Path(agency_id): Path<i64>,
 ) -> Result<Json<FeedsReply>>
 where
-    P: TableStore,
+    P: SqlDb,
 {
-    let tables = context.tables();
-    schema::ensure(tables).await?;
+    let db = context.sql();
+    schema::ensure(db).await?;
 
-    let feeds = tables
+    let feeds = db
         .query_as(
-            CONNECTION,
             &format!(
                 "SELECT {FEED_COLUMNS} FROM feed WHERE agency_id = $1 ORDER BY created_at DESC"
             ),
-            &[DataType::Int64(Some(agency_id))],
+            &[Value::from(agency_id)],
         )
         .await?;
 
@@ -110,43 +109,39 @@ pub(crate) async fn create_feed<P>(
     context: Context<P>, Path(agency_id): Path<i64>, Json(input): Json<CreateFeedRequest>,
 ) -> Result<Json<FeedReply>>
 where
-    P: TableStore,
+    P: SqlDb,
 {
-    let tables = context.tables();
-    schema::ensure(tables).await?;
+    let db = context.sql();
+    schema::ensure(db).await?;
 
     // referential check: a feed for a missing agency is a 404, not an orphaned row
-    if fetch_agency(tables, agency_id).await?.is_none() {
+    if fetch_agency(db, agency_id).await?.is_none() {
         return Err(not_found!("agency {agency_id} not found"));
     }
 
     let feed = Feed {
-        feed_id: next_id(tables).await?,
+        feed_id: next_id(db).await?,
         agency_id,
         description: input.description,
         created_at: Utc::now().format("%Y-%m-%d %H:%M:%S").to_string(),
     };
 
-    tables
-        .exec(
-            CONNECTION,
-            &format!("INSERT INTO feed ({FEED_COLUMNS}) VALUES ($1, $2, $3, $4)"),
-            &[
-                DataType::Int64(Some(feed.feed_id)),
-                DataType::Int64(Some(feed.agency_id)),
-                DataType::Str(Some(feed.description.clone())),
-                DataType::Str(Some(feed.created_at.clone())),
-            ],
-        )
-        .await?;
+    db.execute(
+        &format!("INSERT INTO feed ({FEED_COLUMNS}) VALUES ($1, $2, $3, $4)"),
+        &[
+            Value::from(feed.feed_id),
+            Value::from(feed.agency_id),
+            Value::from(feed.description.as_str()),
+            Value::from(feed.created_at.as_str()),
+        ],
+    )
+    .await?;
 
     Ok(Json(FeedReply { feed }))
 }
 
-async fn next_id<P: TableStore>(tables: &P) -> Result<i64> {
-    let rows = tables
-        .query(CONNECTION, "SELECT feed_id FROM feed ORDER BY feed_id DESC LIMIT 1", &[])
-        .await?;
+async fn next_id<P: SqlDb>(db: &P) -> Result<i64> {
+    let rows = db.query("SELECT feed_id FROM feed ORDER BY feed_id DESC LIMIT 1", &[]).await?;
     let newest: Option<i64> = rows.first().map(|row| row.get("feed_id")).transpose()?;
     Ok(newest.map_or(1, |id| id + 1))
 }
@@ -155,7 +150,7 @@ async fn next_id<P: TableStore>(tables: &P) -> Result<i64> {
 #[derive(Debug, Clone, Default, Deserialize)]
 pub struct ListAllFeedsRequest {
     /// Optional cap on the number of rows returned (default 100).
-    pub limit: Option<u64>,
+    pub limit: Option<u32>,
 }
 
 /// Joined feed + agency rows, newest feed first.
@@ -169,19 +164,18 @@ pub(crate) async fn list_all_feeds<P>(
     context: Context<P>, Query(input): Query<ListAllFeedsRequest>,
 ) -> Result<Json<FeedsWithAgencyReply>>
 where
-    P: TableStore,
+    P: SqlDb,
 {
-    let tables = context.tables();
-    schema::ensure(tables).await?;
+    let db = context.sql();
+    schema::ensure(db).await?;
 
-    let feeds = tables
+    let feeds = db
         .query_as(
-            CONNECTION,
             "SELECT feed.feed_id, feed.agency_id, feed.description, feed.created_at, \
              agency.name AS agency_name, agency.url AS agency_url, agency.timezone AS agency_timezone \
              FROM feed LEFT JOIN agency ON feed.agency_id = agency.agency_id \
              ORDER BY feed.created_at DESC LIMIT $1",
-            &[DataType::Uint64(Some(input.limit.unwrap_or(DEFAULT_LIMIT)))],
+            &[Value::from(i64::from(input.limit.unwrap_or(DEFAULT_LIMIT)))],
         )
         .await?;
 
@@ -199,14 +193,12 @@ pub(crate) async fn delete_feed<P>(
     context: Context<P>, Path(id): Path<i64>,
 ) -> Result<Json<DeleteFeedReply>>
 where
-    P: TableStore,
+    P: SqlDb,
 {
-    let tables = context.tables();
-    schema::ensure(tables).await?;
+    let db = context.sql();
+    schema::ensure(db).await?;
 
-    let affected = tables
-        .exec(CONNECTION, "DELETE FROM feed WHERE feed_id = $1", &[DataType::Int64(Some(id))])
-        .await?;
+    let affected = db.execute("DELETE FROM feed WHERE feed_id = $1", &[Value::from(id)]).await?;
     if affected == 0 {
         return Err(not_found!("feed {id} not found"));
     }

@@ -1,8 +1,8 @@
 //! # SQL examples
 //!
-//! The rich `wasi-sql` showcase: an agency/feed schema exercising
-//! parameterized SQL over [`TableStore`], rows decoded through
-//! [`FromRow`] and [`TableStore::query_as`]:
+//! The rich `omnia:sql` showcase: an agency/feed schema exercising
+//! parameterized SQL over [`SqlDb`] on the provider's `default` database,
+//! rows decoded through [`FromRow`] and [`SqlDbExt::query_as`]:
 //!
 //! - `SELECT` with `ORDER BY ... DESC`, optional `LIMIT`, and `WHERE`
 //!   filters
@@ -15,22 +15,25 @@
 //! - Existence checks answering 404, and referential checks rejecting a
 //!   feed for a missing agency
 //!
-//! Schema DDL goes through [`TableStore::exec`] rather than wasm-only
+//! Schema DDL goes through [`SqlDb::execute`] rather than wasm-only
 //! bindings so the handlers run unchanged against native mock providers.
 //!
 //! [`FromRow`]: omnia_sdk::sql::FromRow
-//! [`TableStore`]: omnia_sdk::TableStore
-//! [`TableStore::exec`]: omnia_sdk::TableStore::exec
-//! [`TableStore::query_as`]: omnia_sdk::TableStoreExt::query_as
+//! [`SqlDbExt::query_as`]: omnia_sdk::SqlDbExt::query_as
 
 pub mod agency;
 pub mod feed;
 mod schema;
 
-use omnia_sdk::Capabilities;
+use omnia_sdk::SqlDb;
 use omnia_sdk::api::Handlers;
 
+/// The capabilities the stem's handlers reach, implemented by every provider that has them.
+pub trait Requires: SqlDb + Send + Sync + 'static {}
+
+impl<P> Requires for P where P: SqlDb + Send + Sync + 'static {}
+
 /// The stem's handlers, merged onto the root routers.
-pub fn handlers<P: Capabilities>() -> Handlers<P> {
+pub fn handlers<P: Requires>() -> Handlers<P> {
     Handlers::from([agency::handlers(), feed::handlers()])
 }

@@ -107,7 +107,7 @@ impl Case {
     #[must_use]
     pub fn events(&self) -> Vec<MotionEvent> {
         self.provider
-            .publish
+            .publisher
             .sent()
             .iter()
             .map(|(_, message)| {
@@ -147,7 +147,7 @@ pub fn prepare(def: TestDef) -> Case {
 
     let http = def.http_requests.into_iter().fold(MatchedHttp::default(), |http, fetch| {
         let method = Method::from_bytes(fetch.method.as_bytes()).expect("fixture method");
-        let query = fetch.request.map(|query| format!("?{query}")).unwrap_or_default();
+        let query = fetch.request.map_or_default(|query| format!("?{query}"));
         let response = Response::builder()
             .status(fetch.response.status)
             .body(Bytes::from(fetch.response.body.to_string()))
@@ -174,7 +174,7 @@ pub fn prepare(def: TestDef) -> Case {
 /// Whether `error` matches `expected`, with a few seconds' slack when the
 /// description embeds a freshness delay computed from `Utc::now()`.
 pub fn delivery_error_matches(expected: &omnia_sdk::Error, error: &DeliveryError) -> bool {
-    let DeliveryError::Rejected(msg) = error else {
+    let DeliveryError::Failed { message: msg, .. } = error else {
         return false;
     };
     if !msg.contains(&expected.code()) {

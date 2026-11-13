@@ -4,11 +4,11 @@ use std::convert::Infallible;
 use std::str::FromStr;
 
 use anyhow::Context as _;
-use axum::body::Body;
+use axum::body::Bytes;
 use http::Method;
 use http::header::{CACHE_CONTROL, IF_NONE_MATCH};
 use omnia_http_cache::HttpCache;
-use omnia_sdk::{Config, HttpRequest, Identity, Result, Settings, StateStore, bad_gateway};
+use omnia_sdk::{Config, HttpClient, Identity, Result, Settings, StateStore, bad_gateway};
 use serde::{Deserialize, Serialize};
 
 /// The settings the Fleet client reads.
@@ -19,23 +19,22 @@ pub struct FleetSettings {
 }
 
 // Responses are cached for five minutes through the provider's `StateStore`
-// under the quoted, namespaced etag `"fleet:<query>"`.
+// under the quoted etag `"fleet:<query>"`.
 pub(crate) async fn vehicle<P>(provider: &P, vehicle_id: &str) -> Result<Option<Vehicle>>
 where
-    P: Config + HttpRequest + Identity + StateStore,
+    P: Config + HttpClient + Identity + StateStore,
 {
     let Ok(identifier) = Identifier::from_str(vehicle_id);
     let query = identifier.to_query();
     let FleetSettings { fleet_url } = FleetSettings::load(provider).await?;
 
-    // `HttpCache` requires a quoted strong etag; the prefix keeps the cache
-    // key out of the guest's own state-store namespace.
+    // `HttpCache` requires a quoted strong etag.
     let request = http::Request::builder()
         .method(Method::GET)
         .uri(format!("{fleet_url}/vehicles?{query}"))
         .header(CACHE_CONTROL, "max-age=300")
         .header(IF_NONE_MATCH, format!("\"fleet:{query}\""))
-        .body(Body::empty())
+        .body(Bytes::new())
         .context("building train_by_label request")?;
 
     let response = HttpCache::new(provider, provider)

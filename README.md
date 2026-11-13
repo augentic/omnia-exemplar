@@ -43,8 +43,8 @@ The omnia crates are crates.io dependencies (currently 0.38.0) declared once
 under `[workspace.dependencies]` in `Cargo.toml`; every `omnia-*` line moves
 together. Outbound HTTP caching is opt-in per call site through
 `omnia-http-cache` (from
-[omnia-ext](https://github.com/augentic/omnia-ext), 0.36.0), a
-`HttpRequest` decorator that stores responses in the provider's `StateStore`
+[omnia-ext](https://github.com/augentic/omnia-ext), 0.36.0), an
+`HttpClient` decorator that stores responses in the provider's `StateStore`
 (see `crates/gtfs-adapter`).
 
 ## Quick start
@@ -124,12 +124,14 @@ The guest:
 - Binds the router to each WASI export: `http::export!(router)` and
   `messaging::export!(router)`
 - Uses `omnia_sdk::WasiProvider`, the zero-sized provider implementing every
-  capability trait (`BlobStore`, `Broadcast`, `Config`, `DocumentStore`,
-  `HttpRequest`, `Identity`, `Publish`, `StateStore`, `TableStore`) over its
-  WASI-backed default methods on `wasm32`
+  capability trait over its WASI-backed default methods on `wasm32`; the
+  stems reach nine of them (`BlobStore`, `Config`, `DocumentDb`,
+  `HttpClient`, `Identity`, `Publisher`, `SqlDb`, `StateStore`, `WebSockets`)
+- Bounds the router with each stem's `Requires`, one `where` predicate per
+  stem
 - Routes both transports through one provider-owning `Client` per request,
-  keeping the native library dependency graph completely free of `wasmtime`
-  and `omnia-wasi-*` (enforced by `deny.toml`)
+  keeping `wasmtime` and `omnia-core` off the native non-dev dependency graph
+  (enforced by `deny.toml`)
 
 ## Routes and topics
 
@@ -145,14 +147,14 @@ The guest:
 | `GET/POST /examples/agencies`, `GET/PATCH /examples/agencies/{id}` | `sql::{list_agencies, create_agency, get_agency, update_agency}` — parameterized SQL CRUD with server-assigned ids |
 | `GET/POST /examples/agencies/{agency_id}/feeds` | `sql::{list_agency_feeds, create_feed}` — per-agency feeds with referential checks |
 | `GET /examples/feeds`, `DELETE /examples/feeds/{id}` | `sql::{list_all_feeds, delete_feed}` — JOIN listing and delete with 404-on-zero-rows |
-| `POST /examples/patterns/decode` | `pattern::decode_segment` — decode-through-cache over `StateStore`, `Config`, and `HttpRequest` |
-| `PUT /examples/patterns/quotas/{tenant}` | `pattern::update_quota` — optimistic concurrency over `StateStore::cas` (`409 Conflict` via `QuotaError`) |
-| `GET /examples/patterns/upstream/{resource}` | `pattern::fetch_upstream_status` — bearer-token auth via `Identity::access_token` |
+| `POST /examples/patterns/decode` | `pattern::decode_segment` — decode-through-cache over `StateStore`, `Config`, and `HttpClient` |
+| `PUT /examples/patterns/quotas/{tenant}` | `pattern::update_quota` — optimistic concurrency over `StateStore::compare_and_swap` (`409 Conflict` via `QuotaError`) |
+| `GET /examples/patterns/upstream/{resource}` | `pattern::fetch_upstream_status` — bearer-token auth via `Identity::named` and `IdentityExt::access_token` |
 | `POST /examples/patterns/places`, `GET /examples/patterns/nearby` | `pattern::{upsert_place, nearby_places}` — `INSERT … ON CONFLICT` upsert (`PlaceError`) and bounding-box + haversine query |
 | `POST /examples/archive` | `capability::archive` — `BlobStore` object write |
-| `POST /examples/alert` | `capability::alert` — `Broadcast` over websocket |
-| `POST /examples/note` | `capability::note` — `DocumentStore` upsert |
-| `POST /examples/reading` | `capability::reading` — `TableStore` insert |
+| `POST /examples/alert` | `capability::alert` — `WebSockets` send to every socket or to the named ones |
+| `POST /examples/note` | `capability::note` — `DocumentDb` upsert |
+| `POST /examples/reading` | `capability::reading` — `SqlDb` insert |
 
 | Messaging topic | Handler |
 | --- | --- |
@@ -173,18 +175,19 @@ consumer is out of scope for the exemplar.
 | `crates/pulse-adapter` | Converts Pulse train updates into Motion location events |
 | `crates/tally-connector` | HTTP ingress for the vendor "Tally" passenger-count feed |
 | `crates/gtfs-adapter` | Converts Motion events into GTFS-realtime vehicle positions |
-| `crates/capability` | Domain-free handlers proving the remaining capabilities: `BlobStore`, `Broadcast`, `DocumentStore`, `TableStore`; mounted by the guest at `POST /examples/{archive,alert,note,reading}` |
+| `crates/capability` | Domain-free handlers proving the remaining capabilities: `BlobStore`, `WebSockets`, `DocumentDb`, `SqlDb`; mounted by the guest at `POST /examples/{archive,alert,note,reading}` |
 | `crates/docstore` | Rich `wasi:docstore` showcase: GTFS-like collections exercising a broad set of portable filters, sorting, and continuation pagination |
 | `crates/sql` | Rich `wasi-sql` showcase: agency/feed schema exercising parameterized SQL, `FromRow` records through `query_as`, a JOIN entity, and server-assigned ids |
-| `crates/pattern` | Composition patterns: decode-through-cache, `StateStore::cas` optimistic concurrency (`409`), `Identity::access_token` bearer auth, relational geo queries, and structured JSON error bodies |
+| `crates/pattern` | Composition patterns: decode-through-cache, `StateStore::compare_and_swap` optimistic concurrency (`409`), named-identity bearer auth, relational geo queries, and structured JSON error bodies |
 | root package (`guest`) | Typed-router HTTP + exact-topic messaging WASM guest binary |
 
-Domain crates depend only on the `omnia-sdk` capability traits (`Config`,
-`HttpRequest`, `Identity`, `Publish`, `StateStore`, `Vault`; `capability`
-covers `BlobStore`, `Broadcast`, `DocumentStore`, and `TableStore`), so the
-same code runs inside the WASM guest and against `omnia_test::guest::Provider`
-doubles in tests. `omnia-http-cache` is written against those traits
-(`HttpCache<H: HttpRequest, S: StateStore>`), so `gtfs-adapter`'s cached
+Domain crates depend only on the `omnia-sdk` capability traits, each naming
+the ones its handlers reach in its `Requires` (`Config`, `HttpClient`,
+`Identity`, `Publisher`, and `StateStore` in the pipeline; `BlobStore`,
+`DocumentDb`, `SqlDb`, and `WebSockets` in the showcases), so the same code
+runs inside the WASM guest and against `omnia_test::guest::Provider` doubles
+in tests. `omnia-http-cache` is written against those traits
+(`HttpCache<H: HttpClient, S: StateStore>`), so `gtfs-adapter`'s cached
 clients stay provider-generic.
 
 ## Adding a new handler
@@ -194,14 +197,14 @@ clients stay provider-generic.
 2. Create the crate under `crates/` and add `<stem> = { path = "crates/<stem>" }`
    to `[dependencies]` in the root `Cargo.toml`.
 3. Implement the `pub` input and reply types and a handler fn with the
-   narrowest capability bounds it needs (e.g. `P: Config + Publish`).
+   narrowest capability bounds it needs (e.g. `P: Config + Publisher`).
    An HTTP handler is a plain axum handler taking `Context<P>` as an
    extractor alongside axum's own
    (`pub(crate) async fn name<P>(context: Context<P>, Json(input): Json<Input>) -> Result<Json<Reply>>`);
    a messaging handler takes the same context first, then its decoded input
    (`pub(crate) async fn name<P>(context: Context<P>, input: Input) -> Result<Reply>`).
    Read a capability through the context's accessor for it (`context.state()`,
-   `context.tables()`, `context.http()`, ...).
+   `context.sql()`, `context.http()`, ...).
 4. Declare the path as a `pub(crate) const` of the part that uses it, its
    required configuration as one `#[derive(Settings)]` struct (whose `KEYS`
    `tests/component.rs` seeds), and any new topic in `common::topic`.
@@ -210,9 +213,11 @@ clients stay provider-generic.
    or wire format is an `IntoResponse` on the reply or error type; or
    `.topic(topic::X, handler)`, or `.topic_with(topic::X, handler, decode)`
    for a non-JSON payload), and list the part in the stem's `src/lib.rs`
-   (`Handlers::from([..])`).
-   A new stem adds its `<stem>::handlers(),` line to the `Handlers::from([..])`
-   list in `router` in `src/lib.rs`.
+   (`Handlers::from([..])`). A capability trait the handler newly reaches
+   joins the stem's `Requires`.
+   A new stem declares its `Requires`, then adds `P: <stem>::Requires,` to
+   the `where` list of `router` in `src/lib.rs` and its `<stem>::handlers(),`
+   line to the `Handlers::from([..])` list.
 6. Add fixtures under the crate's `data/` and native tests under `tests/`
    that seed an `omnia_test::guest::Provider` with the doubles the
    handler's capabilities read and drive the stem's `handlers()`.
@@ -244,11 +249,16 @@ guest: it is the bind address for `WebSocketDefault` (the backend behind
 
 ## State keys
 
-The gtfs-adapter keeps its pipeline state under the `motionGtfs:` prefix,
+The gtfs-adapter keeps its pipeline state under the `motionGtfs.` prefix,
 namespaced by purpose then identifier — see `crates/gtfs-adapter/src/state_keys.rs`
 for the full catalog and key builders. God-mode overrides live under a
-separate `god_mode:` prefix so operational overrides never mix with pipeline
+separate `god_mode.` prefix so operational overrides never mix with pipeline
 state.
+
+Every key is portable: `.`-separated segments of ASCII letters, digits, `_`,
+and `-`. A request value that becomes a segment is checked first, and one
+that is not portable is refused with a `400` (`gtfs_adapter::vehicle_info`,
+`pattern::cas`, `pattern::decode`).
 
 ## Copy this, not that
 
@@ -272,25 +282,27 @@ Patterns worth copying into new services:
   handler — `get_json` miss → `Settings` → `fetch_json` → `set_json` with
   a TTL — instead of a separate cache-population process
   (`pattern::decode`, `pulse_adapter::stops`).
-- Optimistic concurrency (`StateStore::cas`): versioned state updates map
-  `CasError::Conflict` to `409 Conflict` through a module error type's
+- Optimistic concurrency (`StateStore::compare_and_swap`): versioned state
+  updates map a `Conflict` to `409 Conflict` through a module error type's
   `IntoResponse` (`pattern::cas`).
-- Upstream bearer-token authentication (`Identity::access_token`): resolve
-  the identity name from the part's `Settings`, acquire a token via
-  `Identity::access_token`, and send `Authorization: Bearer <token>` on
-  `HttpRequest::fetch_json` (`pattern::identity`).
+- Upstream bearer-token authentication (`IdentityExt::access_token`):
+  resolve the identity name from the part's `Settings`, acquire a token via
+  `Identity::named(..).access_token()`, and send
+  `Authorization: Bearer <token>` on `HttpClientExt::fetch_json`
+  (`pattern::identity`).
 - Cached upstream fetches as an explicit decorator, not an ambient runtime
   feature: `HttpCache::new(provider, provider).fetch(request)` at the call
   sites that want it (`gtfs_adapter::fleet::vehicle`,
-  `gtfs_adapter::block_mgt::cached_allocation`), keyed by a quoted,
-  namespaced `If-None-Match` etag with `max-age` as the TTL; every other
-  request uses the bare `HttpRequest` and sends no cache headers.
+  `gtfs_adapter::block_mgt::cached_allocation`), keyed by a quoted
+  `If-None-Match` etag, which `HttpCache` hashes into a portable state key,
+  with `max-age` as the TTL; every other request uses the bare `HttpClient`
+  and sends no cache headers.
 - Credential material in `Config`, carried as ordinary request data (the
   `Client-Cert` header), so outbound HTTP stays generic.
 - Recording doubles: `MatchedHttp` answers only the exact requests a test
   seeds and records what left the guest — shape, headers, and call count
   (`crates/pattern/tests/decode.rs`).
-- Radius queries as bounding-box `SELECT`s through `TableStore::query_as`
+- Radius queries as bounding-box `SELECT`s through `SqlDbExt::query_as`
   into `FromRow` records, refined by haversine in Rust — never a geospatial
   extension bolted onto the KV state store (`pattern::place`).
 - Structured JSON error bodies: the handler owns its error type and its
@@ -363,26 +375,26 @@ share and calls `send` inside.
   through `pulse_connector::handlers()`
 - `crates/gtfs-adapter/tests` — `MatchedHttp` seeded with the exact
   upstream URLs (`tests/support/`), covering motion, dead reckoning,
-  sign-on, outdated/future timestamp rejection, filtering, occupancy, and
-  (feature-gated) god-mode
+  sign-on, outdated/future timestamp rejection, filtering, occupancy, the
+  non-portable vehicle id's `400`, and (feature-gated) god-mode
 - `crates/pulse-adapter/tests` — static fixtures plus replay sessions
   captured from a live system (`data/replay`, `data/static`), loaded by
   `tests/fixture/` onto `MatchedHttp`
 - `crates/capability/tests` — one provider covering
-  `BlobStore`/`Broadcast`/`DocumentStore`/`TableStore`
+  `BlobStore`/`WebSockets`/`DocumentDb`/`SqlDb`
 - `crates/docstore/tests` — `MemoryDocs`, the filter-evaluating
-  `DocumentStore` double, covering how each list handler maps its query
+  `DocumentDb` double, covering how each list handler maps its query
   parameters onto filters, the stop name sort, continuation forwarding, and
-  the CRUD round-trip
+  the CRUD round-trip with its duplicate-create `409`
 - `crates/sql/tests` — `ScriptedTables` scripting each parameterized SQL
   query's rows and recording every statement, covering `SELECT`, `INSERT`,
   dynamic `UPDATE`, `DELETE` with 404-on-zero-rows, the missing-agency 404s,
   the JOIN listing, and server-assigned ids
 - `crates/pattern/tests` — `MatchedHttp`, `Memory`, `ScriptedTables`,
   `FixedIdentity`, and `MapConfig` covering the decode cache (hit and miss),
-  the versioned quota write's stale-version `409`, `Identity::access_token`
-  bearer auth, the nearby query, and the upsert with its structured-error
-  rejection
+  the versioned quota write's stale-version `409`, the non-portable tenant
+  and code `400`s, named-identity bearer auth, the nearby query, and the
+  upsert with its structured-error rejection
 - `templates/guest/tests` — the template crate's contract: a tree
   scaffolded once, its static files held and restored, its root manifest
   held around its stem list

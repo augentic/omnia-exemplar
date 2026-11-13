@@ -1,5 +1,5 @@
-//! Tests for the `Identity::access_token` upstream authentication vignette,
-//! driven through the stem's router.
+//! Tests for the `IdentityExt::access_token` upstream authentication
+//! vignette, driven through the stem's router.
 
 use axum::body::Body;
 use axum::http::header::AUTHORIZATION;
@@ -36,6 +36,6 @@ async fn upstream_status() {
     assert_eq!(requests.len(), 1);
     assert_eq!(
         requests[0].headers.get(AUTHORIZATION).and_then(|value| value.to_str().ok()),
-        Some("Bearer token-abc-123")
+        Some("Bearer token-abc-123:transit-api")
     );
 }

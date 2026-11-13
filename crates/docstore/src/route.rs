@@ -5,22 +5,21 @@
 //! (route types), `negate` (type exclusion), and `negate(and(...))`
 //! (agency + type exclusion — De Morgan negation).
 
-use anyhow::Context as _;
 use axum::Json;
 use axum::extract::{Path, Query};
 use axum::routing::get;
 use omnia_sdk::api::{Context, Handlers};
-use omnia_sdk::docstore::{Document, Filter, QueryOptions, ScalarValue, SortField};
-use omnia_sdk::{Capabilities, DocumentStore, Result, not_found};
+use omnia_sdk::docstore::{Document, Exists, Filter, ScalarValue, SortField};
+use omnia_sdk::{DocumentDb, Result, not_found};
 use serde::{Deserialize, Serialize};
 
-use crate::stop::{DocumentRecord, records};
+use crate::stop::{CreateError, DocumentRecord, records};
 
 pub(crate) const ROUTES: &str = "/examples/routes";
 pub(crate) const ROUTE: &str = "/examples/routes/{id}";
 pub(crate) const COLLECTION: &str = "routes";
 
-pub(crate) fn handlers<P: Capabilities>() -> Handlers<P> {
+pub(crate) fn handlers<P: crate::Requires>() -> Handlers<P> {
     Handlers::new().route(ROUTES, get(list_routes).post(create_route)).route(ROUTE, get(get_route))
 }
 
@@ -39,7 +38,7 @@ pub struct Route {
     pub route_color: Option<String>,
 }
 
-/// Create a route with a caller-chosen id (fails when the id exists).
+/// Create a route with a caller-chosen id (`409 Conflict` when the id exists).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CreateRouteRequest {
     /// Document id for the new route.
@@ -51,15 +50,14 @@ pub struct CreateRouteRequest {
 
 pub(crate) async fn create_route<P>(
     context: Context<P>, Json(input): Json<CreateRouteRequest>,
-) -> Result<Json<DocumentRecord<Route>>>
+) -> std::result::Result<Json<DocumentRecord<Route>>, CreateError>
 where
-    P: DocumentStore,
+    P: DocumentDb,
 {
-    let document = Document {
-        id: input.id.clone(),
-        data: serde_json::to_vec(&input.route).context("serializing route")?,
-    };
-    DocumentStore::insert(context.provider(), COLLECTION, &document).await?;
+    let document = Document::json(&input.id, &input.route)?;
+    if context.docs().insert(COLLECTION, &document).await? == Err(Exists) {
+        return Err(CreateError::Exists { id: input.id });
+    }
 
     Ok(Json(DocumentRecord {
         id: input.id,
@@ -71,12 +69,14 @@ pub(crate) async fn get_route<P>(
     context: Context<P>, Path(id): Path<String>,
 ) -> Result<Json<DocumentRecord<Route>>>
 where
-    P: DocumentStore,
+    P: DocumentDb,
 {
-    let document = DocumentStore::get(context.provider(), COLLECTION, &id)
+    let document = context
+        .docs()
+        .get(COLLECTION, &id)
         .await?
         .ok_or_else(|| not_found!("route {id} not found"))?;
-    let route = serde_json::from_slice(&document.data).context("deserializing route")?;
+    let route = document.decode()?;
 
     Ok(Json(DocumentRecord {
         id: document.id,
@@ -121,7 +121,7 @@ pub(crate) async fn list_routes<P>(
     context: Context<P>, Query(input): Query<ListRoutesRequest>,
 ) -> Result<Json<RoutesReply>>
 where
-    P: DocumentStore,
+    P: DocumentDb,
 {
     let mut filters = Vec::new();
 
@@ -156,24 +156,20 @@ where
 
     let filter = if filters.is_empty() { None } else { Some(Filter::and(filters)) };
 
-    let result = DocumentStore::query(
-        context.provider(),
-        COLLECTION,
-        QueryOptions {
-            filter,
-            order_by: vec![SortField {
-                field: "route_short_name".to_string(),
-                descending: false,
-            }],
-            limit: input.limit,
-            continuation: input.continuation,
-            ..Default::default()
-        },
-    )
-    .await?;
+    let query = omnia_sdk::docstore::Query {
+        filter,
+        order_by: vec![SortField {
+            field: "route_short_name".to_string(),
+            descending: false,
+        }],
+        limit: input.limit,
+        after: input.continuation,
+        ..Default::default()
+    };
+    let page = context.docs().query(COLLECTION, &query).await?;
 
     Ok(Json(RoutesReply {
-        routes: records(&result.documents)?,
-        continuation: result.continuation,
+        routes: records(&page.items)?,
+        continuation: page.next,
     }))
 }

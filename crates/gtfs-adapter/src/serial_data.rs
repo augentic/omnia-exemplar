@@ -1,21 +1,23 @@
 //! Serial data (sign-on) event processing.
 
+use std::time::Duration;
+
 use chrono::Utc;
-use omnia_sdk::{Config, HttpRequest, Result, StateStore, StateStoreExt as _, bad_request};
+use omnia_sdk::{Config, HttpClient, Result, StateStore, StateStoreExt as _, bad_request};
 
 use crate::motion::{DecodedSerialData, MotionError, MotionMessage};
 use crate::state_keys;
 use crate::trip::{self, TripInstance};
 
-const TTL_TRIP_SERIAL_SECS: u64 = 4 * 60 * 60;
-const TTL_SIGN_ON_SECS: u64 = 24 * 60 * 60;
-const TTL_SERIAL_TIMESTAMP_SECS: u64 = 24 * 60 * 60;
+const TTL_TRIP_SERIAL: Duration = Duration::from_hours(4);
+const TTL_SIGN_ON: Duration = Duration::from_hours(24);
+const TTL_SERIAL_TIMESTAMP: Duration = Duration::from_hours(24);
 
 const SERIAL_DATA_THRESHOLD: i64 = 900;
 
 pub async fn process<P>(provider: &P, message: &MotionMessage) -> Result<()>
 where
-    P: Config + HttpRequest + StateStore,
+    P: Config + HttpClient + StateStore,
 {
     let Some(vehicle_id) = message.vehicle_id() else {
         return Err(bad_request!("missing vehicle identifier"));
@@ -53,7 +55,7 @@ async fn update_timestamp(store: &impl StateStore, timestamp: i64, vehicle_id: &
     }
 
     // store new timestamp
-    store.set_json(&key, &timestamp, Some(TTL_SERIAL_TIMESTAMP_SECS)).await?;
+    store.set_json(&key, &timestamp, Some(TTL_SERIAL_TIMESTAMP)).await?;
 
     Ok(())
 }
@@ -62,7 +64,7 @@ async fn allocate<P>(
     provider: &P, vehicle_id: &str, decoded: &DecodedSerialData, event_timestamp: i64,
 ) -> Result<()>
 where
-    P: Config + HttpRequest + StateStore,
+    P: Config + HttpClient + StateStore,
 {
     let trip_key = state_keys::trip(vehicle_id);
     let sign_on_key = state_keys::sign_on(vehicle_id);
@@ -107,8 +109,8 @@ where
     let trip_key = state_keys::trip(vehicle_id);
     let sign_on_key = state_keys::sign_on(vehicle_id);
 
-    provider.set_json(&trip_key, &trip, Some(TTL_TRIP_SERIAL_SECS)).await?;
-    provider.set_json(&sign_on_key, &event_timestamp, Some(TTL_SIGN_ON_SECS)).await?;
+    provider.set_json(&trip_key, &trip, Some(TTL_TRIP_SERIAL)).await?;
+    provider.set_json(&sign_on_key, &event_timestamp, Some(TTL_SIGN_ON)).await?;
 
     Ok(())
 }

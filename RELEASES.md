@@ -8,6 +8,36 @@ Unreleased
 
 ### Changed
 
+- **The omnia 0.38 capability contract, with a `Requires` per stem.** The
+  root and seed `[patch.crates-io]` track omnia's `capablities` branch and
+  omnia-ext's `capabilities` branch until the contract is published. The
+  stems move to the contract's traits and accessors, so `HttpClient`,
+  `Publisher`, `SqlDb`, `DocumentDb`, and `WebSockets` replace
+  `HttpRequest`, `Publish`, `TableStore`, `DocumentStore`, and `Broadcast`.
+  - `omnia_sdk::Capabilities` is gone. Each stem declares `pub trait
+    Requires` over the traits its handlers reach, its parts take
+    `P: crate::Requires`, and the root `router` holds one
+    `P: <stem>::Requires,` per stem in a `where` list after the new
+    `REQUIRES_LIST_ANCHOR`, so a slice adds a stem in three lines.
+  - State keys are `.`-separated and portable: `motionGtfs.trip.vehicle.{id}`,
+    `god_mode.overrides`, `pulse.stops`, `pattern.quota.{tenant}`, and
+    `pattern.segment.{code}`, with the occupancy key dropping its start
+    time's colons. State written under the old `:`-separated keys is
+    orphaned. A request value that is not a portable segment answers `400`
+    in `vehicle_info`, `cas`, and `decode`.
+  - SQL runs on the provider's `default` database with `$n` placeholders, so
+    the `sql` and `pattern` `CONNECTION` constants are gone and
+    `capability::table` names its binding (`default` in its tests).
+  - A docstore create whose id is already stored answers `409 Conflict`
+    (`stop::CreateError`) where the failed insert answered `500`.
+  - TTLs are `Duration`s, request bodies `Bytes`, a published message's
+    partition key `Message::with_key`, and identities are named
+    (`API_IDENTITY` and `PATTERN_UPSTREAM_IDENTITY` default to `default`).
+  - `/examples/alert` drops its `channel` field, an absent `sockets` sending
+    to every socket, and the `sql` list limits are `u32` where they were
+    `u64`.
+  - `deny.toml` bans `wasmtime` and `omnia-core` on the native non-dev graph
+    again.
 - **One `Handlers` list at every level, one `router`, and stems only in the root `[dependencies]`.**
   The root's `router`, a stem's `handlers`, and a part's `handlers` all
   register or merge their HTTP routes (`.route`) and messaging topics

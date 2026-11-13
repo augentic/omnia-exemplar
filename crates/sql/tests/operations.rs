@@ -5,8 +5,8 @@ use axum::body::Body;
 use axum::http::header::CONTENT_TYPE;
 use axum::http::{Method, Request, StatusCode};
 use omnia_sdk::api::Client;
-use omnia_sdk::sql::{DataType, Field, Row};
-use omnia_test::guest::{self, Provider, ScriptedTables, Statement};
+use omnia_sdk::sql::{Field, Row, Value as SqlValue};
+use omnia_test::guest::{self, Executed, Provider, ScriptedTables};
 use serde::de::DeserializeOwned;
 use serde_json::{Value, json};
 use sql::agency::{AgenciesReply, AgencyReply};
@@ -15,20 +15,19 @@ use sql::feed::{DeleteFeedReply, FeedReply, FeedsReply, FeedsWithAgencyReply};
 fn field_int(name: &str, value: i64) -> Field {
     Field {
         name: name.to_string(),
-        value: DataType::Int64(Some(value)),
+        value: SqlValue::from(value),
     }
 }
 
 fn field_str(name: &str, value: Option<&str>) -> Field {
     Field {
         name: name.to_string(),
-        value: DataType::Str(value.map(ToString::to_string)),
+        value: SqlValue::from(value.map(ToString::to_string)),
     }
 }
 
 fn agency_row(id: i64, name: &str) -> Row {
     Row {
-        index: id.to_string(),
         fields: vec![
             field_int("agency_id", id),
             field_str("name", Some(name)),
@@ -41,7 +40,6 @@ fn agency_row(id: i64, name: &str) -> Row {
 
 fn feed_row(id: i64, agency_id: i64, description: &str) -> Row {
     Row {
-        index: id.to_string(),
         fields: vec![
             field_int("feed_id", id),
             field_int("agency_id", agency_id),
@@ -61,15 +59,11 @@ fn joined_row(id: i64, description: &str, agency: &str) -> Row {
     row
 }
 
-fn int_param(params: &[DataType], index: usize) -> Option<i64> {
+fn int_param(params: &[SqlValue], index: usize) -> Option<i64> {
     match params.get(index) {
-        Some(DataType::Int64(value)) => *value,
+        Some(SqlValue::Int64(value)) => *value,
         _ => None,
     }
-}
-
-fn is_uint(params: &[DataType], index: usize, expected: u64) -> bool {
-    matches!(params.get(index), Some(DataType::Uint64(Some(value))) if *value == expected)
 }
 
 // Every handler first ensures the schema, so every scripted store
@@ -79,18 +73,18 @@ fn tables() -> ScriptedTables {
 }
 
 fn provider(tables: ScriptedTables) -> Provider {
-    Provider::default().tables(tables)
+    Provider::default().sql(tables)
 }
 
-fn statements(provider: &Provider) -> Vec<Statement> {
-    provider.tables.statements()
+fn statements(provider: &Provider) -> Vec<Executed> {
+    provider.sql.statements()
 }
 
-fn after_schema(provider: &Provider) -> Vec<Statement> {
+fn after_schema(provider: &Provider) -> Vec<Executed> {
     let statements = statements(provider);
     assert!(statements[0].sql.starts_with("CREATE TABLE IF NOT EXISTS agency"));
     assert!(statements[1].sql.starts_with("CREATE TABLE IF NOT EXISTS feed"));
-    assert!(statements.iter().all(|statement| statement.connection == "db"));
+    assert!(statements.iter().all(|statement| statement.binding == "default"));
     statements[2..].to_vec()
 }
 
@@ -128,7 +122,7 @@ async fn ok<T: DeserializeOwned>(
 }
 
 // Probes for the newest id: `SELECT <pk> FROM <table> ORDER BY <pk> DESC LIMIT 1`.
-fn is_max_id_probe(table: &str, sql: &str, params: &[DataType]) -> bool {
+fn is_max_id_probe(table: &str, sql: &str, params: &[SqlValue]) -> bool {
     sql == format!("SELECT {table}_id FROM {table} ORDER BY {table}_id DESC LIMIT 1")
         && params.is_empty()
 }
@@ -175,7 +169,7 @@ async fn create_agency() {
     }
     assert!(insert.sql.contains("VALUES ($1, $2, $3, $4, $5)"), "insert should be parameterized");
     assert_eq!(int_param(&insert.params, 0), Some(42));
-    assert!(matches!(&insert.params[1], DataType::Str(Some(name)) if name == "Ritchies"));
+    assert_eq!(insert.params[1], SqlValue::from("Ritchies"));
 }
 
 #[tokio::test]
@@ -199,7 +193,7 @@ async fn list_agencies_limit() {
     let _: AgenciesReply = ok(&provider, Method::GET, "/examples/agencies?limit=1", None).await;
     let limited = statements(&provider).pop().expect("a select ran");
     assert!(limited.sql.contains("LIMIT $1"));
-    assert!(is_uint(&limited.params, 0, 1), "{:?}", limited.params);
+    assert_eq!(int_param(&limited.params, 0), Some(1), "{:?}", limited.params);
 }
 
 #[tokio::test]
@@ -209,7 +203,7 @@ async fn get_agency() {
     let _: AgencyReply = ok(&provider, Method::GET, "/examples/agencies/1", None).await;
 }
 
-fn agency_fetch(id: i64) -> impl Fn(&str, &[DataType]) -> bool + use<> {
+fn agency_fetch(id: i64) -> impl Fn(&str, &[SqlValue]) -> bool + use<> {
     move |sql, params| sql.contains(AGENCY_FILTER) && int_param(params, 0) == Some(id)
 }
 
@@ -262,7 +256,7 @@ async fn update_agency_partial() {
     assert!(update.sql.contains("SET name = $1"), "update should set only the name");
     assert!(!update.sql.contains("timezone"), "update should not touch unset columns");
     assert!(update.sql.contains("WHERE agency_id = $2"), "update should filter by id");
-    assert!(matches!(&update.params[0], DataType::Str(Some(name)) if name == "Ritchies Transport"));
+    assert_eq!(update.params[0], SqlValue::from("Ritchies Transport"));
     assert_eq!(int_param(&update.params, 1), Some(1));
 }
 
@@ -352,7 +346,7 @@ async fn all_feeds() {
         assert!(list.sql.contains(alias), "{}", list.sql);
     }
     assert!(list.sql.contains("ORDER BY feed.created_at DESC"), "{}", list.sql);
-    assert!(is_uint(&list.params, 0, 100), "default limit should be bound: {:?}", list.params);
+    assert_eq!(int_param(&list.params, 0), Some(100), "default limit should be bound");
 }
 
 #[tokio::test]
