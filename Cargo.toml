@@ -139,7 +139,7 @@ tokio = { version = "1.54.1", default-features = false, features = [
 toml = "1.2.1"
 tracing = "0.1.44"
 urlencoding = "2.1.3"
-uuid = { version = "1.29.1", features = ["serde", "v4"] }
+uuid = { version = "1.29.2", features = ["serde", "v4"] }
 
 omnia = "0.38.0"
 omnia-sdk = "0.38.0"
@@ -169,19 +169,19 @@ sql = { path = "crates/sql" }
 tally-connector = { path = "crates/tally-connector" }
 
 [patch.crates-io]
-omnia = { git = "https://github.com/augentic/omnia", branch = "capablities" }
-omnia-sdk = { git = "https://github.com/augentic/omnia", branch = "capablities" }
-omnia-test = { git = "https://github.com/augentic/omnia", branch = "capablities" }
-omnia-wasi-blobstore = { git = "https://github.com/augentic/omnia", branch = "capablities" }
-omnia-wasi-config = { git = "https://github.com/augentic/omnia", branch = "capablities" }
-omnia-wasi-docstore = { git = "https://github.com/augentic/omnia", branch = "capablities" }
-omnia-wasi-http = { git = "https://github.com/augentic/omnia", branch = "capablities" }
-omnia-wasi-identity = { git = "https://github.com/augentic/omnia", branch = "capablities" }
-omnia-wasi-keyvalue = { git = "https://github.com/augentic/omnia", branch = "capablities" }
-omnia-wasi-messaging = { git = "https://github.com/augentic/omnia", branch = "capablities" }
-omnia-wasi-otel = { git = "https://github.com/augentic/omnia", branch = "capablities" }
-omnia-wasi-sql = { git = "https://github.com/augentic/omnia", branch = "capablities" }
-omnia-wasi-websocket = { git = "https://github.com/augentic/omnia", branch = "capablities" }
+omnia = { git = "https://github.com/augentic/omnia" }
+omnia-sdk = { git = "https://github.com/augentic/omnia" }
+omnia-test = { git = "https://github.com/augentic/omnia" }
+omnia-wasi-blobstore = { git = "https://github.com/augentic/omnia" }
+omnia-wasi-config = { git = "https://github.com/augentic/omnia" }
+omnia-wasi-docstore = { git = "https://github.com/augentic/omnia" }
+omnia-wasi-http = { git = "https://github.com/augentic/omnia" }
+omnia-wasi-identity = { git = "https://github.com/augentic/omnia" }
+omnia-wasi-keyvalue = { git = "https://github.com/augentic/omnia" }
+omnia-wasi-messaging = { git = "https://github.com/augentic/omnia" }
+omnia-wasi-otel = { git = "https://github.com/augentic/omnia" }
+omnia-wasi-sql = { git = "https://github.com/augentic/omnia" }
+omnia-wasi-websocket = { git = "https://github.com/augentic/omnia" }
 omnia-http-cache = { git = "https://github.com/augentic/omnia-ext", branch = "capabilities" }
 
 # omnia = { path = "../omnia/crates/omnia" }
