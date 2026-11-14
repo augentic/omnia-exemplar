@@ -182,7 +182,7 @@ omnia-wasi-messaging = { git = "https://github.com/augentic/omnia" }
 omnia-wasi-otel = { git = "https://github.com/augentic/omnia" }
 omnia-wasi-sql = { git = "https://github.com/augentic/omnia" }
 omnia-wasi-websocket = { git = "https://github.com/augentic/omnia" }
-omnia-http-cache = { git = "https://github.com/augentic/omnia-ext", branch = "capabilities" }
+omnia-http-cache = { git = "https://github.com/augentic/omnia-ext" }
 
 # omnia = { path = "../omnia/crates/omnia" }
 # omnia-sdk = { path = "../omnia/crates/sdk" }

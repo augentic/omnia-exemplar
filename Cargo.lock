@@ -2311,7 +2311,7 @@ dependencies = [
 [[package]]
 name = "omnia-http-cache"
 version = "0.36.0"
-source = "git+https://github.com/augentic/omnia-ext?branch=capabilities#f49ab2dc7bf3be807a2b906339a6bdf1a6b653de"
+source = "git+https://github.com/augentic/omnia-ext#00d95d8af00c41fb62bf367b1367589e6fe0eca2"
 dependencies = [
  "anyhow",
  "bytes",
