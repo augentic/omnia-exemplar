@@ -11,8 +11,8 @@ Domain logic lives under `crates/*` as plain axum handlers
 wiring: `handlers()`, an `api::Handlers` binding its paths to its fns
 (`post(tally)`) and its topics to its consumers. The **guest is the
 workspace root package** (`src/lib.rs`) — one `<stem>::handlers(),` entry per
-crate in `router`, merged by `Handlers::from` and closed with `with_state`
-over a provider-owning `Client`, bound as the WASI exports by
+crate in `router`, merged by `Handlers::from` and closed over the provider
+with `with_state(provider)`, bound as the WASI exports by
 `http::export!(router)` and `messaging::export!(router)`.
 Match this layout when creating a new Omnia service: root `src/`, not a
 `guests/<name>/` tree.
@@ -129,7 +129,7 @@ The guest:
   `HttpClient`, `Identity`, `Publisher`, `SqlDb`, `StateStore`, `WebSockets`)
 - Bounds the router with each stem's `Requires`, one `where` predicate per
   stem
-- Routes both transports through one provider-owning `Client` per request,
+- Routes both transports through one router over one provider per request,
   keeping `wasmtime` and `omnia-core` off the native non-dev dependency graph
   (enforced by `deny.toml`)
 
@@ -360,7 +360,7 @@ which implements every capability trait over one default double each —
 through the same-named builders (`.config(..)`, `.http(..)`, `.tables(..)`),
 and assertions read the `pub` fields (`provider.publish.sent()`). There is no
 hand-written mock provider anywhere in the workspace. A test builds the
-stem's router once, `handlers().with_state(Client::new(provider.clone()))`,
+stem's router once, `handlers().with_state(provider.clone())`,
 and drives it with `omnia_test::guest::send(&router, request)` for one request
 (the reply comes back with its body collected) or
 `omnia_test::guest::deliver(&router, topic, payload)` for one delivery; a

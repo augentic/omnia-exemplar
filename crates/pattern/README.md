@@ -84,7 +84,7 @@ richer `StateStore`.
 
 A handler's error type implements `IntoResponse`, and that implementation
 alone decides the wire shape. The default `omnia_sdk::Error` renders as
-`omnia_sdk::api::ErrorBody` — an `application/json` body with two fields,
+`omnia_sdk::ErrorBody` — an `application/json` body with two fields,
 `error` (the code discriminant) and `message` (the description) — with no
 room for domain data or status codes outside `400`, `404`, `500`, and `502`.
 

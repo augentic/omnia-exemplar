@@ -3,7 +3,6 @@
 
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
-use omnia_sdk::api::Client;
 use omnia_sdk::sql::{Field, Row, Value};
 use omnia_test::guest::{Provider, ScriptedTables, send};
 use orders::catalogue::{CatalogueItem, CatalogueReply};
@@ -29,7 +28,7 @@ fn item_row(sku: &str, cents: i64, in_stock: bool) -> Row {
 
 async fn get_catalogue(provider: &Provider) -> CatalogueReply {
     let request = Request::get("/catalogue").body(Body::empty()).expect("request");
-    let router = orders::handlers().with_state(Client::new(provider.clone()));
+    let router = orders::handlers().with_state(provider.clone());
     let response = send(&router, request).await;
     assert_eq!(response.status(), StatusCode::OK);
     serde_json::from_slice(response.body()).expect("catalogue reply")

@@ -9,7 +9,6 @@ use capability::broadcast::AlertRequest;
 use capability::document::{NoteReply, NoteRequest};
 use capability::table::{ReadingReply, ReadingRequest, sql};
 use omnia_sdk::DocumentDb as _;
-use omnia_sdk::api::Client;
 use omnia_sdk::sql::{Row, Value};
 use omnia_test::guest::{Broadcasted, Provider, ScriptedTables, send};
 use serde::Serialize;
@@ -22,7 +21,7 @@ async fn post<I: Serialize + Sync, O: DeserializeOwned>(
         .header(CONTENT_TYPE, "application/json")
         .body(Body::from(serde_json::to_vec(input).expect("serialize")))
         .expect("request");
-    let router = capability::handlers().with_state(Client::new(provider.clone()));
+    let router = capability::handlers().with_state(provider.clone());
     let response = send(&router, request).await;
     assert_eq!(response.status(), StatusCode::OK);
     serde_json::from_slice(response.body()).expect("deserialize")

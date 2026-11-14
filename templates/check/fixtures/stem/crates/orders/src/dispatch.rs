@@ -2,7 +2,7 @@
 
 use common::topic;
 use omnia_sdk::api::messaging::Delivery;
-use omnia_sdk::api::{Context, DecodeError, Handlers};
+use omnia_sdk::api::{Context, Handlers};
 use omnia_sdk::{Result, StateStore, bad_request};
 use serde::{Deserialize, Serialize};
 
@@ -14,9 +14,9 @@ pub(crate) fn dispatched_key(id: &str) -> String {
     format!("orders.dispatched.{id}")
 }
 
-fn decode_dispatch_xml(delivery: &Delivery) -> std::result::Result<Dispatched, DecodeError> {
+fn decode_dispatch_xml(delivery: &Delivery) -> Result<Dispatched> {
     quick_xml::de::from_reader(&delivery.payload[..])
-        .map_err(|error| DecodeError::new(format!("malformed dispatch XML: {error}")))
+        .map_err(|error| bad_request!("malformed dispatch XML: {error}"))
 }
 
 /// An XML dispatch notice (`<Dispatched><id>…</id><carrier>…</carrier></Dispatched>`).

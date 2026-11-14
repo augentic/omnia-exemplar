@@ -10,7 +10,6 @@ use axum::body::{Body, to_bytes};
 use axum::http::header::CONTENT_TYPE;
 use axum::http::{Request, StatusCode};
 use axum::response::IntoResponse as _;
-use omnia_sdk::api::Client;
 use omnia_sdk::sql::{Field, Row, Value};
 use omnia_test::guest::{self, Executed, Provider, ScriptedTables};
 use pattern::place::{
@@ -55,7 +54,7 @@ fn upserted_id(statement: &Executed) -> Option<&str> {
 }
 
 async fn send(provider: &Provider, request: Request<Body>) -> (StatusCode, Vec<u8>) {
-    let router = pattern::handlers().with_state(Client::new(provider.clone()));
+    let router = pattern::handlers().with_state(provider.clone());
     let response = guest::send(&router, request).await;
     (response.status(), response.into_body().to_vec())
 }

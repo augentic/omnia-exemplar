@@ -228,5 +228,5 @@ where
     };
 
     let key = state_keys::occupancy_status(&vehicle.id, &trip.trip_id, start_date, start_time);
-    Ok(provider.get_json(&key).await?)
+    provider.get_json(&key).await
 }

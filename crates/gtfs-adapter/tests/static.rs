@@ -12,7 +12,6 @@ use axum::http::{Request, StatusCode};
 use chrono::{DateTime, Utc};
 use common::topic;
 use gtfs_adapter::vehicle_info::VehicleInfoReply;
-use omnia_sdk::api::messaging::DeliveryError;
 use omnia_test::guest::{MatchedHttp, deliver, send};
 use serde_json::{Value, json};
 
@@ -226,20 +225,14 @@ async fn serial_data_sign_on() {
     let error = deliver(&router(&provider), topic::PULSE_TO_MOTION, message)
         .await
         .expect_err("should reject outdated message");
-    assert!(
-        matches!(&error, DeliveryError::Failed { message, .. } if message.contains("outdated")),
-        "{error}"
-    );
+    assert!(error.description().contains("outdated"), "{error}");
 
     // the future check is against the wall clock
     let future = serial_data("EM580", "TRIP-1", Utc::now() + chrono::Duration::seconds(3_600));
     let error = deliver(&router(&provider), topic::PULSE_TO_MOTION, future)
         .await
         .expect_err("should reject future-dated message");
-    assert!(
-        matches!(&error, DeliveryError::Failed { message, .. } if message.contains("future-dated")),
-        "{error}"
-    );
+    assert!(error.description().contains("future-dated"), "{error}");
 
     // neither rejection reaches Trip Management
     assert_eq!(provider.http.requests().len(), 1);

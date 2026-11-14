@@ -13,7 +13,7 @@ use axum::response::{IntoResponse, Response};
 use axum::routing::get;
 use omnia_sdk::api::{Context, Handlers};
 use omnia_sdk::docstore::{Document, Exists, Filter, SortField};
-use omnia_sdk::{DocumentDb, Result, bad_request, capability, not_found};
+use omnia_sdk::{DocumentDb, Result, bad_request, not_found};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 
@@ -43,7 +43,7 @@ pub struct DocumentRecord<T> {
 /// Deserialize query-result documents into typed records.
 pub(crate) fn records<T: DeserializeOwned>(
     documents: &[Document],
-) -> capability::Result<Vec<DocumentRecord<T>>> {
+) -> Result<Vec<DocumentRecord<T>>> {
     documents
         .iter()
         .map(|doc| {
@@ -67,12 +67,6 @@ pub enum CreateError {
     /// The host or a precondition failed.
     #[error(transparent)]
     Host(#[from] omnia_sdk::Error),
-}
-
-impl From<capability::Error> for CreateError {
-    fn from(error: capability::Error) -> Self {
-        Self::Host(error.into())
-    }
 }
 
 // The conflict body is omnia's `ErrorBody` pair plus the stored id; a host

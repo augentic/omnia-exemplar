@@ -4,7 +4,6 @@
 use axum::body::Body;
 use axum::http::header::CONTENT_TYPE;
 use axum::http::{Request, StatusCode};
-use omnia_sdk::api::Client;
 use omnia_test::guest::{Provider, send};
 use pattern::cas::QuotaRecord;
 use serde_json::{Value, json};
@@ -22,7 +21,7 @@ async fn put_quota(
             .to_string(),
         ))
         .expect("request");
-    let router = pattern::handlers().with_state(Client::new(provider.clone()));
+    let router = pattern::handlers().with_state(provider.clone());
     let response = send(&router, request).await;
     assert_eq!(
         response.headers().get(CONTENT_TYPE).and_then(|value| value.to_str().ok()),

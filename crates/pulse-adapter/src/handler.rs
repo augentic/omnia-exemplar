@@ -9,7 +9,7 @@ use common::topic;
 use http::Method;
 use http::header::AUTHORIZATION;
 use omnia_sdk::api::messaging::Delivery;
-use omnia_sdk::api::{Context, DecodeError, Handlers};
+use omnia_sdk::api::{Context, Handlers};
 use omnia_sdk::messaging::Message;
 use omnia_sdk::{
     Config, Error, HttpClient, HttpClientExt as _, Identity, IdentityExt as _, Publisher, Result,
@@ -35,8 +35,8 @@ pub(crate) fn handlers<P: crate::Requires>() -> Handlers<P> {
     Handlers::new().topic_with(topic::PULSE, pulse, decode_xml)
 }
 
-fn decode_xml(delivery: &Delivery) -> std::result::Result<PulseMessage, DecodeError> {
-    PulseMessage::from_xml(&delivery.payload).map_err(|error| DecodeError::new(error.to_string()))
+fn decode_xml(delivery: &Delivery) -> Result<PulseMessage> {
+    PulseMessage::from_xml(&delivery.payload)
 }
 
 /// Errors raised while validating an inbound Pulse train update message.

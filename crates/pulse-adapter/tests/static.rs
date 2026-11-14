@@ -5,8 +5,6 @@
 mod fixture;
 
 use common::topic;
-use omnia_sdk::api::Client;
-use omnia_sdk::api::messaging::DeliveryError;
 use omnia_test::guest::deliver;
 use pulse_adapter::stops::StopInfo;
 
@@ -108,7 +106,7 @@ async fn expect_error(path: &str) {
     );
 }
 
-async fn run(case: &Case) -> Result<(), DeliveryError> {
-    let router = pulse_adapter::handlers().with_state(Client::new(case.provider.clone()));
+async fn run(case: &Case) -> omnia_sdk::Result<()> {
+    let router = pulse_adapter::handlers().with_state(case.provider.clone());
     deliver(&router, topic::PULSE, case.input.clone()).await
 }

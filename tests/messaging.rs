@@ -4,7 +4,7 @@
 //! topic. A stem's topics are driven by its own tests through its
 //! `handlers()`; this rung holds the merged whole.
 
-use omnia_sdk::api::messaging::{Delivery, DeliveryError};
+use omnia_sdk::api::messaging::Delivery;
 use omnia_test::guest::{Provider, deliver};
 
 #[tokio::test]
@@ -13,7 +13,10 @@ async fn registers() {
 
     let outcome = router.handle(Delivery::default()).await;
 
-    assert_eq!(outcome, Err(DeliveryError::MissingTopic));
+    assert_eq!(
+        outcome,
+        Err(omnia_sdk::Error::bad_request("missing-topic", "the delivery has no topic"))
+    );
 }
 
 #[tokio::test]
@@ -22,5 +25,8 @@ async fn unknown_topic() {
 
     let outcome = deliver(&router, "nothing-here", Vec::new()).await;
 
-    assert_eq!(outcome, Err(DeliveryError::UnhandledTopic("nothing-here".to_owned())));
+    assert_eq!(
+        outcome,
+        Err(omnia_sdk::Error::not_found("unhandled-topic", "no route for topic `nothing-here`"))
+    );
 }

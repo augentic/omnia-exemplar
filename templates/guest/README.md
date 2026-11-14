@@ -82,7 +82,7 @@ keys as `pub(crate) const`, its handlers `pub(crate)`, and `pub(crate) fn
 handlers<P: crate::Requires>()` registering them, so a part the stem's
 list does not name is dead code. Its tests under
 `tests/<part>.rs` drive the stem's `handlers()`, closed with
-`with_state(Client::new(provider))` over the doubles, so a
+`with_state(provider)` over the doubles, so a
 route or a topic is asserted as the wire reaches it. The
 root `Cargo.toml` names the crate in its `[dependencies]`
 (`<stem> = { path = "crates/<stem>" }`) after the anchor

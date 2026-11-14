@@ -5,8 +5,7 @@
 //! [`SqlDb::execute`] instead keeps the handlers runnable against native
 //! `omnia-test` doubles — a deliberate, documented deviation.
 
-use omnia_sdk::SqlDb;
-use omnia_sdk::capability::Result;
+use omnia_sdk::{Result, SqlDb};
 
 pub mod sql {
     pub const CREATE_AGENCY: &str = "CREATE TABLE IF NOT EXISTS agency (

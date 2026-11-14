@@ -5,7 +5,6 @@ use axum::body::Body;
 use axum::http::header::CONTENT_TYPE;
 use axum::http::{HeaderValue, Method, Request, Response, StatusCode};
 use bytes::Bytes;
-use omnia_sdk::api::Client;
 use omnia_test::guest::{MapConfig, MatchedHttp, Provider, send};
 use pattern::decode::{DecodeSegmentReply, Segment};
 use serde_json::json;
@@ -33,7 +32,7 @@ async fn post(provider: &Provider, code: &str) -> Response<Bytes> {
         .header(CONTENT_TYPE, "application/json")
         .body(Body::from(json!({ "code": code }).to_string()))
         .expect("request");
-    let router = pattern::handlers().with_state(Client::new(provider.clone()));
+    let router = pattern::handlers().with_state(provider.clone());
     send(&router, request).await
 }
 

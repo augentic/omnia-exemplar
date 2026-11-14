@@ -123,10 +123,7 @@ fn handler_list_insertion() {
     const HEAD: &str = "    Handlers::from([\n        // one `<stem>::handlers(),` per stem, each \
                         added at the end\n";
     let seed = omnia_template::entry("src/lib.rs").expect("the template holds `src/lib.rs`").body;
-    assert!(
-        seed.contains(&format!("{HEAD}    ])\n    .with_state(Client::new(provider))")),
-        "{seed}"
-    );
+    assert!(seed.contains(&format!("{HEAD}    ])\n    .with_state(provider)")), "{seed}");
 
     let one = insert_after(seed, HANDLER_LIST_ANCHOR, "        orders::handlers(),").expect("one");
     assert!(one.contains(&format!("{HEAD}        orders::handlers(),\n    ])")), "{one}");
@@ -139,14 +136,13 @@ fn handler_list_insertion() {
         "{two}"
     );
 
-    let single_line =
-        "    Handlers::from([orders::handlers()]).with_state(Client::new(provider))\n";
+    let single_line = "    Handlers::from([orders::handlers()]).with_state(provider)\n";
     let after_fmt =
         insert_after(single_line, HANDLER_LIST_ANCHOR, "billing::handlers()").expect("formatted");
     assert_eq!(
         after_fmt,
         "    Handlers::from([\n        orders::handlers(),\n        billing::handlers(),\n    \
-         ]).with_state(Client::new(provider))\n"
+         ]).with_state(provider)\n"
     );
 }
 

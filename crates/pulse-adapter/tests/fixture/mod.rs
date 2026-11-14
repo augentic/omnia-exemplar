@@ -14,7 +14,6 @@ use std::path::Path;
 use bytes::Bytes;
 use chrono::{Duration, Timelike, Utc};
 use http::{Method, Response};
-use omnia_sdk::api::messaging::DeliveryError;
 use omnia_test::guest::{FixedIdentity, MapConfig, MatchedHttp, Provider};
 use pulse_adapter::handler::PulseMessage;
 use pulse_adapter::motion::MotionEvent;
@@ -173,19 +172,15 @@ pub fn prepare(def: TestDef) -> Case {
 
 /// Whether `error` matches `expected`, with a few seconds' slack when the
 /// description embeds a freshness delay computed from `Utc::now()`.
-pub fn delivery_error_matches(expected: &omnia_sdk::Error, error: &DeliveryError) -> bool {
-    let DeliveryError::Failed { message: msg, .. } = error else {
-        return false;
-    };
-    if !msg.contains(&expected.code()) {
+pub fn delivery_error_matches(expected: &omnia_sdk::Error, error: &omnia_sdk::Error) -> bool {
+    if error.code() != expected.code() {
         return false;
     }
     let desc = expected.description();
-    delay_seconds(&desc).map_or_else(
-        || msg.contains(&desc),
-        |expected_secs| {
-            delay_seconds(msg).is_some_and(|actual| (actual - expected_secs).abs() <= 3)
-        },
+    let actual = error.description();
+    delay_seconds(desc).map_or_else(
+        || actual.contains(desc),
+        |expected_secs| delay_seconds(actual).is_some_and(|secs| (secs - expected_secs).abs() <= 3),
     )
 }
 

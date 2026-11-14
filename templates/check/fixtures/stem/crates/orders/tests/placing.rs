@@ -5,7 +5,6 @@ use axum::http::header::CONTENT_TYPE;
 use axum::http::{Request, StatusCode};
 use common::topic;
 use omnia_sdk::StateStore;
-use omnia_sdk::api::Client;
 use omnia_test::guest::{MapConfig, Provider, deliver, send};
 use orders::placing::Placed;
 
@@ -14,7 +13,7 @@ async fn place(provider: &Provider, body: &'static str) -> (StatusCode, Vec<u8>)
         .header(CONTENT_TYPE, "application/json")
         .body(Body::from(body))
         .expect("request");
-    let router = orders::handlers().with_state(Client::new(provider.clone()));
+    let router = orders::handlers().with_state(provider.clone());
     let response = send(&router, request).await;
     (response.status(), response.into_body().to_vec())
 }
@@ -39,7 +38,7 @@ async fn place_then_count() {
     assert_eq!(status, StatusCode::BAD_REQUEST);
     assert_eq!(provider.publisher.sent().len(), 1, "a refused order is not published");
 
-    let router = orders::handlers().with_state(Client::new(provider.clone()));
+    let router = orders::handlers().with_state(provider.clone());
     deliver(&router, topic::ORDER_PLACED, sent[0].1.payload.clone())
         .await
         .expect("a placement is counted");

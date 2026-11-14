@@ -4,7 +4,6 @@
 use axum::body::Body;
 use axum::http::header::CONTENT_TYPE;
 use axum::http::{Method, Request, StatusCode};
-use omnia_sdk::api::Client;
 use omnia_sdk::sql::{Field, Row, Value as SqlValue};
 use omnia_test::guest::{self, Executed, Provider, ScriptedTables};
 use serde::de::DeserializeOwned;
@@ -107,7 +106,7 @@ async fn send(
         None => builder.body(Body::empty()),
     }
     .expect("request");
-    let router = sql::handlers().with_state(Client::new(provider.clone()));
+    let router = sql::handlers().with_state(provider.clone());
     let response = guest::send(&router, request).await;
     let json = serde_json::from_slice(response.body()).unwrap_or(Value::Null);
     (response.status(), json)

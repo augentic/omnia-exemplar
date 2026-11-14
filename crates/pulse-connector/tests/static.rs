@@ -4,7 +4,6 @@ use axum::body::{Body, Bytes};
 use axum::http::header::CONTENT_TYPE;
 use axum::http::{Request, Response, StatusCode};
 use common::topic;
-use omnia_sdk::api::Client;
 use omnia_test::guest::{Provider, send};
 
 const RECEIVE_MESSAGE: &[u8] = include_bytes!("../data/receive-message.xml");
@@ -23,7 +22,7 @@ async fn post(provider: Provider, body: &'static [u8]) -> Response<Bytes> {
         .header(CONTENT_TYPE, "text/xml")
         .body(Body::from(body))
         .expect("request");
-    let router = pulse_connector::handlers().with_state(Client::new(provider));
+    let router = pulse_connector::handlers().with_state(provider);
     send(&router, request).await
 }
 

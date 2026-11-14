@@ -10,7 +10,7 @@
 //! The upsert also demonstrates a structured wire error: [`PlaceError`]
 //! replaces `omnia_sdk::Error` as the handler's error type, and its
 //! [`IntoResponse`] implementation serializes it as an `application/json`
-//! body that is a superset of the framework's `omnia_sdk::api::ErrorBody`
+//! body that is a superset of the framework's `omnia_sdk::ErrorBody`
 //! envelope — the fixed `error` / `message` pair every omnia transport
 //! emits, plus the variant's own domain fields.
 
@@ -20,7 +20,7 @@ use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
 use omnia_sdk::api::{Context, Handlers};
 use omnia_sdk::sql::{FromRow, Value};
-use omnia_sdk::{Error, SqlDb, SqlDbExt as _, capability};
+use omnia_sdk::{Error, SqlDb, SqlDbExt as _};
 use serde::{Deserialize, Serialize};
 
 pub(crate) const PLACES: &str = "/examples/patterns/places";
@@ -67,7 +67,7 @@ pub struct UpsertPlaceReply {
 ///
 /// The exemplar for structured error responses: instead of flattening
 /// failures into `omnia_sdk::Error`, whose body is the fixed two-field
-/// `omnia_sdk::api::ErrorBody` (`error`, `message`), the handler keeps its
+/// `omnia_sdk::ErrorBody` (`error`, `message`), the handler keeps its
 /// own error type with domain fields, and the [`IntoResponse`] implementation
 /// below puts the JSON on the wire. The serde `tag` is `ErrorBody`'s `error`
 /// discriminant, `Display` supplies its `message`, and every other field is
@@ -128,9 +128,11 @@ impl From<anyhow::Error> for PlaceError {
     }
 }
 
-impl From<capability::Error> for PlaceError {
-    fn from(error: capability::Error) -> Self {
-        Self::from(anyhow::Error::from(error))
+impl From<Error> for PlaceError {
+    fn from(error: Error) -> Self {
+        Self::Storage {
+            description: error.description().to_owned(),
+        }
     }
 }
 

@@ -55,8 +55,8 @@ Unreleased
   and the root `Cargo.toml` names each stem once in `[dependencies]`
   (`<stem> = { path = "crates/<stem>" }`), so a slice adds a stem in two
   lines after `CRATE_LIST_ANCHOR` and `HANDLER_LIST_ANCHOR`
-  (`PATH_LIST_ANCHOR` is removed). `with_state(Client::new(provider))`
-  closes the handlers into one `omnia_sdk::api::Router<P>` (`router`),
+  (`PATH_LIST_ANCHOR` is removed). `with_state(provider)` closes the
+  handlers into one `omnia_sdk::api::Router<P>` (`router`),
   bound by both `http::export!(router)` and `messaging::export!(router)`.
   Environment topic prefixing moves to the host messaging backends, so
   `common::config`, `common::routers`, and `common::topics` are removed.

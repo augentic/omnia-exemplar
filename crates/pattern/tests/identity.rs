@@ -5,7 +5,6 @@ use axum::body::Body;
 use axum::http::header::AUTHORIZATION;
 use axum::http::{Method, Request, Response, StatusCode};
 use bytes::Bytes;
-use omnia_sdk::api::Client;
 use omnia_test::guest::{FixedIdentity, MapConfig, MatchedHttp, Provider, send};
 use serde_json::json;
 
@@ -28,7 +27,7 @@ async fn upstream_status() {
 
     let request =
         Request::get("/examples/patterns/upstream/lines").body(Body::empty()).expect("request");
-    let router = pattern::handlers().with_state(Client::new(provider.clone()));
+    let router = pattern::handlers().with_state(provider.clone());
     let response = send(&router, request).await;
     assert_eq!(response.status(), StatusCode::OK);
 

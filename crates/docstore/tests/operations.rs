@@ -7,7 +7,6 @@ use axum::http::{Method, Request, StatusCode};
 use docstore::route::{CreateRouteRequest, Route, RoutesReply};
 use docstore::stop::{CreateStopRequest, DeleteStopReply, DocumentRecord, Stop, StopsReply};
 use docstore::stop_time::{CreateStopTimeRequest, StopTime, StopTimesReply};
-use omnia_sdk::api::Client;
 use omnia_sdk::docstore::Filter;
 use omnia_test::guest::{self, Provider};
 use serde::Serialize;
@@ -61,7 +60,7 @@ async fn send(
         None => builder.body(Body::empty()),
     }
     .expect("request");
-    let router = docstore::handlers().with_state(Client::new(provider.clone()));
+    let router = docstore::handlers().with_state(provider.clone());
     let response = guest::send(&router, request).await;
     let json = serde_json::from_slice(response.body()).unwrap_or(Value::Null);
     (response.status(), json)

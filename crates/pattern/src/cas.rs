@@ -13,7 +13,7 @@ use axum::response::{IntoResponse, Response};
 use axum::routing::put;
 use omnia_sdk::api::{Context, Handlers};
 use omnia_sdk::keyvalue::Conflict;
-use omnia_sdk::{StateStore, bad_request, capability, not_found, server_error};
+use omnia_sdk::{StateStore, bad_request, not_found, server_error};
 use serde::{Deserialize, Serialize};
 
 use crate::state_keys;
@@ -62,12 +62,6 @@ pub enum QuotaError {
 
 impl From<anyhow::Error> for QuotaError {
     fn from(error: anyhow::Error) -> Self {
-        Self::Host(error.into())
-    }
-}
-
-impl From<capability::Error> for QuotaError {
-    fn from(error: capability::Error) -> Self {
         Self::Host(error.into())
     }
 }
