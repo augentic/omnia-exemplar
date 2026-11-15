@@ -1,4 +1,4 @@
-//! Compiles this package to a `wasm32-wasip2` component for the component
+//! Compiles this package to a `wasm32-wasip3` component for the component
 //! rung (`tests/component.rs`) and generates `gen.rs` with its path constant
 //! (`COMPONENT_GUEST`) for the native side to `include!`.
 //!

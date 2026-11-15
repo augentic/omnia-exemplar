@@ -1,11 +1,11 @@
 //! Host runtime for the WASM guest: WASI's default backends, `SQLite` in
 //! memory for tables and a fixed token for identity.
 //!
-//! Build the guest for `wasm32-wasip2` and run it with:
+//! Build the guest for `wasm32-wasip3` and run it with:
 //!
 //! ```shell
-//! cargo build --target wasm32-wasip2 --release
-//! cargo run --features host --example runtime -- run target/wasm32-wasip2/release/guest.wasm
+//! cargo build --target wasm32-wasip3 --release
+//! cargo run --features host --example runtime -- run target/wasm32-wasip3/release/guest.wasm
 //! ```
 
 cfg_select! {

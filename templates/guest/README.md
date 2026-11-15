@@ -59,7 +59,7 @@ and
 dependency pins and patches must match the root workspace's, and
 `templates/check/tests/scaffold.rs` renders the whole manifest into
 `target/template-scaffold/` and proves the result lints, tests, and
-builds for `wasm32-wasip2` with no hand edits, bare and then with the
+builds for `wasm32-wasip3` with no hand edits, bare and then with the
 fixture stem under `templates/check/fixtures/stem/` written in as a slice
 writes one: its crate whole and its line in each list.
 

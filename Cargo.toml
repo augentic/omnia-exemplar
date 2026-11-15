@@ -56,7 +56,7 @@ omnia-wasi-websocket.workspace = true
 serde_json.workspace = true
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 
-# The fixture rung: `build.rs` compiles this package to a `wasm32-wasip2`
+# The fixture rung: `build.rs` compiles this package to a `wasm32-wasip3`
 # component for `tests/component.rs`. `build` is `std`-only by contract.
 [build-dependencies]
 omnia-test = { workspace = true, features = ["build"] }
@@ -78,7 +78,7 @@ keywords = ["exemplar", "omnia", "wasi", "wasm", "component-model"]
 license = "MIT OR Apache-2.0"
 publish = false
 repository = "https://github.com/augentic/omnia-exemplar"
-rust-version = "1.99"
+rust-version = "1.100"
 version = "0.1.0"
 
 [workspace.lints.rust]
@@ -121,7 +121,6 @@ bytes = "1.12.1"
 chrono = { version = "0.4.45", features = ["serde"] }
 chrono-tz = "0.10.4"
 http = "1.5.0"
-http-body = "1.1.0"
 http-body-util = "0.1.5"
 quick-xml = { version = "0.42.0", features = ["serde", "serialize"] }
 serde = { version = "1.0.229", features = ["derive"] }

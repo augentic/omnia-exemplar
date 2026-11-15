@@ -1,7 +1,7 @@
 //! Component rung: the shipped `guest.wasm` through the example host's own
 //! wiring.
 //!
-//! `build.rs` compiles this package to a `wasm32-wasip2` component and
+//! `build.rs` compiles this package to a `wasm32-wasip3` component and
 //! `gen.rs` names it (`COMPONENT_GUEST`). `examples/runtime.rs` is included
 //! as `production`, so the `Hooks` its `runtime!` generates — the exact host
 //! rows the binary links — assemble the runtime over `omnia_test::host::

@@ -15,9 +15,9 @@ answers `409 Conflict` through `stop::CreateError`.
 Run the guest under the example host, then exercise the endpoints:
 
 ```shell
-cargo build --target wasm32-wasip2 --release
+cargo build --target wasm32-wasip3 --release
 set -a; source .env; set +a
-cargo run --example runtime -- run target/wasm32-wasip2/release/guest.wasm
+cargo run --example runtime -- run target/wasm32-wasip3/release/guest.wasm
 ```
 
 ## Endpoints

@@ -8,6 +8,12 @@ Unreleased
 
 ### Changed
 
+- **Rust 1.100 and `wasm32-wasip3`.** The root and seed manifests set
+  `rust-version = "1.100"`. The root `rust-toolchain.toml` and the
+  `mise.toml` `wasm` task are `exact` template entries, so a generated guest
+  builds for `wasm32-wasip3`, the WASI 0.3 target omnia 0.38 runs alone. The
+  workflows and the seed `publish.yaml` pin toolkit `v0.7.0`, and the unused
+  `http-body` workspace dependency is gone.
 - **The omnia 0.38 capability contract, with a `Requires` per stem.** The
   root and seed `[patch.crates-io]` track omnia's `capablities` branch and
   omnia-ext's `capabilities` branch until the contract is published. The

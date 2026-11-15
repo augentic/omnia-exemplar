@@ -10,7 +10,7 @@
 //! packages are `guest`, so the `libguest` the exemplar uplifts to
 //! `target/debug` is the scaffold's after a run, which nothing reads. The
 //! component is built under a target directory of its own, since the
-//! exemplar's holds no `wasm32-wasip2` build to share and the one artifact
+//! exemplar's holds no `wasm32-wasip3` build to share and the one artifact
 //! asserted must be this render's.
 
 #![cfg(not(miri))]
@@ -51,13 +51,13 @@ fn checks(dest: &Path, target_dir: &Path) {
 
     // the component, from this build alone
     let wasm_target_dir = target_dir.join("template-scaffold-wasm32");
-    let component = wasm_target_dir.join("wasm32-wasip2/debug/guest.wasm");
+    let component = wasm_target_dir.join("wasm32-wasip3/debug/guest.wasm");
     if let Err(err) = fs::remove_file(&component)
         && err.kind() != ErrorKind::NotFound
     {
         panic!("stale component removed: {err}");
     }
-    cargo(dest, &wasm_target_dir, &["build", "--target", "wasm32-wasip2"]);
+    cargo(dest, &wasm_target_dir, &["build", "--target", "wasm32-wasip3"]);
     assert!(component.is_file(), "the guest component is built");
 }
 
