@@ -3,7 +3,9 @@
 
 mod support;
 
-use omnia_template::{CRATE_LIST_ANCHOR, Error, HANDLER_LIST_ANCHOR, Manifest, insert_after};
+use omnia_template::{
+    CRATE_LIST_ANCHOR, Error, HANDLER_LIST_ANCHOR, Manifest, REQUIRES_LIST_ANCHOR, insert_after,
+};
 
 use self::support::Scratch;
 
@@ -121,10 +123,7 @@ fn handler_list_insertion() {
     const HEAD: &str = "    Handlers::from([\n        // one `<stem>::handlers(),` per stem, each \
                         added at the end\n";
     let seed = omnia_template::entry("src/lib.rs").expect("the template holds `src/lib.rs`").body;
-    assert!(
-        seed.contains(&format!("{HEAD}    ])\n    .with_state(Client::new(provider))")),
-        "{seed}"
-    );
+    assert!(seed.contains(&format!("{HEAD}    ])\n    .with_state(provider)")), "{seed}");
 
     let one = insert_after(seed, HANDLER_LIST_ANCHOR, "        orders::handlers(),").expect("one");
     assert!(one.contains(&format!("{HEAD}        orders::handlers(),\n    ])")), "{one}");
@@ -137,13 +136,30 @@ fn handler_list_insertion() {
         "{two}"
     );
 
-    let single_line =
-        "    Handlers::from([orders::handlers()]).with_state(Client::new(provider))\n";
+    let single_line = "    Handlers::from([orders::handlers()]).with_state(provider)\n";
     let after_fmt =
         insert_after(single_line, HANDLER_LIST_ANCHOR, "billing::handlers()").expect("formatted");
     assert_eq!(
         after_fmt,
         "    Handlers::from([\n        orders::handlers(),\n        billing::handlers(),\n    \
-         ]).with_state(Client::new(provider))\n"
+         ]).with_state(provider)\n"
+    );
+}
+
+// Each predicate lands on the line under the standing bound, so a later
+// stem's precedes an earlier one's; a `where` list's order is immaterial.
+#[test]
+fn requires_list_insertion() {
+    const HEAD: &str = "where\n    P: Send + Sync + 'static,\n";
+    let seed = omnia_template::entry("src/lib.rs").expect("the template holds `src/lib.rs`").body;
+    assert!(seed.contains(&format!("{HEAD}{{\n")), "{seed}");
+
+    let one = insert_after(seed, REQUIRES_LIST_ANCHOR, "    P: orders::Requires,").expect("one");
+    assert!(one.contains(&format!("{HEAD}    P: orders::Requires,\n{{\n")), "{one}");
+
+    let two = insert_after(&one, REQUIRES_LIST_ANCHOR, "    P: billing::Requires,").expect("two");
+    assert!(
+        two.contains(&format!("{HEAD}    P: billing::Requires,\n    P: orders::Requires,\n{{\n")),
+        "{two}"
     );
 }

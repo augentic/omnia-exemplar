@@ -3,27 +3,31 @@
 //! The canonical capability-composition vignette: check [`StateStore`] for a
 //! previously decoded segment, and on a miss resolve the decoder endpoint
 //! and client certificate from [`Config`], call the decoder through
-//! [`HttpRequest`], then write the result back through [`StateStore`] with a
+//! [`HttpClient`], then write the result back through [`StateStore`] with a
 //! TTL. Credentials never leave configuration: the certificate travels as a
 //! request header, so outbound HTTP stays generic and no TLS-specific
 //! capability is needed.
 
+use std::time::Duration;
+
 use anyhow::Context as _;
 use axum::Json;
-use axum::body::Body;
+use axum::body::Bytes;
 use axum::http::{Method, Request};
 use axum::routing::post;
 use omnia_sdk::api::{Context, Handlers};
 use omnia_sdk::{
-    Capabilities, Config, HttpRequest, HttpRequestExt as _, Result, Settings, StateStore,
-    StateStoreExt as _,
+    Config, HttpClient, HttpClientExt as _, Result, Settings, StateStore, StateStoreExt as _,
+    bad_request,
 };
 use serde::{Deserialize, Serialize};
 
+use crate::state_keys;
+
 pub(crate) const DECODE: &str = "/examples/patterns/decode";
 
-// Cache lifetime for decoded segments, in seconds.
-pub(crate) const SEGMENT_TTL_SECS: u64 = 24 * 60 * 60;
+// Cache lifetime for decoded segments.
+pub(crate) const SEGMENT_TTL: Duration = Duration::from_hours(24);
 
 /// The settings the decoder client reads.
 #[derive(Debug, Settings)]
@@ -35,12 +39,8 @@ pub struct DecodeSettings {
     client_cert: String,
 }
 
-pub(crate) fn handlers<P: Capabilities>() -> Handlers<P> {
+pub(crate) fn handlers<P: crate::Requires>() -> Handlers<P> {
     Handlers::new().route(DECODE, post(decode_segment))
-}
-
-pub(crate) fn segment_key(code: &str) -> String {
-    format!("pattern:segment:{code}")
 }
 
 /// A decoded segment as returned by the upstream decoder.
@@ -72,9 +72,15 @@ pub(crate) async fn decode_segment<P>(
     context: Context<P>, Json(input): Json<DecodeSegmentRequest>,
 ) -> Result<Json<DecodeSegmentReply>>
 where
-    P: Config + HttpRequest + StateStore,
+    P: Config + HttpClient + StateStore,
 {
-    let key = segment_key(&input.code);
+    if !state_keys::is_portable(&input.code) {
+        return Err(bad_request!(
+            "code `{}` may hold only letters, digits, `_`, and `-`",
+            input.code
+        ));
+    }
+    let key = state_keys::segment(&input.code);
 
     // Cache hit: no config read, no outbound request.
     if let Some(segment) = context.state().get_json(&key).await? {
@@ -96,13 +102,13 @@ where
         .uri(settings.decoder_url)
         .header("Content-Type", "application/json")
         .header("Client-Cert", settings.client_cert)
-        .body(Body::from(body))
+        .body(Bytes::from(body))
         .context("building decode request")?;
 
     let segment: Segment = context.http().fetch_json(request).await?;
 
     // Write back through the cache so the next lookup short-circuits.
-    context.state().set_json(&key, &segment, Some(SEGMENT_TTL_SECS)).await?;
+    context.state().set_json(&key, &segment, Some(SEGMENT_TTL)).await?;
 
     Ok(Json(DecodeSegmentReply {
         cached: false,

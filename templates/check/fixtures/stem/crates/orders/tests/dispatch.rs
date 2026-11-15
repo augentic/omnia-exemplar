@@ -1,12 +1,11 @@
 //! Consuming XML dispatch notices through `topic_with`.
 
-use omnia_sdk::api::Client;
 use omnia_test::guest::{Provider, deliver};
 
 #[tokio::test]
 async fn xml_notice() {
     let provider = Provider::default();
-    let router = orders::handlers().with_state(Client::new(provider.clone()));
+    let router = orders::handlers().with_state(provider.clone());
 
     deliver(
         &router,
@@ -17,7 +16,7 @@ async fn xml_notice() {
     .expect("dispatch notice handled");
 
     assert_eq!(
-        provider.storage.state("orders/dispatched/ord-7").as_deref(),
+        provider.storage.state("orders.dispatched.ord-7").as_deref(),
         Some(b"NZP".as_slice())
     );
 }

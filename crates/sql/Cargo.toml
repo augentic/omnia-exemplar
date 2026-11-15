@@ -19,7 +19,6 @@ workspace = true
 crate-type = ["lib"]
 
 [dependencies]
-anyhow.workspace = true
 axum.workspace = true
 chrono.workspace = true
 omnia-sdk.workspace = true

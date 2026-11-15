@@ -5,8 +5,6 @@
 mod fixture;
 
 use common::topic;
-use omnia_sdk::api::Client;
-use omnia_sdk::api::messaging::DeliveryError;
 use omnia_test::guest::deliver;
 use pulse_adapter::stops::StopInfo;
 
@@ -26,7 +24,7 @@ async fn stops_cache() {
     // an arrival carries the stop's own location, not its departure location
     assert!(events[0].location_data.latitude.eq(&-36.12345));
     assert!(events[0].location_data.longitude.eq(&174.12345));
-    assert!(case.provider.storage.state("pulse:stops").is_some(), "stops table cached");
+    assert!(case.provider.storage.state("pulse.stops").is_some(), "stops table cached");
 
     // warm cache
     run(&case).await.expect("should process from cache");
@@ -34,11 +32,11 @@ async fn stops_cache() {
     assert_eq!(stops_requests(), 1);
 
     // corrupt cache
-    case.provider.storage.insert_state("pulse:stops", b"not valid json");
+    case.provider.storage.insert_state("pulse.stops", b"not valid json");
     run(&case).await.expect("should refetch and process");
 
     assert_eq!(stops_requests(), 2);
-    let cached = case.provider.storage.state("pulse:stops").expect("stops table rewritten");
+    let cached = case.provider.storage.state("pulse.stops").expect("stops table rewritten");
     let stops: Vec<StopInfo> = serde_json::from_slice(&cached).expect("valid cached stops");
     assert!(!stops.is_empty());
 }
@@ -108,7 +106,7 @@ async fn expect_error(path: &str) {
     );
 }
 
-async fn run(case: &Case) -> Result<(), DeliveryError> {
-    let router = pulse_adapter::handlers().with_state(Client::new(case.provider.clone()));
+async fn run(case: &Case) -> omnia_sdk::Result<()> {
+    let router = pulse_adapter::handlers().with_state(case.provider.clone());
     deliver(&router, topic::PULSE, case.input.clone()).await
 }

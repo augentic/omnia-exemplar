@@ -1,10 +1,9 @@
-//! Tests for the `StateStore::cas` optimistic-concurrency quota update,
-//! driven through the stem's router.
+//! Tests for the `StateStore::compare_and_swap` optimistic-concurrency quota
+//! update, driven through the stem's router.
 
 use axum::body::Body;
 use axum::http::header::CONTENT_TYPE;
 use axum::http::{Request, StatusCode};
-use omnia_sdk::api::Client;
 use omnia_test::guest::{Provider, send};
 use pattern::cas::QuotaRecord;
 use serde_json::{Value, json};
@@ -22,7 +21,7 @@ async fn put_quota(
             .to_string(),
         ))
         .expect("request");
-    let router = pattern::handlers().with_state(Client::new(provider.clone()));
+    let router = pattern::handlers().with_state(provider.clone());
     let response = send(&router, request).await;
     assert_eq!(
         response.headers().get(CONTENT_TYPE).and_then(|value| value.to_str().ok()),
@@ -71,6 +70,19 @@ async fn stale_version() {
     );
     assert_eq!(body["tenant"], "metro");
     assert_eq!(body["current_version"], 2);
+}
+
+#[tokio::test]
+async fn non_portable_tenant() {
+    let provider = Provider::default();
+
+    let (status, body) = put_quota(&provider, "metro:north", 0, 1_000).await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    assert_eq!(body["error"], "bad_request");
+    assert!(
+        body["message"].as_str().is_some_and(|msg| msg.contains("metro:north")),
+        "unexpected bad-request message: {body}"
+    );
 }
 
 #[tokio::test]

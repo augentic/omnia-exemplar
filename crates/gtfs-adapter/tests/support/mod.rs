@@ -4,7 +4,7 @@
 use bytes::Bytes;
 use chrono::{DateTime, Utc};
 use http::Response;
-use omnia_sdk::api::{Client, Router};
+use omnia_sdk::api::Router;
 use omnia_test::guest::{FixedIdentity, MapConfig, Provider};
 use serde_json::{Value, json};
 
@@ -26,7 +26,7 @@ pub fn provider() -> Provider {
 
 /// The stem's router over `provider`.
 pub fn router(provider: &Provider) -> Router<Provider> {
-    gtfs_adapter::handlers().with_state(Client::new(provider.clone()))
+    gtfs_adapter::handlers().with_state(provider.clone())
 }
 
 /// The Fleet API lookup `gtfs_adapter::fleet::vehicle` makes for `vehicle_id`.

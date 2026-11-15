@@ -30,6 +30,12 @@ pub enum Role {
 /// array opened by this anchor with [`insert_after`](crate::insert_after).
 pub const HANDLER_LIST_ANCHOR: &str = "Handlers::from([";
 
+/// The standing bound that opens the router's `where` list in `src/lib.rs`.
+///
+/// A stem's `P: <stem>::Requires,` predicate is inserted on the line after
+/// this anchor with [`insert_after`](crate::insert_after).
+pub const REQUIRES_LIST_ANCHOR: &str = "P: Send + Sync + 'static,";
+
 /// One entry of the manifest: where its body is read from, where it goes, its proof, and its role.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Entry {
@@ -88,8 +94,9 @@ macro_rules! seed {
 /// The tree is the root-package guest this repository teaches:
 ///
 /// - the root package `guest` is the component, exporting WASI HTTP and
-///   WASI Messaging over one provider and building the router from the
-///   handler list in `src/lib.rs`, one entry per stem after
+///   WASI Messaging over one provider; `src/lib.rs` bounds the router with
+///   one `Requires` predicate per stem after [`REQUIRES_LIST_ANCHOR`] and
+///   builds it from the handler list, one entry per stem after
 ///   [`HANDLER_LIST_ANCHOR`], built natively by the rungs under `tests/`;
 ///   the file is listed, so the rungs rather than the hold pin its router;
 /// - `crates/common` holds the topic table every stem shares;

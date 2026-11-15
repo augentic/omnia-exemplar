@@ -78,6 +78,9 @@ cargo = { level = "warn", priority = -1 }
 nursery = { level = "warn", priority = -1 }
 pedantic = { level = "warn", priority = -1 }
 
+# the guest root's `where` list repeats `P` once per stem's `Requires`
+type_repetition_in_bounds = "allow"
+
 # cherry-picked `restriction`s
 allow_attributes_without_reason = "warn"
 assertions_on_result_states = "warn"
@@ -113,7 +116,7 @@ thiserror = "2.0.21"
 tokio = { version = "1.54.1", default-features = false, features = ["macros", "rt"] }
 tracing = "0.1.44"
 urlencoding = "2.1.3"
-uuid = { version = "1.29.1", features = ["serde", "v4"] }
+uuid = { version = "1.29.2", features = ["serde", "v4"] }
 
 omnia = "0.38.0"
 omnia-sdk = "0.38.0"

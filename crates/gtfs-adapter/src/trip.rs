@@ -1,12 +1,12 @@
 //! Trip Management API client and GTFS-realtime types.
 
 use anyhow::{Context, Result};
-use axum::body::Body;
+use axum::body::Bytes;
 use chrono::{Duration, NaiveDate, TimeZone, Timelike};
 use chrono_tz::Tz;
 use http::header::CONTENT_TYPE;
 use http::{Method, StatusCode};
-use omnia_sdk::{Config, HttpRequest, Settings};
+use omnia_sdk::{Config, HttpClient, Settings};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tracing::warn;
@@ -30,7 +30,7 @@ pub(crate) async fn instance<P>(
     provider: &P, trip_id: &str, service_date: &str, start_time: &str,
 ) -> Result<Option<TripInstance>>
 where
-    P: Config + HttpRequest,
+    P: Config + HttpClient,
 {
     let trips = fetch(provider, trip_id, service_date).await?;
     let mut iter = trips.into_iter();
@@ -58,7 +58,7 @@ pub(crate) async fn nearest<P>(
     provider: &P, trip_id: &str, event_timestamp: i64,
 ) -> Result<Option<TripInstance>>
 where
-    P: Config + HttpRequest,
+    P: Config + HttpClient,
 {
     let tz = TIMEZONE;
     let Some(event_dt) = tz.timestamp_opt(event_timestamp, 0).single() else {
@@ -97,7 +97,7 @@ where
 
 async fn fetch<P>(provider: &P, trip_id: &str, service_date: &str) -> Result<Vec<TripInstance>>
 where
-    P: HttpRequest + Config,
+    P: HttpClient + Config,
 {
     let TripSettings { trip_management_url } = TripSettings::load(provider).await?;
     let endpoint = format!("{}/tripinstances", trip_management_url.trim_end_matches('/'));
@@ -112,7 +112,7 @@ where
         .method(Method::POST)
         .uri(&endpoint)
         .header(CONTENT_TYPE, "application/json")
-        .body(Body::from(body_bytes))
+        .body(Bytes::from(body_bytes))
         .context("building Trip Management request")?;
 
     let response = provider.fetch(request).await.context("requesting trip instances")?;

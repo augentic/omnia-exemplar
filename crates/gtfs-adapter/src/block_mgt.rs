@@ -1,12 +1,12 @@
 //! Block Management API client.
 
 use anyhow::Context as _;
-use axum::body::Body;
+use axum::body::Bytes;
 use http::Method;
 use http::header::{AUTHORIZATION, CACHE_CONTROL, IF_NONE_MATCH};
 use omnia_http_cache::HttpCache;
 use omnia_sdk::{
-    Config, HttpRequest, Identity, IdentityExt, Result, Settings, StateStore, bad_gateway,
+    Config, HttpClient, Identity, IdentityExt as _, Result, Settings, StateStore, bad_gateway,
 };
 use serde::{Deserialize, Serialize};
 
@@ -20,32 +20,31 @@ pub struct BlockMgtSettings {
 }
 
 // Responses are cached for twenty seconds through the provider's
-// `StateStore` under the quoted, namespaced etag `"allocation:<vehicle_id>"`.
+// `StateStore` under the quoted etag `"allocation:<vehicle_id>"`.
 pub(crate) async fn cached_allocation<P>(
     provider: &P, vehicle_id: &str, timestamp: i64,
 ) -> Result<Option<BlockInstance>>
 where
-    P: Config + HttpRequest + Identity + StateStore,
+    P: Config + HttpClient + Identity + StateStore,
 {
     let BlockMgtSettings {
         block_mgt_url: url,
         api_identity: identity,
     } = BlockMgtSettings::load(provider).await?;
 
-    let token = IdentityExt::access_token(provider, &identity).await?;
+    let token = Identity::named(provider, &identity).access_token().await?;
     let endpoint = format!(
         "{url}/allocations/vehicles/{vehicle_id}?currentTrip=true&siblings=true&nowUnixTimeSeconds={timestamp}"
     );
 
-    // `HttpCache` requires a quoted strong etag; the prefix keeps the cache
-    // key out of the guest's own state-store namespace.
+    // `HttpCache` requires a quoted strong etag.
     let request = http::Request::builder()
         .uri(&endpoint)
         .method(Method::GET)
         .header(CACHE_CONTROL, "max-age=20")
         .header(IF_NONE_MATCH, format!("\"allocation:{vehicle_id}\""))
         .header(AUTHORIZATION, format!("Bearer {token}"))
-        .body(Body::empty())
+        .body(Bytes::new())
         .context("building block management request")?;
     let response =
         HttpCache::new(provider, provider).fetch(request).await.context("fetching allocations")?;

@@ -7,7 +7,7 @@ use axum::http::{Method, Request, StatusCode};
 use docstore::route::{CreateRouteRequest, Route, RoutesReply};
 use docstore::stop::{CreateStopRequest, DeleteStopReply, DocumentRecord, Stop, StopsReply};
 use docstore::stop_time::{CreateStopTimeRequest, StopTime, StopTimesReply};
-use omnia_sdk::api::Client;
+use omnia_sdk::docstore::Filter;
 use omnia_test::guest::{self, Provider};
 use serde::Serialize;
 use serde::de::DeserializeOwned;
@@ -60,7 +60,7 @@ async fn send(
         None => builder.body(Body::empty()),
     }
     .expect("request");
-    let router = docstore::handlers().with_state(Client::new(provider.clone()));
+    let router = docstore::handlers().with_state(provider.clone());
     let response = guest::send(&router, request).await;
     let json = serde_json::from_slice(response.body()).unwrap_or(Value::Null);
     (response.status(), json)
@@ -206,6 +206,20 @@ async fn stop_crud() {
         ok(&provider, Method::GET, "/examples/stops/stop-001", None).await;
     assert_eq!(reply.document.stop_name, "Britomart Transport Centre");
 
+    // A create under a stored id is a 409 and leaves the stored stop as it was.
+    let duplicate = CreateStopRequest {
+        id: "stop-001".to_string(),
+        stop: stop("Imposter", (0.0, 0.0), None, 0, 0, None, "2026-03-20T00:00:00Z"),
+    };
+    let (status, body) =
+        send(&provider, Method::POST, "/examples/stops", Some(json_bytes(&duplicate))).await;
+    assert_eq!(status, StatusCode::CONFLICT);
+    assert_eq!(body["error"], "conflict");
+    assert_eq!(body["id"], "stop-001");
+    let reply: DocumentRecord<Stop> =
+        ok(&provider, Method::GET, "/examples/stops/stop-001", None).await;
+    assert_eq!(reply.document.stop_name, "Britomart Transport Centre");
+
     // Upsert replaces the whole document.
     let replacement = stop(
         "Britomart Transport Centre",
@@ -304,6 +318,13 @@ async fn route_filters() {
 
     // Route types: in_list(route_type, [2, 3]).
     assert_eq!(query_routes(&provider, "types=2,3").await.routes.len(), 3);
+
+    // More route types than an in_list holds is a bad request, not a server error.
+    let types = vec!["3"; Filter::MAX_LIST_LEN + 1].join(",");
+    let (status, body) =
+        send(&provider, Method::GET, &format!("/examples/routes?types={types}"), None).await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    assert_eq!(body["error"], "bad_request");
 
     // Agency: eq(agency_id).
     assert_eq!(query_routes(&provider, "agency=AT").await.routes.len(), 3);

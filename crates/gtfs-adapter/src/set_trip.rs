@@ -5,14 +5,14 @@ use axum::Json;
 use axum::extract::Path;
 use axum::routing::post;
 use omnia_sdk::api::{Context, Handlers};
-use omnia_sdk::{Capabilities, Config, Result, StateStore, bad_request};
+use omnia_sdk::{Config, Result, StateStore, bad_request};
 use serde::{Deserialize, Serialize};
 
 use crate::god_mode;
 
 pub(crate) const SET_TRIP: &str = "/god-mode/set-trip/{vehicle_id}/{trip_id}";
 
-pub(crate) fn handlers<P: Capabilities>() -> Handlers<P> {
+pub(crate) fn handlers<P: crate::Requires>() -> Handlers<P> {
     Handlers::new().route(SET_TRIP, post(set_trip))
 }
 

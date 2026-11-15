@@ -4,7 +4,6 @@ use axum::body::Body;
 use axum::http::header::CONTENT_TYPE;
 use axum::http::{Request, StatusCode};
 use common::topic;
-use omnia_sdk::api::Client;
 use omnia_test::guest::{Provider, send};
 use serde_json::{Value, json};
 
@@ -16,7 +15,7 @@ async fn forward(provider: &Provider, payload: &'static [u8]) {
         .header(CONTENT_TYPE, "application/json")
         .body(Body::from(payload))
         .expect("request");
-    let router = tally_connector::handlers().with_state(Client::new(provider.clone()));
+    let router = tally_connector::handlers().with_state(provider.clone());
     let response = send(&router, request).await;
     assert_eq!(response.status(), StatusCode::OK);
     assert_eq!(response.body().as_ref(), br#""OK""#);
@@ -30,10 +29,9 @@ async fn devices() {
     forward(&provider, TALLY_NO_DEVICE).await;
 
     // one record per reading, keyed by the device's site
-    let published = provider.publish.sent();
+    let published = provider.publisher.sent();
     assert!(published.iter().all(|(name, _)| name == topic::TALLY_APC));
-    let keys: Vec<_> =
-        published.iter().map(|(_, record)| record.headers.get("key").map(String::as_str)).collect();
+    let keys: Vec<_> = published.iter().map(|(_, record)| record.key.as_deref()).collect();
     assert_eq!(keys, [Some("EM1210"), Some("undefined")]);
 
     // each payload carries the reading's fields under their wire names

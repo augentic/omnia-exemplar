@@ -1,4 +1,4 @@
-//! Relational geo queries through [`TableStore`], rows decoded by [`FromRow`].
+//! Relational geo queries through [`SqlDb`], rows decoded by [`FromRow`].
 //!
 //! A radius search does not need a geospatial extension bolted onto the
 //! key-value store: model the rows relationally, pre-filter with an indexable
@@ -10,7 +10,7 @@
 //! The upsert also demonstrates a structured wire error: [`PlaceError`]
 //! replaces `omnia_sdk::Error` as the handler's error type, and its
 //! [`IntoResponse`] implementation serializes it as an `application/json`
-//! body that is a superset of the framework's `omnia_sdk::api::ErrorBody`
+//! body that is a superset of the framework's `omnia_sdk::ErrorBody`
 //! envelope — the fixed `error` / `message` pair every omnia transport
 //! emits, plus the variant's own domain fields.
 
@@ -19,15 +19,14 @@ use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
 use omnia_sdk::api::{Context, Handlers};
-use omnia_sdk::sql::{DataType, FromRow};
-use omnia_sdk::{Capabilities, Error, TableStore, TableStoreExt as _};
+use omnia_sdk::sql::{FromRow, Value};
+use omnia_sdk::{Error, SqlDb, SqlDbExt as _};
 use serde::{Deserialize, Serialize};
 
 pub(crate) const PLACES: &str = "/examples/patterns/places";
 pub(crate) const NEARBY: &str = "/examples/patterns/nearby";
-pub(crate) const CONNECTION: &str = "db";
 
-pub(crate) fn handlers<P: Capabilities>() -> Handlers<P> {
+pub(crate) fn handlers<P: crate::Requires>() -> Handlers<P> {
     Handlers::new().route(PLACES, post(upsert_place)).route(NEARBY, get(nearby_places))
 }
 
@@ -61,14 +60,14 @@ pub struct UpsertPlaceRequest {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UpsertPlaceReply {
     /// Rows affected by the statement.
-    pub affected: u32,
+    pub affected: u64,
 }
 
 /// Why a place request was rejected, the source of the JSON wire body.
 ///
 /// The exemplar for structured error responses: instead of flattening
 /// failures into `omnia_sdk::Error`, whose body is the fixed two-field
-/// `omnia_sdk::api::ErrorBody` (`error`, `message`), the handler keeps its
+/// `omnia_sdk::ErrorBody` (`error`, `message`), the handler keeps its
 /// own error type with domain fields, and the [`IntoResponse`] implementation
 /// below puts the JSON on the wire. The serde `tag` is `ErrorBody`'s `error`
 /// discriminant, `Display` supplies its `message`, and every other field is
@@ -129,6 +128,14 @@ impl From<anyhow::Error> for PlaceError {
     }
 }
 
+impl From<Error> for PlaceError {
+    fn from(error: Error) -> Self {
+        Self::Storage {
+            description: error.description().to_owned(),
+        }
+    }
+}
+
 /// The wire body: omnia's `ErrorBody` fields, then the variant's own.
 #[derive(Serialize)]
 struct Body<'a> {
@@ -141,22 +148,21 @@ pub(crate) async fn upsert_place<P>(
     context: Context<P>, Json(input): Json<UpsertPlaceRequest>,
 ) -> Result<Json<UpsertPlaceReply>, PlaceError>
 where
-    P: TableStore,
+    P: SqlDb,
 {
     coordinate("lat", input.lat, -90.0, 90.0)?;
     coordinate("lon", input.lon, -180.0, 180.0)?;
 
     let affected = context
-        .tables()
-        .exec(
-            CONNECTION,
+        .sql()
+        .execute(
             "INSERT INTO places (id, name, lat, lon) VALUES ($1, $2, $3, $4) \
              ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, lat = EXCLUDED.lat, lon = EXCLUDED.lon",
             &[
-                DataType::Str(Some(input.id)),
-                DataType::Str(Some(input.name)),
-                DataType::Double(Some(input.lat)),
-                DataType::Double(Some(input.lon)),
+                Value::from(input.id),
+                Value::from(input.name),
+                Value::from(input.lat),
+                Value::from(input.lon),
             ],
         )
         .await?;
@@ -213,7 +219,7 @@ pub(crate) async fn nearby_places<P>(
     context: Context<P>, Json(input): Json<NearbyPlacesRequest>,
 ) -> Result<Json<NearbyPlacesReply>, Error>
 where
-    P: TableStore,
+    P: SqlDb,
 {
     // A degree bounding box over-approximates the radius: cheap for the
     // database (plain comparisons, indexable), refined exactly below.
@@ -223,16 +229,15 @@ where
     let lon_delta = lat_delta / input.lat.to_radians().cos().abs().max(f64::EPSILON);
 
     let candidates: Vec<Place> = context
-        .tables()
+        .sql()
         .query_as(
-            CONNECTION,
             "SELECT id, name, lat, lon FROM places \
              WHERE lat >= $1 AND lat <= $2 AND lon >= $3 AND lon <= $4",
             &[
-                DataType::Double(Some(input.lat - lat_delta)),
-                DataType::Double(Some(input.lat + lat_delta)),
-                DataType::Double(Some(input.lon - lon_delta)),
-                DataType::Double(Some(input.lon + lon_delta)),
+                Value::from(input.lat - lat_delta),
+                Value::from(input.lat + lat_delta),
+                Value::from(input.lon - lon_delta),
+                Value::from(input.lon + lon_delta),
             ],
         )
         .await?;

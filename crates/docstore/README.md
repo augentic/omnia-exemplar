@@ -1,13 +1,14 @@
 # Docstore examples
 
 The rich `wasi:docstore` showcase: three GTFS-like collections — stops,
-routes, and stop times — exercising full CRUD and a broad set of portable
-filters through combined query endpoints, plus sorting and limit/continuation
+routes, and stop times — exercising full CRUD and the filter language
+through combined query endpoints, plus sorting and limit/continuation
 pagination. This crate restores the full docstore example that omnia's
 "Example tidy" trimmed, rewritten in this repository's typed-handler style:
-`pub async fn` handlers over `P: DocumentStore`, mounted by the root guest
+`pub async fn` handlers over `P: DocumentDb`, mounted by the root guest
 under `/examples/*`, and tested natively against the filter-evaluating
-`MemoryDocs` double from `omnia-test`.
+`MemoryDocs` double from `omnia-test`. A create whose id is already stored
+answers `409 Conflict` through `stop::CreateError`.
 
 ## Quick start
 
@@ -151,7 +152,8 @@ curl -s "http://localhost:8080/examples/stop-times?trip=trip-nex-0800&min_seq=1&
 - **`Filter::gte` / `lte`** — bounding box (lat/lon), time range, sequence
   range
 - **`Filter::contains`** — text search on stop and route names
-- **`Filter::in_list`** — route types (bus, rail, ferry)
+- **`Filter::in_list`** — route types (bus, rail, ferry); more than
+  `Filter::MAX_LIST_LEN` types is a `400`
 - **`Filter::is_not_null`** — accessible stops require a fare zone
 - **`Filter::is_null`** — top-level stops (no parent station)
 - **`Filter::or`** — route name search across short and long names
@@ -163,6 +165,20 @@ curl -s "http://localhost:8080/examples/stop-times?trip=trip-nex-0800&min_seq=1&
 - **Pagination** — limit + continuation token
 - **Sort** — results sorted by name or sequence
 
+## Portability
+
+The list queries use optional features beside the portable subset of the
+[query contract](https://github.com/augentic/omnia/blob/main/docs/reference/docstore.md#query-contract):
+
+- `order_by`, which every list query sorts by
+- `Filter::contains`, in the stop and route name searches
+- `Filter::is_null` and `Filter::is_not_null`, in the stop filters
+
+A backend that serves only the portable subset fails a query that uses one
+with `unsupported`, and the handler answers `500`. Azure Table is such a
+backend, so every list query fails there. The default backend and
+`MemoryDocs` serve them all.
+
 ## Testing
 
 The pre-trim example verified its behaviour with a bash script of `curl` +
@@ -170,8 +186,9 @@ The pre-trim example verified its behaviour with a bash script of `curl` +
 [`tests/operations.rs`](tests/operations.rs) seed the same five stops, four
 routes, and five stop times, drive each route through `guest::send`, and
 assert the exact result count of every filter, page 2 via the continuation
-token, and the CRUD round trips. `omnia_test::guest::MemoryDocs` is the
-`DocumentStore` double that makes this possible natively: it *evaluates* the
+token, and the CRUD round trips with the duplicate create's `409`.
+`omnia_test::guest::MemoryDocs` is the
+`DocumentDb` double that makes this possible natively: it *evaluates* the
 filter tree over the stored JSON documents and honours `order_by`, `limit`,
 and continuation, rather than canning responses.
 

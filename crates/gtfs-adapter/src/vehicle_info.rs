@@ -5,7 +5,7 @@ use axum::extract::Path;
 use axum::routing::get;
 use omnia_sdk::api::{Context, Handlers};
 use omnia_sdk::{
-    Capabilities, Config, HttpRequest, Identity, Result, StateStore, StateStoreExt as _,
+    Config, HttpClient, Identity, Result, StateStore, StateStoreExt as _, bad_request,
 };
 use serde::{Deserialize, Serialize};
 
@@ -15,7 +15,7 @@ use crate::trip::TripInstance;
 
 pub(crate) const VEHICLE_INFO: &str = "/info/{vehicle_id}";
 
-pub(crate) fn handlers<P: Capabilities>() -> Handlers<P> {
+pub(crate) fn handlers<P: crate::Requires>() -> Handlers<P> {
     Handlers::new().route(VEHICLE_INFO, get(vehicle_info))
 }
 
@@ -45,8 +45,14 @@ pub(crate) async fn vehicle_info<P>(
     context: Context<P>, Path(vehicle_id): Path<String>,
 ) -> Result<Json<VehicleInfoReply>>
 where
-    P: Config + HttpRequest + Identity + StateStore,
+    P: Config + HttpClient + Identity + StateStore,
 {
+    if !state_keys::is_portable(&vehicle_id) {
+        return Err(bad_request!(
+            "vehicle id `{vehicle_id}` may hold only letters, digits, `_`, and `-`"
+        ));
+    }
+
     let trip_key = state_keys::trip(&vehicle_id);
     let trip_info: Option<TripInstance> = context.state().get_json(&trip_key).await?;
 

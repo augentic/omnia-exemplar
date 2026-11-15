@@ -14,7 +14,6 @@ use std::path::Path;
 use bytes::Bytes;
 use chrono::{Duration, Timelike, Utc};
 use http::{Method, Response};
-use omnia_sdk::api::messaging::DeliveryError;
 use omnia_test::guest::{FixedIdentity, MapConfig, MatchedHttp, Provider};
 use pulse_adapter::handler::PulseMessage;
 use pulse_adapter::motion::MotionEvent;
@@ -107,7 +106,7 @@ impl Case {
     #[must_use]
     pub fn events(&self) -> Vec<MotionEvent> {
         self.provider
-            .publish
+            .publisher
             .sent()
             .iter()
             .map(|(_, message)| {
@@ -147,7 +146,7 @@ pub fn prepare(def: TestDef) -> Case {
 
     let http = def.http_requests.into_iter().fold(MatchedHttp::default(), |http, fetch| {
         let method = Method::from_bytes(fetch.method.as_bytes()).expect("fixture method");
-        let query = fetch.request.map(|query| format!("?{query}")).unwrap_or_default();
+        let query = fetch.request.map_or_default(|query| format!("?{query}"));
         let response = Response::builder()
             .status(fetch.response.status)
             .body(Bytes::from(fetch.response.body.to_string()))
@@ -173,19 +172,15 @@ pub fn prepare(def: TestDef) -> Case {
 
 /// Whether `error` matches `expected`, with a few seconds' slack when the
 /// description embeds a freshness delay computed from `Utc::now()`.
-pub fn delivery_error_matches(expected: &omnia_sdk::Error, error: &DeliveryError) -> bool {
-    let DeliveryError::Rejected(msg) = error else {
-        return false;
-    };
-    if !msg.contains(&expected.code()) {
+pub fn delivery_error_matches(expected: &omnia_sdk::Error, error: &omnia_sdk::Error) -> bool {
+    if error.code() != expected.code() {
         return false;
     }
     let desc = expected.description();
-    delay_seconds(&desc).map_or_else(
-        || msg.contains(&desc),
-        |expected_secs| {
-            delay_seconds(msg).is_some_and(|actual| (actual - expected_secs).abs() <= 3)
-        },
+    let actual = error.description();
+    delay_seconds(desc).map_or_else(
+        || actual.contains(desc),
+        |expected_secs| delay_seconds(actual).is_some_and(|secs| (secs - expected_secs).abs() <= 3),
     )
 }
 

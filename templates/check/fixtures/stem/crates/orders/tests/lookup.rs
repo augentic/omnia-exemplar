@@ -3,14 +3,13 @@
 
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
-use omnia_sdk::api::Client;
 use omnia_test::guest::{Provider, send};
 use orders::lookup::OrderStatus;
 use serde_json::Value;
 
 async fn get_order(provider: &Provider, id: &str) -> (StatusCode, Value) {
     let request = Request::get(format!("/orders/{id}")).body(Body::empty()).expect("request");
-    let router = orders::handlers().with_state(Client::new(provider.clone()));
+    let router = orders::handlers().with_state(provider.clone());
     let response = send(&router, request).await;
     let body = serde_json::from_slice(response.body()).expect("JSON body");
     (response.status(), body)
@@ -26,7 +25,7 @@ async fn lookup() {
     };
     provider
         .storage
-        .insert_state("orders/order/ord-1", &serde_json::to_vec(&order).expect("serialize"));
+        .insert_state("orders.order.ord-1", &serde_json::to_vec(&order).expect("serialize"));
 
     let (status, body) = get_order(&provider, "ord-1").await;
 
@@ -37,7 +36,7 @@ async fn lookup() {
     order.locked = true;
     provider
         .storage
-        .insert_state("orders/order/ord-1", &serde_json::to_vec(&order).expect("serialize"));
+        .insert_state("orders.order.ord-1", &serde_json::to_vec(&order).expect("serialize"));
 
     let (status, body) = get_order(&provider, "ord-1").await;
 

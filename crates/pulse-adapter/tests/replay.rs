@@ -7,7 +7,6 @@ use std::fs;
 
 use chrono::Utc;
 use common::topic;
-use omnia_sdk::api::Client;
 use omnia_test::guest::deliver;
 use pulse_adapter::pulse::TIMEZONE;
 
@@ -27,7 +26,7 @@ async fn run() {
 }
 
 async fn replay(case: Case) {
-    let router = pulse_adapter::handlers().with_state(Client::new(case.provider.clone()));
+    let router = pulse_adapter::handlers().with_state(case.provider.clone());
     let result = deliver(&router, topic::PULSE, case.input.clone()).await;
     let events = case.events();
 

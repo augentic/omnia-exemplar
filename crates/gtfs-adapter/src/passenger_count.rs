@@ -2,16 +2,18 @@
 //!
 //! This module stores occupancy status for a given vehicle and trip.
 
+use std::time::Duration;
+
 use common::topic;
 use omnia_sdk::api::{Context, Handlers};
-use omnia_sdk::{Capabilities, Result, StateStore, StateStoreExt as _};
+use omnia_sdk::{Result, StateStore, StateStoreExt as _};
 use serde::{Deserialize, Serialize};
 
 use crate::state_keys;
 
-const OCCUPANCY_STATUS_TTL: u64 = 3 * 60 * 60; // 3 hours
+const OCCUPANCY_STATUS_TTL: Duration = Duration::from_hours(3);
 
-pub(crate) fn handlers<P: Capabilities>() -> Handlers<P> {
+pub(crate) fn handlers<P: crate::Requires>() -> Handlers<P> {
     Handlers::new().topic(topic::PASSENGER_COUNT, passenger_count)
 }
 

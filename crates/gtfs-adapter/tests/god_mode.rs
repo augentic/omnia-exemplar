@@ -28,7 +28,7 @@ async fn set_trip_disabled() {
     assert_eq!(response.status(), StatusCode::BAD_REQUEST);
     let body: Value = serde_json::from_slice(response.body()).expect("error JSON");
     assert!(body["message"].as_str().is_some_and(|msg| msg.contains("God mode not enabled")));
-    assert!(provider.storage.state("god_mode:overrides").is_none());
+    assert!(provider.storage.state("god_mode.overrides").is_none());
 }
 
 #[tokio::test]
@@ -47,7 +47,7 @@ async fn set_trip_enabled() {
 
     // the vehicle is currently on a different trip
     provider.storage.insert_state(
-        "motionGtfs:trip:vehicle:EM580",
+        "motionGtfs.trip.vehicle.EM580",
         &serde_json::to_vec(&trip_instance("TRIP-0")).expect("serialize"),
     );
 
@@ -67,7 +67,7 @@ async fn set_trip_enabled() {
         .await
         .expect("should succeed");
 
-    let trip = provider.storage.state("motionGtfs:trip:vehicle:EM580").expect("trip stored");
+    let trip = provider.storage.state("motionGtfs.trip.vehicle.EM580").expect("trip stored");
     let trip: Value = serde_json::from_slice(&trip).expect("should parse trip");
     assert_eq!(trip["tripId"], "TRIP-9");
 }
