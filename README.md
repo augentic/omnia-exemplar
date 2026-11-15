@@ -51,12 +51,12 @@ together. Outbound HTTP caching is opt-in per call site through
 
 ```shell
 # build the guest
-cargo build --target wasm32-wasip2 --release
+cargo build --target wasm32-wasip3 --release
 
 # run it with the example host runtime
 cp .env.example .env   # then fill in values
 set -a; source .env; set +a
-cargo run --example runtime -- run target/wasm32-wasip2/release/guest.wasm
+cargo run --example runtime -- run target/wasm32-wasip3/release/guest.wasm
 ```
 
 ## Architecture
@@ -346,7 +346,7 @@ The suite is laid out as omnia's three rungs (see omnia's
 [Testing Omnia-Based Code](https://github.com/augentic/omnia/blob/main/docs/guides/testing-omnia-code.md)
 guide). Everything runs under
 `mise run test`: nothing is `#[ignore]`d, and nothing needs installing
-beyond `rust-toolchain.toml`, which carries the `wasm32-wasip2` target the
+beyond `rust-toolchain.toml`, which carries the `wasm32-wasip3` target the
 component rung compiles for. Unit tests belong beside the logic they cover
 (`#[cfg(test)]` in `src/`); today every check is a handler-level test or
 above, so the rungs below are the whole suite.
@@ -401,13 +401,13 @@ share and calls `send` inside.
   scaffolded once, its static files held and restored, its root manifest
   held around its stem list
 - `templates/check/tests` — the template contract gate and the scaffold
-  proof (a rendered guest lints, tests, and builds for `wasm32-wasip2`)
+  proof (a rendered guest lints, tests, and builds for `wasm32-wasip3`)
 
 ### Component rung
 
 The handler rung never executes the assembled artefact; `tests/component.rs`
 does. The root `build.rs` (`omnia_test::build::Components`) compiles this
-package for `wasm32-wasip2` on every native build — dev profile, default
+package for `wasm32-wasip3` on every native build — dev profile, default
 features, `god-mode` off — into `target/wasm32-fixtures`, a sibling of the
 profile directory shared by every outer profile, feature set and build-script
 hash (so no per-hash copies accumulate), and generates the `COMPONENT_GUEST`
@@ -486,7 +486,7 @@ must be installed by hand; `make <task>` is a pass-through to
 `mise run <task>` and fails, rather than installing it, when it is missing.
 
 ```shell
-mise run ci     # fmt-check, clippy (native, then wasm32-wasip2), test, test-docs, docs, vet, deny — same gate as omnia
+mise run ci     # fmt-check, clippy (native, then wasm32-wasip3), test, test-docs, docs, vet, deny — same gate as omnia
 mise run check  # local advisories: audit, fmt (in place), lint, outdated, deps
 ```
 
@@ -499,7 +499,7 @@ by `mise.toml`, which adds only the `wasm` release build of the guest.
 `mise.toml` is itself an `exact` entry of the guest template contract, so it
 stays free of exemplar-only tasks.
 
-Clippy runs twice: natively with `--all-targets`, then for `wasm32-wasip2`
+Clippy runs twice: natively with `--all-targets`, then for `wasm32-wasip3`
 over libs, bins and examples only (never tests or benches). The whole
 workspace is in the wasm32 scope — the guest, the handler crates, the
 std-only `omnia-template` crate and its `template-check` gate — so the host
@@ -511,11 +511,11 @@ To run the host for real — a manual check, not a test — build the release
 guest and start the example runtime against it:
 
 ```shell
-mise run wasm && cargo run --example runtime -- run target/wasm32-wasip2/release/guest.wasm
+mise run wasm && cargo run --example runtime -- run target/wasm32-wasip3/release/guest.wasm
 ```
 
 The workspace follows omnia's conventions: stable toolchain
-(`rust-toolchain.toml`, with the `wasm32-wasip2` target), edition 2024,
+(`rust-toolchain.toml`, with the `wasm32-wasip3` target), edition 2024,
 workspace lints, `cargo vet` supply-chain audits (`supply-chain/`), and CI as
 thin wrappers over the reusable workflows in `augentic/toolkit`, pinned to a
 release tag.

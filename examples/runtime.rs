@@ -1,10 +1,10 @@
 //! Host runtime for the WASM guest.
 //!
-//! Build the guest for `wasm32-wasip2` and run it with:
+//! Build the guest for `wasm32-wasip3` and run it with:
 //!
 //! ```shell
-//! cargo build -p guest --target wasm32-wasip2 --release
-//! cargo run --example runtime -- run target/wasm32-wasip2/release/guest.wasm
+//! cargo build -p guest --target wasm32-wasip3 --release
+//! cargo run --example runtime -- run target/wasm32-wasip3/release/guest.wasm
 //! ```
 
 cfg_select! {
