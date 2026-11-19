@@ -2,14 +2,14 @@
 
 use axum::Json;
 use axum::routing::post;
-use omnia_sdk::api::{Context, Handlers};
-use omnia_sdk::sql::Value;
-use omnia_sdk::{Result, SqlDb};
+use omnia_sdk::Result;
+use omnia_sdk::api::Handlers;
+use omnia_sdk::sql::{Row, Value, store};
 use serde::{Deserialize, Serialize};
 
 pub(crate) const READING: &str = "/examples/reading";
 
-pub(crate) fn handlers<P: crate::Requires>() -> Handlers<P> {
+pub(crate) fn handlers() -> Handlers {
     Handlers::new().route(READING, post(reading))
 }
 
@@ -42,18 +42,13 @@ pub struct ReadingReply {
     pub rows: usize,
 }
 
-pub(crate) async fn reading<P>(
-    context: Context<P>, Json(input): Json<ReadingRequest>,
-) -> Result<Json<ReadingReply>>
-where
-    P: SqlDb,
-{
-    let db = context.sql().named(&input.connection);
+pub(crate) async fn reading(Json(input): Json<ReadingRequest>) -> Result<Json<ReadingReply>> {
+    let db = store::open(input.connection).await?;
 
     let affected = db
-        .execute(sql::INSERT, &[Value::from(input.sensor.as_str()), Value::from(input.value)])
+        .exec(sql::INSERT, &[Value::from(input.sensor.as_str()), Value::from(input.value)])
         .await?;
-    let rows = db.query(sql::SELECT, &[Value::from(input.sensor)]).await?;
+    let rows: Vec<Row> = db.query_as(sql::SELECT, &[Value::from(input.sensor)]).await?;
 
     Ok(Json(ReadingReply {
         affected,

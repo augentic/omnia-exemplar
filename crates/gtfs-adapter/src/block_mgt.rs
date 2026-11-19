@@ -5,9 +5,9 @@ use axum::body::Bytes;
 use http::Method;
 use http::header::{AUTHORIZATION, CACHE_CONTROL, IF_NONE_MATCH};
 use omnia_http_cache::HttpCache;
-use omnia_sdk::{
-    Config, HttpClient, Identity, IdentityExt as _, Result, Settings, StateStore, bad_gateway,
-};
+use omnia_sdk::identity::credentials;
+use omnia_sdk::keyvalue::{self, store};
+use omnia_sdk::{Result, Settings, bad_gateway};
 use serde::{Deserialize, Serialize};
 
 /// The settings the Block Management client reads.
@@ -19,20 +19,17 @@ pub struct BlockMgtSettings {
     api_identity: String,
 }
 
-// Responses are cached for twenty seconds through the provider's
-// `StateStore` under the quoted etag `"allocation:<vehicle_id>"`.
-pub(crate) async fn cached_allocation<P>(
-    provider: &P, vehicle_id: &str, timestamp: i64,
-) -> Result<Option<BlockInstance>>
-where
-    P: Config + HttpClient + Identity + StateStore,
-{
+// Responses are cached for twenty seconds in the `default` bucket under the
+// quoted etag `"allocation:<vehicle_id>"`.
+pub(crate) async fn cached_allocation(
+    vehicle_id: &str, timestamp: i64,
+) -> Result<Option<BlockInstance>> {
     let BlockMgtSettings {
         block_mgt_url: url,
         api_identity: identity,
-    } = BlockMgtSettings::load(provider).await?;
+    } = BlockMgtSettings::load().await?;
 
-    let token = Identity::named(provider, &identity).access_token().await?;
+    let token = credentials::open(identity).await?.access_token().await?;
     let endpoint = format!(
         "{url}/allocations/vehicles/{vehicle_id}?currentTrip=true&siblings=true&nowUnixTimeSeconds={timestamp}"
     );
@@ -46,8 +43,8 @@ where
         .header(AUTHORIZATION, format!("Bearer {token}"))
         .body(Bytes::new())
         .context("building block management request")?;
-    let response =
-        HttpCache::new(provider, provider).fetch(request).await.context("fetching allocations")?;
+    let cache = HttpCache::new(store::open(keyvalue::DEFAULT.to_owned()).await?);
+    let response = cache.fetch(request).await.context("fetching allocations")?;
 
     if !response.status().is_success() {
         return Err(bad_gateway!("Block Management API returned {}", response.status()));

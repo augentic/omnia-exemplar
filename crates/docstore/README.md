@@ -1,14 +1,14 @@
 # Docstore examples
 
-The rich `wasi:docstore` showcase: three GTFS-like collections — stops,
+The rich `omnia:docstore` showcase: three GTFS-like collections — stops,
 routes, and stop times — exercising full CRUD and the filter language
 through combined query endpoints, plus sorting and limit/continuation
 pagination. This crate restores the full docstore example that omnia's
 "Example tidy" trimmed, rewritten in this repository's typed-handler style:
-`pub async fn` handlers over `P: DocumentDb`, mounted by the root guest
-under `/examples/*`, and tested natively against the filter-evaluating
-`MemoryDocs` double from `omnia-test`. A create whose id is already stored
-answers `409 Conflict` through `stop::CreateError`.
+`pub async fn` handlers over `omnia_sdk::docstore` collections, mounted by
+the root guest under `/examples/*`, and tested through the stem's component
+over omnia's filter-evaluating in-memory document store. A create whose id
+is already stored answers `409 Conflict` through `stop::CreateError`.
 
 ## Quick start
 
@@ -176,21 +176,22 @@ The list queries use optional features beside the portable subset of the
 
 A backend that serves only the portable subset fails a query that uses one
 with `unsupported`, and the handler answers `500`. Azure Table is such a
-backend, so every list query fails there. The default backend and
-`MemoryDocs` serve them all.
+backend, so every list query fails there. The default backend serves them
+all.
 
 ## Testing
 
 The pre-trim example verified its behaviour with a bash script of `curl` +
-`jq` assertions; that script is now the native test suite. The tests in
+`jq` assertions; that script is now the test suite. The tests in
 [`tests/operations.rs`](tests/operations.rs) seed the same five stops, four
-routes, and five stop times, drive each route through `guest::send`, and
-assert the exact result count of every filter, page 2 via the continuation
-token, and the CRUD round trips with the duplicate create's `409`.
-`omnia_test::guest::MemoryDocs` is the
-`DocumentDb` double that makes this possible natively: it *evaluates* the
-filter tree over the stored JSON documents and honours `order_by`, `limit`,
-and continuation, rather than canning responses.
+routes, and five stop times, and drive each route through the stem's
+component (`guest.rs`, compiled by `build.rs`) with `omnia_test::host::send`.
+They assert the exact result count of every filter, page 2 via the
+continuation token, and the CRUD round trips with the duplicate create's
+`409`. Omnia's default document store makes this possible without a
+service: it *evaluates* the filter tree over the stored JSON documents and
+honours `order_by`, `limit`, and continuation, rather than canning
+responses.
 
 ```shell
 cargo nextest run -p docstore

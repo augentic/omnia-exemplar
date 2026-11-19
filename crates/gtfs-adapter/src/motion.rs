@@ -3,15 +3,16 @@
 use chrono::{DateTime, Utc};
 use common::topic;
 use omnia_sdk::api::{Context, Handlers};
-use omnia_sdk::messaging::Message;
-use omnia_sdk::{Config, Error, HttpClient, Identity, Publisher, Result, StateStore, bad_request};
+use omnia_sdk::messaging::types::{Client, Message};
+use omnia_sdk::messaging::{self, producer};
+use omnia_sdk::{Error, Result, bad_request};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 use crate::location::Location;
 use crate::{location, serial_data};
 
-pub(crate) fn handlers<P: crate::Requires>() -> Handlers<P> {
+pub(crate) fn handlers() -> Handlers {
     Handlers::new().topic(topic::PULSE_TO_MOTION, motion)
 }
 
@@ -37,23 +38,19 @@ impl From<MotionError> for Error {
     }
 }
 
-pub(crate) async fn motion<P>(context: Context<P>, input: MotionMessage) -> Result<()>
-where
-    P: Config + HttpClient + Identity + Publisher + StateStore,
-{
-    let provider = context.provider();
+pub(crate) async fn motion(_: Context, input: MotionMessage) -> Result<()> {
     let message = input;
 
     // serial data event
     if message.event_type == EventType::SerialData {
         #[cfg(feature = "god-mode")]
-        let message = crate::god_mode::apply_overrides(provider, message).await?;
-        serial_data::process(provider, &message).await?;
+        let message = crate::god_mode::apply_overrides(message).await?;
+        serial_data::process(&message).await?;
         return Ok(());
     }
 
     // must be a location event
-    let Some(location) = location::process(provider, &message).await? else {
+    let Some(location) = location::process(&message).await? else {
         return Ok(());
     };
 
@@ -63,7 +60,8 @@ where
     };
 
     // publish
-    context.publisher().publish(topic, &message.with_key(key)).await?;
+    let client = Client::connect(messaging::DEFAULT.to_owned()).await?;
+    producer::send(&client, topic.to_owned(), message.with_key(key)).await?;
 
     Ok(())
 }

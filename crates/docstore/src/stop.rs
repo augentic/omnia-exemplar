@@ -11,9 +11,11 @@ use axum::extract::{Path, Query};
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use axum::routing::get;
-use omnia_sdk::api::{Context, Handlers};
-use omnia_sdk::docstore::{Document, Exists, Filter, SortField};
-use omnia_sdk::{DocumentDb, Result, bad_request, not_found};
+use omnia_sdk::api::Handlers;
+use omnia_sdk::docstore::collection::Collection;
+use omnia_sdk::docstore::types::Document;
+use omnia_sdk::docstore::{Exists, Filter, SortField, store};
+use omnia_sdk::{Result, bad_request, not_found};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 
@@ -21,10 +23,16 @@ pub(crate) const STOPS: &str = "/examples/stops";
 pub(crate) const STOP: &str = "/examples/stops/{id}";
 pub(crate) const COLLECTION: &str = "stops";
 
-pub(crate) fn handlers<P: crate::Requires>() -> Handlers<P> {
+pub(crate) fn handlers() -> Handlers {
     Handlers::new()
         .route(STOPS, get(list_stops).post(create_stop))
         .route(STOP, get(get_stop).put(upsert_stop).delete(delete_stop))
+}
+
+// An `omnia_sdk::Result`, so a handler answering a `CreateError` opens a
+// collection with `?` as well.
+pub(crate) async fn open(collection: &str) -> Result<Collection> {
+    Ok(store::open(collection.to_owned()).await?)
 }
 
 /// A stored document paired with its id, flattened onto the wire.
@@ -118,14 +126,10 @@ pub struct CreateStopRequest {
     pub stop: Stop,
 }
 
-pub(crate) async fn create_stop<P>(
-    context: Context<P>, Json(input): Json<CreateStopRequest>,
-) -> std::result::Result<Json<DocumentRecord<Stop>>, CreateError>
-where
-    P: DocumentDb,
-{
-    let document = Document::json(&input.id, &input.stop)?;
-    if context.docs().insert(COLLECTION, &document).await? == Err(Exists) {
+pub(crate) async fn create_stop(
+    Json(input): Json<CreateStopRequest>,
+) -> std::result::Result<Json<DocumentRecord<Stop>>, CreateError> {
+    if open(COLLECTION).await?.insert(&input.id, &input.stop).await? == Err(Exists) {
         return Err(CreateError::Exists { id: input.id });
     }
 
@@ -135,33 +139,21 @@ where
     }))
 }
 
-pub(crate) async fn get_stop<P>(
-    context: Context<P>, Path(id): Path<String>,
-) -> Result<Json<DocumentRecord<Stop>>>
-where
-    P: DocumentDb,
-{
-    let document = context
-        .docs()
-        .get(COLLECTION, &id)
+pub(crate) async fn get_stop(Path(id): Path<String>) -> Result<Json<DocumentRecord<Stop>>> {
+    let stop = open(COLLECTION)
+        .await?
+        .get_as(&id)
         .await?
         .ok_or_else(|| not_found!("stop {id} not found"))?;
-    let stop = document.decode()?;
 
-    Ok(Json(DocumentRecord {
-        id: document.id,
-        document: stop,
-    }))
+    Ok(Json(DocumentRecord { id, document: stop }))
 }
 
 // Creates or replaces the whole document under the path's id.
-pub(crate) async fn upsert_stop<P>(
-    context: Context<P>, Path(id): Path<String>, Json(stop): Json<Stop>,
-) -> Result<Json<DocumentRecord<Stop>>>
-where
-    P: DocumentDb,
-{
-    context.docs().put(COLLECTION, &Document::json(&id, &stop)?).await?;
+pub(crate) async fn upsert_stop(
+    Path(id): Path<String>, Json(stop): Json<Stop>,
+) -> Result<Json<DocumentRecord<Stop>>> {
+    open(COLLECTION).await?.upsert(&id, &stop).await?;
 
     Ok(Json(DocumentRecord { id, document: stop }))
 }
@@ -173,13 +165,8 @@ pub struct DeleteStopReply {
     pub id: String,
 }
 
-pub(crate) async fn delete_stop<P>(
-    context: Context<P>, Path(id): Path<String>,
-) -> Result<Json<DeleteStopReply>>
-where
-    P: DocumentDb,
-{
-    let removed = context.docs().delete(COLLECTION, &id).await?;
+pub(crate) async fn delete_stop(Path(id): Path<String>) -> Result<Json<DeleteStopReply>> {
+    let removed = open(COLLECTION).await?.delete(id.clone(), None).await??;
     if !removed {
         return Err(not_found!("stop {id} not found"));
     }
@@ -228,12 +215,7 @@ pub struct StopsReply {
     pub continuation: Option<String>,
 }
 
-pub(crate) async fn list_stops<P>(
-    context: Context<P>, Query(input): Query<ListStopsRequest>,
-) -> Result<Json<StopsReply>>
-where
-    P: DocumentDb,
-{
+pub(crate) async fn list_stops(Query(input): Query<ListStopsRequest>) -> Result<Json<StopsReply>> {
     let mut filters = Vec::new();
 
     if let Some(q) = &input.q {
@@ -282,10 +264,10 @@ where
         after: input.continuation,
         ..Default::default()
     };
-    let page = context.docs().query(COLLECTION, &query).await?;
+    let page = open(COLLECTION).await?.find(&query).await?;
 
     Ok(Json(StopsReply {
-        stops: records(&page.items)?,
+        stops: records(&page.documents)?,
         continuation: page.next,
     }))
 }

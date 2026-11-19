@@ -14,7 +14,8 @@ use std::collections::HashMap;
 use std::time::Duration;
 
 use anyhow::Result;
-use omnia_sdk::{Config, StateStore, StateStoreExt as _};
+use omnia_sdk::keyvalue::bucket::Bucket;
+use omnia_sdk::{config, keyvalue};
 use serde::{Deserialize, Serialize};
 
 use crate::motion::{EventType, MotionMessage};
@@ -25,36 +26,34 @@ struct State {
 }
 
 pub(crate) async fn set_vehicle_to_trip(
-    state_store: &impl StateStore, vehicle_id: impl Into<String>, trip_id: impl Into<String>,
+    vehicle_id: impl Into<String>, trip_id: impl Into<String>,
 ) -> Result<()> {
-    let mut state = load_state(state_store).await?;
+    let state_store = keyvalue::store::open(keyvalue::DEFAULT.to_owned()).await?;
+    let mut state = load_state(&state_store).await?;
     state.overrides.insert(vehicle_id.into(), trip_id.into());
-    save_state(state_store, &state).await
+    save_state(&state_store, &state).await
 }
 
 const KEY_OVERRIDES: &str = "god_mode.overrides";
 const TTL_OVERRIDES: Duration = Duration::from_hours(24);
 
-async fn load_state(state_store: &impl StateStore) -> Result<State> {
+async fn load_state(state_store: &Bucket) -> Result<State> {
     Ok(state_store.get_json(KEY_OVERRIDES).await?.unwrap_or_default())
 }
 
-async fn save_state(state_store: &impl StateStore, state: &State) -> Result<()> {
+async fn save_state(state_store: &Bucket, state: &State) -> Result<()> {
     Ok(state_store.set_json(KEY_OVERRIDES, state, Some(TTL_OVERRIDES)).await?)
 }
 
-pub(crate) async fn apply_overrides<P>(provider: &P, event: MotionMessage) -> Result<MotionMessage>
-where
-    P: Config + StateStore,
-{
+pub(crate) async fn apply_overrides(event: MotionMessage) -> Result<MotionMessage> {
     let mut event = event;
-    if is_enabled(provider).await? {
-        preprocess(provider, &mut event).await?;
+    if is_enabled().await? {
+        preprocess(&mut event).await?;
     }
     Ok(event)
 }
 
-async fn preprocess(state_store: &impl StateStore, event: &mut MotionMessage) -> Result<()> {
+async fn preprocess(event: &mut MotionMessage) -> Result<()> {
     if event.event_type != EventType::SerialData {
         return Ok(());
     }
@@ -75,7 +74,8 @@ async fn preprocess(state_store: &impl StateStore, event: &mut MotionMessage) ->
         return Ok(());
     };
 
-    let state = load_state(state_store).await?;
+    let state_store = keyvalue::store::open(keyvalue::DEFAULT.to_owned()).await?;
+    let state = load_state(&state_store).await?;
     if let Some(override_trip) = state.overrides.get(vehicle_id) {
         decoded.line_id = None;
 
@@ -95,8 +95,8 @@ async fn preprocess(state_store: &impl StateStore, event: &mut MotionMessage) ->
 // value (`1`, `true`, `yes`, `on`).
 pub(crate) const GOD_MODE_ENABLED: &str = "GOD_MODE_ENABLED";
 
-pub(crate) async fn is_enabled(provider: &impl Config) -> Result<bool> {
-    Ok(Config::get(provider, GOD_MODE_ENABLED).await?.is_some_and(|value| {
+pub(crate) async fn is_enabled() -> Result<bool> {
+    Ok(config::store::get(GOD_MODE_ENABLED.to_owned()).await?.is_some_and(|value| {
         let normalized = value.trim().to_ascii_lowercase();
         matches!(normalized.as_str(), "1" | "true" | "yes" | "on")
     }))

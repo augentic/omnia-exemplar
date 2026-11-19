@@ -1,17 +1,24 @@
 //! Integration tests for the docstore collections and filters, driven
-//! through the stem's router.
+//! through the stem's component over the in-memory document store.
 
-use axum::body::Body;
-use axum::http::header::CONTENT_TYPE;
-use axum::http::{Method, Request, StatusCode};
+use bytes::Bytes;
 use docstore::route::{CreateRouteRequest, Route, RoutesReply};
 use docstore::stop::{CreateStopRequest, DeleteStopReply, DocumentRecord, Stop, StopsReply};
 use docstore::stop_time::{CreateStopTimeRequest, StopTime, StopTimesReply};
+use http::header::CONTENT_TYPE;
+use http::{Method, Request, StatusCode};
+use omnia::{Connect as _, Provides, Runtime};
 use omnia_sdk::docstore::Filter;
-use omnia_test::guest::{self, Provider};
+use omnia_test::host::{self, Backends, Deployment, precompiled};
+use omnia_wasi_docstore::{ConnectOptions, DocStoreDefault, WasiDocStore};
+use omnia_wasi_http::WasiHttp;
+use omnia_wasi_messaging::WasiMessaging;
+use omnia_wasi_otel::WasiOtel;
 use serde::Serialize;
 use serde::de::DeserializeOwned;
 use serde_json::Value;
+
+include!(concat!(env!("OUT_DIR"), "/gen.rs"));
 
 fn stop(
     name: &str, coords: (f64, f64), zone: Option<&str>, wheelchair: i32, location: i32,
@@ -51,25 +58,45 @@ fn stop_time(trip: &str, stop: &str, arrival: &str, departure: &str, sequence: i
     }
 }
 
-async fn send(
-    provider: &Provider, method: Method, uri: &str, body: Option<Vec<u8>>,
+// The store serves the three collections the stem opens and no other.
+async fn boot() -> Runtime<impl Provides<WasiHttp>> {
+    let options = ConnectOptions {
+        collections: ["stops", "routes", "stop_times"].map(ToString::to_string).to_vec(),
+    };
+    let docs = DocStoreDefault::connect_with(options).await.expect("docstore connects");
+    let backends = Backends::defaults().await.docstore(docs);
+    let guest = precompiled(DOCSTORE_GUEST).expect("guest precompiles");
+    Deployment::new()
+        .guest("docstore", guest)
+        .boot(backends, |deployment| {
+            deployment.host::<WasiDocStore>()?;
+            deployment.host::<WasiHttp>()?;
+            deployment.host::<WasiMessaging>()?;
+            deployment.host::<WasiOtel>()?;
+            Ok(())
+        })
+        .await
+        .expect("runtime boots")
+}
+
+async fn send<B: Provides<WasiHttp>>(
+    runtime: &Runtime<B>, method: Method, uri: &str, body: Option<Vec<u8>>,
 ) -> (StatusCode, Value) {
     let builder = Request::builder().method(method).uri(uri);
     let request = match body {
-        Some(bytes) => builder.header(CONTENT_TYPE, "application/json").body(Body::from(bytes)),
-        None => builder.body(Body::empty()),
+        Some(bytes) => builder.header(CONTENT_TYPE, "application/json").body(Bytes::from(bytes)),
+        None => builder.body(Bytes::new()),
     }
     .expect("request");
-    let router = docstore::handlers().with_state(provider.clone());
-    let response = guest::send(&router, request).await;
+    let response = host::send(runtime, request).await.expect("request served");
     let json = serde_json::from_slice(response.body()).unwrap_or(Value::Null);
     (response.status(), json)
 }
 
-async fn ok<T: DeserializeOwned>(
-    provider: &Provider, method: Method, uri: &str, body: Option<Vec<u8>>,
+async fn ok<B: Provides<WasiHttp>, T: DeserializeOwned>(
+    runtime: &Runtime<B>, method: Method, uri: &str, body: Option<Vec<u8>>,
 ) -> T {
-    let (status, value) = send(provider, method, uri, body).await;
+    let (status, value) = send(runtime, method, uri, body).await;
     assert_eq!(status, StatusCode::OK, "{value}");
     serde_json::from_value(value).expect("reply")
 }
@@ -78,7 +105,7 @@ fn json_bytes<T: Serialize>(value: &T) -> Vec<u8> {
     serde_json::to_vec(value).expect("serialize")
 }
 
-async fn seed(provider: &Provider) {
+async fn seed<B: Provides<WasiHttp>>(runtime: &Runtime<B>) {
     let stops = [
         (
             "stop-001",
@@ -147,7 +174,7 @@ async fn seed(provider: &Provider) {
             stop,
         };
         let _: DocumentRecord<Stop> =
-            ok(provider, Method::POST, "/examples/stops", Some(json_bytes(&request))).await;
+            ok(runtime, Method::POST, "/examples/stops", Some(json_bytes(&request))).await;
     }
 
     for (id, route) in [
@@ -161,7 +188,7 @@ async fn seed(provider: &Provider) {
             route,
         };
         let _: DocumentRecord<Route> =
-            ok(provider, Method::POST, "/examples/routes", Some(json_bytes(&request))).await;
+            ok(runtime, Method::POST, "/examples/routes", Some(json_bytes(&request))).await;
     }
 
     for (id, stop_time) in [
@@ -176,7 +203,7 @@ async fn seed(provider: &Provider) {
             stop_time,
         };
         let _: DocumentRecord<StopTime> =
-            ok(provider, Method::POST, "/examples/stop-times", Some(json_bytes(&request))).await;
+            ok(runtime, Method::POST, "/examples/stop-times", Some(json_bytes(&request))).await;
     }
 }
 
@@ -184,26 +211,28 @@ fn with_query(base: &str, query: &str) -> String {
     if query.is_empty() { base.to_string() } else { format!("{base}?{query}") }
 }
 
-async fn query_stops(provider: &Provider, query: &str) -> StopsReply {
-    ok(provider, Method::GET, &with_query("/examples/stops", query), None).await
+async fn query_stops<B: Provides<WasiHttp>>(runtime: &Runtime<B>, query: &str) -> StopsReply {
+    ok(runtime, Method::GET, &with_query("/examples/stops", query), None).await
 }
 
-async fn query_routes(provider: &Provider, query: &str) -> RoutesReply {
-    ok(provider, Method::GET, &with_query("/examples/routes", query), None).await
+async fn query_routes<B: Provides<WasiHttp>>(runtime: &Runtime<B>, query: &str) -> RoutesReply {
+    ok(runtime, Method::GET, &with_query("/examples/routes", query), None).await
 }
 
-async fn query_stop_times(provider: &Provider, query: &str) -> StopTimesReply {
-    ok(provider, Method::GET, &with_query("/examples/stop-times", query), None).await
+async fn query_stop_times<B: Provides<WasiHttp>>(
+    runtime: &Runtime<B>, query: &str,
+) -> StopTimesReply {
+    ok(runtime, Method::GET, &with_query("/examples/stop-times", query), None).await
 }
 
 #[tokio::test]
 async fn stop_crud() {
-    let provider = Provider::default();
-    seed(&provider).await;
+    let runtime = boot().await;
+    seed(&runtime).await;
 
     // Get by id.
     let reply: DocumentRecord<Stop> =
-        ok(&provider, Method::GET, "/examples/stops/stop-001", None).await;
+        ok(&runtime, Method::GET, "/examples/stops/stop-001", None).await;
     assert_eq!(reply.document.stop_name, "Britomart Transport Centre");
 
     // A create under a stored id is a 409 and leaves the stored stop as it was.
@@ -212,12 +241,12 @@ async fn stop_crud() {
         stop: stop("Imposter", (0.0, 0.0), None, 0, 0, None, "2026-03-20T00:00:00Z"),
     };
     let (status, body) =
-        send(&provider, Method::POST, "/examples/stops", Some(json_bytes(&duplicate))).await;
+        send(&runtime, Method::POST, "/examples/stops", Some(json_bytes(&duplicate))).await;
     assert_eq!(status, StatusCode::CONFLICT);
     assert_eq!(body["error"], "conflict");
     assert_eq!(body["id"], "stop-001");
     let reply: DocumentRecord<Stop> =
-        ok(&provider, Method::GET, "/examples/stops/stop-001", None).await;
+        ok(&runtime, Method::GET, "/examples/stops/stop-001", None).await;
     assert_eq!(reply.document.stop_name, "Britomart Transport Centre");
 
     // Upsert replaces the whole document.
@@ -231,138 +260,139 @@ async fn stop_crud() {
         "2026-03-19T12:00:00Z",
     );
     let _: DocumentRecord<Stop> =
-        ok(&provider, Method::PUT, "/examples/stops/stop-001", Some(json_bytes(&replacement)))
-            .await;
+        ok(&runtime, Method::PUT, "/examples/stops/stop-001", Some(json_bytes(&replacement))).await;
     let reply: DocumentRecord<Stop> =
-        ok(&provider, Method::GET, "/examples/stops/stop-001", None).await;
+        ok(&runtime, Method::GET, "/examples/stops/stop-001", None).await;
     assert_eq!(reply.document.last_updated.as_deref(), Some("2026-03-19T12:00:00Z"));
 
     // Delete removes the document; a second delete is a 404.
     let reply: DeleteStopReply =
-        ok(&provider, Method::DELETE, "/examples/stops/stop-005", None).await;
+        ok(&runtime, Method::DELETE, "/examples/stops/stop-005", None).await;
     assert_eq!(reply.id, "stop-005");
-    let (status, body) = send(&provider, Method::DELETE, "/examples/stops/stop-005", None).await;
+    let (status, body) = send(&runtime, Method::DELETE, "/examples/stops/stop-005", None).await;
     assert_eq!(status, StatusCode::NOT_FOUND);
     assert_eq!(body["error"], "not_found");
+    runtime.shutdown();
 }
 
 #[tokio::test]
 async fn stop_filters() {
-    let provider = Provider::default();
-    seed(&provider).await;
+    let runtime = boot().await;
+    seed(&runtime).await;
 
     // All stops, sorted by name.
-    let reply = query_stops(&provider, "").await;
+    let reply = query_stops(&runtime, "").await;
     assert_eq!(reply.stops.len(), 5);
     assert_eq!(reply.stops[0].document.stop_name, "Albany Station");
 
     // Text search: contains on stop_name.
-    assert_eq!(query_stops(&provider, "q=Station").await.stops.len(), 2);
+    assert_eq!(query_stops(&runtime, "q=Station").await.stops.len(), 2);
 
     // Zone: eq on zone_id.
-    assert_eq!(query_stops(&provider, "zone=zone-1").await.stops.len(), 2);
+    assert_eq!(query_stops(&runtime, "zone=zone-1").await.stops.len(), 2);
 
     // Zone exclusion: ne on zone_id.
-    assert_eq!(query_stops(&provider, "exclude_zone=zone-1").await.stops.len(), 3);
+    assert_eq!(query_stops(&runtime, "exclude_zone=zone-1").await.stops.len(), 3);
 
     // Accessible: eq(wheelchair_boarding, 1) + is_not_null(zone_id).
-    assert_eq!(query_stops(&provider, "accessible=true").await.stops.len(), 3);
+    assert_eq!(query_stops(&runtime, "accessible=true").await.stops.len(), 3);
 
     // Top level: is_null(parent_station).
-    assert_eq!(query_stops(&provider, "top_level=true").await.stops.len(), 4);
+    assert_eq!(query_stops(&runtime, "top_level=true").await.stops.len(), 4);
 
     // Bounding box: and(gte, lte, gte, lte).
     let reply =
-        query_stops(&provider, "min_lat=-36.86&max_lat=-36.83&min_lon=174.74&max_lon=174.80").await;
+        query_stops(&runtime, "min_lat=-36.86&max_lat=-36.83&min_lon=174.74&max_lon=174.80").await;
     let ids: Vec<&str> = reply.stops.iter().map(|record| record.id.as_str()).collect();
     assert_eq!(ids, ["stop-001", "stop-005", "stop-003"]);
 
     // Updated on a calendar date: on_date(last_updated).
-    assert_eq!(query_stops(&provider, "updated_on=2026-03-19").await.stops.len(), 3);
+    assert_eq!(query_stops(&runtime, "updated_on=2026-03-19").await.stops.len(), 3);
 
     // An invalid date is rejected as a bad request, not a server error.
     let (status, body) =
-        send(&provider, Method::GET, "/examples/stops?updated_on=not-a-date", None).await;
+        send(&runtime, Method::GET, "/examples/stops?updated_on=not-a-date", None).await;
     assert_eq!(status, StatusCode::BAD_REQUEST);
     assert_eq!(body["error"], "bad_request");
 
     // Pagination: limit caps the page and yields a continuation token.
-    let page1 = query_stops(&provider, "limit=2").await;
+    let page1 = query_stops(&runtime, "limit=2").await;
     assert_eq!(page1.stops.len(), 2);
     let token = page1.continuation.expect("page 1 should have a continuation");
 
     // The token is forwarded, so page 2 resumes where page 1 stopped.
-    let page2 = query_stops(&provider, &format!("limit=2&continuation={token}")).await;
+    let token = urlencoding::encode(&token);
+    let page2 = query_stops(&runtime, &format!("limit=2&continuation={token}")).await;
     let names: Vec<&str> =
         page2.stops.iter().map(|record| record.document.stop_name.as_str()).collect();
     assert_eq!(names, ["Devonport Ferry Terminal", "Newmarket Station"]);
+    runtime.shutdown();
 }
 
 #[tokio::test]
 async fn route_filters() {
-    let provider = Provider::default();
-    seed(&provider).await;
+    let runtime = boot().await;
+    seed(&runtime).await;
 
     // Get by id.
     let reply: DocumentRecord<Route> =
-        ok(&provider, Method::GET, "/examples/routes/route-nex", None).await;
+        ok(&runtime, Method::GET, "/examples/routes/route-nex", None).await;
     assert_eq!(reply.document.route_short_name, "NEX");
-    let (status, body) = send(&provider, Method::GET, "/examples/routes/route-missing", None).await;
+    let (status, body) = send(&runtime, Method::GET, "/examples/routes/route-missing", None).await;
     assert_eq!(status, StatusCode::NOT_FOUND);
     assert_eq!(body["error"], "not_found");
 
     // Name search: or(contains(short), contains(long)).
-    let reply = query_routes(&provider, "q=Northern").await;
+    let reply = query_routes(&runtime, "q=Northern").await;
     assert_eq!(reply.routes.len(), 1);
     assert_eq!(reply.routes[0].id, "route-nex");
 
     // Route types: in_list(route_type, [2, 3]).
-    assert_eq!(query_routes(&provider, "types=2,3").await.routes.len(), 3);
+    assert_eq!(query_routes(&runtime, "types=2,3").await.routes.len(), 3);
 
     // More route types than an in_list holds is a bad request, not a server error.
     let types = vec!["3"; Filter::MAX_LIST_LEN + 1].join(",");
     let (status, body) =
-        send(&provider, Method::GET, &format!("/examples/routes?types={types}"), None).await;
+        send(&runtime, Method::GET, &format!("/examples/routes?types={types}"), None).await;
     assert_eq!(status, StatusCode::BAD_REQUEST);
     assert_eq!(body["error"], "bad_request");
 
     // Agency: eq(agency_id).
-    assert_eq!(query_routes(&provider, "agency=AT").await.routes.len(), 3);
+    assert_eq!(query_routes(&runtime, "agency=AT").await.routes.len(), 3);
 
     // Exclude ferries: negate(eq(route_type, 4)).
-    assert_eq!(query_routes(&provider, "exclude_type=4").await.routes.len(), 3);
+    assert_eq!(query_routes(&runtime, "exclude_type=4").await.routes.len(), 3);
 
     // Exclude AT buses: negate(and(...)) — De Morgan negation.
-    let reply = query_routes(&provider, "not_agency=AT&not_type=3").await;
+    let reply = query_routes(&runtime, "not_agency=AT&not_type=3").await;
     let ids: Vec<&str> = reply.routes.iter().map(|record| record.id.as_str()).collect();
     assert_eq!(ids, ["route-dev", "route-east"]);
+    runtime.shutdown();
 }
 
 #[tokio::test]
 async fn stop_time_filters() {
-    let provider = Provider::default();
-    seed(&provider).await;
+    let runtime = boot().await;
+    seed(&runtime).await;
 
     // Get by id.
     let reply: DocumentRecord<StopTime> =
-        ok(&provider, Method::GET, "/examples/stop-times/nex-0800-1", None).await;
+        ok(&runtime, Method::GET, "/examples/stop-times/nex-0800-1", None).await;
     assert_eq!(reply.document.trip_id, "trip-nex-0800");
 
     // Stop: eq(stop_id).
-    assert_eq!(query_stop_times(&provider, "stop=stop-001").await.stop_times.len(), 2);
+    assert_eq!(query_stop_times(&runtime, "stop=stop-001").await.stop_times.len(), 2);
 
     // Arrival window: gte + lte on arrival_time.
     assert_eq!(
-        query_stop_times(&provider, "after=08:00:00&before=08:30:00").await.stop_times.len(),
+        query_stop_times(&runtime, "after=08:00:00&before=08:30:00").await.stop_times.len(),
         3
     );
 
     // Trip plus sequence range: eq + gte + lte.
     assert_eq!(
-        query_stop_times(&provider, "trip=trip-nex-0800&min_seq=1&max_seq=2")
-            .await
-            .stop_times
-            .len(),
+        query_stop_times(&runtime, "trip=trip-nex-0800&min_seq=1&max_seq=2").await.stop_times.len(),
         2
     );
+    runtime.shutdown();
 }

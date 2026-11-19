@@ -18,6 +18,11 @@ workspace = true
 [lib]
 crate-type = ["lib"]
 
+[[example]]
+name = "sql-guest"
+path = "guest.rs"
+crate-type = ["cdylib"]
+
 [dependencies]
 axum.workspace = true
 chrono.workspace = true
@@ -25,9 +30,17 @@ omnia-sdk.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 
-[dev-dependencies]
-tokio.workspace = true
+[build-dependencies]
+omnia-test = { workspace = true, features = ["build"] }
 
-# Target-gated so the guest's wasm32 dependency graph never sees the doubles.
+# Target-gated so the guest's wasm32 dependency graph never sees the host.
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
-omnia-test = { workspace = true, features = ["guest"] }
+bytes.workspace = true
+http.workspace = true
+omnia.workspace = true
+omnia-test = { workspace = true, features = ["host"] }
+omnia-wasi-http.workspace = true
+omnia-wasi-messaging.workspace = true
+omnia-wasi-otel.workspace = true
+omnia-wasi-sql.workspace = true
+tokio.workspace = true

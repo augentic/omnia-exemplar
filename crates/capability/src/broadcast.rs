@@ -1,17 +1,19 @@
 //! WebSocket example: push an alert to connected WebSocket clients.
 //!
-//! A [`WebSockets`] send is outbound only, so serving this handler
-//! requires no WebSocket export.
+//! A [`websocket`] send is outbound only, so serving this handler requires
+//! no WebSocket export.
 
 use axum::Json;
 use axum::routing::post;
-use omnia_sdk::api::{Context, Handlers};
-use omnia_sdk::{Result, WebSockets};
+use omnia_sdk::Result;
+use omnia_sdk::api::Handlers;
+use omnia_sdk::websocket::types::{Client, Message};
+use omnia_sdk::websocket::{self, broadcast, connections};
 use serde::{Deserialize, Serialize};
 
 pub(crate) const ALERT: &str = "/examples/alert";
 
-pub(crate) fn handlers<P: crate::Requires>() -> Handlers<P> {
+pub(crate) fn handlers() -> Handlers {
     Handlers::new().route(ALERT, post(alert))
 }
 
@@ -29,21 +31,13 @@ pub struct AlertRequest {
 #[serde(transparent)]
 pub struct AlertReply(pub &'static str);
 
-pub(crate) async fn alert<P>(
-    context: Context<P>, Json(input): Json<AlertRequest>,
-) -> Result<Json<AlertReply>>
-where
-    P: WebSockets,
-{
-    let websockets = context.websockets();
-    let data = input.message.as_bytes();
+pub(crate) async fn alert(Json(input): Json<AlertRequest>) -> Result<Json<AlertReply>> {
+    let client = Client::connect(websocket::DEFAULT.to_owned()).await?;
+    let message = Message::Text(input.message);
 
-    match &input.sockets {
-        Some(sockets) => {
-            let sockets: Vec<&str> = sockets.iter().map(String::as_str).collect();
-            websockets.send_to(&sockets, data).await?;
-        }
-        None => websockets.broadcast(data).await?,
+    match input.sockets {
+        Some(sockets) => connections::send(&client, sockets, message).await?,
+        None => broadcast::send(&client, message, Vec::new()).await?,
     }
     Ok(Json(AlertReply("OK")))
 }

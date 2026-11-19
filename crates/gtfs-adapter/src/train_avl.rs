@@ -1,14 +1,14 @@
 //! Train AVL message filtering.
 
 use common::topic;
+use omnia_sdk::Result;
 use omnia_sdk::api::{Context, Handlers};
-use omnia_sdk::{Config, HttpClient, Identity, Publisher, Result, StateStore};
 use serde::Deserialize;
 
 use crate::fleet;
 use crate::motion::{self, MotionMessage};
 
-pub(crate) fn handlers<P: crate::Requires>() -> Handlers<P> {
+pub(crate) fn handlers() -> Handlers {
     Handlers::new().topic(topic::TRAIN_AVL, train_avl)
 }
 
@@ -18,11 +18,7 @@ pub(crate) fn handlers<P: crate::Requires>() -> Handlers<P> {
 #[serde(transparent)]
 pub struct TrainAvlMessage(pub MotionMessage);
 
-pub(crate) async fn train_avl<P>(context: Context<P>, input: TrainAvlMessage) -> Result<()>
-where
-    P: Config + HttpClient + Identity + Publisher + StateStore,
-{
-    let provider = context.provider();
+pub(crate) async fn train_avl(context: Context, input: TrainAvlMessage) -> Result<()> {
     let request = input.0;
 
     // verify vehicle tag is 'motion'
@@ -30,7 +26,7 @@ where
         tracing::debug!("no vehicle identifier found");
         return Ok(());
     };
-    let Some(vehicle) = fleet::vehicle(provider, vehicle_id).await? else {
+    let Some(vehicle) = fleet::vehicle(vehicle_id).await? else {
         tracing::debug!("vehicle info not found for {vehicle_id}");
         return Ok(());
     };

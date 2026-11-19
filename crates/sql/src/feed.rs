@@ -9,9 +9,10 @@ use axum::Json;
 use axum::extract::{Path, Query};
 use axum::routing::{delete, get};
 use chrono::Utc;
-use omnia_sdk::api::{Context, Handlers};
-use omnia_sdk::sql::{FromRow, Value};
-use omnia_sdk::{Result, SqlDb, SqlDbExt as _, not_found};
+use omnia_sdk::api::Handlers;
+use omnia_sdk::sql::database::Database;
+use omnia_sdk::sql::{FromRow, Row, Value};
+use omnia_sdk::{Result, not_found};
 use serde::{Deserialize, Serialize};
 
 use crate::agency::fetch_agency;
@@ -24,7 +25,7 @@ pub(crate) const FEED: &str = "/examples/feeds/{id}";
 const FEED_COLUMNS: &str = "feed_id, agency_id, description, created_at";
 const DEFAULT_LIMIT: u32 = 100;
 
-pub(crate) fn handlers<P: crate::Requires>() -> Handlers<P> {
+pub(crate) fn handlers() -> Handlers {
     Handlers::new()
         .route(AGENCY_FEEDS, get(list_agency_feeds).post(create_feed))
         .route(FEEDS, get(list_all_feeds))
@@ -70,14 +71,8 @@ pub struct FeedsReply {
     pub feeds: Vec<Feed>,
 }
 
-pub(crate) async fn list_agency_feeds<P>(
-    context: Context<P>, Path(agency_id): Path<i64>,
-) -> Result<Json<FeedsReply>>
-where
-    P: SqlDb,
-{
-    let db = context.sql();
-    schema::ensure(db).await?;
+pub(crate) async fn list_agency_feeds(Path(agency_id): Path<i64>) -> Result<Json<FeedsReply>> {
+    let db = schema::open().await?;
 
     let feeds = db
         .query_as(
@@ -105,28 +100,24 @@ pub struct FeedReply {
     pub feed: Feed,
 }
 
-pub(crate) async fn create_feed<P>(
-    context: Context<P>, Path(agency_id): Path<i64>, Json(input): Json<CreateFeedRequest>,
-) -> Result<Json<FeedReply>>
-where
-    P: SqlDb,
-{
-    let db = context.sql();
-    schema::ensure(db).await?;
+pub(crate) async fn create_feed(
+    Path(agency_id): Path<i64>, Json(input): Json<CreateFeedRequest>,
+) -> Result<Json<FeedReply>> {
+    let db = schema::open().await?;
 
     // referential check: a feed for a missing agency is a 404, not an orphaned row
-    if fetch_agency(db, agency_id).await?.is_none() {
+    if fetch_agency(&db, agency_id).await?.is_none() {
         return Err(not_found!("agency {agency_id} not found"));
     }
 
     let feed = Feed {
-        feed_id: next_id(db).await?,
+        feed_id: next_id(&db).await?,
         agency_id,
         description: input.description,
         created_at: Utc::now().format("%Y-%m-%d %H:%M:%S").to_string(),
     };
 
-    db.execute(
+    db.exec(
         &format!("INSERT INTO feed ({FEED_COLUMNS}) VALUES ($1, $2, $3, $4)"),
         &[
             Value::from(feed.feed_id),
@@ -140,8 +131,9 @@ where
     Ok(Json(FeedReply { feed }))
 }
 
-async fn next_id<P: SqlDb>(db: &P) -> Result<i64> {
-    let rows = db.query("SELECT feed_id FROM feed ORDER BY feed_id DESC LIMIT 1", &[]).await?;
+async fn next_id(db: &Database) -> Result<i64> {
+    let rows: Vec<Row> =
+        db.query_as("SELECT feed_id FROM feed ORDER BY feed_id DESC LIMIT 1", &[]).await?;
     let newest: Option<i64> = rows.first().map(|row| row.get("feed_id")).transpose()?;
     Ok(newest.map_or(1, |id| id + 1))
 }
@@ -160,14 +152,10 @@ pub struct FeedsWithAgencyReply {
     pub feeds: Vec<FeedWithAgency>,
 }
 
-pub(crate) async fn list_all_feeds<P>(
-    context: Context<P>, Query(input): Query<ListAllFeedsRequest>,
-) -> Result<Json<FeedsWithAgencyReply>>
-where
-    P: SqlDb,
-{
-    let db = context.sql();
-    schema::ensure(db).await?;
+pub(crate) async fn list_all_feeds(
+    Query(input): Query<ListAllFeedsRequest>,
+) -> Result<Json<FeedsWithAgencyReply>> {
+    let db = schema::open().await?;
 
     let feeds = db
         .query_as(
@@ -189,16 +177,10 @@ pub struct DeleteFeedReply {
     pub feed_id: i64,
 }
 
-pub(crate) async fn delete_feed<P>(
-    context: Context<P>, Path(id): Path<i64>,
-) -> Result<Json<DeleteFeedReply>>
-where
-    P: SqlDb,
-{
-    let db = context.sql();
-    schema::ensure(db).await?;
+pub(crate) async fn delete_feed(Path(id): Path<i64>) -> Result<Json<DeleteFeedReply>> {
+    let db = schema::open().await?;
 
-    let affected = db.execute("DELETE FROM feed WHERE feed_id = $1", &[Value::from(id)]).await?;
+    let affected = db.exec("DELETE FROM feed WHERE feed_id = $1", &[Value::from(id)]).await?;
     if affected == 0 {
         return Err(not_found!("feed {id} not found"));
     }

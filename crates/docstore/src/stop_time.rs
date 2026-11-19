@@ -7,18 +7,18 @@
 use axum::Json;
 use axum::extract::{Path, Query};
 use axum::routing::get;
-use omnia_sdk::api::{Context, Handlers};
-use omnia_sdk::docstore::{Document, Exists, Filter, SortField};
-use omnia_sdk::{DocumentDb, Result, not_found};
+use omnia_sdk::api::Handlers;
+use omnia_sdk::docstore::{Exists, Filter, SortField};
+use omnia_sdk::{Result, not_found};
 use serde::{Deserialize, Serialize};
 
-use crate::stop::{CreateError, DocumentRecord, records};
+use crate::stop::{CreateError, DocumentRecord, open, records};
 
 pub(crate) const STOP_TIMES: &str = "/examples/stop-times";
 pub(crate) const STOP_TIME: &str = "/examples/stop-times/{id}";
 pub(crate) const COLLECTION: &str = "stop_times";
 
-pub(crate) fn handlers<P: crate::Requires>() -> Handlers<P> {
+pub(crate) fn handlers() -> Handlers {
     Handlers::new()
         .route(STOP_TIMES, get(list_stop_times).post(create_stop_time))
         .route(STOP_TIME, get(get_stop_time))
@@ -53,14 +53,10 @@ pub struct CreateStopTimeRequest {
     pub stop_time: StopTime,
 }
 
-pub(crate) async fn create_stop_time<P>(
-    context: Context<P>, Json(input): Json<CreateStopTimeRequest>,
-) -> std::result::Result<Json<DocumentRecord<StopTime>>, CreateError>
-where
-    P: DocumentDb,
-{
-    let document = Document::json(&input.id, &input.stop_time)?;
-    if context.docs().insert(COLLECTION, &document).await? == Err(Exists) {
+pub(crate) async fn create_stop_time(
+    Json(input): Json<CreateStopTimeRequest>,
+) -> std::result::Result<Json<DocumentRecord<StopTime>>, CreateError> {
+    if open(COLLECTION).await?.insert(&input.id, &input.stop_time).await? == Err(Exists) {
         return Err(CreateError::Exists { id: input.id });
     }
 
@@ -70,21 +66,17 @@ where
     }))
 }
 
-pub(crate) async fn get_stop_time<P>(
-    context: Context<P>, Path(id): Path<String>,
-) -> Result<Json<DocumentRecord<StopTime>>>
-where
-    P: DocumentDb,
-{
-    let document = context
-        .docs()
-        .get(COLLECTION, &id)
+pub(crate) async fn get_stop_time(
+    Path(id): Path<String>,
+) -> Result<Json<DocumentRecord<StopTime>>> {
+    let stop_time = open(COLLECTION)
+        .await?
+        .get_as(&id)
         .await?
         .ok_or_else(|| not_found!("stop time {id} not found"))?;
-    let stop_time = document.decode()?;
 
     Ok(Json(DocumentRecord {
-        id: document.id,
+        id,
         document: stop_time,
     }))
 }
@@ -122,12 +114,9 @@ pub struct StopTimesReply {
     pub continuation: Option<String>,
 }
 
-pub(crate) async fn list_stop_times<P>(
-    context: Context<P>, Query(input): Query<ListStopTimesRequest>,
-) -> Result<Json<StopTimesReply>>
-where
-    P: DocumentDb,
-{
+pub(crate) async fn list_stop_times(
+    Query(input): Query<ListStopTimesRequest>,
+) -> Result<Json<StopTimesReply>> {
     let mut filters = Vec::new();
 
     if let Some(trip) = &input.trip {
@@ -161,10 +150,10 @@ where
         after: input.continuation,
         ..Default::default()
     };
-    let page = context.docs().query(COLLECTION, &query).await?;
+    let page = open(COLLECTION).await?.find(&query).await?;
 
     Ok(Json(StopTimesReply {
-        stop_times: records(&page.items)?,
+        stop_times: records(&page.documents)?,
         continuation: page.next,
     }))
 }

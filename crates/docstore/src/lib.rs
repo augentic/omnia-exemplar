@@ -1,15 +1,14 @@
 //! # Docstore examples
 //!
-//! The rich `wasi:docstore` showcase: three GTFS-like collections — stops,
+//! The rich `omnia:docstore` showcase: three GTFS-like collections — stops,
 //! routes, and stop times — exercising full CRUD and the filter language
 //! through combined query endpoints, plus sorting and
 //! limit/continuation pagination. Its list queries use optional features
 //! beside the portable subset, so a backend that serves only that subset
-//! refuses them. Where `capability::document`
-//! proves the [`DocumentDb`] capability with one upsert, this crate
-//! shows what a document-backed service actually looks like. A create
-//! whose id is already stored answers `409 Conflict` through
-//! [`stop::CreateError`].
+//! refuses them. Where `capability::document` proves the [`docstore`]
+//! interface with one upsert, this crate shows what a document-backed
+//! service actually looks like. A create whose id is already stored answers
+//! `409 Conflict` through [`stop::CreateError`].
 //!
 //! Filter coverage across the three list handlers:
 //!
@@ -25,23 +24,18 @@
 //!   [`route::ListRoutesRequest::not_type`] (De Morgan negation)
 //! - `gte`/`lte` ranges — [`stop_time::ListStopTimesRequest`] time and sequence bounds
 //!
-//! Each handler is generic over `P: DocumentDb`, so the same code runs
-//! inside the WASM guest (served by [`handlers`]) and against the
-//! filter-evaluating `MemoryDocs` double in the crate-level tests.
+//! The crate-level tests drive the stem's component over the in-memory
+//! document store, which evaluates every filter over the stored JSON.
+//!
+//! [`docstore`]: omnia_sdk::docstore
 
 pub mod route;
 pub mod stop;
 pub mod stop_time;
 
-use omnia_sdk::DocumentDb;
 use omnia_sdk::api::Handlers;
 
-/// The capabilities the stem's handlers reach, implemented by every provider that has them.
-pub trait Requires: DocumentDb + Send + Sync + 'static {}
-
-impl<P> Requires for P where P: DocumentDb + Send + Sync + 'static {}
-
-/// The stem's handlers, merged onto the root routers.
-pub fn handlers<P: Requires>() -> Handlers<P> {
+/// The stem's handlers, merged onto the root router.
+pub fn handlers() -> Handlers {
     Handlers::from([route::handlers(), stop::handlers(), stop_time::handlers()])
 }

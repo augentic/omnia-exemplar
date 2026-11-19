@@ -1,41 +1,26 @@
 //! # Root-package guest
 //!
-//! An Omnia WASI guest: every stem's handlers merged onto one router over one
-//! provider. Only the WASI exports are `wasm32`-gated: the router is generic
-//! over its provider, so `tests/routes.rs` and `tests/messaging.rs` build the
-//! production router natively under `omnia_test::guest::Provider` doubles.
+//! An Omnia WASI guest: every stem's handlers merged onto one router. A
+//! handler reaches the host through `omnia-sdk`'s bindings, so building and
+//! routing need no host: `tests/routes.rs` and `tests/messaging.rs` build
+//! the production router natively.
 //!
 //! This root-package layout (`src/lib.rs`) is the compiling reference for
 //! new Omnia services and the shape the guest template seeds.
 
 use omnia_sdk::api::{Handlers, Router, http, messaging};
 
-/// Build the guest router over one provider.
+/// Build the guest router.
 ///
 /// Omnia creates one component instance per request or delivery, so the
-/// router and its provider are built inside each call. Two lists grow by one
-/// line per stem:
-///
-/// - the `where` list holds one `P: <stem>::Requires,` per stem, under the
-///   standing bound every router takes;
-/// - the handler list holds one `<stem>::handlers(),` per stem, each added
-///   at the end, in the array form a stem lists its parts in.
+/// router is built inside each call. The handler list holds one
+/// `<stem>::handlers(),` per stem, each added at the end, in the array form
+/// a stem lists its parts in.
 ///
 /// Merging panics where two stems serve one path under one method or
 /// consume one topic, so the rungs under `tests/` hold the list to one
 /// handler apiece.
-pub fn router<P>(provider: P) -> Router<P>
-where
-    P: Send + Sync + 'static,
-    P: capability::Requires,
-    P: docstore::Requires,
-    P: gtfs_adapter::Requires,
-    P: pattern::Requires,
-    P: pulse_adapter::Requires,
-    P: pulse_connector::Requires,
-    P: sql::Requires,
-    P: tally_connector::Requires,
-{
+pub fn router() -> Router {
     Handlers::from([
         capability::handlers(),
         docstore::handlers(),
@@ -46,7 +31,7 @@ where
         sql::handlers(),
         tally_connector::handlers(),
     ])
-    .with_state(provider)
+    .into_router()
 }
 
 http::export!(router);

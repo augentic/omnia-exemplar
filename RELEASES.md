@@ -52,6 +52,31 @@ Unreleased
   - The docstore stem names the optional query features it uses beside the
     portable subset. A backend that serves only that subset, such as Azure
     Table, fails its list queries with `unsupported`.
+- **`omnia-sdk` as pregenerated bindings, with no capability traits.** A
+  handler reaches the host through `omnia-sdk`'s committed bindings, one
+  module per interface, so `Requires`, the provider, and `Context<P>` are
+  gone.
+  - Every handler is non-generic. An HTTP handler is a plain axum handler,
+    and a messaging handler takes `(_: Context, input)`. A stem's and a
+    part's `handlers()` return `Handlers`, and the root `router()` closes
+    the list with `into_router()`.
+  - The root `router`'s `where` list and `REQUIRES_LIST_ANCHOR` are gone,
+    so a slice adds a stem in two lines.
+  - Each stem's suites boot its own component. `guest.rs` is an
+    `[[example]]` exporting the stem's handlers, `build.rs` compiles it
+    through `omnia_test::build::Components`, and the tests drive it with
+    `omnia_test::host` over scripted backends (`MatchedHttp`,
+    `ScriptedTables`, `Sink`, `FixedIdentity`). The `omnia_test::guest`
+    doubles are gone, and `gtfs-adapter`'s `build.rs` passes `god-mode` on
+    to its guest.
+  - `tests/routes.rs` and `tests/messaging.rs` build `guest::router()`
+    natively, with no provider.
+  - The root and seed manifests optimize the Cranelift crates under the dev
+    profile, since every suite JIT-compiles its guest. The seed gains the
+    `tower` pin its route rung needs and drops its
+    `type_repetition_in_bounds` allowance.
+  - The `clippy.toml` reasons name the `omnia-sdk` module a guest reaches
+    instead of a capability trait.
 - **One `Handlers` list at every level, one `router`, and stems only in the root `[dependencies]`.**
   The root's `router`, a stem's `handlers`, and a part's `handlers` all
   register or merge their HTTP routes (`.route`) and messaging topics

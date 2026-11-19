@@ -1,18 +1,17 @@
 # SQL examples
 
-The rich `wasi-sql` showcase: a two-table agency/feed schema exercising
-parameterized SQL over `omnia_sdk::SqlDb` on the provider's `default`
-database (`SqlDbExt::query_as`, `SqlDb::execute`) into
-`#[derive(FromRow)]` records — `SELECT` with
+The rich `omnia:sql` showcase: a two-table agency/feed schema exercising
+parameterized SQL on the `default` database, opened with
+`omnia_sdk::sql::store::open` (`Database::query_as`, `Database::exec`),
+into `#[derive(FromRow)]` records — `SELECT` with
 `ORDER BY` and optional `LIMIT`, `INSERT`
 with server-assigned ids, dynamic `UPDATE ... SET` writing only provided
 fields, `DELETE` answering 404 on zero rows affected, and a multi-column
 `LEFT JOIN` with aliased columns.
 
-One deliberate deviation from the pre-trim original: schema DDL goes through
-`SqlDb::execute` instead of the wasm-only `Connection`/`Statement`/
-`readwrite` bindings, so the handlers run unchanged against native mock
-providers (see `src/schema.rs`).
+Schema DDL runs through `Database::exec` at the top of every handler,
+since omnia creates one guest instance per request and offers no
+process-lifetime initialisation hook (see `src/schema.rs`).
 
 ## Quick start
 
@@ -77,7 +76,7 @@ curl -s -X DELETE http://localhost:8080/examples/feeds/1
 
 - **Typed row decoding (`FromRow`)** — `Agency`, `Feed`, and
   `FeedWithAgency` derive `omnia_sdk::sql::FromRow`, one field per column
-  (`Option<T>` for a nullable one), and `SqlDbExt::query_as` returns them
+  (`Option<T>` for a nullable one), and `Database::query_as` returns them
   directly; a lone column is `row.get::<i64>("agency_id")?`
 - **JOINs** — `FeedWithAgency` selects `agency.name AS agency_name`,
   `agency.url AS agency_url`, and `agency.timezone AS agency_timezone`
@@ -95,13 +94,20 @@ curl -s -X DELETE http://localhost:8080/examples/feeds/1
 
 ## Testing
 
-[`tests/operations.rs`](tests/operations.rs) drives `sql::handlers()` over
-`omnia_test::guest::ScriptedTables`, a responder-only `SqlDb` double:
-every scenario scripts the rows the `SELECT` should see and asserts the
-recorded statements — SQL text and bound parameters — for id assignment,
-partial update, the referential check, the JOIN listing, and delete-with-404.
-There is no in-memory database; the tests pin the contract between the
-handlers and the store.
+[`tests/operations.rs`](tests/operations.rs) drives the stem's component
+(`guest.rs`, compiled by `build.rs`) over `omnia_test::host::ScriptedTables`,
+a responder-only `sql` backend. Every scenario scripts the rows the
+`SELECT` should see and asserts the recorded statements, SQL text and
+bound parameters, for:
+
+- id assignment;
+- partial update;
+- the referential check;
+- the JOIN listing;
+- delete-with-404.
+
+The tests pin the contract between the handlers and the store, so no
+in-memory database stands behind the script.
 
 ```shell
 cargo nextest run -p sql

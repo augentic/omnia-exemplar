@@ -3,10 +3,9 @@
 use axum::Json;
 use axum::extract::Path;
 use axum::routing::get;
-use omnia_sdk::api::{Context, Handlers};
-use omnia_sdk::{
-    Config, HttpClient, Identity, Result, StateStore, StateStoreExt as _, bad_request,
-};
+use omnia_sdk::api::Handlers;
+use omnia_sdk::keyvalue::{self, store};
+use omnia_sdk::{Result, bad_request};
 use serde::{Deserialize, Serialize};
 
 use crate::fleet::{self, Vehicle};
@@ -15,7 +14,7 @@ use crate::trip::TripInstance;
 
 pub(crate) const VEHICLE_INFO: &str = "/info/{vehicle_id}";
 
-pub(crate) fn handlers<P: crate::Requires>() -> Handlers<P> {
+pub(crate) fn handlers() -> Handlers {
     Handlers::new().route(VEHICLE_INFO, get(vehicle_info))
 }
 
@@ -41,29 +40,24 @@ pub struct VehicleInfoReply {
 
 const PROCESS_ID: u32 = 0;
 
-pub(crate) async fn vehicle_info<P>(
-    context: Context<P>, Path(vehicle_id): Path<String>,
-) -> Result<Json<VehicleInfoReply>>
-where
-    P: Config + HttpClient + Identity + StateStore,
-{
+pub(crate) async fn vehicle_info(Path(vehicle_id): Path<String>) -> Result<Json<VehicleInfoReply>> {
     if !state_keys::is_portable(&vehicle_id) {
         return Err(bad_request!(
             "vehicle id `{vehicle_id}` may hold only letters, digits, `_`, and `-`"
         ));
     }
+    let state = store::open(keyvalue::DEFAULT.to_owned()).await?;
 
     let trip_key = state_keys::trip(&vehicle_id);
-    let trip_info: Option<TripInstance> = context.state().get_json(&trip_key).await?;
+    let trip_info: Option<TripInstance> = state.get_json(&trip_key).await?;
 
     let sign_on_key = state_keys::sign_on(&vehicle_id);
-    let sign_on_time = context
-        .state()
-        .get(&sign_on_key)
+    let sign_on_time = state
+        .get(sign_on_key)
         .await?
-        .map(|bytes| String::from_utf8_lossy(&bytes).to_string());
+        .map(|entry| String::from_utf8_lossy(&entry.value).to_string());
 
-    let fleet_info = fleet::vehicle(context.provider(), &vehicle_id).await?;
+    let fleet_info = fleet::vehicle(&vehicle_id).await?;
 
     Ok(Json(VehicleInfoReply {
         pid: PROCESS_ID,

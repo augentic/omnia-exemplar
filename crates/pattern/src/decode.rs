@@ -1,12 +1,14 @@
 //! Decode-through-cache example.
 //!
-//! The canonical capability-composition vignette: check [`StateStore`] for a
-//! previously decoded segment, and on a miss resolve the decoder endpoint
-//! and client certificate from [`Config`], call the decoder through
-//! [`HttpClient`], then write the result back through [`StateStore`] with a
-//! TTL. Credentials never leave configuration: the certificate travels as a
+//! The canonical interface-composition vignette: check the `default`
+//! [`keyvalue`] bucket for a previously decoded segment, and on a miss
+//! resolve the decoder endpoint and client certificate from [`config`], call
+//! the decoder through [`http::fetch_json`], then write the result back with
+//! a TTL. Credentials never leave configuration: the certificate travels as a
 //! request header, so outbound HTTP stays generic and no TLS-specific
-//! capability is needed.
+//! interface is needed.
+//!
+//! [`config`]: omnia_sdk::config
 
 use std::time::Duration;
 
@@ -15,11 +17,9 @@ use axum::Json;
 use axum::body::Bytes;
 use axum::http::{Method, Request};
 use axum::routing::post;
-use omnia_sdk::api::{Context, Handlers};
-use omnia_sdk::{
-    Config, HttpClient, HttpClientExt as _, Result, Settings, StateStore, StateStoreExt as _,
-    bad_request,
-};
+use omnia_sdk::api::Handlers;
+use omnia_sdk::keyvalue::{self, store};
+use omnia_sdk::{Result, Settings, bad_request, http};
 use serde::{Deserialize, Serialize};
 
 use crate::state_keys;
@@ -39,7 +39,7 @@ pub struct DecodeSettings {
     client_cert: String,
 }
 
-pub(crate) fn handlers<P: crate::Requires>() -> Handlers<P> {
+pub(crate) fn handlers() -> Handlers {
     Handlers::new().route(DECODE, post(decode_segment))
 }
 
@@ -68,12 +68,9 @@ pub struct DecodeSegmentReply {
     pub segment: Segment,
 }
 
-pub(crate) async fn decode_segment<P>(
-    context: Context<P>, Json(input): Json<DecodeSegmentRequest>,
-) -> Result<Json<DecodeSegmentReply>>
-where
-    P: Config + HttpClient + StateStore,
-{
+pub(crate) async fn decode_segment(
+    Json(input): Json<DecodeSegmentRequest>,
+) -> Result<Json<DecodeSegmentReply>> {
     if !state_keys::is_portable(&input.code) {
         return Err(bad_request!(
             "code `{}` may hold only letters, digits, `_`, and `-`",
@@ -81,9 +78,10 @@ where
         ));
     }
     let key = state_keys::segment(&input.code);
+    let cache = store::open(keyvalue::DEFAULT.to_owned()).await?;
 
     // Cache hit: no config read, no outbound request.
-    if let Some(segment) = context.state().get_json(&key).await? {
+    if let Some(segment) = cache.get_json(&key).await? {
         return Ok(Json(DecodeSegmentReply {
             cached: true,
             segment,
@@ -91,9 +89,9 @@ where
     }
 
     // Cache miss: endpoint and credential material both come from
-    // config; the certificate rides an ordinary header so the HTTP
-    // capability stays generic.
-    let settings = DecodeSettings::load(context.config()).await?;
+    // config; the certificate rides an ordinary header so outbound HTTP
+    // stays generic.
+    let settings = DecodeSettings::load().await?;
 
     let body = serde_json::to_vec(&serde_json::json!({ "code": input.code }))
         .context("serializing decode request")?;
@@ -105,10 +103,10 @@ where
         .body(Bytes::from(body))
         .context("building decode request")?;
 
-    let segment: Segment = context.http().fetch_json(request).await?;
+    let segment: Segment = http::fetch_json(request).await?;
 
     // Write back through the cache so the next lookup short-circuits.
-    context.state().set_json(&key, &segment, Some(SEGMENT_TTL)).await?;
+    cache.set_json(&key, &segment, Some(SEGMENT_TTL)).await?;
 
     Ok(Json(DecodeSegmentReply {
         cached: false,

@@ -6,14 +6,14 @@ realtime vehicle data processing into a WASM guest: SOAP/XML position feeds,
 passenger counting, and GTFS realtime adaptation.
 
 Domain logic lives under `crates/*` as plain axum handlers
-(`pub async fn name<P>(Context<P>, Json<Input>)`) and messaging handlers
-(`pub async fn name<P>(Context<P>, Input)`), and each crate exposes its
-wiring: `handlers()`, an `api::Handlers` binding its paths to its fns
-(`post(tally)`) and its topics to its consumers. The **guest is the
-workspace root package** (`src/lib.rs`) — one `<stem>::handlers(),` entry per
-crate in `router`, merged by `Handlers::from` and closed over the provider
-with `with_state(provider)`, bound as the WASI exports by
-`http::export!(router)` and `messaging::export!(router)`.
+(`pub async fn name(Json<Input>)`) and messaging handlers
+(`pub async fn name(Context, Input)`), each reaching the host through
+`omnia-sdk`'s bindings, and each crate exposes its wiring: `handlers()`, an
+`api::Handlers` binding its paths to its fns (`post(tally)`) and its topics
+to its consumers. The **guest is the workspace root package**
+(`src/lib.rs`) — one `<stem>::handlers(),` entry per crate in `router`,
+merged by `Handlers::from` and closed with `into_router()`, bound as the
+WASI exports by `http::export!(router)` and `messaging::export!(router)`.
 Match this layout when creating a new Omnia service: root `src/`, not a
 `guests/<name>/` tree.
 
@@ -23,17 +23,17 @@ This repository is the application-scale complement to the
 [omnia](https://github.com/augentic/omnia) runtime's per-capability
 [`examples/`](https://github.com/augentic/omnia/tree/main/examples): one real
 service instead of twenty snippets. The guest is built on the `omnia-sdk`
-SDK (async handler fns behind capability traits) and exercises
-`wasi:http`, `wasi:messaging`, `wasi:keyvalue`, `wasi:config`,
-`wasi:identity`, and — through the `crates/capability` routes the
-root guest mounts under `/examples/*` — blobstore, websocket broadcast,
-docstore, and SQL. Two capabilities get a deeper treatment:
+SDK (plain async handler fns over the WIT bindings it commits) and
+exercises `wasi:http`, `omnia:messaging`, `omnia:keyvalue`,
+`omnia:config`, `omnia:identity`, and — through the `crates/capability`
+routes the root guest mounts under `/examples/*` — blobstore, websocket
+broadcast, docstore, and SQL. Two interfaces get a deeper treatment:
 `crates/docstore` and `crates/sql` rebuild the rich
 docstore and SQL examples that omnia trimmed from its own `examples/` tree
 (commit `c4666ca`, "Example tidy"), rewritten as typed handlers — portable
 and optional docstore filters, parameterized SQL queries into `FromRow` records,
 a JOIN entity, and server-assigned ids. The example host (`examples/runtime.rs`) is a single
-`omnia::runtime!` invocation wiring every capability the guest imports —
+`omnia::runtime!` invocation wiring every interface the guest imports —
 including `WasiBlobStore` and `WasiWebSocket` — to the in-tree default
 backends; swapping in production backends from
 [omnia-backends](https://github.com/augentic/omnia-backends) is a host-side
@@ -43,8 +43,8 @@ The omnia crates are crates.io dependencies (currently 0.38.0) declared once
 under `[workspace.dependencies]` in `Cargo.toml`; every `omnia-*` line moves
 together. Outbound HTTP caching is opt-in per call site through
 `omnia-http-cache` (from
-[omnia-ext](https://github.com/augentic/omnia-ext), 0.36.0), an
-`HttpClient` decorator that stores responses in the provider's `StateStore`
+[omnia-ext](https://github.com/augentic/omnia-ext), 0.36.0), a fetch
+decorator that stores responses in a key-value bucket the call site opens
 (see `crates/gtfs-adapter`).
 
 ## Quick start
@@ -119,18 +119,16 @@ The guest:
   (`axum::routing::{get, post}` over `Path`, `Query`, and `Json`
   extractors, with `Bytes` for non-JSON wire formats) and topics bound to
   consumers on an `api::Handlers` — once in `router`, closing it with
-  `with_state` into the one `omnia_sdk::api::Router` that serves HTTP
+  `into_router()` into the one `omnia_sdk::api::Router` that serves HTTP
   requests and dispatches messaging deliveries
 - Binds the router to each WASI export: `http::export!(router)` and
-  `messaging::export!(router)`
-- Uses `omnia_sdk::WasiProvider`, the zero-sized provider implementing every
-  capability trait over its WASI-backed default methods on `wasm32`; the
-  stems reach nine of them (`BlobStore`, `Config`, `DocumentDb`,
-  `HttpClient`, `Identity`, `Publisher`, `SqlDb`, `StateStore`, `WebSockets`)
-- Bounds the router with each stem's `Requires`, one `where` predicate per
-  stem
-- Routes both transports through one router over one provider per request,
-  keeping `wasmtime` and `omnia-core` off the native non-dev dependency graph
+  `messaging::export!(router)`, which expand to nothing natively
+- Reaches the host through the bindings `omnia-sdk` commits, one module per
+  interface; the stems reach nine of them (`blobstore`, `config`,
+  `docstore`, `http`, `identity`, `keyvalue`, `messaging`, `sql`,
+  `websocket`)
+- Routes both transports through one router per request, keeping
+  `wasmtime` and `omnia-core` off the native non-dev dependency graph
   (enforced by `deny.toml`)
 
 ## Routes and topics
@@ -147,14 +145,14 @@ The guest:
 | `GET/POST /examples/agencies`, `GET/PATCH /examples/agencies/{id}` | `sql::{list_agencies, create_agency, get_agency, update_agency}` — parameterized SQL CRUD with server-assigned ids |
 | `GET/POST /examples/agencies/{agency_id}/feeds` | `sql::{list_agency_feeds, create_feed}` — per-agency feeds with referential checks |
 | `GET /examples/feeds`, `DELETE /examples/feeds/{id}` | `sql::{list_all_feeds, delete_feed}` — JOIN listing and delete with 404-on-zero-rows |
-| `POST /examples/patterns/decode` | `pattern::decode_segment` — decode-through-cache over `StateStore`, `Config`, and `HttpClient` |
-| `PUT /examples/patterns/quotas/{tenant}` | `pattern::update_quota` — optimistic concurrency over `StateStore::compare_and_swap` (`409 Conflict` via `QuotaError`) |
-| `GET /examples/patterns/upstream/{resource}` | `pattern::fetch_upstream_status` — bearer-token auth via `Identity::named` and `IdentityExt::access_token` |
+| `POST /examples/patterns/decode` | `pattern::decode_segment` — decode-through-cache over `keyvalue`, `config`, and `http` |
+| `PUT /examples/patterns/quotas/{tenant}` | `pattern::update_quota` — optimistic concurrency over `Bucket::compare_and_swap` (`409 Conflict` via `QuotaError`) |
+| `GET /examples/patterns/upstream/{resource}` | `pattern::fetch_upstream_status` — bearer-token auth via `credentials::open` and `Identity::access_token` |
 | `POST /examples/patterns/places`, `GET /examples/patterns/nearby` | `pattern::{upsert_place, nearby_places}` — `INSERT … ON CONFLICT` upsert (`PlaceError`) and bounding-box + haversine query |
-| `POST /examples/archive` | `capability::archive` — `BlobStore` object write |
-| `POST /examples/alert` | `capability::alert` — `WebSockets` send to every socket or to the named ones |
-| `POST /examples/note` | `capability::note` — `DocumentDb` upsert |
-| `POST /examples/reading` | `capability::reading` — `SqlDb` insert |
+| `POST /examples/archive` | `capability::archive` — `blobstore` object write |
+| `POST /examples/alert` | `capability::alert` — `websocket` send to every socket or to the named ones |
+| `POST /examples/note` | `capability::note` — `docstore` upsert |
+| `POST /examples/reading` | `capability::reading` — `sql` insert |
 
 | Messaging topic | Handler |
 | --- | --- |
@@ -175,20 +173,20 @@ consumer is out of scope for the exemplar.
 | `crates/pulse-adapter` | Converts Pulse train updates into Motion location events |
 | `crates/tally-connector` | HTTP ingress for the vendor "Tally" passenger-count feed |
 | `crates/gtfs-adapter` | Converts Motion events into GTFS-realtime vehicle positions |
-| `crates/capability` | Domain-free handlers proving the remaining capabilities: `BlobStore`, `WebSockets`, `DocumentDb`, `SqlDb`; mounted by the guest at `POST /examples/{archive,alert,note,reading}` |
-| `crates/docstore` | Rich `wasi:docstore` showcase: GTFS-like collections exercising portable and optional filters, sorting, and continuation pagination |
-| `crates/sql` | Rich `wasi-sql` showcase: agency/feed schema exercising parameterized SQL, `FromRow` records through `query_as`, a JOIN entity, and server-assigned ids |
-| `crates/pattern` | Composition patterns: decode-through-cache, `StateStore::compare_and_swap` optimistic concurrency (`409`), named-identity bearer auth, relational geo queries, and structured JSON error bodies |
+| `crates/capability` | Domain-free handlers proving the remaining interfaces: `blobstore`, `websocket`, `docstore`, `sql`; mounted by the guest at `POST /examples/{archive,alert,note,reading}` |
+| `crates/docstore` | Rich `omnia:docstore` showcase: GTFS-like collections exercising portable and optional filters, sorting, and continuation pagination |
+| `crates/sql` | Rich `omnia:sql` showcase: agency/feed schema exercising parameterized SQL, `FromRow` records through `query_as`, a JOIN entity, and server-assigned ids |
+| `crates/pattern` | Composition patterns: decode-through-cache, `Bucket::compare_and_swap` optimistic concurrency (`409`), named-identity bearer auth, relational geo queries, and structured JSON error bodies |
 | root package (`guest`) | Typed-router HTTP + exact-topic messaging WASM guest binary |
 
-Domain crates depend only on the `omnia-sdk` capability traits, each naming
-the ones its handlers reach in its `Requires` (`Config`, `HttpClient`,
-`Identity`, `Publisher`, and `StateStore` in the pipeline; `BlobStore`,
-`DocumentDb`, `SqlDb`, and `WebSockets` in the showcases), so the same code
-runs inside the WASM guest and against `omnia_test::guest::Provider` doubles
-in tests. `omnia-http-cache` is written against those traits
-(`HttpCache<H: HttpClient, S: StateStore>`), so `gtfs-adapter`'s cached
-clients stay provider-generic.
+Domain crates reach the host only through the `omnia-sdk` bindings, one
+module per interface (`config`, `http`, `identity`, `keyvalue`, and
+`messaging` in the pipeline; `blobstore`, `docstore`, `sql`, and
+`websocket` in the showcases). A handler is therefore code that runs only
+inside the guest, and each stem's suites drive it through that stem's
+compiled component. `omnia-http-cache` wraps a key-value bucket the call
+site opens (`HttpCache::new(bucket)`), so `gtfs-adapter`'s cached clients
+stay plain functions.
 
 ## Adding a new handler
 
@@ -196,15 +194,15 @@ clients stay provider-generic.
    adapter.
 2. Create the crate under `crates/` and add `<stem> = { path = "crates/<stem>" }`
    to `[dependencies]` in the root `Cargo.toml`.
-3. Implement the `pub` input and reply types and a handler fn with the
-   narrowest capability bounds it needs (e.g. `P: Config + Publisher`).
-   An HTTP handler is a plain axum handler taking `Context<P>` as an
-   extractor alongside axum's own
-   (`pub(crate) async fn name<P>(context: Context<P>, Json(input): Json<Input>) -> Result<Json<Reply>>`);
-   a messaging handler takes the same context first, then its decoded input
-   (`pub(crate) async fn name<P>(context: Context<P>, input: Input) -> Result<Reply>`).
-   Read a capability through the context's accessor for it (`context.state()`,
-   `context.sql()`, `context.http()`, ...).
+3. Implement the `pub` input and reply types and a handler fn. An HTTP
+   handler is a plain axum handler
+   (`pub(crate) async fn name(Json(input): Json<Input>) -> Result<Json<Reply>>`);
+   a messaging handler takes the delivery's `Context` first, then its
+   decoded input (`pub(crate) async fn name(_: Context, input: Input) -> Result<Reply>`).
+   Reach the host through the `omnia-sdk` module for the interface: open
+   a bucket with `keyvalue::store::open(keyvalue::DEFAULT.to_owned())`, a
+   database with `sql::store::open(sql::DEFAULT.to_owned())`, send with
+   `http::fetch_json`, publish with `messaging::producer::send`.
 4. Declare the path as a `pub(crate) const` of the part that uses it, its
    required configuration as one `#[derive(Settings)]` struct (whose `KEYS`
    `tests/component.rs` seeds), and any new topic in `common::topic`.
@@ -213,14 +211,14 @@ clients stay provider-generic.
    or wire format is an `IntoResponse` on the reply or error type; or
    `.topic(topic::X, handler)`, or `.topic_with(topic::X, handler, decode)`
    for a non-JSON payload), and list the part in the stem's `src/lib.rs`
-   (`Handlers::from([..])`). A capability trait the handler newly reaches
-   joins the stem's `Requires`.
-   A new stem declares its `Requires`, then adds `P: <stem>::Requires,` to
-   the `where` list of `router` in `src/lib.rs` and its `<stem>::handlers(),`
-   line to the `Handlers::from([..])` list.
-6. Add fixtures under the crate's `data/` and native tests under `tests/`
-   that seed an `omnia_test::guest::Provider` with the doubles the
-   handler's capabilities read and drive the stem's `handlers()`.
+   (`Handlers::from([..])`). A new stem adds its `<stem>::handlers(),`
+   line to the `Handlers::from([..])` list of `router` in `src/lib.rs`.
+6. Add fixtures under the crate's `data/` and tests under `tests/` that
+   boot the stem's component (`guest.rs`, compiled by `build.rs`) over
+   `omnia_test::host` backends seeded with what the handler reads, then
+   send it requests and deliveries. A new stem copies `guest.rs`,
+   `build.rs`, and the `[[example]]` and dev-dependency tables of its
+   `Cargo.toml` from `tally-connector`.
 7. Run `mise run ci` — fmt-check, clippy (native + wasm), tests, docs, vet, deny.
 
 ## Configuration
@@ -266,47 +264,47 @@ may refuse one with `invalid`.
 
 Patterns worth copying into new services:
 
-- Handler fns behind capability traits (plain axum handlers taking
-  `Context<P>` for HTTP, `async fn(Context<P>, Input)` for messaging),
-  each crate binding its own to its paths and topics in `handlers()`,
-  with the guest as a thin composing layer at the **workspace root**
-  (`src/lib.rs`), one line per crate in `router`.
+- Plain handler fns over the `omnia-sdk` bindings (axum handlers for HTTP,
+  `async fn(Context, Input)` for messaging), each crate binding its own to
+  its paths and topics in `handlers()`, with the guest as a thin composing
+  layer at the **workspace root** (`src/lib.rs`), one line per crate in
+  `router`.
 - One topic table (`common::topic`) a producer and its consumer both
   name, so they agree by construction.
 - Per-part configuration as one `#[derive(Settings)]` struct, loaded at
-  use (`<Part>Settings::load(context.config())`), its `KEYS` the list the
-  component rung seeds.
-- Native tests under `omnia_test::guest::Provider` doubles plus captured fixtures
-  (`tests/` + `data/` in each crate), each crate driving its own `handlers()`,
-  and a rung per router at the root (`tests/routes.rs`,
-  `tests/messaging.rs`) that builds the composed whole.
-- Decode-through-cache: expensive lookups go through `StateStore` in one
-  handler — `get_json` miss → `Settings` → `fetch_json` → `set_json` with
-  a TTL — instead of a separate cache-population process
-  (`pattern::decode`, `pulse_adapter::stops`).
-- Optimistic concurrency (`StateStore::compare_and_swap`): versioned state
+  use (`<Part>Settings::load()`), its `KEYS` the list the component rung
+  seeds.
+- Tests that boot each stem's compiled component over `omnia_test::host`
+  backends plus captured fixtures (`tests/` + `data/` in each crate), and
+  a rung per router at the root (`tests/routes.rs`, `tests/messaging.rs`)
+  that builds the composed whole natively.
+- Decode-through-cache: expensive lookups go through the `default`
+  key-value bucket in one handler — `get_json` miss → `Settings` →
+  `fetch_json` → `set_json` with a TTL — instead of a separate
+  cache-population process (`pattern::decode`, `pulse_adapter::stops`).
+- Optimistic concurrency (`Bucket::compare_and_swap`): versioned state
   updates map a `Conflict` to `409 Conflict` through a module error type's
   `IntoResponse` (`pattern::cas`).
-- Upstream bearer-token authentication (`IdentityExt::access_token`):
-  resolve the identity name from the part's `Settings`, acquire a token via
-  `Identity::named(..).access_token()`, and send
-  `Authorization: Bearer <token>` on `HttpClientExt::fetch_json`
+- Upstream bearer-token authentication (`Identity::access_token`): resolve
+  the identity name from the part's `Settings`, acquire a token via
+  `credentials::open(name).await?.access_token()`, and send
+  `Authorization: Bearer <token>` on `http::fetch_json`
   (`pattern::identity`).
 - Cached upstream fetches as an explicit decorator, not an ambient runtime
-  feature: `HttpCache::new(provider, provider).fetch(request)` at the call
-  sites that want it (`gtfs_adapter::fleet::vehicle`,
+  feature: `HttpCache::new(bucket).fetch(request)` at the call sites that
+  want it (`gtfs_adapter::fleet::vehicle`,
   `gtfs_adapter::block_mgt::cached_allocation`), keyed by a quoted
   `If-None-Match` etag, which `HttpCache` hashes into a portable state key,
-  with `max-age` as the TTL; every other request uses the bare `HttpClient`
-  and sends no cache headers.
-- Credential material in `Config`, carried as ordinary request data (the
-  `Client-Cert` header), so outbound HTTP stays generic.
-- Recording doubles: `MatchedHttp` answers only the exact requests a test
+  with `max-age` as the TTL; every other request uses the bare
+  `http::fetch` and sends no cache headers.
+- Credential material in configuration, carried as ordinary request data
+  (the `Client-Cert` header), so outbound HTTP stays generic.
+- Recording backends: `MatchedHttp` answers only the exact requests a test
   seeds and records what left the guest — shape, headers, and call count
   (`crates/pattern/tests/decode.rs`).
-- Radius queries as bounding-box `SELECT`s through `SqlDbExt::query_as`
+- Radius queries as bounding-box `SELECT`s through `Database::query_as`
   into `FromRow` records, refined by haversine in Rust — never a geospatial
-  extension bolted onto the KV state store (`pattern::place`).
+  extension bolted onto the key-value store (`pattern::place`).
 - Structured JSON error bodies: the handler owns its error type and its
   `IntoResponse` serializes it as `application/json`, extending the
   framework's fixed two-field `ErrorBody` envelope (`error`, `message`)
@@ -353,50 +351,57 @@ above, so the rungs below are the whole suite.
 
 ### Handler rung
 
-Every crate tests its handlers natively against `omnia_test::guest::Provider`,
-which implements every capability trait over one default double each —
-`MapConfig`, `Sink`, `MatchedHttp`, `Memory`, `MemoryDocs`, `ScriptedTables`,
-`FixedIdentity`. The handler's bounds pick out which doubles a test seeds
-through the same-named builders (`.config(..)`, `.http(..)`, `.tables(..)`),
-and assertions read the `pub` fields (`provider.publish.sent()`). There is no
-hand-written mock provider anywhere in the workspace. A test builds the
-stem's router once, `handlers().with_state(provider.clone())`,
-and drives it with `omnia_test::guest::send(&router, request)` for one request
-(the reply comes back with its body collected) or
-`omnia_test::guest::deliver(&router, topic, payload)` for one delivery; a
-file's own helper, where it has one, builds the request shape its scenarios
-share and calls `send` inside.
+Every stem tests its handlers through its own compiled component. A stem's
+`guest.rs` is an `[[example]]` exporting the stem's handlers alone, and its
+`build.rs` compiles it for `wasm32-wasip3` through
+`omnia_test::build::Components`, generating the path constant
+(`<STEM>_GUEST`) its suites `include!`. A suite boots that component with
+`omnia_test::host::Deployment` over `Backends`, the in-memory host
+defaults, seeded through the same-named setters (`.config(..)`,
+`.http(..)`, `.sql(..)`, `.messaging(..)`). It then drives one request
+with `omnia_test::host::send` or one delivery with
+`omnia_test::host::deliver`, and asserts what reached the backends:
+
+- `Sink::sent` for every published message;
+- `MatchedHttp::requests` for every upstream request;
+- `ScriptedTables::statements` for every SQL statement;
+- `Backends::state` for an entry in the `default` bucket.
+
+A backend's clones share its stores, so a test keeps one to read after
+the run. There is no hand-written mock anywhere in the workspace.
 
 - `tests/routes.rs`, `tests/messaging.rs` — the root guest's production
-  routers built natively under the production capability list as doubles.
-  Building is the check: axum and the messaging router panic where two
-  crates claim one route or topic, and an unknown path or topic is refused
-- `crates/tally-connector/tests` — the minimal handler test driven through
-  `tally_connector::handlers()`
-- `crates/pulse-connector/tests` — SOAP happy path and fault sad path driven
-  through `pulse_connector::handlers()`
+  router built natively. Building is the check: axum and the messaging
+  router panic where two crates claim one route or topic, and an unknown
+  path or topic is refused
+- `crates/tally-connector/tests` — the minimal suite: one request through
+  the component, its publish read from the `Sink`
+- `crates/pulse-connector/tests` — SOAP happy path and fault sad path
+  through the component
 - `crates/gtfs-adapter/tests` — `MatchedHttp` seeded with the exact
-  upstream URLs (`tests/support/`), covering motion, dead reckoning,
-  sign-on, outdated/future timestamp rejection, filtering, occupancy, the
-  non-portable vehicle id's `400`, and (feature-gated) god-mode
+  upstream URLs (`tests/support/`, which also seeds configuration and
+  state), covering motion, dead reckoning, sign-on, outdated/future
+  timestamp rejection, filtering, occupancy, the non-portable vehicle id's
+  `400`, and (feature-gated) god-mode, whose guest `build.rs` builds with
+  the feature
 - `crates/pulse-adapter/tests` — static fixtures plus replay sessions
   captured from a live system (`data/replay`, `data/static`), loaded by
   `tests/fixture/` onto `MatchedHttp`
-- `crates/capability/tests` — one provider covering
-  `BlobStore`/`WebSockets`/`DocumentDb`/`SqlDb`
-- `crates/docstore/tests` — `MemoryDocs`, the filter-evaluating
-  `DocumentDb` double, covering how each list handler maps its query
+- `crates/capability/tests` — one deployment covering
+  `blobstore`/`websocket`/`docstore`/`sql`
+- `crates/docstore/tests` — omnia's default document store, which
+  evaluates every filter, covering how each list handler maps its query
   parameters onto filters, the stop name sort, continuation forwarding, and
   the CRUD round-trip with its duplicate-create `409`
 - `crates/sql/tests` — `ScriptedTables` scripting each parameterized SQL
   query's rows and recording every statement, covering `SELECT`, `INSERT`,
   dynamic `UPDATE`, `DELETE` with 404-on-zero-rows, the missing-agency 404s,
   the JOIN listing, and server-assigned ids
-- `crates/pattern/tests` — `MatchedHttp`, `Memory`, `ScriptedTables`,
-  `FixedIdentity`, and `MapConfig` covering the decode cache (hit and miss),
-  the versioned quota write's stale-version `409`, the non-portable tenant
-  and code `400`s, named-identity bearer auth, the nearby query, and the
-  upsert with its structured-error rejection
+- `crates/pattern/tests` — `MatchedHttp`, `ScriptedTables`,
+  `FixedIdentity`, and seeded configuration covering the decode cache (hit
+  and miss), the versioned quota write's stale-version `409`, the
+  non-portable tenant and code `400`s, named-identity bearer auth, the
+  nearby query, and the upsert with its structured-error rejection
 - `templates/guest/tests` — the template crate's contract: a tree
   scaffolded once, its static files held and restored, its root manifest
   held around its stem list
@@ -405,8 +410,8 @@ share and calls `send` inside.
 
 ### Component rung
 
-The handler rung never executes the assembled artefact; `tests/component.rs`
-does. The root `build.rs` (`omnia_test::build::Components`) compiles this
+The handler rung executes each stem's own component, never the assembled
+artefact; `tests/component.rs` does. The root `build.rs` (`omnia_test::build::Components`) compiles this
 package for `wasm32-wasip3` on every native build — dev profile, default
 features, `god-mode` off — into `target/wasm32-fixtures`, a sibling of the
 profile directory shared by every outer profile, feature set and build-script
@@ -426,7 +431,7 @@ effect on the backends, leaving payload semantics to the handler rung:
   `realtime-tally-apc.v2`
 - `component::messaging_export` — `MessagingHandler` delivers a
   passenger-count record and requires an occupancy-status entry in the
-  `wasi:keyvalue` bucket, read through `Backends::state`
+  `default` bucket, read through `Backends::state`
 
 No port opens and no `.env` is read: `Backends::defaults()` reads no
 environment variable and connects nothing, so the rung is deterministic.
@@ -468,10 +473,9 @@ cargo run -p template-check   # schema, path safety, seed pins and patches, clip
 (`source == target`), so a green root vouches for the
 scaffold with no diff to maintain. The seeds give a new service the shape
 above — the root package as the component composing every stem's
-provider-generic routers, `rlib` alongside `cdylib`, the two rungs under
-`omnia_test::guest::Provider`, a `common` crate for the capability bound
-and the topic table every stem shares, and the local host behind the
-`host` feature — and the suite's
+handlers, `rlib` alongside `cdylib`, the two native rungs, a `common`
+crate for the topic table every stem shares, and the local host behind
+the `host` feature — and the suite's
 scaffold test renders the manifest and lints, tests, and builds the
 result against the same published omnia the exemplar uses. To move to a
 new omnia release, bump every `omnia-*` line in `[workspace.dependencies]`

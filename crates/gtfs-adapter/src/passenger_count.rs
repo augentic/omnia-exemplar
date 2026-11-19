@@ -5,24 +5,20 @@
 use std::time::Duration;
 
 use common::topic;
+use omnia_sdk::Result;
 use omnia_sdk::api::{Context, Handlers};
-use omnia_sdk::{Result, StateStore, StateStoreExt as _};
+use omnia_sdk::keyvalue::{self, store};
 use serde::{Deserialize, Serialize};
 
 use crate::state_keys;
 
 const OCCUPANCY_STATUS_TTL: Duration = Duration::from_hours(3);
 
-pub(crate) fn handlers<P: crate::Requires>() -> Handlers<P> {
+pub(crate) fn handlers() -> Handlers {
     Handlers::new().topic(topic::PASSENGER_COUNT, passenger_count)
 }
 
-pub(crate) async fn passenger_count<P>(
-    context: Context<P>, input: PassengerCountMessage,
-) -> Result<()>
-where
-    P: StateStore,
-{
+pub(crate) async fn passenger_count(_: Context, input: PassengerCountMessage) -> Result<()> {
     // create state key
     let vehicle_id = &input.vehicle.id;
     let Trip {
@@ -33,10 +29,11 @@ where
     let key = state_keys::occupancy_status(vehicle_id, trip_id, start_date, start_time);
 
     // save occupancy status to state if set, otherwise remove
+    let state = store::open(keyvalue::DEFAULT.to_owned()).await?;
     if let Some(occupancy_status) = input.occupancy_status {
-        context.state().set_json(&key, &occupancy_status, Some(OCCUPANCY_STATUS_TTL)).await?;
+        state.set_json(&key, &occupancy_status, Some(OCCUPANCY_STATUS_TTL)).await?;
     } else {
-        context.state().delete(&key).await?;
+        state.delete(key, None).await??;
     }
 
     Ok(())

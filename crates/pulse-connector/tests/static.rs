@@ -1,10 +1,16 @@
-//! Static tests for the Pulse SOAP/XML connector driven through its router.
+//! Static tests for the Pulse SOAP/XML connector driven through its component.
 
-use axum::body::{Body, Bytes};
-use axum::http::header::CONTENT_TYPE;
-use axum::http::{Request, Response, StatusCode};
+use bytes::Bytes;
 use common::topic;
-use omnia_test::guest::{Provider, send};
+use http::header::CONTENT_TYPE;
+use http::{Request, Response, StatusCode};
+use omnia::{Provides, Runtime};
+use omnia_test::host::{Backends, Deployment, Sink, precompiled, send};
+use omnia_wasi_http::WasiHttp;
+use omnia_wasi_messaging::WasiMessaging;
+use omnia_wasi_otel::WasiOtel;
+
+include!(concat!(env!("OUT_DIR"), "/gen.rs"));
 
 const RECEIVE_MESSAGE: &[u8] = include_bytes!("../data/receive-message.xml");
 
@@ -17,13 +23,29 @@ const NO_TRAIN_UPDATE: &[u8] = br#"<?xml version="1.0" encoding="utf-8"?>
       </soap:Body>
     </soap:Envelope>"#;
 
-async fn post(provider: Provider, body: &'static [u8]) -> Response<Bytes> {
+async fn boot<B>(backends: B) -> Runtime<B>
+where
+    B: Provides<WasiHttp> + Provides<WasiMessaging> + Provides<WasiOtel>,
+{
+    let guest = precompiled(PULSE_CONNECTOR_GUEST).expect("guest precompiles");
+    Deployment::new()
+        .guest("pulse-connector", guest)
+        .boot(backends, |deployment| {
+            deployment.host::<WasiHttp>()?;
+            deployment.host::<WasiMessaging>()?;
+            deployment.host::<WasiOtel>()?;
+            Ok(())
+        })
+        .await
+        .expect("runtime boots")
+}
+
+async fn post<B: Provides<WasiHttp>>(runtime: &Runtime<B>, body: &'static [u8]) -> Response<Bytes> {
     let request = Request::post("/inbound/xml")
         .header(CONTENT_TYPE, "text/xml")
-        .body(Body::from(body))
+        .body(Bytes::from_static(body))
         .expect("request");
-    let router = pulse_connector::handlers().with_state(provider);
-    send(&router, request).await
+    send(runtime, request).await.expect("request served")
 }
 
 fn content_type(response: &Response<Bytes>) -> &str {
@@ -32,9 +54,11 @@ fn content_type(response: &Response<Bytes>) -> &str {
 
 #[tokio::test]
 async fn train_update() {
-    let provider = Provider::default();
+    let sink = Sink::default();
+    let runtime = boot(Backends::defaults().await.messaging(sink.clone())).await;
 
-    let response = post(provider.clone(), RECEIVE_MESSAGE).await;
+    let response = post(&runtime, RECEIVE_MESSAGE).await;
+    runtime.shutdown();
 
     // the connector acknowledges in the vendor's XML shape
     assert_eq!(response.status(), StatusCode::OK);
@@ -47,26 +71,24 @@ async fn train_update() {
     let (_, cdata) = fixture.split_once("<![CDATA[").expect("fixture opens a CDATA section");
     let (expected, _) = cdata.split_once("]]>").expect("fixture closes the CDATA section");
 
-    let published = provider.publisher.sent();
-    assert_eq!(published.len(), 1);
-
-    let (topic, record) = &published[0];
-    assert_eq!(topic, topic::PULSE);
-    let forwarded = std::str::from_utf8(&record.payload).expect("forwarded payload is UTF-8");
+    let [forwarded] = sink.sent().try_into().expect("one message forwarded");
+    assert_eq!(forwarded.topic, topic::PULSE);
+    let forwarded = std::str::from_utf8(&forwarded.payload).expect("forwarded payload is UTF-8");
     assert!(forwarded.contains("<ActualizarDatosTren>"), "{forwarded}");
     assert_eq!(forwarded.trim(), expected.trim());
 }
 
 #[tokio::test]
 async fn bad_requests() {
-    let provider = Provider::default();
+    let sink = Sink::default();
+    let runtime = boot(Backends::defaults().await.messaging(sink.clone())).await;
 
     // parsing happens inside the handler, so an unparseable body is answered
     // with the same SOAP fault as a parsed one, not an extractor's plain-text
     // 400
     for body in [NO_TRAIN_UPDATE, b"not xml at all".as_slice()] {
         let request = String::from_utf8_lossy(body);
-        let response = post(provider.clone(), body).await;
+        let response = post(&runtime, body).await;
 
         assert_eq!(response.status(), StatusCode::BAD_REQUEST, "{request}");
         assert!(
@@ -79,6 +101,7 @@ async fn bad_requests() {
             b"<Fault><StatusCode>400</StatusCode><Response><Message>Bad Request</Message></Response></Fault>",
             "{request}"
         );
-        assert!(provider.publisher.sent().is_empty(), "{request}");
+        assert!(sink.sent().is_empty(), "{request}");
     }
+    runtime.shutdown();
 }
