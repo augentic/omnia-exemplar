@@ -134,20 +134,20 @@ omnia-http-cache = "0.36.0"
 common = { path = "crates/common" }
 
 [patch.crates-io]
-omnia = { path = "/Users/andrewweston/github.com/augentic/omnia/crates/omnia" }
-omnia-sdk = { path = "/Users/andrewweston/github.com/augentic/omnia/crates/sdk" }
-omnia-test = { path = "/Users/andrewweston/github.com/augentic/omnia/crates/test" }
-omnia-wasi-blobstore = { path = "/Users/andrewweston/github.com/augentic/omnia/crates/wasi-blobstore" }
-omnia-wasi-config = { path = "/Users/andrewweston/github.com/augentic/omnia/crates/wasi-config" }
-omnia-wasi-docstore = { path = "/Users/andrewweston/github.com/augentic/omnia/crates/wasi-docstore" }
-omnia-wasi-http = { path = "/Users/andrewweston/github.com/augentic/omnia/crates/wasi-http" }
-omnia-wasi-identity = { path = "/Users/andrewweston/github.com/augentic/omnia/crates/wasi-identity" }
-omnia-wasi-keyvalue = { path = "/Users/andrewweston/github.com/augentic/omnia/crates/wasi-keyvalue" }
-omnia-wasi-messaging = { path = "/Users/andrewweston/github.com/augentic/omnia/crates/wasi-messaging" }
-omnia-wasi-otel = { path = "/Users/andrewweston/github.com/augentic/omnia/crates/wasi-otel" }
-omnia-wasi-sql = { path = "/Users/andrewweston/github.com/augentic/omnia/crates/wasi-sql" }
-omnia-wasi-websocket = { path = "/Users/andrewweston/github.com/augentic/omnia/crates/wasi-websocket" }
-omnia-http-cache = { path = "/Users/andrewweston/github.com/augentic/omnia-ext/crates/http-cache" }
+omnia = { git = "https://github.com/augentic/omnia" }
+omnia-sdk = { git = "https://github.com/augentic/omnia" }
+omnia-test = { git = "https://github.com/augentic/omnia" }
+omnia-wasi-blobstore = { git = "https://github.com/augentic/omnia" }
+omnia-wasi-config = { git = "https://github.com/augentic/omnia" }
+omnia-wasi-docstore = { git = "https://github.com/augentic/omnia" }
+omnia-wasi-http = { git = "https://github.com/augentic/omnia" }
+omnia-wasi-identity = { git = "https://github.com/augentic/omnia" }
+omnia-wasi-keyvalue = { git = "https://github.com/augentic/omnia" }
+omnia-wasi-messaging = { git = "https://github.com/augentic/omnia" }
+omnia-wasi-otel = { git = "https://github.com/augentic/omnia" }
+omnia-wasi-sql = { git = "https://github.com/augentic/omnia" }
+omnia-wasi-websocket = { git = "https://github.com/augentic/omnia" }
+omnia-http-cache = { git = "https://github.com/augentic/omnia-ext" }
 
 # A stem's suites JIT-compile its guest, and unoptimized cranelift is ~10x
 # slower.
