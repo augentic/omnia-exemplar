@@ -60,7 +60,7 @@ fn joined_row(id: i64, description: &str, agency: &str) -> Row {
 
 fn int_param(params: &[SqlValue], index: usize) -> Option<i64> {
     match params.get(index) {
-        Some(SqlValue::Int64(value)) => *value,
+        Some(SqlValue::Int64(value)) => Some(*value),
         _ => None,
     }
 }

@@ -12,15 +12,15 @@ fn item_row(sku: &str, cents: i64, in_stock: bool) -> Row {
         fields: vec![
             Field {
                 name: "sku".to_string(),
-                value: Value::Str(Some(sku.to_string())),
+                value: Value::Str(sku.to_string()),
             },
             Field {
                 name: "cents".to_string(),
-                value: Value::Int64(Some(cents)),
+                value: Value::Int64(cents),
             },
             Field {
                 name: "in_stock".to_string(),
-                value: Value::Boolean(Some(in_stock)),
+                value: Value::Boolean(in_stock),
             },
         ],
     }
@@ -39,7 +39,7 @@ async fn queries_cache_serve() {
     let tables = ScriptedTables::default().on_query(
         |sql, params| {
             sql.starts_with("SELECT sku, cents, in_stock FROM catalogue")
-                && matches!(params, [Value::Int64(Some(0))])
+                && matches!(params, [Value::Int64(0)])
         },
         vec![item_row("cake", 450, true), item_row("tea", 300, false)],
     );

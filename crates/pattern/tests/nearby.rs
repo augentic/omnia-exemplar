@@ -35,10 +35,10 @@ fn place_row(id: &str, name: &str, lat: f64, lon: f64) -> Row {
 // `lon <=`.
 fn bounds(statement: &Executed) -> [f64; 4] {
     let [
-        Value::Double(Some(lat_min)),
-        Value::Double(Some(lat_max)),
-        Value::Double(Some(lon_min)),
-        Value::Double(Some(lon_max)),
+        Value::Double(lat_min),
+        Value::Double(lat_max),
+        Value::Double(lon_min),
+        Value::Double(lon_max),
     ] = statement.params.as_slice()
     else {
         panic!("expected four double bounds, got {:?}", statement.params);
@@ -48,7 +48,7 @@ fn bounds(statement: &Executed) -> [f64; 4] {
 
 fn upserted_id(statement: &Executed) -> Option<&str> {
     match statement.params.first() {
-        Some(Value::Str(Some(id))) if statement.sql.starts_with("INSERT") => Some(id),
+        Some(Value::Str(id)) if statement.sql.starts_with("INSERT") => Some(id),
         _ => None,
     }
 }
