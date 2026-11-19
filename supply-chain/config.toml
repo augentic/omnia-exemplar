@@ -110,7 +110,7 @@ version = "3.10.3"
 criteria = "safe-to-deploy"
 
 [[exemptions.bytes]]
-version = "1.12.1"
+version = "1.12.2"
 criteria = "safe-to-deploy"
 
 [[exemptions.cap-fs-ext]]
@@ -382,7 +382,7 @@ version = "0.33.0"
 criteria = "safe-to-deploy"
 
 [[exemptions.granit-parser]]
-version = "2.1.0"
+version = "2.2.0"
 criteria = "safe-to-deploy"
 
 [[exemptions.h2]]
@@ -902,7 +902,7 @@ version = "1.0.229"
 criteria = "safe-to-deploy"
 
 [[exemptions.serde-saphyr]]
-version = "2.1.1"
+version = "2.2.0"
 criteria = "safe-to-deploy"
 
 [[exemptions.serde_core]]
@@ -966,7 +966,7 @@ version = "0.4.12"
 criteria = "safe-to-deploy"
 
 [[exemptions.smallvec]]
-version = "1.16.5"
+version = "1.16.6"
 criteria = "safe-to-deploy"
 
 [[exemptions.socket2]]
@@ -1162,7 +1162,7 @@ version = "2.1.3"
 criteria = "safe-to-deploy"
 
 [[exemptions.uuid]]
-version = "1.29.2"
+version = "1.29.3"
 criteria = "safe-to-deploy"
 
 [[exemptions.version_check]]
