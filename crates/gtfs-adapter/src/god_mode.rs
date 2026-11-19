@@ -14,8 +14,8 @@ use std::collections::HashMap;
 use std::time::Duration;
 
 use anyhow::Result;
-use omnia_sdk::keyvalue::bucket::Bucket;
-use omnia_sdk::{config, keyvalue};
+use omnia_sdk::config;
+use omnia_sdk::keyvalue::{self, Bucket};
 use serde::{Deserialize, Serialize};
 
 use crate::motion::{EventType, MotionMessage};
@@ -28,7 +28,7 @@ struct State {
 pub(crate) async fn set_vehicle_to_trip(
     vehicle_id: impl Into<String>, trip_id: impl Into<String>,
 ) -> Result<()> {
-    let state_store = keyvalue::store::open(keyvalue::DEFAULT.to_owned()).await?;
+    let state_store = keyvalue::open(keyvalue::DEFAULT).await?;
     let mut state = load_state(&state_store).await?;
     state.overrides.insert(vehicle_id.into(), trip_id.into());
     save_state(&state_store, &state).await
@@ -74,7 +74,7 @@ async fn preprocess(event: &mut MotionMessage) -> Result<()> {
         return Ok(());
     };
 
-    let state_store = keyvalue::store::open(keyvalue::DEFAULT.to_owned()).await?;
+    let state_store = keyvalue::open(keyvalue::DEFAULT).await?;
     let state = load_state(&state_store).await?;
     if let Some(override_trip) = state.overrides.get(vehicle_id) {
         decoded.line_id = None;
@@ -96,7 +96,7 @@ async fn preprocess(event: &mut MotionMessage) -> Result<()> {
 pub(crate) const GOD_MODE_ENABLED: &str = "GOD_MODE_ENABLED";
 
 pub(crate) async fn is_enabled() -> Result<bool> {
-    Ok(config::store::get(GOD_MODE_ENABLED.to_owned()).await?.is_some_and(|value| {
+    Ok(config::get(GOD_MODE_ENABLED).await?.is_some_and(|value| {
         let normalized = value.trim().to_ascii_lowercase();
         matches!(normalized.as_str(), "1" | "true" | "yes" | "on")
     }))

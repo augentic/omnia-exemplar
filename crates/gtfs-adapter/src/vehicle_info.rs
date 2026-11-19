@@ -3,9 +3,7 @@
 use axum::Json;
 use axum::extract::Path;
 use axum::routing::get;
-use omnia_sdk::api::Handlers;
-use omnia_sdk::keyvalue::{self, store};
-use omnia_sdk::{Result, bad_request};
+use omnia_sdk::{Handlers, Result, bad_request, keyvalue};
 use serde::{Deserialize, Serialize};
 
 use crate::fleet::{self, Vehicle};
@@ -46,16 +44,14 @@ pub(crate) async fn vehicle_info(Path(vehicle_id): Path<String>) -> Result<Json<
             "vehicle id `{vehicle_id}` may hold only letters, digits, `_`, and `-`"
         ));
     }
-    let state = store::open(keyvalue::DEFAULT.to_owned()).await?;
+    let state = keyvalue::open(keyvalue::DEFAULT).await?;
 
     let trip_key = state_keys::trip(&vehicle_id);
     let trip_info: Option<TripInstance> = state.get_json(&trip_key).await?;
 
     let sign_on_key = state_keys::sign_on(&vehicle_id);
-    let sign_on_time = state
-        .get(sign_on_key)
-        .await?
-        .map(|entry| String::from_utf8_lossy(&entry.value).to_string());
+    let sign_on_time =
+        state.read(&sign_on_key).await?.map(|value| String::from_utf8_lossy(&value).to_string());
 
     let fleet_info = fleet::vehicle(&vehicle_id).await?;
 

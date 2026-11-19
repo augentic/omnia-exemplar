@@ -3,9 +3,8 @@
 use anyhow::Context as _;
 use axum::Json;
 use axum::routing::post;
-use omnia_sdk::Result;
-use omnia_sdk::api::Handlers;
-use omnia_sdk::blobstore::{admin, store};
+use omnia_sdk::blobstore::{self, admin, store};
+use omnia_sdk::{Handlers, Result};
 use serde::{Deserialize, Serialize};
 
 pub(crate) const ARCHIVE: &str = "/examples/archive";
@@ -34,7 +33,7 @@ pub struct ArchiveReply {
 
 pub(crate) async fn archive(Json(input): Json<ArchiveRequest>) -> Result<Json<ArchiveReply>> {
     let container = if store::container_exists(input.container.clone()).await? {
-        store::open(input.container).await?
+        blobstore::open(&input.container).await?
     } else {
         admin::create_container(input.container).await?
     };

@@ -1,11 +1,8 @@
 //! Recording XML dispatch notices from the warehouse stream.
 
 use common::topic;
-use omnia_sdk::api::messaging::Delivery;
-use omnia_sdk::api::{Context, Handlers};
-use omnia_sdk::keyvalue::types::Lifetime;
-use omnia_sdk::keyvalue::{self, store};
-use omnia_sdk::{Result, bad_request};
+use omnia_sdk::messaging::Delivery;
+use omnia_sdk::{Context, Handlers, Result, bad_request, keyvalue};
 use serde::{Deserialize, Serialize};
 
 pub(crate) fn handlers() -> Handlers {
@@ -34,9 +31,6 @@ pub(crate) async fn on_dispatched(_: Context, input: Dispatched) -> Result<()> {
     if input.carrier.is_empty() {
         return Err(bad_request!("dispatch notice lacks a carrier"));
     }
-    let state = store::open(keyvalue::DEFAULT.to_owned()).await?;
-    state
-        .set(dispatched_key(&input.id), input.carrier.into_bytes(), Lifetime::Forever, None)
-        .await??;
-    Ok(())
+    let state = keyvalue::open(keyvalue::DEFAULT).await?;
+    state.write(&dispatched_key(&input.id), input.carrier.as_bytes(), None).await
 }

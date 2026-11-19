@@ -8,8 +8,8 @@ passenger counting, and GTFS realtime adaptation.
 Domain logic lives under `crates/*` as plain axum handlers
 (`pub async fn name(Json<Input>)`) and messaging handlers
 (`pub async fn name(Context, Input)`), each reaching the host through
-`omnia-sdk`'s bindings, and each crate exposes its wiring: `handlers()`, an
-`api::Handlers` binding its paths to its fns (`post(tally)`) and its topics
+`omnia-sdk`'s bindings, and each crate exposes its wiring: `handlers()`, a
+`Handlers` binding its paths to its fns (`post(tally)`) and its topics
 to its consumers. The **guest is the workspace root package**
 (`src/lib.rs`) — one `<stem>::handlers(),` entry per crate in `router`,
 merged by `Handlers::from` and closed with `into_router()`, bound as the
@@ -118,8 +118,8 @@ The guest:
 - Merges each crate's `handlers()` — plain axum routes
   (`axum::routing::{get, post}` over `Path`, `Query`, and `Json`
   extractors, with `Bytes` for non-JSON wire formats) and topics bound to
-  consumers on an `api::Handlers` — once in `router`, closing it with
-  `into_router()` into the one `omnia_sdk::api::Router` that serves HTTP
+  consumers on a `Handlers` — once in `router`, closing it with
+  `into_router()` into the one `omnia_sdk::Router` that serves HTTP
   requests and dispatches messaging deliveries
 - Binds the router to each WASI export: `http::export!(router)` and
   `messaging::export!(router)`, which expand to nothing natively
@@ -147,7 +147,7 @@ The guest:
 | `GET /examples/feeds`, `DELETE /examples/feeds/{id}` | `sql::{list_all_feeds, delete_feed}` — JOIN listing and delete with 404-on-zero-rows |
 | `POST /examples/patterns/decode` | `pattern::decode_segment` — decode-through-cache over `keyvalue`, `config`, and `http` |
 | `PUT /examples/patterns/quotas/{tenant}` | `pattern::update_quota` — optimistic concurrency over `Bucket::compare_and_swap` (`409 Conflict` via `QuotaError`) |
-| `GET /examples/patterns/upstream/{resource}` | `pattern::fetch_upstream_status` — bearer-token auth via `credentials::open` and `Identity::access_token` |
+| `GET /examples/patterns/upstream/{resource}` | `pattern::fetch_upstream_status` — bearer-token auth via `identity::open` and `Identity::access_token` |
 | `POST /examples/patterns/places`, `GET /examples/patterns/nearby` | `pattern::{upsert_place, nearby_places}` — `INSERT … ON CONFLICT` upsert (`PlaceError`) and bounding-box + haversine query |
 | `POST /examples/archive` | `capability::archive` — `blobstore` object write |
 | `POST /examples/alert` | `capability::alert` — `websocket` send to every socket or to the named ones |
@@ -200,9 +200,9 @@ stay plain functions.
    a messaging handler takes the delivery's `Context` first, then its
    decoded input (`pub(crate) async fn name(_: Context, input: Input) -> Result<Reply>`).
    Reach the host through the `omnia-sdk` module for the interface: open
-   a bucket with `keyvalue::store::open(keyvalue::DEFAULT.to_owned())`, a
-   database with `sql::store::open(sql::DEFAULT.to_owned())`, send with
-   `http::fetch_json`, publish with `messaging::producer::send`.
+   a bucket with `keyvalue::open(keyvalue::DEFAULT)`, a database with
+   `sql::open(sql::DEFAULT)`, send with `http::fetch_json`, and publish
+   with `messaging::connect(messaging::DEFAULT)` and `Client::send`.
 4. Declare the path as a `pub(crate) const` of the part that uses it, its
    required configuration as one `#[derive(Settings)]` struct (whose `KEYS`
    `tests/component.rs` seeds), and any new topic in `common::topic`.
@@ -287,7 +287,7 @@ Patterns worth copying into new services:
   `IntoResponse` (`pattern::cas`).
 - Upstream bearer-token authentication (`Identity::access_token`): resolve
   the identity name from the part's `Settings`, acquire a token via
-  `credentials::open(name).await?.access_token()`, and send
+  `identity::open(name).await?.access_token()`, and send
   `Authorization: Bearer <token>` on `http::fetch_json`
   (`pattern::identity`).
 - Cached upstream fetches as an explicit decorator, not an ambient runtime

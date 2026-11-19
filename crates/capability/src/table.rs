@@ -2,9 +2,8 @@
 
 use axum::Json;
 use axum::routing::post;
-use omnia_sdk::Result;
-use omnia_sdk::api::Handlers;
-use omnia_sdk::sql::{Row, Value, store};
+use omnia_sdk::sql::{Row, Value};
+use omnia_sdk::{Handlers, Result};
 use serde::{Deserialize, Serialize};
 
 pub(crate) const READING: &str = "/examples/reading";
@@ -43,7 +42,7 @@ pub struct ReadingReply {
 }
 
 pub(crate) async fn reading(Json(input): Json<ReadingRequest>) -> Result<Json<ReadingReply>> {
-    let db = store::open(input.connection).await?;
+    let db = omnia_sdk::sql::open(&input.connection).await?;
 
     let affected = db
         .exec(sql::INSERT, &[Value::from(input.sensor.as_str()), Value::from(input.value)])

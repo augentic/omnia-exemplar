@@ -2,7 +2,7 @@
 
 The rich `omnia:sql` showcase: a two-table agency/feed schema exercising
 parameterized SQL on the `default` database, opened with
-`omnia_sdk::sql::store::open` (`Database::query_as`, `Database::exec`),
+`omnia_sdk::sql::open` (`Database::query_as`, `Database::exec`),
 into `#[derive(FromRow)]` records — `SELECT` with
 `ORDER BY` and optional `LIMIT`, `INSERT`
 with server-assigned ids, dynamic `UPDATE ... SET` writing only provided

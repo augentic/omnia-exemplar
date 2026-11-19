@@ -17,7 +17,7 @@ pub mod train_avl;
 pub mod trip;
 pub mod vehicle_info;
 
-use omnia_sdk::api::Handlers;
+use omnia_sdk::Handlers;
 
 /// The stem's handlers, merged onto the root router.
 pub fn handlers() -> Handlers {

@@ -3,11 +3,8 @@
 use axum::Json;
 use axum::routing::post;
 use common::topic;
-use omnia_sdk::api::{Context, Handlers};
-use omnia_sdk::keyvalue::{self, store};
-use omnia_sdk::messaging::types::{Client, Message};
-use omnia_sdk::messaging::{self, producer};
-use omnia_sdk::{Result, Settings, bad_request};
+use omnia_sdk::messaging::{self, Message};
+use omnia_sdk::{Context, Handlers, Result, Settings, bad_request, keyvalue};
 use serde::{Deserialize, Serialize};
 
 // The paths the part serves.
@@ -53,14 +50,14 @@ pub(crate) async fn place(Json(input): Json<PlaceOrder>) -> Result<Json<Placed>>
     let placed = Placed {
         lines: input.lines.len(),
     };
-    let client = Client::connect(messaging::DEFAULT.to_owned()).await?;
-    producer::send(&client, topic::ORDER_PLACED.to_owned(), Message::json(&placed)?).await?;
+    let client = messaging::connect(messaging::DEFAULT).await?;
+    client.send(topic::ORDER_PLACED, Message::json(&placed)?).await?;
     Ok(Json(placed))
 }
 
 pub(crate) async fn on_placed(_: Context, input: Placed) -> Result<()> {
     let delta = i64::try_from(input.lines).map_err(|error| bad_request!("{error}"))?;
-    let state = store::open(keyvalue::DEFAULT.to_owned()).await?;
+    let state = keyvalue::open(keyvalue::DEFAULT).await?;
     let total = state.increment(LINES_PLACED.to_owned(), delta, None).await?;
     tracing::info!(lines = input.lines, total, "order placed");
     Ok(())

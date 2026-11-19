@@ -12,10 +12,8 @@ use axum::http::header::CONTENT_TYPE;
 use axum::response::{IntoResponse, Response};
 use axum::routing::post;
 use common::topic;
-use omnia_sdk::Error;
-use omnia_sdk::api::Handlers;
-use omnia_sdk::messaging::types::{Client, Message};
-use omnia_sdk::messaging::{self, producer};
+use omnia_sdk::messaging::{self, Message};
+use omnia_sdk::{Error, Handlers};
 use serde::{Deserialize, Serialize};
 
 pub(crate) const PULSE_XML: &str = "/inbound/xml";
@@ -70,9 +68,8 @@ pub(crate) async fn pulse(body: Bytes) -> Result<PulseReply, Fault> {
 }
 
 async fn forward(message: Message) -> omnia_sdk::Result<()> {
-    let client = Client::connect(messaging::DEFAULT.to_owned()).await?;
-    producer::send(&client, topic::PULSE.to_owned(), message).await?;
-    Ok(())
+    let client = messaging::connect(messaging::DEFAULT).await?;
+    client.send(topic::PULSE, message).await
 }
 
 /// Pulse SOAP Envelope for incoming [`ReceiveMessage`] requests

@@ -3,8 +3,7 @@
 use std::time::Duration;
 
 use chrono::Utc;
-use omnia_sdk::keyvalue::bucket::Bucket;
-use omnia_sdk::keyvalue::{self, store};
+use omnia_sdk::keyvalue::{self, Bucket};
 use omnia_sdk::{Result, bad_request};
 
 use crate::motion::{DecodedSerialData, MotionError, MotionMessage};
@@ -30,7 +29,7 @@ pub async fn process(message: &MotionMessage) -> Result<()> {
         return Err(MotionError::BadTime("future-dated serial data message".to_string()).into());
     }
 
-    let state = store::open(keyvalue::DEFAULT.to_owned()).await?;
+    let state = keyvalue::open(keyvalue::DEFAULT).await?;
     update_timestamp(&state, timestamp, vehicle_id).await?;
 
     let Some(serial_data) = message.serial_data.as_ref() else {
@@ -70,9 +69,9 @@ async fn allocate(
     let Some(trip_id) = decoded.trip_id.as_deref() else {
         tracing::debug!(vehicle_id, "no trip id found, clearing state");
 
-        state.delete(sign_on_key, None).await??;
-        state.delete(trip_key, None).await??;
-        state.delete(serial_timestamp_key, None).await??;
+        state.remove(&sign_on_key).await?;
+        state.remove(&trip_key).await?;
+        state.remove(&serial_timestamp_key).await?;
 
         return Ok(());
     };
@@ -90,9 +89,9 @@ async fn allocate(
         return save_trip(state, vehicle_id, event_timestamp, trip).await;
     }
 
-    state.delete(sign_on_key, None).await??;
-    state.delete(trip_key, None).await??;
-    state.delete(serial_timestamp_key, None).await??;
+    state.remove(&sign_on_key).await?;
+    state.remove(&trip_key).await?;
+    state.remove(&serial_timestamp_key).await?;
 
     Ok(())
 }

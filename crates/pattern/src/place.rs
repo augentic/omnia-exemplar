@@ -19,9 +19,8 @@ use axum::Json;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
-use omnia_sdk::Error;
-use omnia_sdk::api::Handlers;
-use omnia_sdk::sql::{self, FromRow, Value, store, types};
+use omnia_sdk::sql::{self, FromRow, Value};
+use omnia_sdk::{Error, Handlers};
 use serde::{Deserialize, Serialize};
 
 pub(crate) const PLACES: &str = "/examples/patterns/places";
@@ -137,12 +136,6 @@ impl From<Error> for PlaceError {
     }
 }
 
-impl From<types::Error> for PlaceError {
-    fn from(error: types::Error) -> Self {
-        Error::from(error).into()
-    }
-}
-
 /// The wire body: omnia's `ErrorBody` fields, then the variant's own.
 #[derive(Serialize)]
 struct Body<'a> {
@@ -157,7 +150,7 @@ pub(crate) async fn upsert_place(
     coordinate("lat", input.lat, -90.0, 90.0)?;
     coordinate("lon", input.lon, -180.0, 180.0)?;
 
-    let affected = store::open(sql::DEFAULT.to_owned())
+    let affected = sql::open(sql::DEFAULT)
         .await?
         .exec(
             "INSERT INTO places (id, name, lat, lon) VALUES ($1, $2, $3, $4) \
@@ -229,7 +222,7 @@ pub(crate) async fn nearby_places(
     let lat_delta = input.radius_m / METRES_PER_DEGREE;
     let lon_delta = lat_delta / input.lat.to_radians().cos().abs().max(f64::EPSILON);
 
-    let candidates: Vec<Place> = store::open(sql::DEFAULT.to_owned())
+    let candidates: Vec<Place> = sql::open(sql::DEFAULT)
         .await?
         .query_as(
             "SELECT id, name, lat, lon FROM places \

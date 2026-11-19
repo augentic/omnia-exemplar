@@ -5,10 +5,8 @@
 
 use axum::Json;
 use axum::routing::post;
-use omnia_sdk::Result;
-use omnia_sdk::api::Handlers;
-use omnia_sdk::websocket::types::{Client, Message};
-use omnia_sdk::websocket::{self, broadcast, connections};
+use omnia_sdk::websocket::{self, Message};
+use omnia_sdk::{Handlers, Result};
 use serde::{Deserialize, Serialize};
 
 pub(crate) const ALERT: &str = "/examples/alert";
@@ -32,12 +30,15 @@ pub struct AlertRequest {
 pub struct AlertReply(pub &'static str);
 
 pub(crate) async fn alert(Json(input): Json<AlertRequest>) -> Result<Json<AlertReply>> {
-    let client = Client::connect(websocket::DEFAULT.to_owned()).await?;
+    let client = websocket::connect(websocket::DEFAULT).await?;
     let message = Message::Text(input.message);
 
     match input.sockets {
-        Some(sockets) => connections::send(&client, sockets, message).await?,
-        None => broadcast::send(&client, message, Vec::new()).await?,
+        Some(sockets) => {
+            let sockets: Vec<&str> = sockets.iter().map(String::as_str).collect();
+            client.send(&sockets, message).await?;
+        }
+        None => client.broadcast(message, &[]).await?,
     }
     Ok(Json(AlertReply("OK")))
 }

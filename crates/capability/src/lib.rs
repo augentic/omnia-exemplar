@@ -16,7 +16,7 @@ pub mod broadcast;
 pub mod document;
 pub mod table;
 
-use omnia_sdk::api::Handlers;
+use omnia_sdk::Handlers;
 
 /// The stem's handlers, merged onto the root router.
 pub fn handlers() -> Handlers {

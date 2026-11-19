@@ -3,8 +3,7 @@
 use std::time::Duration;
 
 use axum::body::Bytes;
-use omnia_sdk::keyvalue::{self, store};
-use omnia_sdk::{Result, Settings, server_error};
+use omnia_sdk::{Result, Settings, keyvalue, server_error};
 use serde::{Deserialize, Serialize};
 
 /// The settings the stop lookup reads.
@@ -64,9 +63,9 @@ const STOPS_CACHE_KEY: &str = "pulse.stops";
 const STOPS_TTL: Duration = Duration::from_mins(5);
 
 async fn cached_stops() -> Result<Vec<StopInfo>> {
-    let cache = store::open(keyvalue::DEFAULT.to_owned()).await?;
-    if let Some(entry) = cache.get(STOPS_CACHE_KEY.to_owned()).await? {
-        match serde_json::from_slice(&entry.value) {
+    let cache = keyvalue::open(keyvalue::DEFAULT).await?;
+    if let Some(cached) = cache.read(STOPS_CACHE_KEY).await? {
+        match serde_json::from_slice(&cached) {
             Ok(stops) => return Ok(stops),
             Err(error) => {
                 tracing::warn!(%error, "cached stops entry unreadable; refetching");

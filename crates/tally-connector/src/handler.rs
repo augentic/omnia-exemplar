@@ -3,10 +3,8 @@
 use axum::Json;
 use axum::routing::post;
 use common::topic;
-use omnia_sdk::Result;
-use omnia_sdk::api::Handlers;
-use omnia_sdk::messaging::types::{Client, Message};
-use omnia_sdk::messaging::{self, producer};
+use omnia_sdk::messaging::{self, Message};
+use omnia_sdk::{Handlers, Result};
 use serde::{Deserialize, Serialize};
 
 use crate::types::TallyMessage;
@@ -23,8 +21,8 @@ pub(crate) async fn tally(Json(input): Json<TallyRequest>) -> Result<Json<TallyR
     // forward to the tally APC topic
     let site = message.device.as_ref().map_or_else(|| "undefined", |device| &device.site);
     let msg = Message::json(message)?.with_key(site);
-    let client = Client::connect(messaging::DEFAULT.to_owned()).await?;
-    producer::send(&client, topic::TALLY_APC.to_owned(), msg).await?;
+    let client = messaging::connect(messaging::DEFAULT).await?;
+    client.send(topic::TALLY_APC, msg).await?;
 
     Ok(Json(TallyReply("OK")))
 }

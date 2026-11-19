@@ -17,9 +17,7 @@ use axum::Json;
 use axum::body::Bytes;
 use axum::http::{Method, Request};
 use axum::routing::post;
-use omnia_sdk::api::Handlers;
-use omnia_sdk::keyvalue::{self, store};
-use omnia_sdk::{Result, Settings, bad_request, http};
+use omnia_sdk::{Handlers, Result, Settings, bad_request, http, keyvalue};
 use serde::{Deserialize, Serialize};
 
 use crate::state_keys;
@@ -78,7 +76,7 @@ pub(crate) async fn decode_segment(
         ));
     }
     let key = state_keys::segment(&input.code);
-    let cache = store::open(keyvalue::DEFAULT.to_owned()).await?;
+    let cache = keyvalue::open(keyvalue::DEFAULT).await?;
 
     // Cache hit: no config read, no outbound request.
     if let Some(segment) = cache.get_json(&key).await? {

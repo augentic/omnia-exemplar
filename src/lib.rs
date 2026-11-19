@@ -8,7 +8,7 @@
 //! This root-package layout (`src/lib.rs`) is the compiling reference for
 //! new Omnia services and the shape the guest template seeds.
 
-use omnia_sdk::api::{Handlers, Router, http, messaging};
+use omnia_sdk::{Handlers, Router, http, messaging};
 
 /// Build the guest router.
 ///

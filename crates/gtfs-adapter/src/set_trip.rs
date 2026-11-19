@@ -4,8 +4,7 @@ use anyhow::Context as _;
 use axum::Json;
 use axum::extract::Path;
 use axum::routing::post;
-use omnia_sdk::api::Handlers;
-use omnia_sdk::{Result, bad_request};
+use omnia_sdk::{Handlers, Result, bad_request};
 use serde::{Deserialize, Serialize};
 
 use crate::god_mode;

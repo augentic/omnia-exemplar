@@ -8,12 +8,8 @@ use chrono::Utc;
 use common::topic;
 use http::Method;
 use http::header::AUTHORIZATION;
-use omnia_sdk::api::messaging::Delivery;
-use omnia_sdk::api::{Context, Handlers};
-use omnia_sdk::identity::credentials;
-use omnia_sdk::messaging::types::{Client, Message};
-use omnia_sdk::messaging::{self, producer};
-use omnia_sdk::{Error, Result, Settings};
+use omnia_sdk::messaging::{self, Delivery, Message};
+use omnia_sdk::{Context, Error, Handlers, Result, Settings, identity};
 use serde::Deserialize;
 use thiserror::Error;
 
@@ -121,13 +117,13 @@ pub(crate) async fn pulse(_: Context, input: PulseMessage) -> Result<()> {
     let events = update.into_events().await?;
 
     // publish events to Motion topic (repeated — see `PUBLISH_REPEATS`)
-    let client = Client::connect(messaging::DEFAULT.to_owned()).await?;
+    let client = messaging::connect(messaging::DEFAULT).await?;
     for _ in 0..PUBLISH_REPEATS {
         for event in &events {
             tracing::info!(monotonic_counter.motion_events_published = 1);
 
             let message = Message::json(event)?.with_key(event.remote_data.external_id.clone());
-            producer::send(&client, topic::PULSE_TO_MOTION.to_owned(), message).await?;
+            client.send(topic::PULSE_TO_MOTION, message).await?;
         }
     }
 
@@ -179,9 +175,9 @@ impl TrainUpdate {
 async fn trip_allocations(external_ref_id: &str) -> Result<Vec<String>> {
     let PulseSettings {
         block_mgt_url: url,
-        api_identity: identity,
+        api_identity,
     } = PulseSettings::load().await?;
-    let token = credentials::open(identity).await?.access_token().await?;
+    let token = identity::open(&api_identity).await?.access_token().await?;
 
     let request = http::Request::builder()
         .method(Method::GET)

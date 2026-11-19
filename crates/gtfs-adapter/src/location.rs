@@ -3,8 +3,7 @@
 use chrono::{Duration, NaiveDate, TimeZone};
 use chrono_tz::Tz;
 use omnia_sdk::Result;
-use omnia_sdk::keyvalue::bucket::Bucket;
-use omnia_sdk::keyvalue::{self, store};
+use omnia_sdk::keyvalue::{self, Bucket};
 use uuid::Uuid;
 
 use crate::block_mgt::{self, BlockInstance};
@@ -49,7 +48,7 @@ pub async fn process(message: &MotionMessage) -> Result<Option<Location>> {
     };
 
     let timestamp = message.timestamp()?;
-    let state = store::open(keyvalue::DEFAULT.to_owned()).await?;
+    let state = keyvalue::open(keyvalue::DEFAULT).await?;
 
     if vehicle.is_train() {
         let allocation = block_mgt::cached_allocation(&vehicle.id, timestamp).await?;
@@ -118,8 +117,8 @@ async fn allocate(
 
     // no allocation for this vehicle
     let Some(alloc) = allocation else {
-        state.delete(sign_on_key, None).await??;
-        state.delete(trip_key, None).await??;
+        state.remove(&sign_on_key).await?;
+        state.remove(&trip_key).await?;
         return Ok(());
     };
 
@@ -129,8 +128,8 @@ async fn allocate(
 
     // is the allocated vehicle this vehicle?
     if alloc.vehicle_ids.first() != Some(&vehicle.id) {
-        state.delete(sign_on_key, None).await??;
-        state.delete(trip_key, None).await??;
+        state.remove(&sign_on_key).await?;
+        state.remove(&trip_key).await?;
         return Ok(());
     }
 
@@ -147,8 +146,8 @@ async fn allocate(
     let Some(new_trip) =
         trip::instance(&alloc.trip_id, &alloc.service_date, &alloc.start_time).await?
     else {
-        state.delete(sign_on_key, None).await??;
-        state.delete(trip_key, None).await??;
+        state.remove(&sign_on_key).await?;
+        state.remove(&trip_key).await?;
         return Ok(());
     };
 
@@ -180,8 +179,8 @@ async fn current_trip(
     ) {
         let duration = end - start + Duration::seconds(3_600).num_seconds();
         if timestamp - duration > sign_on_ts {
-            state.delete(sign_on_key, None).await??;
-            state.delete(trip_key, None).await??;
+            state.remove(&sign_on_key).await?;
+            state.remove(&trip_key).await?;
             return Ok(None);
         }
     }

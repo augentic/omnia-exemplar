@@ -4,7 +4,7 @@
 //! topic. A stem's topics are driven by its own suites through its
 //! component; this rung holds the merged whole.
 
-use omnia_sdk::api::messaging::Delivery;
+use omnia_sdk::messaging::Delivery;
 
 #[tokio::test]
 async fn registers() {

@@ -2,10 +2,8 @@
 
 use chrono::{DateTime, Utc};
 use common::topic;
-use omnia_sdk::api::{Context, Handlers};
-use omnia_sdk::messaging::types::{Client, Message};
-use omnia_sdk::messaging::{self, producer};
-use omnia_sdk::{Error, Result, bad_request};
+use omnia_sdk::messaging::{self, Message};
+use omnia_sdk::{Context, Error, Handlers, Result, bad_request};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
@@ -60,8 +58,8 @@ pub(crate) async fn motion(_: Context, input: MotionMessage) -> Result<()> {
     };
 
     // publish
-    let client = Client::connect(messaging::DEFAULT.to_owned()).await?;
-    producer::send(&client, topic.to_owned(), message.with_key(key)).await?;
+    let client = messaging::connect(messaging::DEFAULT).await?;
+    client.send(topic, message.with_key(key)).await?;
 
     Ok(())
 }

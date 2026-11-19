@@ -7,12 +7,11 @@
 use axum::Json;
 use axum::extract::{Path, Query};
 use axum::routing::get;
-use omnia_sdk::api::Handlers;
-use omnia_sdk::docstore::{Exists, Filter, SortField};
-use omnia_sdk::{Result, not_found};
+use omnia_sdk::docstore::{self, Exists, Filter, SortField};
+use omnia_sdk::{Handlers, Result, not_found};
 use serde::{Deserialize, Serialize};
 
-use crate::stop::{CreateError, DocumentRecord, open, records};
+use crate::stop::{CreateError, DocumentRecord, records};
 
 pub(crate) const STOP_TIMES: &str = "/examples/stop-times";
 pub(crate) const STOP_TIME: &str = "/examples/stop-times/{id}";
@@ -56,7 +55,7 @@ pub struct CreateStopTimeRequest {
 pub(crate) async fn create_stop_time(
     Json(input): Json<CreateStopTimeRequest>,
 ) -> std::result::Result<Json<DocumentRecord<StopTime>>, CreateError> {
-    if open(COLLECTION).await?.insert(&input.id, &input.stop_time).await? == Err(Exists) {
+    if docstore::open(COLLECTION).await?.insert(&input.id, &input.stop_time).await? == Err(Exists) {
         return Err(CreateError::Exists { id: input.id });
     }
 
@@ -69,7 +68,7 @@ pub(crate) async fn create_stop_time(
 pub(crate) async fn get_stop_time(
     Path(id): Path<String>,
 ) -> Result<Json<DocumentRecord<StopTime>>> {
-    let stop_time = open(COLLECTION)
+    let stop_time = docstore::open(COLLECTION)
         .await?
         .get_as(&id)
         .await?
@@ -140,17 +139,13 @@ pub(crate) async fn list_stop_times(
 
     let filter = if filters.is_empty() { None } else { Some(Filter::and(filters)) };
 
-    let query = omnia_sdk::docstore::Query {
+    let query = docstore::Query {
         filter,
-        order_by: vec![SortField {
-            field: "stop_sequence".to_string(),
-            descending: false,
-        }],
+        order_by: vec![SortField::asc("stop_sequence")],
         limit: input.limit,
         after: input.continuation,
-        ..Default::default()
     };
-    let page = open(COLLECTION).await?.find(&query).await?;
+    let page = docstore::open(COLLECTION).await?.find(&query).await?;
 
     Ok(Json(StopTimesReply {
         stop_times: records(&page.documents)?,

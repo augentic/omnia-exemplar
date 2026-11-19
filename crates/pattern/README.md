@@ -8,7 +8,7 @@ each handler here composes several:
 | --- | --- | --- |
 | `decode` | `config` + `http` + `keyvalue` | `decode_segment` — decode-through-cache with a config-carried client certificate |
 | `cas` | `keyvalue` (`Bucket::compare_and_swap`) | `update_quota` — optimistic concurrency over `Bucket::compare_and_swap`, answering `409 Conflict` via `QuotaError` |
-| `identity` | `config` + `identity` + `http` | `fetch_upstream_status` — resolving an upstream identity via `IdentitySettings`, acquiring a bearer token via `credentials::open` and `Identity::access_token`, and forwarding `Authorization: Bearer <token>` |
+| `identity` | `config` + `identity` + `http` | `fetch_upstream_status` — resolving an upstream identity via `IdentitySettings`, acquiring a bearer token via `identity::open` and `Identity::access_token`, and forwarding `Authorization: Bearer <token>` |
 | `place` | `sql` | `upsert_place` — parameterized `INSERT … ON CONFLICT` upsert, rejecting bad coordinates with a structured JSON error body (`PlaceError`) |
 | `place` | `sql` + `FromRow` | `nearby_places` — bounding-box `SELECT` refined by haversine |
 
@@ -41,7 +41,7 @@ generic and no TLS-specific interface is needed.
 ## Optimistic concurrency (`Bucket::compare_and_swap`)
 
 `update_quota` (`PUT /examples/patterns/quotas/{tenant}` with an
-`UpdateQuotaRequest` body) reads the current record with `Bucket::get`,
+`UpdateQuotaRequest` body) reads the current record with `Bucket::read`,
 checks `expected_version`, and writes the next revision with
 `Bucket::compare_and_swap` against the bytes it read.
 When a concurrent writer modifies the entry (or the version does not match),
@@ -54,7 +54,7 @@ is refused with `400` before the store is read.
 
 `fetch_upstream_status` loads the identity name (`PATTERN_UPSTREAM_IDENTITY`)
 and base URL (`PATTERN_UPSTREAM_URL`) through `IdentitySettings`, calls
-`credentials::open(identity).await?.access_token()` to obtain the bearer
+`identity::open(&identity).await?.access_token()` to obtain the bearer
 token, and sends `Authorization: Bearer <token>` on the outbound
 `omnia_sdk::http::fetch_json` call, which answers a non-2xx upstream
 response with `502`.

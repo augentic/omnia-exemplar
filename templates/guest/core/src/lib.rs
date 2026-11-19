@@ -5,7 +5,7 @@
 //! routing need no host: `tests/routes.rs` and `tests/messaging.rs` build
 //! the production router natively.
 
-use omnia_sdk::api::{Handlers, Router, http, messaging};
+use omnia_sdk::{Handlers, Router, http, messaging};
 
 /// Build the guest router.
 ///

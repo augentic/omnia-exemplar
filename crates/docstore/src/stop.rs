@@ -11,11 +11,8 @@ use axum::extract::{Path, Query};
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use axum::routing::get;
-use omnia_sdk::api::Handlers;
-use omnia_sdk::docstore::collection::Collection;
-use omnia_sdk::docstore::types::Document;
-use omnia_sdk::docstore::{Exists, Filter, SortField, store};
-use omnia_sdk::{Result, bad_request, not_found};
+use omnia_sdk::docstore::{self, Document, Exists, Filter, SortField};
+use omnia_sdk::{Handlers, Result, bad_request, not_found};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 
@@ -27,12 +24,6 @@ pub(crate) fn handlers() -> Handlers {
     Handlers::new()
         .route(STOPS, get(list_stops).post(create_stop))
         .route(STOP, get(get_stop).put(upsert_stop).delete(delete_stop))
-}
-
-// An `omnia_sdk::Result`, so a handler answering a `CreateError` opens a
-// collection with `?` as well.
-pub(crate) async fn open(collection: &str) -> Result<Collection> {
-    Ok(store::open(collection.to_owned()).await?)
 }
 
 /// A stored document paired with its id, flattened onto the wire.
@@ -129,7 +120,7 @@ pub struct CreateStopRequest {
 pub(crate) async fn create_stop(
     Json(input): Json<CreateStopRequest>,
 ) -> std::result::Result<Json<DocumentRecord<Stop>>, CreateError> {
-    if open(COLLECTION).await?.insert(&input.id, &input.stop).await? == Err(Exists) {
+    if docstore::open(COLLECTION).await?.insert(&input.id, &input.stop).await? == Err(Exists) {
         return Err(CreateError::Exists { id: input.id });
     }
 
@@ -140,7 +131,7 @@ pub(crate) async fn create_stop(
 }
 
 pub(crate) async fn get_stop(Path(id): Path<String>) -> Result<Json<DocumentRecord<Stop>>> {
-    let stop = open(COLLECTION)
+    let stop = docstore::open(COLLECTION)
         .await?
         .get_as(&id)
         .await?
@@ -153,7 +144,7 @@ pub(crate) async fn get_stop(Path(id): Path<String>) -> Result<Json<DocumentReco
 pub(crate) async fn upsert_stop(
     Path(id): Path<String>, Json(stop): Json<Stop>,
 ) -> Result<Json<DocumentRecord<Stop>>> {
-    open(COLLECTION).await?.upsert(&id, &stop).await?;
+    docstore::open(COLLECTION).await?.upsert(&id, &stop).await?;
 
     Ok(Json(DocumentRecord { id, document: stop }))
 }
@@ -166,7 +157,7 @@ pub struct DeleteStopReply {
 }
 
 pub(crate) async fn delete_stop(Path(id): Path<String>) -> Result<Json<DeleteStopReply>> {
-    let removed = open(COLLECTION).await?.delete(id.clone(), None).await??;
+    let removed = docstore::open(COLLECTION).await?.remove(&id).await?;
     if !removed {
         return Err(not_found!("stop {id} not found"));
     }
@@ -254,17 +245,13 @@ pub(crate) async fn list_stops(Query(input): Query<ListStopsRequest>) -> Result<
 
     let filter = if filters.is_empty() { None } else { Some(Filter::and(filters)) };
 
-    let query = omnia_sdk::docstore::Query {
+    let query = docstore::Query {
         filter,
-        order_by: vec![SortField {
-            field: "stop_name".to_string(),
-            descending: false,
-        }],
+        order_by: vec![SortField::asc("stop_name")],
         limit: input.limit,
         after: input.continuation,
-        ..Default::default()
     };
-    let page = open(COLLECTION).await?.find(&query).await?;
+    let page = docstore::open(COLLECTION).await?.find(&query).await?;
 
     Ok(Json(StopsReply {
         stops: records(&page.documents)?,

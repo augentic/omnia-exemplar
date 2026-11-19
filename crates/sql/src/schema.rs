@@ -2,8 +2,7 @@
 //! statements.
 
 use omnia_sdk::Result;
-use omnia_sdk::sql::database::Database;
-use omnia_sdk::sql::{DEFAULT, store};
+use omnia_sdk::sql::{DEFAULT, Database};
 
 pub mod sql {
     pub const CREATE_AGENCY: &str = "CREATE TABLE IF NOT EXISTS agency (
@@ -26,7 +25,7 @@ pub mod sql {
 // request, so there is no process-lifetime initialisation hook. The
 // `IF NOT EXISTS` guard keeps the repeat cheap.
 pub async fn open() -> Result<Database> {
-    let db = store::open(DEFAULT.to_owned()).await?;
+    let db = omnia_sdk::sql::open(DEFAULT).await?;
     db.exec(sql::CREATE_AGENCY, &[]).await?;
     db.exec(sql::CREATE_FEED, &[]).await?;
     Ok(db)

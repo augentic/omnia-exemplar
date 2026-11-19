@@ -9,10 +9,8 @@ use axum::Json;
 use axum::extract::{Path, Query};
 use axum::routing::get;
 use chrono::Utc;
-use omnia_sdk::api::Handlers;
-use omnia_sdk::sql::database::Database;
-use omnia_sdk::sql::{FromRow, Row, Value};
-use omnia_sdk::{Result, bad_request, not_found};
+use omnia_sdk::sql::{Database, FromRow, Row, Value};
+use omnia_sdk::{Handlers, Result, bad_request, not_found};
 use serde::{Deserialize, Serialize};
 
 use crate::schema;

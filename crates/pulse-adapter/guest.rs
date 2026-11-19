@@ -2,7 +2,7 @@
 
 #![cfg(target_arch = "wasm32")]
 
-use omnia_sdk::api::{Router, http, messaging};
+use omnia_sdk::{Router, http, messaging};
 
 fn router() -> Router {
     pulse_adapter::handlers().into_router()

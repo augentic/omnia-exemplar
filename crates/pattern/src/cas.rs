@@ -6,17 +6,15 @@
 //! QuotaError>` and maps a swap's [`Conflict`] to [`StatusCode::CONFLICT`]
 //! in [`QuotaError`]'s [`IntoResponse`] implementation.
 //!
-//! [`Bucket::compare_and_swap`]: omnia_sdk::keyvalue::bucket::Bucket::compare_and_swap
+//! [`Bucket::compare_and_swap`]: omnia_sdk::keyvalue::Bucket::compare_and_swap
 
 use axum::Json;
 use axum::extract::Path;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use axum::routing::put;
-use omnia_sdk::api::Handlers;
-use omnia_sdk::keyvalue::types::{self, Conflict};
-use omnia_sdk::keyvalue::{self, store};
-use omnia_sdk::{bad_request, not_found, server_error};
+use omnia_sdk::keyvalue::{self, Conflict};
+use omnia_sdk::{Handlers, bad_request, not_found, server_error};
 use serde::{Deserialize, Serialize};
 
 use crate::state_keys;
@@ -69,12 +67,6 @@ impl From<anyhow::Error> for QuotaError {
     }
 }
 
-impl From<types::Error> for QuotaError {
-    fn from(error: types::Error) -> Self {
-        Self::Host(error.into())
-    }
-}
-
 // The conflict body is omnia's `ErrorBody` pair plus the domain fields; a
 // host failure is the framework envelope at its own status.
 impl IntoResponse for QuotaError {
@@ -106,8 +98,8 @@ pub(crate) async fn update_quota(
         );
     }
     let key = state_keys::quota(&tenant);
-    let state = store::open(keyvalue::DEFAULT.to_owned()).await?;
-    let current = state.get(key.clone()).await?.map(|entry| entry.value);
+    let state = keyvalue::open(keyvalue::DEFAULT).await?;
+    let current = state.read(&key).await?;
 
     let expected_bytes = match (&current, input.expected_version) {
         (None, 0) => None,

@@ -15,15 +15,15 @@
 //! - Existence checks answering 404, and referential checks rejecting a
 //!   feed for a missing agency
 //!
-//! [`Database`]: omnia_sdk::sql::database::Database
-//! [`Database::query_as`]: omnia_sdk::sql::database::Database::query_as
+//! [`Database`]: omnia_sdk::sql::Database
+//! [`Database::query_as`]: omnia_sdk::sql::Database::query_as
 //! [`FromRow`]: omnia_sdk::sql::FromRow
 
 pub mod agency;
 pub mod feed;
 mod schema;
 
-use omnia_sdk::api::Handlers;
+use omnia_sdk::Handlers;
 
 /// The stem's handlers, merged onto the root router.
 pub fn handlers() -> Handlers {

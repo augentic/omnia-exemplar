@@ -8,8 +8,7 @@ use axum::body::Bytes;
 use http::Method;
 use http::header::{CACHE_CONTROL, IF_NONE_MATCH};
 use omnia_http_cache::HttpCache;
-use omnia_sdk::keyvalue::{self, store};
-use omnia_sdk::{Result, Settings, bad_gateway};
+use omnia_sdk::{Result, Settings, bad_gateway, keyvalue};
 use serde::{Deserialize, Serialize};
 
 /// The settings the Fleet client reads.
@@ -35,7 +34,7 @@ pub(crate) async fn vehicle(vehicle_id: &str) -> Result<Option<Vehicle>> {
         .body(Bytes::new())
         .context("building train_by_label request")?;
 
-    let cache = HttpCache::new(store::open(keyvalue::DEFAULT.to_owned()).await?);
+    let cache = HttpCache::new(keyvalue::open(keyvalue::DEFAULT).await?);
     let response = cache.fetch(request).await.context("Fleet API request failed")?;
 
     if !response.status().is_success() {

@@ -5,9 +5,7 @@ use axum::body::Bytes;
 use http::Method;
 use http::header::{AUTHORIZATION, CACHE_CONTROL, IF_NONE_MATCH};
 use omnia_http_cache::HttpCache;
-use omnia_sdk::identity::credentials;
-use omnia_sdk::keyvalue::{self, store};
-use omnia_sdk::{Result, Settings, bad_gateway};
+use omnia_sdk::{Result, Settings, bad_gateway, identity, keyvalue};
 use serde::{Deserialize, Serialize};
 
 /// The settings the Block Management client reads.
@@ -26,10 +24,10 @@ pub(crate) async fn cached_allocation(
 ) -> Result<Option<BlockInstance>> {
     let BlockMgtSettings {
         block_mgt_url: url,
-        api_identity: identity,
+        api_identity,
     } = BlockMgtSettings::load().await?;
 
-    let token = credentials::open(identity).await?.access_token().await?;
+    let token = identity::open(&api_identity).await?.access_token().await?;
     let endpoint = format!(
         "{url}/allocations/vehicles/{vehicle_id}?currentTrip=true&siblings=true&nowUnixTimeSeconds={timestamp}"
     );
@@ -43,7 +41,7 @@ pub(crate) async fn cached_allocation(
         .header(AUTHORIZATION, format!("Bearer {token}"))
         .body(Bytes::new())
         .context("building block management request")?;
-    let cache = HttpCache::new(store::open(keyvalue::DEFAULT.to_owned()).await?);
+    let cache = HttpCache::new(keyvalue::open(keyvalue::DEFAULT).await?);
     let response = cache.fetch(request).await.context("fetching allocations")?;
 
     if !response.status().is_success() {

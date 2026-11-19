@@ -6,9 +6,8 @@ use std::time::Duration;
 use axum::Json;
 use axum::extract::Query;
 use axum::routing::get;
-use omnia_sdk::api::Handlers;
 use omnia_sdk::sql::{FromRow, Value};
-use omnia_sdk::{Result, keyvalue, sql};
+use omnia_sdk::{Handlers, Result, keyvalue, sql};
 use serde::{Deserialize, Serialize};
 
 // The paths the part serves.
@@ -51,7 +50,7 @@ pub(crate) async fn list_catalogue(
     Query(input): Query<ListCatalogue>,
 ) -> Result<Json<CatalogueReply>> {
     let min_cents = input.min_cents.unwrap_or(0);
-    let cache = keyvalue::store::open(keyvalue::DEFAULT.to_owned()).await?;
+    let cache = keyvalue::open(keyvalue::DEFAULT).await?;
 
     if min_cents == 0
         && let Some(items) = cache.get_json(CATALOGUE_KEY).await?
@@ -59,7 +58,7 @@ pub(crate) async fn list_catalogue(
         return Ok(Json(CatalogueReply { items }));
     }
 
-    let items: Vec<CatalogueItem> = sql::store::open(sql::DEFAULT.to_owned())
+    let items: Vec<CatalogueItem> = sql::open(sql::DEFAULT)
         .await?
         .query_as(
             "SELECT sku, cents, in_stock FROM catalogue WHERE cents >= $1 ORDER BY sku ASC",

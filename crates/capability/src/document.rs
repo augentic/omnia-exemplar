@@ -3,9 +3,7 @@
 use anyhow::Context as _;
 use axum::Json;
 use axum::routing::post;
-use omnia_sdk::Result;
-use omnia_sdk::api::Handlers;
-use omnia_sdk::docstore::store;
+use omnia_sdk::{Handlers, Result, docstore};
 use serde::{Deserialize, Serialize};
 
 pub(crate) const NOTE: &str = "/examples/note";
@@ -33,7 +31,7 @@ pub struct NoteReply {
 }
 
 pub(crate) async fn note(Json(input): Json<NoteRequest>) -> Result<Json<NoteReply>> {
-    let notes = store::open(input.store).await?;
+    let notes = docstore::open(&input.store).await?;
 
     notes.upsert(&input.id, &input.body).await?;
 

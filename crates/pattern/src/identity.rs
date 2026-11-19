@@ -2,11 +2,11 @@
 //!
 //! Deployment credentials and upstream identities are resolved at use: the
 //! identity name is a configuration setting loaded through
-//! [`IdentitySettings`] and opened with [`credentials::open`]. Its token is
+//! [`IdentitySettings`] and opened with [`identity::open`]. Its token is
 //! attached as an `Authorization: Bearer <token>` header on the outbound
 //! [`http::fetch_json`] call.
 //!
-//! [`Identity::access_token`]: omnia_sdk::identity::credentials::Identity::access_token
+//! [`Identity::access_token`]: omnia_sdk::identity::Identity::access_token
 
 use anyhow::Context as _;
 use axum::Json;
@@ -15,9 +15,7 @@ use axum::extract::Path;
 use axum::http::header::AUTHORIZATION;
 use axum::http::{Method, Request};
 use axum::routing::get;
-use omnia_sdk::api::Handlers;
-use omnia_sdk::identity::credentials;
-use omnia_sdk::{Result, Settings, http};
+use omnia_sdk::{Handlers, Result, Settings, http, identity};
 use serde::{Deserialize, Serialize};
 
 pub(crate) const UPSTREAM_STATUS: &str = "/examples/patterns/upstream/{resource}";
@@ -49,7 +47,7 @@ pub(crate) async fn fetch_upstream_status(
     Path(resource): Path<String>,
 ) -> Result<Json<UpstreamStatusReply>> {
     let settings = IdentitySettings::load().await?;
-    let token = credentials::open(settings.upstream_identity).await?.access_token().await?;
+    let token = identity::open(&settings.upstream_identity).await?.access_token().await?;
 
     let request = Request::builder()
         .method(Method::GET)

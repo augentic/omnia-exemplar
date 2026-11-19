@@ -8,12 +8,11 @@
 use axum::Json;
 use axum::extract::{Path, Query};
 use axum::routing::get;
-use omnia_sdk::api::Handlers;
-use omnia_sdk::docstore::{Exists, Filter, ScalarValue, SortField};
-use omnia_sdk::{Result, bad_request, not_found};
+use omnia_sdk::docstore::{self, Exists, Filter, ScalarValue, SortField};
+use omnia_sdk::{Handlers, Result, bad_request, not_found};
 use serde::{Deserialize, Serialize};
 
-use crate::stop::{CreateError, DocumentRecord, open, records};
+use crate::stop::{CreateError, DocumentRecord, records};
 
 pub(crate) const ROUTES: &str = "/examples/routes";
 pub(crate) const ROUTE: &str = "/examples/routes/{id}";
@@ -51,7 +50,7 @@ pub struct CreateRouteRequest {
 pub(crate) async fn create_route(
     Json(input): Json<CreateRouteRequest>,
 ) -> std::result::Result<Json<DocumentRecord<Route>>, CreateError> {
-    if open(COLLECTION).await?.insert(&input.id, &input.route).await? == Err(Exists) {
+    if docstore::open(COLLECTION).await?.insert(&input.id, &input.route).await? == Err(Exists) {
         return Err(CreateError::Exists { id: input.id });
     }
 
@@ -62,7 +61,7 @@ pub(crate) async fn create_route(
 }
 
 pub(crate) async fn get_route(Path(id): Path<String>) -> Result<Json<DocumentRecord<Route>>> {
-    let route = open(COLLECTION)
+    let route = docstore::open(COLLECTION)
         .await?
         .get_as(&id)
         .await?
@@ -145,17 +144,13 @@ pub(crate) async fn list_routes(
 
     let filter = if filters.is_empty() { None } else { Some(Filter::and(filters)) };
 
-    let query = omnia_sdk::docstore::Query {
+    let query = docstore::Query {
         filter,
-        order_by: vec![SortField {
-            field: "route_short_name".to_string(),
-            descending: false,
-        }],
+        order_by: vec![SortField::asc("route_short_name")],
         limit: input.limit,
         after: input.continuation,
-        ..Default::default()
     };
-    let page = open(COLLECTION).await?.find(&query).await?;
+    let page = docstore::open(COLLECTION).await?.find(&query).await?;
 
     Ok(Json(RoutesReply {
         routes: records(&page.documents)?,

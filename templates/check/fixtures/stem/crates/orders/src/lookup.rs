@@ -6,9 +6,7 @@ use axum::extract::Path;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use axum::routing::get;
-use omnia_sdk::api::Handlers;
-use omnia_sdk::keyvalue::{self, store, types};
-use omnia_sdk::not_found;
+use omnia_sdk::{Handlers, keyvalue, not_found};
 use serde::{Deserialize, Serialize};
 
 // The paths the part serves.
@@ -45,12 +43,6 @@ pub enum LookupError {
     Host(#[from] omnia_sdk::Error),
 }
 
-impl From<types::Error> for LookupError {
-    fn from(error: types::Error) -> Self {
-        Self::Host(error.into())
-    }
-}
-
 impl IntoResponse for LookupError {
     fn into_response(self) -> Response {
         match self {
@@ -71,7 +63,7 @@ impl IntoResponse for LookupError {
 pub(crate) async fn lookup(
     Path(id): Path<String>,
 ) -> Result<(StatusCode, Json<OrderStatus>), LookupError> {
-    let state = store::open(keyvalue::DEFAULT.to_owned()).await?;
+    let state = keyvalue::open(keyvalue::DEFAULT).await?;
     let status: OrderStatus = state
         .get_json(&order_key(&id))
         .await?
