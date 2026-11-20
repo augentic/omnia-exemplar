@@ -55,8 +55,6 @@ serde_json.workspace = true
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 tower.workspace = true
 
-# The fixture rung: `build.rs` compiles this package to a `wasm32-wasip3`
-# component for `tests/component.rs`. `build` is `std`-only by contract.
 [build-dependencies]
 omnia-test = { workspace = true, features = ["build"] }
 
@@ -165,35 +163,35 @@ sql = { path = "crates/sql" }
 tally-connector = { path = "crates/tally-connector" }
 
 [patch.crates-io]
-# omnia = { git = "https://github.com/augentic/omnia" }
-# omnia-sdk = { git = "https://github.com/augentic/omnia" }
-# omnia-test = { git = "https://github.com/augentic/omnia" }
-# omnia-wasi-blobstore = { git = "https://github.com/augentic/omnia" }
-# omnia-wasi-config = { git = "https://github.com/augentic/omnia" }
-# omnia-wasi-docstore = { git = "https://github.com/augentic/omnia" }
-# omnia-wasi-http = { git = "https://github.com/augentic/omnia" }
-# omnia-wasi-identity = { git = "https://github.com/augentic/omnia" }
-# omnia-wasi-keyvalue = { git = "https://github.com/augentic/omnia" }
-# omnia-wasi-messaging = { git = "https://github.com/augentic/omnia" }
-# omnia-wasi-otel = { git = "https://github.com/augentic/omnia" }
-# omnia-wasi-sql = { git = "https://github.com/augentic/omnia" }
-# omnia-wasi-websocket = { git = "https://github.com/augentic/omnia" }
-# omnia-http-cache = { git = "https://github.com/augentic/omnia-ext" }
+omnia = { git = "https://github.com/augentic/omnia" }
+omnia-sdk = { git = "https://github.com/augentic/omnia" }
+omnia-test = { git = "https://github.com/augentic/omnia" }
+omnia-wasi-blobstore = { git = "https://github.com/augentic/omnia" }
+omnia-wasi-config = { git = "https://github.com/augentic/omnia" }
+omnia-wasi-docstore = { git = "https://github.com/augentic/omnia" }
+omnia-wasi-http = { git = "https://github.com/augentic/omnia" }
+omnia-wasi-identity = { git = "https://github.com/augentic/omnia" }
+omnia-wasi-keyvalue = { git = "https://github.com/augentic/omnia" }
+omnia-wasi-messaging = { git = "https://github.com/augentic/omnia" }
+omnia-wasi-otel = { git = "https://github.com/augentic/omnia" }
+omnia-wasi-sql = { git = "https://github.com/augentic/omnia" }
+omnia-wasi-websocket = { git = "https://github.com/augentic/omnia" }
+omnia-http-cache = { git = "https://github.com/augentic/omnia-ext" }
 
-omnia = { path = "../omnia/crates/omnia" }
-omnia-sdk = { path = "../omnia/crates/sdk" }
-omnia-test = { path = "../omnia/crates/test" }
-omnia-wasi-blobstore = { path = "../omnia/crates/wasi-blobstore" }
-omnia-wasi-config = { path = "../omnia/crates/wasi-config" }
-omnia-wasi-docstore = { path = "../omnia/crates/wasi-docstore" }
-omnia-wasi-http = { path = "../omnia/crates/wasi-http" }
-omnia-wasi-identity = { path = "../omnia/crates/wasi-identity" }
-omnia-wasi-keyvalue = { path = "../omnia/crates/wasi-keyvalue" }
-omnia-wasi-messaging = { path = "../omnia/crates/wasi-messaging" }
-omnia-wasi-otel = { path = "../omnia/crates/wasi-otel" }
-omnia-wasi-sql = { path = "../omnia/crates/wasi-sql" }
-omnia-wasi-websocket = { path = "../omnia/crates/wasi-websocket" }
-omnia-http-cache = { path = "../omnia-ext/crates/http-cache" }
+# omnia = { path = "../omnia/crates/omnia" }
+# omnia-sdk = { path = "../omnia/crates/sdk" }
+# omnia-test = { path = "../omnia/crates/test" }
+# omnia-wasi-blobstore = { path = "../omnia/crates/wasi-blobstore" }
+# omnia-wasi-config = { path = "../omnia/crates/wasi-config" }
+# omnia-wasi-docstore = { path = "../omnia/crates/wasi-docstore" }
+# omnia-wasi-http = { path = "../omnia/crates/wasi-http" }
+# omnia-wasi-identity = { path = "../omnia/crates/wasi-identity" }
+# omnia-wasi-keyvalue = { path = "../omnia/crates/wasi-keyvalue" }
+# omnia-wasi-messaging = { path = "../omnia/crates/wasi-messaging" }
+# omnia-wasi-otel = { path = "../omnia/crates/wasi-otel" }
+# omnia-wasi-sql = { path = "../omnia/crates/wasi-sql" }
+# omnia-wasi-websocket = { path = "../omnia/crates/wasi-websocket" }
+# omnia-http-cache = { path = "../omnia-ext/crates/http-cache" }
 
 [profile.release]
 lto = true
