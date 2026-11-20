@@ -1378,7 +1378,6 @@ dependencies = [
  "common",
  "http",
  "omnia",
- "omnia-http-cache",
  "omnia-sdk",
  "omnia-test",
  "omnia-wasi-config",
@@ -2319,21 +2318,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 3.0.10",
-]
-
-[[package]]
-name = "omnia-http-cache"
-version = "0.36.0"
-source = "git+https://github.com/augentic/omnia-ext#e94e182c94a97a7ec449d6f62cbdd4193c1d8615"
-dependencies = [
- "anyhow",
- "bytes",
- "http",
- "omnia-sdk",
- "serde",
- "serde_json",
- "sha2 0.11.1",
- "tracing",
 ]
 
 [[package]]

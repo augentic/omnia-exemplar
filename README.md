@@ -42,8 +42,7 @@ change only (see the omnia
 The omnia crates are crates.io dependencies (currently 0.38.0) declared once
 under `[workspace.dependencies]` in `Cargo.toml`; every `omnia-*` line moves
 together. Outbound HTTP caching is opt-in per call site through
-`omnia_sdk::http::cache`, behind the `omnia-sdk` feature `http-cache` the
-workspace pin enables. It is a fetch decorator that stores responses in a
+`omnia_sdk::http::cache`, a fetch decorator that stores responses in a
 key-value bucket the call site opens (see `crates/gtfs-adapter`).
 
 ## Quick start
