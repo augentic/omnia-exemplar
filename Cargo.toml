@@ -136,7 +136,7 @@ urlencoding = "2.1.3"
 uuid = { version = "1.29.3", features = ["serde", "v4"] }
 
 omnia = "0.38.0"
-omnia-sdk = "0.38.0"
+omnia-sdk = { version = "0.38.0", features = ["http-cache"] }
 omnia-test = "0.38.0"
 omnia-wasi-blobstore = "0.38.0"
 omnia-wasi-config = "0.38.0"
@@ -148,8 +148,6 @@ omnia-wasi-messaging = "0.38.0"
 omnia-wasi-otel = "0.38.0"
 omnia-wasi-sql = "0.38.0"
 omnia-wasi-websocket = "0.38.0"
-
-omnia-http-cache = "0.36.0"
 
 capability = { path = "crates/capability" }
 common = { path = "crates/common" }
@@ -176,7 +174,6 @@ omnia-wasi-messaging = { git = "https://github.com/augentic/omnia" }
 omnia-wasi-otel = { git = "https://github.com/augentic/omnia" }
 omnia-wasi-sql = { git = "https://github.com/augentic/omnia" }
 omnia-wasi-websocket = { git = "https://github.com/augentic/omnia" }
-omnia-http-cache = { git = "https://github.com/augentic/omnia-ext" }
 
 # omnia = { path = "../omnia/crates/omnia" }
 # omnia-sdk = { path = "../omnia/crates/sdk" }
@@ -191,7 +188,6 @@ omnia-http-cache = { git = "https://github.com/augentic/omnia-ext" }
 # omnia-wasi-otel = { path = "../omnia/crates/wasi-otel" }
 # omnia-wasi-sql = { path = "../omnia/crates/wasi-sql" }
 # omnia-wasi-websocket = { path = "../omnia/crates/wasi-websocket" }
-# omnia-http-cache = { path = "../omnia-ext/crates/http-cache" }
 
 [profile.release]
 lto = true

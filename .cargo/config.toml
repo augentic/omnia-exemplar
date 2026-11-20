@@ -1,0 +1,14 @@
+[patch.crates-io]
+omnia = { path = "/Users/andrewweston/github.com/augentic/omnia/crates/omnia" }
+omnia-sdk = { path = "/Users/andrewweston/github.com/augentic/omnia/crates/sdk" }
+omnia-test = { path = "/Users/andrewweston/github.com/augentic/omnia/crates/test" }
+omnia-wasi-blobstore = { path = "/Users/andrewweston/github.com/augentic/omnia/crates/wasi-blobstore" }
+omnia-wasi-config = { path = "/Users/andrewweston/github.com/augentic/omnia/crates/wasi-config" }
+omnia-wasi-docstore = { path = "/Users/andrewweston/github.com/augentic/omnia/crates/wasi-docstore" }
+omnia-wasi-http = { path = "/Users/andrewweston/github.com/augentic/omnia/crates/wasi-http" }
+omnia-wasi-identity = { path = "/Users/andrewweston/github.com/augentic/omnia/crates/wasi-identity" }
+omnia-wasi-keyvalue = { path = "/Users/andrewweston/github.com/augentic/omnia/crates/wasi-keyvalue" }
+omnia-wasi-messaging = { path = "/Users/andrewweston/github.com/augentic/omnia/crates/wasi-messaging" }
+omnia-wasi-otel = { path = "/Users/andrewweston/github.com/augentic/omnia/crates/wasi-otel" }
+omnia-wasi-sql = { path = "/Users/andrewweston/github.com/augentic/omnia/crates/wasi-sql" }
+omnia-wasi-websocket = { path = "/Users/andrewweston/github.com/augentic/omnia/crates/wasi-websocket" }

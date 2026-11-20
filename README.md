@@ -42,10 +42,9 @@ change only (see the omnia
 The omnia crates are crates.io dependencies (currently 0.38.0) declared once
 under `[workspace.dependencies]` in `Cargo.toml`; every `omnia-*` line moves
 together. Outbound HTTP caching is opt-in per call site through
-`omnia-http-cache` (from
-[omnia-ext](https://github.com/augentic/omnia-ext), 0.36.0), a fetch
-decorator that stores responses in a key-value bucket the call site opens
-(see `crates/gtfs-adapter`).
+`omnia_sdk::http::cache`, behind the `omnia-sdk` feature `http-cache` the
+workspace pin enables. It is a fetch decorator that stores responses in a
+key-value bucket the call site opens (see `crates/gtfs-adapter`).
 
 ## Quick start
 
@@ -184,9 +183,9 @@ module per interface (`config`, `http`, `identity`, `keyvalue`, and
 `messaging` in the pipeline; `blobstore`, `docstore`, `sql`, and
 `websocket` in the showcases). A handler is therefore code that runs only
 inside the guest, and each stem's suites drive it through that stem's
-compiled component. `omnia-http-cache` wraps a key-value bucket the call
-site opens (`HttpCache::new(bucket)`), so `gtfs-adapter`'s cached clients
-stay plain functions.
+compiled component. `omnia_sdk::http::cache` wraps a key-value bucket the
+call site opens (`HttpCache::new(bucket)`), so `gtfs-adapter`'s cached
+clients stay plain functions.
 
 ## Adding a new handler
 
@@ -479,9 +478,8 @@ the `host` feature — and the suite's
 scaffold test renders the manifest and lints, tests, and builds the
 result against the same published omnia the exemplar uses. To move to a
 new omnia release, bump every `omnia-*` line in `[workspace.dependencies]`
-together (and the omnia-ext crates to their matching release),
-re-resolve `Cargo.lock`, and bump the seed's pins, which the gate holds
-equal to the workspace's.
+together, re-resolve `Cargo.lock`, and bump the seed's pins, which the gate
+holds equal to the workspace's.
 
 ## Development
 
@@ -524,8 +522,6 @@ workspace lints, `cargo vet` supply-chain audits (`supply-chain/`), and CI as
 thin wrappers over the reusable workflows in `augentic/toolkit`, pinned to a
 release tag.
 
-Dependency on omnia is strictly one-way: the omnia crates and
-`omnia-http-cache` (from
-[omnia-ext](https://github.com/augentic/omnia-ext)) are
-published crates.io dependencies declared once under `[workspace.dependencies]`
-and bumped together.
+Dependency on omnia is strictly one-way: the omnia crates are published
+crates.io dependencies declared once under `[workspace.dependencies]` and
+bumped together.
