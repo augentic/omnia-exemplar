@@ -8,29 +8,29 @@ doc-valid-idents = [
   "WebSockets",
 ]
 
-# The host boundary. A guest reaches the world through its provider's
-# capabilities alone, and the host owns the process, the clock, the file
-# system, the network, and the environment. Each entry names the capability
-# to reach instead; the workspace forbids these lints, so a crate cannot
-# lift them and the repair is that capability. The `tokio` entries hold
-# whatever features a crate enables, so they are admitted unresolved.
+# The host boundary. A guest reaches the world through the interfaces
+# `omnia-sdk` binds alone, and the host owns the process, the clock, the file
+# system, the network, and the environment. Each entry names the interface to
+# reach instead; the workspace forbids these lints, so a crate cannot lift
+# them and the repair is that interface. The `tokio` entries hold whatever
+# features a crate enables, so they are admitted unresolved.
 disallowed-methods = [
-  { path = "std::env::var", reason = "a setting is read through `Config::get` at use, under a key the crate declares" },
-  { path = "std::env::var_os", reason = "a setting is read through `Config::get` at use, under a key the crate declares" },
-  { path = "std::env::vars", reason = "a setting is read through `Config::get` at use, under a key the crate declares" },
+  { path = "std::env::var", reason = "a setting is read through `config::require` at use, under a key the crate declares" },
+  { path = "std::env::var_os", reason = "a setting is read through `config::require` at use, under a key the crate declares" },
+  { path = "std::env::vars", reason = "a setting is read through `config::require` at use, under a key the crate declares" },
   { path = "std::env::args", reason = "a guest takes no arguments; its input arrives on a route or a topic" },
   { path = "std::env::args_os", reason = "a guest takes no arguments; its input arrives on a route or a topic" },
-  { path = "std::env::current_dir", reason = "a guest has no working directory; a file is a blob through `BlobStore` or a document through `DocumentDb`" },
-  { path = "std::env::set_current_dir", reason = "a guest has no working directory; a file is a blob through `BlobStore` or a document through `DocumentDb`" },
+  { path = "std::env::current_dir", reason = "a guest has no working directory; a file is a `blobstore` object or a `docstore` document" },
+  { path = "std::env::set_current_dir", reason = "a guest has no working directory; a file is a `blobstore` object or a `docstore` document" },
   { path = "std::env::current_exe", reason = "a guest has no host executable path" },
-  { path = "std::env::temp_dir", reason = "scratch state that outlives a call is a `StateStore` entry with a TTL" },
-  { path = "std::path::absolute", reason = "a guest has no working directory; a file is a blob through `BlobStore` or a document through `DocumentDb`" },
-  { path = "std::fs::read", reason = "a file is a blob through `BlobStore` or a document through `DocumentDb`" },
-  { path = "std::fs::read_to_string", reason = "a file is a blob through `BlobStore` or a document through `DocumentDb`" },
-  { path = "std::fs::write", reason = "a file is a blob through `BlobStore` or a document through `DocumentDb`" },
-  { path = "std::fs::remove_file", reason = "a file is a blob through `BlobStore` or a document through `DocumentDb`" },
-  { path = "std::fs::create_dir_all", reason = "a file is a blob through `BlobStore` or a document through `DocumentDb`" },
-  { path = "std::fs::read_dir", reason = "a file is a blob through `BlobStore` or a document through `DocumentDb`" },
+  { path = "std::env::temp_dir", reason = "scratch state that outlives a call is a `keyvalue` entry with a TTL" },
+  { path = "std::path::absolute", reason = "a guest has no working directory; a file is a `blobstore` object or a `docstore` document" },
+  { path = "std::fs::read", reason = "a file is a `blobstore` object or a `docstore` document" },
+  { path = "std::fs::read_to_string", reason = "a file is a `blobstore` object or a `docstore` document" },
+  { path = "std::fs::write", reason = "a file is a `blobstore` object or a `docstore` document" },
+  { path = "std::fs::remove_file", reason = "a file is a `blobstore` object or a `docstore` document" },
+  { path = "std::fs::create_dir_all", reason = "a file is a `blobstore` object or a `docstore` document" },
+  { path = "std::fs::read_dir", reason = "a file is a `blobstore` object or a `docstore` document" },
   { path = "std::thread::spawn", reason = "the host drives every handler; nothing runs beside one" },
   { path = "std::thread::scope", reason = "the host drives every handler; nothing runs beside one" },
   { path = "std::thread::sleep", reason = "the host owns the clock; a retry is one more attempt, never a wait" },
@@ -43,7 +43,7 @@ disallowed-methods = [
   { path = "std::time::Instant::elapsed", reason = "a duration is the difference of two `chrono::Utc::now()` readings; the host owns every deadline" },
   { path = "std::process::exit", reason = "a handler answers an error; the host owns the process" },
   { path = "std::process::abort", reason = "a handler answers an error; the host owns the process" },
-  { path = "std::net::ToSocketAddrs::to_socket_addrs", reason = "an upstream is reached through `HttpClient::fetch`" },
+  { path = "std::net::ToSocketAddrs::to_socket_addrs", reason = "an upstream is reached through `http::fetch`" },
   { path = "tokio::spawn", reason = "the host drives every handler; nothing runs beside one", allow-invalid = true },
   { path = "tokio::task::spawn", reason = "the host drives every handler; nothing runs beside one", allow-invalid = true },
   { path = "tokio::task::spawn_blocking", reason = "the host drives every handler; nothing runs beside one", allow-invalid = true },
@@ -53,14 +53,14 @@ disallowed-methods = [
 ]
 
 disallowed-types = [
-  { path = "std::fs::File", reason = "a file is a blob through `BlobStore` or a document through `DocumentDb`" },
-  { path = "std::fs::OpenOptions", reason = "a file is a blob through `BlobStore` or a document through `DocumentDb`" },
+  { path = "std::fs::File", reason = "a file is a `blobstore` object or a `docstore` document" },
+  { path = "std::fs::OpenOptions", reason = "a file is a `blobstore` object or a `docstore` document" },
   { path = "std::net::TcpListener", reason = "the host listens; a guest serves routes" },
-  { path = "std::net::TcpStream", reason = "an upstream is reached through `HttpClient::fetch`" },
-  { path = "std::net::UdpSocket", reason = "an upstream is reached through `HttpClient::fetch`" },
+  { path = "std::net::TcpStream", reason = "an upstream is reached through `http::fetch`" },
+  { path = "std::net::UdpSocket", reason = "an upstream is reached through `http::fetch`" },
   { path = "std::process::Command", reason = "a guest runs no process" },
   { path = "std::thread::Builder", reason = "the host drives every handler; nothing runs beside one" },
-  { path = "std::sync::OnceLock", reason = "a guest keeps nothing across calls; `StateStore` holds what outlives one" },
-  { path = "std::sync::LazyLock", reason = "a guest keeps nothing across calls; `StateStore` holds what outlives one" },
-  { path = "std::sync::Once", reason = "a guest keeps nothing across calls; `StateStore` holds what outlives one" },
+  { path = "std::sync::OnceLock", reason = "a guest keeps nothing across calls; a `keyvalue` bucket holds what outlives one" },
+  { path = "std::sync::LazyLock", reason = "a guest keeps nothing across calls; a `keyvalue` bucket holds what outlives one" },
+  { path = "std::sync::Once", reason = "a guest keeps nothing across calls; a `keyvalue` bucket holds what outlives one" },
 ]

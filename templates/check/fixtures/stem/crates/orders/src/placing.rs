@@ -3,9 +3,8 @@
 use axum::Json;
 use axum::routing::post;
 use common::topic;
-use omnia_sdk::api::{Context, Handlers};
-use omnia_sdk::messaging::Message;
-use omnia_sdk::{Config, Publisher, Result, Settings, StateStore, bad_request};
+use omnia_sdk::messaging::{self, Message};
+use omnia_sdk::{Context, Handlers, Result, Settings, bad_request, keyvalue};
 use serde::{Deserialize, Serialize};
 
 // The paths the part serves.
@@ -14,7 +13,7 @@ pub(crate) const ORDERS: &str = "/orders";
 // The state key of the running count of lines placed.
 pub(crate) const LINES_PLACED: &str = "orders.lines-placed";
 
-pub(crate) fn handlers<P: crate::Requires>() -> Handlers<P> {
+pub(crate) fn handlers() -> Handlers {
     Handlers::new().route(ORDERS, post(place)).topic(topic::ORDER_PLACED, on_placed)
 }
 
@@ -39,13 +38,8 @@ pub struct Placed {
     pub lines: usize,
 }
 
-pub(crate) async fn place<P>(
-    context: Context<P>, Json(input): Json<PlaceOrder>,
-) -> Result<Json<Placed>>
-where
-    P: Config + Publisher,
-{
-    let settings = PlacingSettings::load(context.config()).await?;
+pub(crate) async fn place(Json(input): Json<PlaceOrder>) -> Result<Json<Placed>> {
+    let settings = PlacingSettings::load().await?;
     if input.lines.is_empty() {
         return Err(bad_request!("an order holds at least one line"));
     }
@@ -56,16 +50,15 @@ where
     let placed = Placed {
         lines: input.lines.len(),
     };
-    context.publisher().publish(topic::ORDER_PLACED, &Message::json(&placed)?).await?;
+    let client = messaging::connect(messaging::DEFAULT).await?;
+    client.send(topic::ORDER_PLACED, Message::json(&placed)?).await?;
     Ok(Json(placed))
 }
 
-pub(crate) async fn on_placed<P>(context: Context<P>, input: Placed) -> Result<()>
-where
-    P: StateStore,
-{
+pub(crate) async fn on_placed(_: Context, input: Placed) -> Result<()> {
     let delta = i64::try_from(input.lines).map_err(|error| bad_request!("{error}"))?;
-    let total = context.state().increment(LINES_PLACED, delta, None).await?;
+    let state = keyvalue::open(keyvalue::DEFAULT).await?;
+    let total = state.increment(LINES_PLACED.to_owned(), delta, None).await?;
     tracing::info!(lines = input.lines, total, "order placed");
     Ok(())
 }

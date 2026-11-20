@@ -22,11 +22,12 @@ key catalog. A vehicle id that is not a portable key segment is refused with
 
 ## Tests
 
-- `tests/static.rs` — captured Kafka fixtures (`data/`) replayed through the
-  operations against `omnia_test::guest::Provider` doubles (`tests/support/`
-  seeds the provider and declares the exact upstream URLs each test seeds
-  on `MatchedHttp`), covering vehicle positions, dead reckoning, sign-on, tag
-  filtering, occupancy status, and vehicle info.
+- `tests/static.rs` — captured Kafka fixtures (`data/`) delivered to the
+  stem's component (`guest.rs`, compiled by `build.rs`) over
+  `omnia_test::host` backends. `tests/support/` seeds the configuration and
+  state, and declares the exact upstream URLs each test seeds on
+  `MatchedHttp`. The scenarios cover vehicle positions, dead reckoning,
+  sign-on, tag filtering, occupancy status, and vehicle info.
 - `tests/god_mode.rs` — the feature-gated override: refused when disabled,
   and, when enabled, applied to the next sign-on (run with
-  `--features god-mode`).
+  `--features god-mode`, which `build.rs` passes on to the guest).

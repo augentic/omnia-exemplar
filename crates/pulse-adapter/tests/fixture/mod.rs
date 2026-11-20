@@ -1,20 +1,30 @@
 //! Captured Pulse cases from `data/`: the inbound XML, the outbound HTTP the
-//! adapter made, and the events or error it produced — loaded into doubles.
+//! adapter made, and the events or error it produced, loaded into the
+//! backends a run boots the stem's component over.
 //!
 //! Timestamps in a captured message are relative to the capture; `delay`
 //! re-anchors them to now so the adapter's freshness window still applies.
 //!
-//! The request matcher that once lived here is `omnia_test::guest::MatchedHttp`
-//! now; `Fetch` is only its serialised form. `TestDef` and `Case` stay local
-//! because the capture format is this service's, not omnia's, and
-//! `augentic/test` is retired for this repository.
+//! `Fetch` is the serialised form of a `MatchedHttp` route. `TestDef` and
+//! `Case` are local because the capture format is this service's, not
+//! omnia's.
 
 use std::path::Path;
 
 use bytes::Bytes;
 use chrono::{Duration, Timelike, Utc};
+use common::topic;
 use http::{Method, Response};
-use omnia_test::guest::{FixedIdentity, MapConfig, MatchedHttp, Provider};
+use omnia::{Provides, Runtime};
+use omnia_test::host::{
+    self, Backends, Deployment, FixedIdentity, HandleError, MatchedHttp, Sink, precompiled,
+};
+use omnia_wasi_config::WasiConfig;
+use omnia_wasi_http::WasiHttp;
+use omnia_wasi_identity::WasiIdentity;
+use omnia_wasi_keyvalue::WasiKeyValue;
+use omnia_wasi_messaging::WasiMessaging;
+use omnia_wasi_otel::WasiOtel;
 use pulse_adapter::handler::PulseMessage;
 use pulse_adapter::motion::MotionEvent;
 use pulse_adapter::pulse::TIMEZONE;
@@ -22,6 +32,8 @@ use quick_xml::events::{BytesText, Event};
 use quick_xml::{Reader, Writer};
 use serde::Deserialize;
 use serde_json::Value;
+
+include!(concat!(env!("OUT_DIR"), "/gen.rs"));
 
 /// Every outbound URL in a fixture is relative to this base; both APIs the
 /// adapter calls are seeded to it.
@@ -87,17 +99,41 @@ pub enum Expected {
     Failure(omnia_sdk::Error),
 }
 
-/// A fixture ready to drive: the re-anchored input XML and a seeded provider.
+/// A fixture ready to drive: the re-anchored input XML and the backends a
+/// run boots over.
 pub struct Case {
     /// The XML payload to deliver on the Pulse topic.
     pub input: Vec<u8>,
-    /// Doubles seeded with the fixture's HTTP answers.
-    pub provider: Provider,
+    /// The default backends with the adapter's configuration, whose stores
+    /// every run shares.
+    pub backends: Backends,
+    /// The fixture's HTTP answers, recording every request a run sends.
+    pub http: MatchedHttp,
+    /// Every message a run publishes.
+    pub sink: Sink,
     /// The captured outcome, if the fixture records one.
     pub expected: Option<Expected>,
 }
 
 impl Case {
+    /// Delivers the input on the Pulse topic to a freshly booted component.
+    ///
+    /// # Errors
+    ///
+    /// Returns how the component settled a delivery it did not handle.
+    pub async fn run(&self) -> Result<(), HandleError> {
+        let backends = self
+            .backends
+            .clone()
+            .http(self.http.clone())
+            .identity(FixedIdentity::new("test-token"))
+            .messaging(self.sink.clone());
+        let runtime = boot(backends).await;
+        let settled = host::deliver(&runtime, topic::PULSE, self.input.clone()).await;
+        runtime.shutdown();
+        settled
+    }
+
     /// Every Motion event the handler published, in publish order.
     ///
     /// # Panics
@@ -105,15 +141,39 @@ impl Case {
     /// Panics when a published payload is not a Motion event.
     #[must_use]
     pub fn events(&self) -> Vec<MotionEvent> {
-        self.provider
-            .publisher
+        self.sink
             .sent()
             .iter()
-            .map(|(_, message)| {
+            .map(|message| {
                 serde_json::from_slice(&message.payload).expect("published payload is an event")
             })
             .collect()
     }
+}
+
+async fn boot<B>(backends: B) -> Runtime<B>
+where
+    B: Provides<WasiConfig>
+        + Provides<WasiHttp>
+        + Provides<WasiIdentity>
+        + Provides<WasiKeyValue>
+        + Provides<WasiMessaging>
+        + Provides<WasiOtel>,
+{
+    let guest = precompiled(PULSE_ADAPTER_GUEST).expect("guest precompiles");
+    Deployment::new()
+        .guest("pulse-adapter", guest)
+        .boot(backends, |deployment| {
+            deployment.host::<WasiConfig>()?;
+            deployment.host::<WasiHttp>()?;
+            deployment.host::<WasiIdentity>()?;
+            deployment.host::<WasiKeyValue>()?;
+            deployment.host::<WasiMessaging>()?;
+            deployment.host::<WasiOtel>()?;
+            Ok(())
+        })
+        .await
+        .expect("runtime boots")
 }
 
 /// Read and prepare the fixture at `path`.
@@ -125,10 +185,10 @@ impl Case {
     clippy::disallowed_types,
     reason = "integration test helper reads captured JSON fixtures from disk"
 )]
-pub fn load(path: impl AsRef<Path>) -> Case {
+pub async fn load(path: impl AsRef<Path>) -> Case {
     let file = std::fs::File::open(path.as_ref()).expect("should open fixture");
     let def: TestDef = serde_json::from_reader(file).expect("should deserialize fixture");
-    prepare(def)
+    prepare(def).await
 }
 
 /// Prepare an already-deserialised fixture.
@@ -136,8 +196,7 @@ pub fn load(path: impl AsRef<Path>) -> Case {
 /// # Panics
 ///
 /// Panics when the fixture has no input or the input is not a Pulse message.
-#[must_use]
-pub fn prepare(def: TestDef) -> Case {
+pub async fn prepare(def: TestDef) -> Case {
     let xml = def.input.expect("fixture has an input");
     let input = match def.params {
         Some(params) => shift_time(&xml, params.delay),
@@ -154,30 +213,43 @@ pub fn prepare(def: TestDef) -> Case {
         http.on(method, format!("{BASE_URL}{}{query}", fetch.path), response)
     });
 
-    let provider = Provider::default()
-        .config(MapConfig::default().with([
-            ("STATIC_API_URL", BASE_URL),
-            ("BLOCK_MGT_URL", BASE_URL),
-            ("API_IDENTITY", "block-mgt"),
-        ]))
-        .http(http)
-        .identity(FixedIdentity::new("test-token"));
+    let backends = Backends::defaults().await.config([
+        ("STATIC_API_URL", BASE_URL),
+        ("BLOCK_MGT_URL", BASE_URL),
+        ("API_IDENTITY", "block-mgt"),
+    ]);
 
     Case {
         input,
-        provider,
+        backends,
+        http,
+        sink: Sink::default(),
         expected: def.output,
     }
 }
 
-/// Whether `error` matches `expected`, with a few seconds' slack when the
-/// description embeds a freshness delay computed from `Utc::now()`.
-pub fn delivery_error_matches(expected: &omnia_sdk::Error, error: &omnia_sdk::Error) -> bool {
-    if error.code() != expected.code() {
+/// Whether the component settled a delivery the way `expected` says, with a
+/// few seconds' slack when the description embeds a freshness delay
+/// computed from `Utc::now()`.
+///
+/// A bad request is rejected and any other failure released, each with the
+/// guest error's `code: …, description: …` text as its reason.
+pub fn delivery_error_matches(expected: &omnia_sdk::Error, error: &HandleError) -> bool {
+    let rejects = matches!(expected, omnia_sdk::Error::BadRequest { .. });
+    let reason = match error {
+        HandleError::Rejected(reason) if rejects => reason,
+        HandleError::Released { reason, .. } if !rejects => reason,
+        _ => return false,
+    };
+    let Some((code, actual)) =
+        reason.strip_prefix("code: ").and_then(|rest| rest.split_once(", description: "))
+    else {
+        return false;
+    };
+    if code != expected.code() {
         return false;
     }
     let desc = expected.description();
-    let actual = error.description();
     delay_seconds(desc).map_or_else(
         || actual.contains(desc),
         |expected_secs| delay_seconds(actual).is_some_and(|secs| (secs - expected_secs).abs() <= 3),

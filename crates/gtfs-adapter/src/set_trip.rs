@@ -4,15 +4,14 @@ use anyhow::Context as _;
 use axum::Json;
 use axum::extract::Path;
 use axum::routing::post;
-use omnia_sdk::api::{Context, Handlers};
-use omnia_sdk::{Config, Result, StateStore, bad_request};
+use omnia_sdk::{Handlers, Result, bad_request};
 use serde::{Deserialize, Serialize};
 
 use crate::god_mode;
 
 pub(crate) const SET_TRIP: &str = "/god-mode/set-trip/{vehicle_id}/{trip_id}";
 
-pub(crate) fn handlers<P: crate::Requires>() -> Handlers<P> {
+pub(crate) fn handlers() -> Handlers {
     Handlers::new().route(SET_TRIP, post(set_trip))
 }
 
@@ -35,19 +34,12 @@ pub struct SetTripReply {
     pub process: u32,
 }
 
-pub(crate) async fn set_trip<P>(
-    context: Context<P>, Path(input): Path<SetTripRequest>,
-) -> Result<Json<SetTripReply>>
-where
-    P: Config + StateStore,
-{
-    let provider = context.provider();
-
-    if !god_mode::is_enabled(provider).await? {
+pub(crate) async fn set_trip(Path(input): Path<SetTripRequest>) -> Result<Json<SetTripReply>> {
+    if !god_mode::is_enabled().await? {
         return Err(bad_request!("God mode not enabled"));
     }
 
-    god_mode::set_vehicle_to_trip(provider, input.vehicle_id, input.trip_id)
+    god_mode::set_vehicle_to_trip(input.vehicle_id, input.trip_id)
         .await
         .context("setting vehicle to trip")?;
     Ok(Json(SetTripReply {

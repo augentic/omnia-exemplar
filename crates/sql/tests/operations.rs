@@ -1,27 +1,34 @@
 //! Integration tests for the agency and feed SQL handlers, driven through
-//! the stem's router.
+//! the stem's component over scripted tables.
 
-use axum::body::Body;
-use axum::http::header::CONTENT_TYPE;
-use axum::http::{Method, Request, StatusCode};
-use omnia_sdk::sql::{Field, Row, Value as SqlValue};
-use omnia_test::guest::{self, Executed, Provider, ScriptedTables};
+use bytes::Bytes;
+use http::header::CONTENT_TYPE;
+use http::{Method, Request, StatusCode};
+use omnia::{Provides, Runtime};
+use omnia_test::host::sql::{Field, Row, Value as SqlValue};
+use omnia_test::host::{self, Backends, Deployment, Executed, ScriptedTables, precompiled};
+use omnia_wasi_http::WasiHttp;
+use omnia_wasi_messaging::WasiMessaging;
+use omnia_wasi_otel::WasiOtel;
+use omnia_wasi_sql::WasiSql;
 use serde::de::DeserializeOwned;
 use serde_json::{Value, json};
 use sql::agency::{AgenciesReply, AgencyReply};
 use sql::feed::{DeleteFeedReply, FeedReply, FeedsReply, FeedsWithAgencyReply};
 
+include!(concat!(env!("OUT_DIR"), "/gen.rs"));
+
 fn field_int(name: &str, value: i64) -> Field {
     Field {
         name: name.to_string(),
-        value: SqlValue::from(value),
+        value: SqlValue::Int64(Some(value)),
     }
 }
 
 fn field_str(name: &str, value: Option<&str>) -> Field {
     Field {
         name: name.to_string(),
-        value: SqlValue::from(value.map(ToString::to_string)),
+        value: SqlValue::Str(value.map(ToString::to_string)),
     }
 }
 
@@ -60,7 +67,7 @@ fn joined_row(id: i64, description: &str, agency: &str) -> Row {
 
 fn int_param(params: &[SqlValue], index: usize) -> Option<i64> {
     match params.get(index) {
-        Some(SqlValue::Int64(value)) => Some(*value),
+        Some(SqlValue::Int64(value)) => *value,
         _ => None,
     }
 }
@@ -71,16 +78,24 @@ fn tables() -> ScriptedTables {
     ScriptedTables::default().on_exec(|sql, _| sql.starts_with("CREATE TABLE IF NOT EXISTS"), 0)
 }
 
-fn provider(tables: ScriptedTables) -> Provider {
-    Provider::default().sql(tables)
+async fn boot(tables: &ScriptedTables) -> Runtime<impl Provides<WasiHttp>> {
+    let backends = Backends::defaults().await.sql(tables.clone());
+    let guest = precompiled(SQL_GUEST).expect("guest precompiles");
+    Deployment::new()
+        .guest("sql", guest)
+        .boot(backends, |deployment| {
+            deployment.host::<WasiHttp>()?;
+            deployment.host::<WasiMessaging>()?;
+            deployment.host::<WasiOtel>()?;
+            deployment.host::<WasiSql>()?;
+            Ok(())
+        })
+        .await
+        .expect("runtime boots")
 }
 
-fn statements(provider: &Provider) -> Vec<Executed> {
-    provider.sql.statements()
-}
-
-fn after_schema(provider: &Provider) -> Vec<Executed> {
-    let statements = statements(provider);
+fn after_schema(tables: &ScriptedTables) -> Vec<Executed> {
+    let statements = tables.statements();
     assert!(statements[0].sql.starts_with("CREATE TABLE IF NOT EXISTS agency"));
     assert!(statements[1].sql.starts_with("CREATE TABLE IF NOT EXISTS feed"));
     assert!(statements.iter().all(|statement| statement.binding == "default"));
@@ -95,27 +110,26 @@ fn agency_body(name: &str) -> Value {
     })
 }
 
-async fn send(
-    provider: &Provider, method: Method, uri: &str, body: Option<Value>,
+async fn send<B: Provides<WasiHttp>>(
+    runtime: &Runtime<B>, method: Method, uri: &str, body: Option<Value>,
 ) -> (StatusCode, Value) {
     let builder = Request::builder().method(method).uri(uri);
     let request = match body {
         Some(value) => {
-            builder.header(CONTENT_TYPE, "application/json").body(Body::from(value.to_string()))
+            builder.header(CONTENT_TYPE, "application/json").body(Bytes::from(value.to_string()))
         }
-        None => builder.body(Body::empty()),
+        None => builder.body(Bytes::new()),
     }
     .expect("request");
-    let router = sql::handlers().with_state(provider.clone());
-    let response = guest::send(&router, request).await;
+    let response = host::send(runtime, request).await.expect("request served");
     let json = serde_json::from_slice(response.body()).unwrap_or(Value::Null);
     (response.status(), json)
 }
 
-async fn ok<T: DeserializeOwned>(
-    provider: &Provider, method: Method, uri: &str, body: Option<Value>,
+async fn ok<B: Provides<WasiHttp>, T: DeserializeOwned>(
+    runtime: &Runtime<B>, method: Method, uri: &str, body: Option<Value>,
 ) -> T {
-    let (status, value) = send(provider, method, uri, body).await;
+    let (status, value) = send(runtime, method, uri, body).await;
     assert_eq!(status, StatusCode::OK, "{value}");
     serde_json::from_value(value).expect("reply")
 }
@@ -133,28 +147,28 @@ const AGENCY_FILTER: &str = "WHERE agency_id = $1";
 #[tokio::test]
 async fn create_agency() {
     // Empty table: the first agency takes id 1.
-    let empty = provider(
-        tables()
-            .on_query(|sql, params| is_max_id_probe("agency", sql, params), vec![])
-            .on_exec(|sql, _| sql.starts_with("INSERT INTO agency"), 1),
-    );
+    let empty = tables()
+        .on_query(|sql, params| is_max_id_probe("agency", sql, params), vec![])
+        .on_exec(|sql, _| sql.starts_with("INSERT INTO agency"), 1);
+    let runtime = boot(&empty).await;
 
     let reply: AgencyReply =
-        ok(&empty, Method::POST, "/examples/agencies", Some(agency_body("Ritchies"))).await;
+        ok(&runtime, Method::POST, "/examples/agencies", Some(agency_body("Ritchies"))).await;
+    runtime.shutdown();
     assert_eq!(reply.agency.agency_id, 1);
 
     // Populated table: the new agency takes the id after the newest.
-    let populated = provider(
-        tables()
-            .on_query(
-                |sql, params| is_max_id_probe("agency", sql, params),
-                vec![agency_row(41, "Metro")],
-            )
-            .on_exec(|sql, _| sql.starts_with("INSERT INTO agency"), 1),
-    );
+    let populated = tables()
+        .on_query(
+            |sql, params| is_max_id_probe("agency", sql, params),
+            vec![agency_row(41, "Metro")],
+        )
+        .on_exec(|sql, _| sql.starts_with("INSERT INTO agency"), 1);
+    let runtime = boot(&populated).await;
 
     let reply: AgencyReply =
-        ok(&populated, Method::POST, "/examples/agencies", Some(agency_body("Ritchies"))).await;
+        ok(&runtime, Method::POST, "/examples/agencies", Some(agency_body("Ritchies"))).await;
+    runtime.shutdown();
     assert_eq!(reply.agency.agency_id, 42);
 
     // The insert names every entity column, binds them as parameters, and
@@ -168,20 +182,21 @@ async fn create_agency() {
     }
     assert!(insert.sql.contains("VALUES ($1, $2, $3, $4, $5)"), "insert should be parameterized");
     assert_eq!(int_param(&insert.params, 0), Some(42));
-    assert_eq!(insert.params[1], SqlValue::from("Ritchies"));
+    assert_eq!(insert.params[1], SqlValue::Str(Some("Ritchies".to_string())));
 }
 
 #[tokio::test]
 async fn list_agencies_limit() {
-    let provider = provider(tables().on_query(
+    let tables = tables().on_query(
         |sql, _| sql.contains("ORDER BY created_at DESC"),
         vec![agency_row(2, "Metro"), agency_row(1, "Ritchies")],
-    ));
+    );
+    let runtime = boot(&tables).await;
 
-    let _: AgenciesReply = ok(&provider, Method::GET, "/examples/agencies", None).await;
+    let _: AgenciesReply = ok(&runtime, Method::GET, "/examples/agencies", None).await;
 
     // No limit was requested, so none is bound.
-    let issued = after_schema(&provider);
+    let issued = after_schema(&tables);
     let [list] = issued.as_slice() else {
         panic!("expected one select");
     };
@@ -189,27 +204,31 @@ async fn list_agencies_limit() {
     assert!(!list.sql.contains("LIMIT"));
 
     // A limit is bound as a parameter, not rendered into the SQL.
-    let _: AgenciesReply = ok(&provider, Method::GET, "/examples/agencies?limit=1", None).await;
-    let limited = statements(&provider).pop().expect("a select ran");
+    let _: AgenciesReply = ok(&runtime, Method::GET, "/examples/agencies?limit=1", None).await;
+    runtime.shutdown();
+    let limited = tables.statements().pop().expect("a select ran");
     assert!(limited.sql.contains("LIMIT $1"));
     assert_eq!(int_param(&limited.params, 0), Some(1), "{:?}", limited.params);
 }
 
 #[tokio::test]
 async fn get_agency() {
-    let provider = provider(tables().on_query(agency_fetch(1), vec![agency_row(1, "Ritchies")]));
+    let tables = tables().on_query(agency_fetch(1), vec![agency_row(1, "Ritchies")]);
+    let runtime = boot(&tables).await;
 
-    let _: AgencyReply = ok(&provider, Method::GET, "/examples/agencies/1", None).await;
+    let _: AgencyReply = ok(&runtime, Method::GET, "/examples/agencies/1", None).await;
+    runtime.shutdown();
 }
 
-fn agency_fetch(id: i64) -> impl Fn(&str, &[SqlValue]) -> bool + use<> {
+fn agency_fetch(id: i64) -> impl Fn(&str, &[SqlValue]) -> bool + Send + Sync + use<> {
     move |sql, params| sql.contains(AGENCY_FILTER) && int_param(params, 0) == Some(id)
 }
 
-// Only the agency lookup is scripted, so a write after it panics.
+// Only the agency lookup is scripted, so a write after it fails the request.
 #[tokio::test]
 async fn missing_agency() {
-    let provider = provider(tables().on_query(agency_fetch(99), vec![]));
+    let tables = tables().on_query(agency_fetch(99), vec![]);
+    let runtime = boot(&tables).await;
     let patch = json!({ "name": "Ghost" });
     let feed = json!({ "description": "Orphan feed" });
 
@@ -219,35 +238,33 @@ async fn missing_agency() {
         (Method::POST, "/examples/agencies/99/feeds", Some(feed)),
     ] {
         let request = format!("{method} {uri}");
-        let (status, reply) = send(&provider, method, uri, body).await;
-        assert_eq!(status, StatusCode::NOT_FOUND, "{request}");
+        let (status, reply) = send(&runtime, method, uri, body).await;
+        assert_eq!(status, StatusCode::NOT_FOUND, "{request}: {reply}");
         assert_eq!(reply["error"], "not_found", "{request}");
     }
+    runtime.shutdown();
 }
 
 #[tokio::test]
 async fn update_agency_partial() {
     // The existence check and the fetch-after-update are the same select,
     // so one rule answers both.
-    let provider = provider(
-        tables()
-            .on_query(
-                |sql, _| sql.contains(AGENCY_FILTER),
-                vec![agency_row(1, "Ritchies Transport")],
-            )
-            .on_exec(|sql, _| sql.starts_with("UPDATE agency SET "), 1),
-    );
+    let tables = tables()
+        .on_query(|sql, _| sql.contains(AGENCY_FILTER), vec![agency_row(1, "Ritchies Transport")])
+        .on_exec(|sql, _| sql.starts_with("UPDATE agency SET "), 1);
+    let runtime = boot(&tables).await;
 
     let _: AgencyReply = ok(
-        &provider,
+        &runtime,
         Method::PATCH,
         "/examples/agencies/1",
         Some(json!({ "name": "Ritchies Transport" })),
     )
     .await;
+    runtime.shutdown();
 
     // Check, update, fetch again — and the update touches only the name.
-    let issued = after_schema(&provider);
+    let issued = after_schema(&tables);
     let [before, update, after] = issued.as_slice() else {
         panic!("expected fetch, update, fetch");
     };
@@ -255,44 +272,47 @@ async fn update_agency_partial() {
     assert!(update.sql.contains("SET name = $1"), "update should set only the name");
     assert!(!update.sql.contains("timezone"), "update should not touch unset columns");
     assert!(update.sql.contains("WHERE agency_id = $2"), "update should filter by id");
-    assert_eq!(update.params[0], SqlValue::from("Ritchies Transport"));
+    assert_eq!(update.params[0], SqlValue::Str(Some("Ritchies Transport".to_string())));
     assert_eq!(int_param(&update.params, 1), Some(1));
 }
 
-// No `UPDATE` rule is scripted, so a write before the rejection panics.
+// No `UPDATE` rule is scripted, so a write before the rejection fails the
+// request.
 #[tokio::test]
 async fn empty_patch() {
-    let provider = provider(tables().on_query(agency_fetch(1), vec![agency_row(1, "Ritchies")]));
+    let tables = tables().on_query(agency_fetch(1), vec![agency_row(1, "Ritchies")]);
+    let runtime = boot(&tables).await;
 
     let (status, body) =
-        send(&provider, Method::PATCH, "/examples/agencies/1", Some(json!({}))).await;
-    assert_eq!(status, StatusCode::BAD_REQUEST);
+        send(&runtime, Method::PATCH, "/examples/agencies/1", Some(json!({}))).await;
+    runtime.shutdown();
+    assert_eq!(status, StatusCode::BAD_REQUEST, "{body}");
     assert_eq!(body["error"], "bad_request");
 }
 
 #[tokio::test]
 async fn create_feed_existing() {
-    let provider = provider(
-        tables()
-            .on_query(agency_fetch(1), vec![agency_row(1, "Ritchies")])
-            .on_query(
-                |sql, params| is_max_id_probe("feed", sql, params),
-                vec![feed_row(1, 1, "Bus routes and schedules")],
-            )
-            .on_exec(|sql, _| sql.starts_with("INSERT INTO feed"), 1),
-    );
+    let tables = tables()
+        .on_query(agency_fetch(1), vec![agency_row(1, "Ritchies")])
+        .on_query(
+            |sql, params| is_max_id_probe("feed", sql, params),
+            vec![feed_row(1, 1, "Bus routes and schedules")],
+        )
+        .on_exec(|sql, _| sql.starts_with("INSERT INTO feed"), 1);
+    let runtime = boot(&tables).await;
 
     let reply: FeedReply = ok(
-        &provider,
+        &runtime,
         Method::POST,
         "/examples/agencies/1/feeds",
         Some(json!({ "description": "Ferry timetables" })),
     )
     .await;
+    runtime.shutdown();
     assert_eq!(reply.feed.feed_id, 2);
     assert_eq!(reply.feed.agency_id, 1);
 
-    let insert = statements(&provider).pop().expect("an insert ran");
+    let insert = tables.statements().pop().expect("an insert ran");
     assert!(insert.sql.contains("VALUES ($1, $2, $3, $4)"), "insert should be parameterized");
     assert_eq!(int_param(&insert.params, 0), Some(2));
     assert_eq!(int_param(&insert.params, 1), Some(1));
@@ -301,14 +321,16 @@ async fn create_feed_existing() {
 #[tokio::test]
 async fn feeds_by_agency() {
     const FEED_FILTER: &str = "FROM feed WHERE agency_id = $1";
-    let provider = provider(tables().on_query(
+    let tables = tables().on_query(
         |sql, params| sql.contains(FEED_FILTER) && int_param(params, 0) == Some(1),
         vec![feed_row(2, 1, "Ferry timetables"), feed_row(1, 1, "Bus routes and schedules")],
-    ));
+    );
+    let runtime = boot(&tables).await;
 
-    let _: FeedsReply = ok(&provider, Method::GET, "/examples/agencies/1/feeds", None).await;
+    let _: FeedsReply = ok(&runtime, Method::GET, "/examples/agencies/1/feeds", None).await;
+    runtime.shutdown();
 
-    let issued = after_schema(&provider);
+    let issued = after_schema(&tables);
     let [list] = issued.as_slice() else {
         panic!("expected one select");
     };
@@ -317,18 +339,20 @@ async fn feeds_by_agency() {
 
 #[tokio::test]
 async fn all_feeds() {
-    let provider = provider(tables().on_query(
+    let tables = tables().on_query(
         |sql, _| sql.contains("LEFT JOIN agency"),
         vec![
             joined_row(2, "Ferry timetables", "Ritchies"),
             joined_row(1, "Bus routes", "Ritchies"),
         ],
-    ));
+    );
+    let runtime = boot(&tables).await;
 
-    let _: FeedsWithAgencyReply = ok(&provider, Method::GET, "/examples/feeds", None).await;
+    let _: FeedsWithAgencyReply = ok(&runtime, Method::GET, "/examples/feeds", None).await;
+    runtime.shutdown();
 
     // The select renders the join, the aliases, the sort, and the default limit.
-    let issued = after_schema(&provider);
+    let issued = after_schema(&tables);
     let [list] = issued.as_slice() else {
         panic!("expected one select");
     };
@@ -351,24 +375,22 @@ async fn all_feeds() {
 #[tokio::test]
 async fn delete_feed_missing() {
     const FEED_ID_FILTER: &str = "WHERE feed_id = $1";
-    let provider = provider(
-        tables()
-            .on_exec(
-                |sql, params| {
-                    sql.starts_with("DELETE FROM feed") && int_param(params, 0) == Some(1)
-                },
-                1,
-            )
-            .on_exec(|sql, _| sql.starts_with("DELETE FROM feed"), 0),
-    );
+    let tables = tables()
+        .on_exec(
+            |sql, params| sql.starts_with("DELETE FROM feed") && int_param(params, 0) == Some(1),
+            1,
+        )
+        .on_exec(|sql, _| sql.starts_with("DELETE FROM feed"), 0);
+    let runtime = boot(&tables).await;
 
-    let reply: DeleteFeedReply = ok(&provider, Method::DELETE, "/examples/feeds/1", None).await;
+    let reply: DeleteFeedReply = ok(&runtime, Method::DELETE, "/examples/feeds/1", None).await;
     assert_eq!(reply.feed_id, 1);
 
-    let (status, body) = send(&provider, Method::DELETE, "/examples/feeds/2", None).await;
+    let (status, body) = send(&runtime, Method::DELETE, "/examples/feeds/2", None).await;
+    runtime.shutdown();
     assert_eq!(status, StatusCode::NOT_FOUND);
     assert_eq!(body["error"], "not_found");
 
-    let delete = statements(&provider).pop().expect("a delete ran");
+    let delete = tables.statements().pop().expect("a delete ran");
     assert!(delete.sql.contains(FEED_ID_FILTER), "{}", delete.sql);
 }

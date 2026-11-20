@@ -1,20 +1,25 @@
 //! Tests for the relational upsert and nearby query, driven through the
-//! stem's router.
+//! stem's component.
 //!
 //! `ScriptedTables` answers statements, it does not evaluate them: the
 //! bounding-box `SELECT` is scripted with the candidate rows and its bound
 //! parameters asserted, and the upsert is asserted as the statement the
 //! handler issued.
 
-use axum::body::{Body, to_bytes};
+mod support;
+
 use axum::http::header::CONTENT_TYPE;
-use axum::http::{Request, StatusCode};
-use axum::response::IntoResponse as _;
-use omnia_sdk::sql::{Field, Row, Value};
-use omnia_test::guest::{self, Executed, Provider, ScriptedTables};
+use axum::http::{Method, Request, Response, StatusCode};
+use bytes::Bytes;
+use omnia::{Provides, Runtime};
+use omnia_test::host::sql::{Error, Field, Row, Value};
+use omnia_test::host::{self, Backends, Executed, ScriptedTables};
+use omnia_wasi_http::WasiHttp;
 use pattern::place::{
-    NearbyPlacesReply, NearbyPlacesRequest, PlaceError, UpsertPlaceReply, UpsertPlaceRequest,
+    NearbyPlacesReply, NearbyPlacesRequest, UpsertPlaceReply, UpsertPlaceRequest,
 };
+use serde_json::json;
+use support::boot;
 
 fn place_row(id: &str, name: &str, lat: f64, lon: f64) -> Row {
     let field = |name: &str, value: Value| Field {
@@ -23,10 +28,10 @@ fn place_row(id: &str, name: &str, lat: f64, lon: f64) -> Row {
     };
     Row {
         fields: vec![
-            field("id", Value::from(id)),
-            field("name", Value::from(name)),
-            field("lat", Value::from(lat)),
-            field("lon", Value::from(lon)),
+            field("id", Value::Str(Some(id.to_string()))),
+            field("name", Value::Str(Some(name.to_string()))),
+            field("lat", Value::Double(Some(lat))),
+            field("lon", Value::Double(Some(lon))),
         ],
     }
 }
@@ -35,10 +40,10 @@ fn place_row(id: &str, name: &str, lat: f64, lon: f64) -> Row {
 // `lon <=`.
 fn bounds(statement: &Executed) -> [f64; 4] {
     let [
-        Value::Double(lat_min),
-        Value::Double(lat_max),
-        Value::Double(lon_min),
-        Value::Double(lon_max),
+        Value::Double(Some(lat_min)),
+        Value::Double(Some(lat_max)),
+        Value::Double(Some(lon_min)),
+        Value::Double(Some(lon_max)),
     ] = statement.params.as_slice()
     else {
         panic!("expected four double bounds, got {:?}", statement.params);
@@ -48,48 +53,50 @@ fn bounds(statement: &Executed) -> [f64; 4] {
 
 fn upserted_id(statement: &Executed) -> Option<&str> {
     match statement.params.first() {
-        Some(Value::Str(id)) if statement.sql.starts_with("INSERT") => Some(id),
+        Some(Value::Str(Some(id))) if statement.sql.starts_with("INSERT") => Some(id),
         _ => None,
     }
 }
 
-async fn send(provider: &Provider, request: Request<Body>) -> (StatusCode, Vec<u8>) {
-    let router = pattern::handlers().with_state(provider.clone());
-    let response = guest::send(&router, request).await;
-    (response.status(), response.into_body().to_vec())
+async fn send<B: Provides<WasiHttp>>(
+    runtime: &Runtime<B>, method: Method, path: &str, body: Vec<u8>,
+) -> Response<Bytes> {
+    let request = Request::builder()
+        .method(method)
+        .uri(path)
+        .header(CONTENT_TYPE, "application/json")
+        .body(Bytes::from(body))
+        .expect("request");
+    host::send(runtime, request).await.expect("request served")
 }
 
-async fn upsert(
-    provider: &Provider, id: &str, name: &str, lat: f64, lon: f64,
-) -> (StatusCode, Vec<u8>) {
+async fn upsert<B: Provides<WasiHttp>>(
+    runtime: &Runtime<B>, id: &str, name: &str, lat: f64, lon: f64,
+) -> Response<Bytes> {
     let payload = UpsertPlaceRequest {
         id: id.to_string(),
         name: name.to_string(),
         lat,
         lon,
     };
-    let request = Request::post("/examples/patterns/places")
-        .header(CONTENT_TYPE, "application/json")
-        .body(Body::from(serde_json::to_vec(&payload).expect("serialize")))
-        .expect("request");
-    send(provider, request).await
+    let body = serde_json::to_vec(&payload).expect("serialize");
+    send(runtime, Method::POST, "/examples/patterns/places", body).await
 }
 
-async fn nearby(provider: &Provider, lat: f64, lon: f64, radius_m: f64) -> NearbyPlacesReply {
+async fn nearby<B: Provides<WasiHttp>>(
+    runtime: &Runtime<B>, lat: f64, lon: f64, radius_m: f64,
+) -> NearbyPlacesReply {
     let payload = NearbyPlacesRequest { lat, lon, radius_m };
-    let request = Request::get("/examples/patterns/nearby")
-        .header(CONTENT_TYPE, "application/json")
-        .body(Body::from(serde_json::to_vec(&payload).expect("serialize")))
-        .expect("request");
-    let (status, body) = send(provider, request).await;
-    assert_eq!(status, StatusCode::OK);
-    serde_json::from_slice(&body).expect("reply")
+    let body = serde_json::to_vec(&payload).expect("serialize");
+    let response = send(runtime, Method::GET, "/examples/patterns/nearby", body).await;
+    assert_eq!(response.status(), StatusCode::OK);
+    serde_json::from_slice(response.body()).expect("reply")
 }
 
 #[tokio::test]
 async fn radius() {
     const CORNER: (f64, f64) = (-36.8335, 174.7813);
-    let provider = Provider::default().sql(ScriptedTables::default().on_query(
+    let tables = ScriptedTables::default().on_query(
         |sql, params| sql.starts_with("SELECT") && params.len() == 4,
         vec![
             // ~2.3 km to the north-east: inside the 2 km bounding box but
@@ -98,9 +105,11 @@ async fn radius() {
             place_row("ferry", "Ferry Terminal", -36.8429, 174.7668), // ~700 m away
             place_row("cbd", "City Centre", -36.8485, 174.7633),
         ],
-    ));
+    );
+    let runtime = boot(Backends::defaults().await.sql(tables.clone())).await;
 
-    let reply = nearby(&provider, -36.8485, 174.7633, 2_000.0).await;
+    let reply = nearby(&runtime, -36.8485, 174.7633, 2_000.0).await;
+    runtime.shutdown();
 
     let ids: Vec<&str> = reply.places.iter().map(|found| found.place.id.as_str()).collect();
     assert_eq!(ids, ["cbd", "ferry"], "haversine refinement should drop the box corner");
@@ -109,7 +118,7 @@ async fn radius() {
 
     // The box the database was asked for brackets the centre on both axes
     // and reaches the corner, so only Rust dropped it.
-    let statements = provider.sql.statements();
+    let statements = tables.statements();
     assert_eq!(statements.len(), 1);
     assert_eq!(statements[0].binding, "default");
     let [lat_min, lat_max, lon_min, lon_max] = bounds(&statements[0]);
@@ -120,34 +129,34 @@ async fn radius() {
 
 #[tokio::test]
 async fn upserts() {
-    let provider = Provider::default().sql(
-        ScriptedTables::default()
-            .on_exec(|sql, params| sql.starts_with("INSERT") && params.len() == 4, 1),
-    );
+    let tables = ScriptedTables::default()
+        .on_exec(|sql, params| sql.starts_with("INSERT") && params.len() == 4, 1);
+    let runtime = boot(Backends::defaults().await.sql(tables.clone())).await;
 
-    let (status, body) = upsert(&provider, "cbd", "City Centre", -36.8485, 174.7633).await;
-    assert_eq!(status, StatusCode::OK);
-    let reply: UpsertPlaceReply = serde_json::from_slice(&body).expect("reply");
+    let response = upsert(&runtime, "cbd", "City Centre", -36.8485, 174.7633).await;
+    assert_eq!(response.status(), StatusCode::OK);
+    let reply: UpsertPlaceReply = serde_json::from_slice(response.body()).expect("reply");
     assert_eq!(reply.affected, 1);
 
     // The write is the conflict-updating statement, keyed on the id.
-    let statements = provider.sql.statements();
+    let statements = tables.statements();
     let [statement] = statements.as_slice() else {
         panic!("expected one upsert, got {statements:?}");
     };
     assert!(statement.sql.contains("ON CONFLICT"), "{}", statement.sql);
     assert_eq!(upserted_id(statement), Some("cbd"));
-    assert_eq!(statement.params[1], Value::from("City Centre"));
+    assert_eq!(statement.params[1], Value::Str(Some("City Centre".to_string())));
 
     // An out-of-range coordinate is the structured 400: omnia's `ErrorBody`
     // envelope plus the variant's domain fields, with nothing written.
-    let (status, bytes) = upsert(&provider, "bad", "Nowhere", 123.4, 0.0).await;
-    assert_eq!(provider.sql.statements().len(), 1, "rejected row must not reach the store");
-    assert_eq!(status, StatusCode::BAD_REQUEST);
-    let body: serde_json::Value = serde_json::from_slice(&bytes).expect("body is JSON");
+    let response = upsert(&runtime, "bad", "Nowhere", 123.4, 0.0).await;
+    runtime.shutdown();
+    assert_eq!(tables.statements().len(), 1, "rejected row must not reach the store");
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    let body: serde_json::Value = serde_json::from_slice(response.body()).expect("body is JSON");
     assert_eq!(
         body,
-        serde_json::json!({
+        json!({
             "error": "invalid_coordinate",
             "message": "lat 123.4 is outside [-90, 90]",
             "field": "lat",
@@ -161,21 +170,18 @@ async fn upserts() {
 // Exact equality pins that no `description` field leaks beside `message`.
 #[tokio::test]
 async fn storage_error_body() {
-    let error = PlaceError::from(anyhow::anyhow!("connection refused").context("executing upsert"));
-    let message = error.to_string();
+    let refused = Error::Unavailable("connection refused".to_string());
+    let tables = ScriptedTables::default().failing_on(|sql, _| sql.starts_with("INSERT"), refused);
+    let runtime = boot(Backends::defaults().await.sql(tables)).await;
 
-    let (status, body) = wire(error).await;
-    assert_eq!(status, StatusCode::INTERNAL_SERVER_ERROR);
-    assert_eq!(body, serde_json::json!({ "error": "storage", "message": message }));
-}
+    let response = upsert(&runtime, "cbd", "City Centre", -36.8485, 174.7633).await;
+    runtime.shutdown();
 
-async fn wire(error: PlaceError) -> (StatusCode, serde_json::Value) {
-    let response = error.into_response();
+    assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
     assert_eq!(
         response.headers().get(CONTENT_TYPE).and_then(|value| value.to_str().ok()),
         Some("application/json")
     );
-    let status = response.status();
-    let bytes = to_bytes(response.into_body(), usize::MAX).await.expect("body collects");
-    (status, serde_json::from_slice(&bytes).expect("body is JSON"))
+    let body: serde_json::Value = serde_json::from_slice(response.body()).expect("body is JSON");
+    assert_eq!(body, json!({ "error": "storage", "message": "connection refused" }));
 }

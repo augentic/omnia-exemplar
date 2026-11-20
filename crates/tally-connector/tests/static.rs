@@ -1,43 +1,61 @@
-//! Static tests for the Tally APC connector driven through its router.
+//! Static tests for the Tally APC connector driven through its component.
 
-use axum::body::Body;
-use axum::http::header::CONTENT_TYPE;
-use axum::http::{Request, StatusCode};
+use bytes::Bytes;
 use common::topic;
-use omnia_test::guest::{Provider, send};
+use http::header::CONTENT_TYPE;
+use http::{Request, StatusCode};
+use omnia_test::host::{Backends, Deployment, Sink, precompiled, send};
+use omnia_wasi_http::WasiHttp;
+use omnia_wasi_messaging::WasiMessaging;
+use omnia_wasi_otel::WasiOtel;
 use serde_json::{Value, json};
+
+include!(concat!(env!("OUT_DIR"), "/gen.rs"));
 
 const TALLY_MESSAGE: &[u8] = include_bytes!("../data/tally-message.json");
 const TALLY_NO_DEVICE: &[u8] = include_bytes!("../data/tally-no-device.json");
 
-async fn forward(provider: &Provider, payload: &'static [u8]) {
-    let request = Request::post("/api/apc")
-        .header(CONTENT_TYPE, "application/json")
-        .body(Body::from(payload))
-        .expect("request");
-    let router = tally_connector::handlers().with_state(provider.clone());
-    let response = send(&router, request).await;
-    assert_eq!(response.status(), StatusCode::OK);
-    assert_eq!(response.body().as_ref(), br#""OK""#);
-}
-
 #[tokio::test]
 async fn devices() {
-    let provider = Provider::default();
+    let sink = Sink::default();
+    let backends = Backends::defaults().await.messaging(sink.clone());
+    let guest = precompiled(TALLY_CONNECTOR_GUEST).expect("guest precompiles");
+    let runtime = Deployment::new()
+        .guest("tally-connector", guest)
+        .boot(backends, |deployment| {
+            deployment.host::<WasiHttp>()?;
+            deployment.host::<WasiMessaging>()?;
+            deployment.host::<WasiOtel>()?;
+            Ok(())
+        })
+        .await
+        .expect("runtime boots");
 
-    forward(&provider, TALLY_MESSAGE).await;
-    forward(&provider, TALLY_NO_DEVICE).await;
+    for payload in [TALLY_MESSAGE, TALLY_NO_DEVICE] {
+        let request = Request::post("/api/apc")
+            .header(CONTENT_TYPE, "application/json")
+            .body(Bytes::from_static(payload))
+            .expect("request");
+        let response = send(&runtime, request).await.expect("request served");
+        assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(response.body().as_ref(), br#""OK""#);
+    }
+    runtime.shutdown();
 
     // one record per reading, keyed by the device's site
-    let published = provider.publisher.sent();
-    assert!(published.iter().all(|(name, _)| name == topic::TALLY_APC));
-    let keys: Vec<_> = published.iter().map(|(_, record)| record.key.as_deref()).collect();
+    let sent = sink.sent();
+    assert!(sent.iter().all(|message| message.topic == topic::TALLY_APC));
+    let keys: Vec<_> = sent
+        .iter()
+        .map(|message| message.metadata.as_ref().and_then(|metadata| metadata.inner.get("key")))
+        .map(|key| key.map(String::as_str))
+        .collect();
     assert_eq!(keys, [Some("EM1210"), Some("undefined")]);
 
     // each payload carries the reading's fields under their wire names
-    let payloads: Vec<Value> = published
+    let payloads: Vec<Value> = sent
         .iter()
-        .map(|(_, record)| serde_json::from_slice(&record.payload).expect("payload is JSON"))
+        .map(|message| serde_json::from_slice(&message.payload).expect("payload is JSON"))
         .collect();
     assert_eq!(
         payloads[0]["device"],

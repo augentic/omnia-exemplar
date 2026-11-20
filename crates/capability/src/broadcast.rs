@@ -1,17 +1,17 @@
 //! WebSocket example: push an alert to connected WebSocket clients.
 //!
-//! A [`WebSockets`] send is outbound only, so serving this handler
-//! requires no WebSocket export.
+//! A [`websocket`] send is outbound only, so serving this handler requires
+//! no WebSocket export.
 
 use axum::Json;
 use axum::routing::post;
-use omnia_sdk::api::{Context, Handlers};
-use omnia_sdk::{Result, WebSockets};
+use omnia_sdk::websocket::{self, Message};
+use omnia_sdk::{Handlers, Result};
 use serde::{Deserialize, Serialize};
 
 pub(crate) const ALERT: &str = "/examples/alert";
 
-pub(crate) fn handlers<P: crate::Requires>() -> Handlers<P> {
+pub(crate) fn handlers() -> Handlers {
     Handlers::new().route(ALERT, post(alert))
 }
 
@@ -29,21 +29,16 @@ pub struct AlertRequest {
 #[serde(transparent)]
 pub struct AlertReply(pub &'static str);
 
-pub(crate) async fn alert<P>(
-    context: Context<P>, Json(input): Json<AlertRequest>,
-) -> Result<Json<AlertReply>>
-where
-    P: WebSockets,
-{
-    let websockets = context.websockets();
-    let data = input.message.as_bytes();
+pub(crate) async fn alert(Json(input): Json<AlertRequest>) -> Result<Json<AlertReply>> {
+    let client = websocket::connect(websocket::DEFAULT).await?;
+    let message = Message::Text(input.message);
 
-    match &input.sockets {
+    match input.sockets {
         Some(sockets) => {
             let sockets: Vec<&str> = sockets.iter().map(String::as_str).collect();
-            websockets.send_to(&sockets, data).await?;
+            client.send(&sockets, message).await?;
         }
-        None => websockets.broadcast(data).await?,
+        None => client.broadcast(message, &[]).await?,
     }
     Ok(Json(AlertReply("OK")))
 }

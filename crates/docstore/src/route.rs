@@ -8,9 +8,8 @@
 use axum::Json;
 use axum::extract::{Path, Query};
 use axum::routing::get;
-use omnia_sdk::api::{Context, Handlers};
-use omnia_sdk::docstore::{Document, Exists, Filter, ScalarValue, SortField};
-use omnia_sdk::{DocumentDb, Result, bad_request, not_found};
+use omnia_sdk::docstore::{self, Exists, Filter, ScalarValue, SortField};
+use omnia_sdk::{Handlers, Result, bad_request, not_found};
 use serde::{Deserialize, Serialize};
 
 use crate::stop::{CreateError, DocumentRecord, records};
@@ -19,7 +18,7 @@ pub(crate) const ROUTES: &str = "/examples/routes";
 pub(crate) const ROUTE: &str = "/examples/routes/{id}";
 pub(crate) const COLLECTION: &str = "routes";
 
-pub(crate) fn handlers<P: crate::Requires>() -> Handlers<P> {
+pub(crate) fn handlers() -> Handlers {
     Handlers::new().route(ROUTES, get(list_routes).post(create_route)).route(ROUTE, get(get_route))
 }
 
@@ -48,14 +47,10 @@ pub struct CreateRouteRequest {
     pub route: Route,
 }
 
-pub(crate) async fn create_route<P>(
-    context: Context<P>, Json(input): Json<CreateRouteRequest>,
-) -> std::result::Result<Json<DocumentRecord<Route>>, CreateError>
-where
-    P: DocumentDb,
-{
-    let document = Document::json(&input.id, &input.route)?;
-    if context.docs().insert(COLLECTION, &document).await? == Err(Exists) {
+pub(crate) async fn create_route(
+    Json(input): Json<CreateRouteRequest>,
+) -> std::result::Result<Json<DocumentRecord<Route>>, CreateError> {
+    if docstore::open(COLLECTION).await?.insert(&input.id, &input.route).await? == Err(Exists) {
         return Err(CreateError::Exists { id: input.id });
     }
 
@@ -65,23 +60,14 @@ where
     }))
 }
 
-pub(crate) async fn get_route<P>(
-    context: Context<P>, Path(id): Path<String>,
-) -> Result<Json<DocumentRecord<Route>>>
-where
-    P: DocumentDb,
-{
-    let document = context
-        .docs()
-        .get(COLLECTION, &id)
+pub(crate) async fn get_route(Path(id): Path<String>) -> Result<Json<DocumentRecord<Route>>> {
+    let route = docstore::open(COLLECTION)
+        .await?
+        .get_as(&id)
         .await?
         .ok_or_else(|| not_found!("route {id} not found"))?;
-    let route = document.decode()?;
 
-    Ok(Json(DocumentRecord {
-        id: document.id,
-        document: route,
-    }))
+    Ok(Json(DocumentRecord { id, document: route }))
 }
 
 /// Query routes with any combination of the supported filters.
@@ -119,12 +105,9 @@ pub struct RoutesReply {
     pub continuation: Option<String>,
 }
 
-pub(crate) async fn list_routes<P>(
-    context: Context<P>, Query(input): Query<ListRoutesRequest>,
-) -> Result<Json<RoutesReply>>
-where
-    P: DocumentDb,
-{
+pub(crate) async fn list_routes(
+    Query(input): Query<ListRoutesRequest>,
+) -> Result<Json<RoutesReply>> {
     let mut filters = Vec::new();
 
     if let Some(q) = &input.q {
@@ -161,20 +144,16 @@ where
 
     let filter = if filters.is_empty() { None } else { Some(Filter::and(filters)) };
 
-    let query = omnia_sdk::docstore::Query {
+    let query = docstore::Query {
         filter,
-        order_by: vec![SortField {
-            field: "route_short_name".to_string(),
-            descending: false,
-        }],
+        order_by: vec![SortField::asc("route_short_name")],
         limit: input.limit,
         after: input.continuation,
-        ..Default::default()
     };
-    let page = context.docs().query(COLLECTION, &query).await?;
+    let page = docstore::open(COLLECTION).await?.find(&query).await?;
 
     Ok(Json(RoutesReply {
-        routes: records(&page.items)?,
+        routes: records(&page.documents)?,
         continuation: page.next,
     }))
 }

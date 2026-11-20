@@ -9,9 +9,8 @@ use axum::Json;
 use axum::extract::{Path, Query};
 use axum::routing::get;
 use chrono::Utc;
-use omnia_sdk::api::{Context, Handlers};
-use omnia_sdk::sql::{FromRow, Value};
-use omnia_sdk::{Result, SqlDb, SqlDbExt as _, bad_request, not_found};
+use omnia_sdk::sql::{Database, FromRow, Row, Value};
+use omnia_sdk::{Handlers, Result, bad_request, not_found};
 use serde::{Deserialize, Serialize};
 
 use crate::schema;
@@ -21,7 +20,7 @@ pub(crate) const AGENCY: &str = "/examples/agencies/{id}";
 
 const AGENCY_COLUMNS: &str = "agency_id, name, url, timezone, created_at";
 
-pub(crate) fn handlers<P: crate::Requires>() -> Handlers<P> {
+pub(crate) fn handlers() -> Handlers {
     Handlers::new()
         .route(AGENCIES, get(list_agencies).post(create_agency))
         .route(AGENCY, get(get_agency).patch(update_agency))
@@ -42,7 +41,7 @@ pub struct Agency {
     pub created_at: String,
 }
 
-pub(crate) async fn fetch_agency<P: SqlDb>(db: &P, id: i64) -> Result<Option<Agency>> {
+pub(crate) async fn fetch_agency(db: &Database, id: i64) -> Result<Option<Agency>> {
     let agencies: Vec<Agency> = db
         .query_as(
             &format!("SELECT {AGENCY_COLUMNS} FROM agency WHERE agency_id = $1"),
@@ -66,14 +65,10 @@ pub struct AgenciesReply {
     pub agencies: Vec<Agency>,
 }
 
-pub(crate) async fn list_agencies<P>(
-    context: Context<P>, Query(input): Query<ListAgenciesRequest>,
-) -> Result<Json<AgenciesReply>>
-where
-    P: SqlDb,
-{
-    let db = context.sql();
-    schema::ensure(db).await?;
+pub(crate) async fn list_agencies(
+    Query(input): Query<ListAgenciesRequest>,
+) -> Result<Json<AgenciesReply>> {
+    let db = schema::open().await?;
 
     let mut sql = format!("SELECT {AGENCY_COLUMNS} FROM agency ORDER BY created_at DESC");
     let mut params = Vec::new();
@@ -105,24 +100,20 @@ pub struct AgencyReply {
     pub agency: Agency,
 }
 
-pub(crate) async fn create_agency<P>(
-    context: Context<P>, Json(input): Json<CreateAgencyRequest>,
-) -> Result<Json<AgencyReply>>
-where
-    P: SqlDb,
-{
-    let db = context.sql();
-    schema::ensure(db).await?;
+pub(crate) async fn create_agency(
+    Json(input): Json<CreateAgencyRequest>,
+) -> Result<Json<AgencyReply>> {
+    let db = schema::open().await?;
 
     let agency = Agency {
-        agency_id: next_id(db).await?,
+        agency_id: next_id(&db).await?,
         name: input.name,
         url: input.url,
         timezone: input.timezone,
         created_at: Utc::now().format("%Y-%m-%d %H:%M:%S").to_string(),
     };
 
-    db.execute(
+    db.exec(
         &format!("INSERT INTO agency ({AGENCY_COLUMNS}) VALUES ($1, $2, $3, $4, $5)"),
         &[
             Value::from(agency.agency_id),
@@ -139,23 +130,17 @@ where
 
 // A concurrent create simply fails on the primary key — acceptable for an
 // example; production code would use a database sequence.
-async fn next_id<P: SqlDb>(db: &P) -> Result<i64> {
-    let rows =
-        db.query("SELECT agency_id FROM agency ORDER BY agency_id DESC LIMIT 1", &[]).await?;
+async fn next_id(db: &Database) -> Result<i64> {
+    let rows: Vec<Row> =
+        db.query_as("SELECT agency_id FROM agency ORDER BY agency_id DESC LIMIT 1", &[]).await?;
     let newest: Option<i64> = rows.first().map(|row| row.get("agency_id")).transpose()?;
     Ok(newest.map_or(1, |id| id + 1))
 }
 
-pub(crate) async fn get_agency<P>(
-    context: Context<P>, Path(id): Path<i64>,
-) -> Result<Json<AgencyReply>>
-where
-    P: SqlDb,
-{
-    let db = context.sql();
-    schema::ensure(db).await?;
+pub(crate) async fn get_agency(Path(id): Path<i64>) -> Result<Json<AgencyReply>> {
+    let db = schema::open().await?;
 
-    let agency = fetch_agency(db, id).await?.ok_or_else(|| not_found!("agency {id} not found"))?;
+    let agency = fetch_agency(&db, id).await?.ok_or_else(|| not_found!("agency {id} not found"))?;
 
     Ok(Json(AgencyReply { agency }))
 }
@@ -171,16 +156,12 @@ pub struct UpdateAgencyRequest {
     pub timezone: Option<String>,
 }
 
-pub(crate) async fn update_agency<P>(
-    context: Context<P>, Path(id): Path<i64>, Json(input): Json<UpdateAgencyRequest>,
-) -> Result<Json<AgencyReply>>
-where
-    P: SqlDb,
-{
-    let db = context.sql();
-    schema::ensure(db).await?;
+pub(crate) async fn update_agency(
+    Path(id): Path<i64>, Json(input): Json<UpdateAgencyRequest>,
+) -> Result<Json<AgencyReply>> {
+    let db = schema::open().await?;
 
-    if fetch_agency(db, id).await?.is_none() {
+    if fetch_agency(&db, id).await?.is_none() {
         return Err(not_found!("agency {id} not found"));
     }
 
@@ -201,10 +182,10 @@ where
     params.push(Value::from(id));
     let sql =
         format!("UPDATE agency SET {} WHERE agency_id = ${}", assignments.join(", "), params.len());
-    db.execute(&sql, &params).await?;
+    db.exec(&sql, &params).await?;
 
     // fetch after update so the reply reflects what was stored
-    let agency = fetch_agency(db, id)
+    let agency = fetch_agency(&db, id)
         .await?
         .ok_or_else(|| not_found!("agency {id} not found after update"))?;
 

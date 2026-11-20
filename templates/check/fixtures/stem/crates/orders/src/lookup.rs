@@ -6,14 +6,13 @@ use axum::extract::Path;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use axum::routing::get;
-use omnia_sdk::api::{Context, Handlers};
-use omnia_sdk::{StateStore, StateStoreExt as _, not_found};
+use omnia_sdk::{Handlers, keyvalue, not_found};
 use serde::{Deserialize, Serialize};
 
 // The paths the part serves.
 pub(crate) const ORDER: &str = "/orders/{id}";
 
-pub(crate) fn handlers<P: crate::Requires>() -> Handlers<P> {
+pub(crate) fn handlers() -> Handlers {
     Handlers::new().route(ORDER, get(lookup))
 }
 
@@ -44,12 +43,6 @@ pub enum LookupError {
     Host(#[from] omnia_sdk::Error),
 }
 
-impl From<anyhow::Error> for LookupError {
-    fn from(error: anyhow::Error) -> Self {
-        Self::Host(error.into())
-    }
-}
-
 impl IntoResponse for LookupError {
     fn into_response(self) -> Response {
         match self {
@@ -67,16 +60,12 @@ impl IntoResponse for LookupError {
 }
 
 // `202 Accepted` while the order is still settling.
-pub(crate) async fn lookup<P>(
-    context: Context<P>, Path(id): Path<String>,
-) -> Result<(StatusCode, Json<OrderStatus>), LookupError>
-where
-    P: StateStore,
-{
-    let key = order_key(&id);
-    let status: OrderStatus = context
-        .state()
-        .get_json(&key)
+pub(crate) async fn lookup(
+    Path(id): Path<String>,
+) -> Result<(StatusCode, Json<OrderStatus>), LookupError> {
+    let state = keyvalue::open(keyvalue::DEFAULT).await?;
+    let status: OrderStatus = state
+        .get_json(&order_key(&id))
         .await?
         .ok_or_else(|| not_found!("order `{id}` not found"))?;
     if status.locked {

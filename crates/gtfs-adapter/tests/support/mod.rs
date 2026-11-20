@@ -1,32 +1,121 @@
-//! The gtfs-adapter test provider and the exact upstream URLs the handlers
-//! call, so each test seeds the request it expects rather than a prefix.
+//! The gtfs-adapter's component over the backends a test seeds, and the
+//! exact upstream URLs the handlers call, so each test seeds the request it
+//! expects rather than a prefix.
 
 use bytes::Bytes;
 use chrono::{DateTime, Utc};
-use http::Response;
-use omnia_sdk::api::Router;
-use omnia_test::guest::{FixedIdentity, MapConfig, Provider};
+use http::{Request, Response};
+use omnia::{Provides, Runtime};
+use omnia_test::host::{
+    self, Backends, Deployment, FixedIdentity, HandleError, MatchedHttp, STATE_BUCKET, Sink,
+    precompiled,
+};
+use omnia_wasi_config::WasiConfig;
+use omnia_wasi_http::WasiHttp;
+use omnia_wasi_identity::WasiIdentity;
+use omnia_wasi_keyvalue::{KeyValueClient as _, Lifetime, WasiKeyValue};
+use omnia_wasi_messaging::WasiMessaging;
+use omnia_wasi_otel::WasiOtel;
 use serde_json::{Value, json};
+
+include!(concat!(env!("OUT_DIR"), "/gen.rs"));
 
 pub const FLEET_BASE: &str = "http://fleet.test";
 pub const BLOCK_MGT_BASE: &str = "http://block-mgt.test";
 pub const TRIP_MANAGEMENT_BASE: &str = "http://trip-mgt.test";
 
-/// A provider seeded with the configuration keys the handlers read.
-pub fn provider() -> Provider {
-    Provider::default()
-        .config(MapConfig::default().with([
-            ("BLOCK_MGT_URL", BLOCK_MGT_BASE),
-            ("FLEET_URL", FLEET_BASE),
-            ("TRIP_MANAGEMENT_URL", TRIP_MANAGEMENT_BASE),
-            ("API_IDENTITY", "test-identity"),
-        ]))
-        .identity(FixedIdentity::new("mock_access_token"))
+/// The configuration keys the handlers read.
+pub const CONFIG: [(&str, &str); 4] = [
+    ("BLOCK_MGT_URL", BLOCK_MGT_BASE),
+    ("FLEET_URL", FLEET_BASE),
+    ("TRIP_MANAGEMENT_URL", TRIP_MANAGEMENT_BASE),
+    ("API_IDENTITY", "test-identity"),
+];
+
+/// The stem's backends: configuration and state, the upstream answers a test
+/// seeds, and every message the component publishes.
+///
+/// Each delivery and request boots the component afresh over them, and every
+/// run shares their stores.
+pub struct Adapter {
+    /// The default backends with the handlers' configuration.
+    pub backends: Backends,
+    /// The upstream answers, recording every request a run sends.
+    pub http: MatchedHttp,
+    /// Every message a run publishes.
+    pub sink: Sink,
 }
 
-/// The stem's router over `provider`.
-pub fn router(provider: &Provider) -> Router<Provider> {
-    gtfs_adapter::handlers().with_state(provider.clone())
+impl Adapter {
+    /// An adapter over [`CONFIG`], answering upstream requests from `http`.
+    pub async fn new(http: MatchedHttp) -> Self {
+        Self::with_config(http, []).await
+    }
+
+    /// An adapter over [`CONFIG`] and `extra`, answering upstream requests
+    /// from `http`.
+    pub async fn with_config(
+        http: MatchedHttp, extra: impl IntoIterator<Item = (&'static str, &'static str)>,
+    ) -> Self {
+        let backends = Backends::defaults().await.config(CONFIG.into_iter().chain(extra));
+        Self {
+            backends,
+            http,
+            sink: Sink::default(),
+        }
+    }
+
+    /// Stores `value` at `key` in the state bucket, with no expiry.
+    pub async fn plant(&self, key: &str, value: &[u8]) {
+        let bucket =
+            self.backends.keyvalue.open_bucket(STATE_BUCKET.to_owned()).await.expect("bucket");
+        bucket
+            .set(key.to_owned(), value.to_vec(), Lifetime::Replace(None), None)
+            .await
+            .expect("value stored")
+            .expect("no precondition to fail");
+    }
+
+    /// Delivers `payload` on `topic` to the component.
+    pub async fn deliver(
+        &self, topic: &str, payload: impl Into<Vec<u8>>,
+    ) -> Result<(), HandleError> {
+        let runtime = self.boot().await;
+        let settled = host::deliver(&runtime, topic, payload).await;
+        runtime.shutdown();
+        settled
+    }
+
+    /// Sends `request` to the component and returns its response.
+    pub async fn send(&self, request: Request<Bytes>) -> Response<Bytes> {
+        let runtime = self.boot().await;
+        let response = host::send(&runtime, request).await.expect("request served");
+        runtime.shutdown();
+        response
+    }
+
+    async fn boot(&self) -> Runtime<impl Provides<WasiHttp> + Provides<WasiMessaging>> {
+        let backends = self
+            .backends
+            .clone()
+            .http(self.http.clone())
+            .identity(FixedIdentity::new("mock_access_token"))
+            .messaging(self.sink.clone());
+        let guest = precompiled(GTFS_ADAPTER_GUEST).expect("guest precompiles");
+        Deployment::new()
+            .guest("gtfs-adapter", guest)
+            .boot(backends, |deployment| {
+                deployment.host::<WasiConfig>()?;
+                deployment.host::<WasiHttp>()?;
+                deployment.host::<WasiIdentity>()?;
+                deployment.host::<WasiKeyValue>()?;
+                deployment.host::<WasiMessaging>()?;
+                deployment.host::<WasiOtel>()?;
+                Ok(())
+            })
+            .await
+            .expect("runtime boots")
+    }
 }
 
 /// The Fleet API lookup `gtfs_adapter::fleet::vehicle` makes for `vehicle_id`.

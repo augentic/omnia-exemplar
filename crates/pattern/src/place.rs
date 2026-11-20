@@ -1,4 +1,5 @@
-//! Relational geo queries through [`SqlDb`], rows decoded by [`FromRow`].
+//! Relational geo queries on the `default` [`sql`] database, rows decoded by
+//! [`FromRow`].
 //!
 //! A radius search does not need a geospatial extension bolted onto the
 //! key-value store: model the rows relationally, pre-filter with an indexable
@@ -18,15 +19,14 @@ use axum::Json;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
-use omnia_sdk::api::{Context, Handlers};
-use omnia_sdk::sql::{FromRow, Value};
-use omnia_sdk::{Error, SqlDb, SqlDbExt as _};
+use omnia_sdk::sql::{self, FromRow, Value};
+use omnia_sdk::{Error, Handlers};
 use serde::{Deserialize, Serialize};
 
 pub(crate) const PLACES: &str = "/examples/patterns/places";
 pub(crate) const NEARBY: &str = "/examples/patterns/nearby";
 
-pub(crate) fn handlers<P: crate::Requires>() -> Handlers<P> {
+pub(crate) fn handlers() -> Handlers {
     Handlers::new().route(PLACES, post(upsert_place)).route(NEARBY, get(nearby_places))
 }
 
@@ -144,18 +144,15 @@ struct Body<'a> {
     error: &'a PlaceError, // `error` tag + domain fields
 }
 
-pub(crate) async fn upsert_place<P>(
-    context: Context<P>, Json(input): Json<UpsertPlaceRequest>,
-) -> Result<Json<UpsertPlaceReply>, PlaceError>
-where
-    P: SqlDb,
-{
+pub(crate) async fn upsert_place(
+    Json(input): Json<UpsertPlaceRequest>,
+) -> Result<Json<UpsertPlaceReply>, PlaceError> {
     coordinate("lat", input.lat, -90.0, 90.0)?;
     coordinate("lon", input.lon, -180.0, 180.0)?;
 
-    let affected = context
-        .sql()
-        .execute(
+    let affected = sql::open(sql::DEFAULT)
+        .await?
+        .exec(
             "INSERT INTO places (id, name, lat, lon) VALUES ($1, $2, $3, $4) \
              ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, lat = EXCLUDED.lat, lon = EXCLUDED.lon",
             &[
@@ -215,12 +212,9 @@ pub struct NearbyPlacesReply {
 const METRES_PER_DEGREE: f64 = 111_320.0;
 
 // A GET with a JSON body: axum's `Json` extractor reads it under any method.
-pub(crate) async fn nearby_places<P>(
-    context: Context<P>, Json(input): Json<NearbyPlacesRequest>,
-) -> Result<Json<NearbyPlacesReply>, Error>
-where
-    P: SqlDb,
-{
+pub(crate) async fn nearby_places(
+    Json(input): Json<NearbyPlacesRequest>,
+) -> Result<Json<NearbyPlacesReply>, Error> {
     // A degree bounding box over-approximates the radius: cheap for the
     // database (plain comparisons, indexable), refined exactly below.
     // The longitude span widens with latitude; near the poles it covers
@@ -228,8 +222,8 @@ where
     let lat_delta = input.radius_m / METRES_PER_DEGREE;
     let lon_delta = lat_delta / input.lat.to_radians().cos().abs().max(f64::EPSILON);
 
-    let candidates: Vec<Place> = context
-        .sql()
+    let candidates: Vec<Place> = sql::open(sql::DEFAULT)
+        .await?
         .query_as(
             "SELECT id, name, lat, lon FROM places \
              WHERE lat >= $1 AND lat <= $2 AND lon >= $3 AND lon <= $4",

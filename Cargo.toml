@@ -35,14 +35,12 @@ sql.workspace = true
 tally-connector.workspace = true
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
-anyhow.workspace = true
 axum.workspace = true
 bytes.workspace = true
-chrono.workspace = true
 http.workspace = true
 http-body-util.workspace = true
 omnia.workspace = true
-omnia-test = { workspace = true, features = ["guest", "host"] }
+omnia-test = { workspace = true, features = ["host"] }
 omnia-wasi-blobstore.workspace = true
 omnia-wasi-config.workspace = true
 omnia-wasi-docstore.workspace = true
@@ -55,9 +53,8 @@ omnia-wasi-sql.workspace = true
 omnia-wasi-websocket.workspace = true
 serde_json.workspace = true
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
+tower.workspace = true
 
-# The fixture rung: `build.rs` compiles this package to a `wasm32-wasip3`
-# component for `tests/component.rs`. `build` is `std`-only by contract.
 [build-dependencies]
 omnia-test = { workspace = true, features = ["build"] }
 
@@ -94,9 +91,6 @@ all = { level = "warn", priority = -1 }
 cargo = { level = "warn", priority = -1 }
 nursery = { level = "warn", priority = -1 }
 pedantic = { level = "warn", priority = -1 }
-
-# the guest root's `where` list repeats `P` once per stem's `Requires`
-type_repetition_in_bounds = "allow"
 
 # cherry-picked `restriction`s
 allow_attributes = "deny"
@@ -136,6 +130,7 @@ tokio = { version = "1.54.1", default-features = false, features = [
     "time",
 ] }
 toml = "1.2.1"
+tower = { version = "0.5.3", default-features = false, features = ["util"] }
 tracing = "0.1.44"
 urlencoding = "2.1.3"
 uuid = { version = "1.29.3", features = ["serde", "v4"] }
@@ -202,3 +197,10 @@ omnia-http-cache = { git = "https://github.com/augentic/omnia-ext" }
 lto = true
 opt-level = "s"
 strip = true
+
+# The handler suites JIT-compile each guest, and unoptimized cranelift is ~10x
+# slower.
+[profile.dev.package]
+cranelift-codegen = { opt-level = 3 }
+regalloc2 = { opt-level = 3 }
+wasmtime-internal-cranelift = { opt-level = 3 }

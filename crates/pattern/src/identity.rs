@@ -1,10 +1,12 @@
-//! Upstream bearer-token authentication through [`IdentityExt::access_token`].
+//! Upstream bearer-token authentication through [`Identity::access_token`].
 //!
 //! Deployment credentials and upstream identities are resolved at use: the
 //! identity name is a configuration setting loaded through
-//! [`IdentitySettings`] and selected with [`Identity::named`]. Its token is
+//! [`IdentitySettings`] and opened with [`identity::open`]. Its token is
 //! attached as an `Authorization: Bearer <token>` header on the outbound
-//! [`HttpClientExt::fetch_json`] call.
+//! [`http::fetch_json`] call.
+//!
+//! [`Identity::access_token`]: omnia_sdk::identity::Identity::access_token
 
 use anyhow::Context as _;
 use axum::Json;
@@ -13,8 +15,7 @@ use axum::extract::Path;
 use axum::http::header::AUTHORIZATION;
 use axum::http::{Method, Request};
 use axum::routing::get;
-use omnia_sdk::api::{Context, Handlers};
-use omnia_sdk::{Config, HttpClient, HttpClientExt, Identity, IdentityExt, Result, Settings};
+use omnia_sdk::{Handlers, Result, Settings, http, identity};
 use serde::{Deserialize, Serialize};
 
 pub(crate) const UPSTREAM_STATUS: &str = "/examples/patterns/upstream/{resource}";
@@ -29,7 +30,7 @@ pub struct IdentitySettings {
     upstream_identity: String,
 }
 
-pub(crate) fn handlers<P: crate::Requires>() -> Handlers<P> {
+pub(crate) fn handlers() -> Handlers {
     Handlers::new().route(UPSTREAM_STATUS, get(fetch_upstream_status))
 }
 
@@ -42,14 +43,11 @@ pub struct UpstreamStatusReply {
     pub status: String,
 }
 
-pub(crate) async fn fetch_upstream_status<P>(
-    context: Context<P>, Path(resource): Path<String>,
-) -> Result<Json<UpstreamStatusReply>>
-where
-    P: Config + HttpClient + Identity,
-{
-    let settings = IdentitySettings::load(context.config()).await?;
-    let token = context.identity().named(&settings.upstream_identity).access_token().await?;
+pub(crate) async fn fetch_upstream_status(
+    Path(resource): Path<String>,
+) -> Result<Json<UpstreamStatusReply>> {
+    let settings = IdentitySettings::load().await?;
+    let token = identity::open(&settings.upstream_identity).await?.access_token().await?;
 
     let request = Request::builder()
         .method(Method::GET)
@@ -58,6 +56,6 @@ where
         .body(Bytes::new())
         .context("building upstream status request")?;
 
-    let status = context.http().fetch_json(request).await?;
+    let status = http::fetch_json(request).await?;
     Ok(Json(status))
 }

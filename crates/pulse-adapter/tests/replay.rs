@@ -6,8 +6,6 @@ mod fixture;
 use std::fs;
 
 use chrono::Utc;
-use common::topic;
-use omnia_test::guest::deliver;
 use pulse_adapter::pulse::TIMEZONE;
 
 use self::fixture::{Case, Expected};
@@ -21,13 +19,12 @@ use self::fixture::{Case, Expected};
 )]
 async fn run() {
     for entry in fs::read_dir("data/replay").expect("should read directory") {
-        replay(fixture::load(entry.expect("should read entry").path())).await;
+        replay(fixture::load(entry.expect("should read entry").path()).await).await;
     }
 }
 
 async fn replay(case: Case) {
-    let router = pulse_adapter::handlers().with_state(case.provider.clone());
-    let result = deliver(&router, topic::PULSE, case.input.clone()).await;
+    let result = case.run().await;
     let events = case.events();
 
     match &case.expected {

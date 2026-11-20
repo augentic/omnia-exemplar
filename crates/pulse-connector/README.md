@@ -21,5 +21,7 @@ instead.
 ## Tests
 
 - `tests/static.rs` — the captured vendor envelope (`data/receive-message.xml`)
-  forwarded through a mock publisher, plus the SOAP fault sad paths
-  (invalid message and unparseable envelope).
+  posted to the stem's component (`guest.rs`, compiled by `build.rs`) over
+  `omnia_test::host` backends, asserting the publish the recording `Sink`
+  receives, plus the SOAP fault sad paths (invalid message and unparseable
+  envelope).

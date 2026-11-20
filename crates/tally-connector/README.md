@@ -10,5 +10,7 @@ the starting template for new connectors.
 
 ## Tests
 
-- `tests/static.rs` — fixture messages (`data/`) forwarded through a mock
-  publisher, asserting topic, key, and payload.
+- `tests/static.rs` — fixture messages (`data/`) posted to the stem's
+  component (`guest.rs`, compiled by `build.rs`) over `omnia_test::host`
+  backends, asserting the topic, key, and payload each publish reaches the
+  recording `Sink` with.

@@ -128,7 +128,7 @@ async fn messaging_export() {
     message.topic = topic::PASSENGER_COUNT.to_owned();
     handler.handle(message).await.expect("handled");
 
-    // The guest's `StateStore` writes under its composite key into the bucket
+    // The guest writes under its composite key into the `default` bucket
     // `Backends::state` reads. The stored value is `gtfs-adapter`'s to assert.
     let key = "motionGtfs.occupancyStatus.32161.1347-05004-41400-2-89c4020e.20251120.113000";
     assert!(backends.state(key).await.is_some(), "an entry is stored under {key}");

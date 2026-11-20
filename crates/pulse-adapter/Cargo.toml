@@ -18,6 +18,11 @@ workspace = true
 [lib]
 crate-type = ["lib"]
 
+[[example]]
+name = "pulse-adapter-guest"
+path = "guest.rs"
+crate-type = ["cdylib"]
+
 [dependencies]
 anyhow.workspace = true
 axum.workspace = true
@@ -33,10 +38,18 @@ serde_repr.workspace = true
 thiserror.workspace = true
 tracing.workspace = true
 
-[dev-dependencies]
-bytes.workspace = true
-tokio.workspace = true
+[build-dependencies]
+omnia-test = { workspace = true, features = ["build"] }
 
-# Target-gated so the guest's wasm32 dependency graph never sees the doubles.
+# Target-gated so the guest's wasm32 dependency graph never sees the host.
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
-omnia-test = { workspace = true, features = ["guest"] }
+bytes.workspace = true
+omnia.workspace = true
+omnia-test = { workspace = true, features = ["host"] }
+omnia-wasi-config.workspace = true
+omnia-wasi-http.workspace = true
+omnia-wasi-identity.workspace = true
+omnia-wasi-keyvalue.workspace = true
+omnia-wasi-messaging.workspace = true
+omnia-wasi-otel.workspace = true
+tokio.workspace = true

@@ -6,7 +6,7 @@ use chrono::{Duration, NaiveDate, TimeZone, Timelike};
 use chrono_tz::Tz;
 use http::header::CONTENT_TYPE;
 use http::{Method, StatusCode};
-use omnia_sdk::{Config, HttpClient, Settings};
+use omnia_sdk::Settings;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tracing::warn;
@@ -26,13 +26,10 @@ pub struct TripSettings {
 /// IANA zone here (`Pacific/Auckland`) and must not copy UTC-as-local.
 pub const TIMEZONE: Tz = chrono_tz::UTC;
 
-pub(crate) async fn instance<P>(
-    provider: &P, trip_id: &str, service_date: &str, start_time: &str,
-) -> Result<Option<TripInstance>>
-where
-    P: Config + HttpClient,
-{
-    let trips = fetch(provider, trip_id, service_date).await?;
+pub(crate) async fn instance(
+    trip_id: &str, service_date: &str, start_time: &str,
+) -> Result<Option<TripInstance>> {
+    let trips = fetch(trip_id, service_date).await?;
     let mut iter = trips.into_iter();
 
     if let Some(first) = iter.next() {
@@ -54,19 +51,14 @@ where
     Ok(None)
 }
 
-pub(crate) async fn nearest<P>(
-    provider: &P, trip_id: &str, event_timestamp: i64,
-) -> Result<Option<TripInstance>>
-where
-    P: Config + HttpClient,
-{
+pub(crate) async fn nearest(trip_id: &str, event_timestamp: i64) -> Result<Option<TripInstance>> {
     let tz = TIMEZONE;
     let Some(event_dt) = tz.timestamp_opt(event_timestamp, 0).single() else {
         return Ok(None);
     };
 
     let current_date = event_dt.format("%Y%m%d").to_string();
-    let mut trips = fetch(provider, trip_id, &current_date).await?;
+    let mut trips = fetch(trip_id, &current_date).await?;
 
     if trips.first().is_some_and(TripInstance::has_error) {
         return Ok(trips.into_iter().next());
@@ -74,7 +66,7 @@ where
 
     if event_dt.hour() < 4 {
         let previous_date = (event_dt - Duration::days(1)).format("%Y%m%d").to_string();
-        let previous = fetch(provider, trip_id, &previous_date).await?;
+        let previous = fetch(trip_id, &previous_date).await?;
         if previous.first().is_some_and(TripInstance::has_error) {
             return Ok(previous.into_iter().next());
         }
@@ -95,11 +87,8 @@ where
     Ok(trips.into_iter().next())
 }
 
-async fn fetch<P>(provider: &P, trip_id: &str, service_date: &str) -> Result<Vec<TripInstance>>
-where
-    P: HttpClient + Config,
-{
-    let TripSettings { trip_management_url } = TripSettings::load(provider).await?;
+async fn fetch(trip_id: &str, service_date: &str) -> Result<Vec<TripInstance>> {
+    let TripSettings { trip_management_url } = TripSettings::load().await?;
     let endpoint = format!("{}/tripinstances", trip_management_url.trim_end_matches('/'));
 
     let payload = serde_json::json!({
@@ -115,7 +104,7 @@ where
         .body(Bytes::from(body_bytes))
         .context("building Trip Management request")?;
 
-    let response = provider.fetch(request).await.context("requesting trip instances")?;
+    let response = omnia_sdk::http::fetch(request).await.context("requesting trip instances")?;
     let status = response.status();
     let body = response.into_body();
 

@@ -1,23 +1,22 @@
 //! Static fixture tests for the gtfs-adapter routes and topics.
 //!
 //! Fixtures under `data/` are captured Kafka records from a live system;
-//! each test takes a record's `value` and drives the stem's `routes()` or
-//! `topics()` natively against `omnia_test` doubles seeded with the
-//! upstream answers.
+//! each test takes a record's `value` and drives the stem's component
+//! through `omnia_test::host` backends seeded with the upstream answers.
 
 mod support;
 
-use axum::body::Body;
-use axum::http::{Request, StatusCode};
+use axum::http::{Method, Request, StatusCode};
+use bytes::Bytes;
 use chrono::{DateTime, Utc};
 use common::topic;
 use gtfs_adapter::vehicle_info::VehicleInfoReply;
-use omnia_test::guest::{MatchedHttp, deliver, send};
+use omnia_test::host::{HandleError, MatchedHttp};
 use serde_json::{Value, json};
 
 use self::support::{
-    allocation_query, fleet_query, ok, provider, router, serial_data, trip_instance,
-    trip_instances, trip_query,
+    Adapter, allocation_query, fleet_query, ok, serial_data, trip_instance, trip_instances,
+    trip_query,
 };
 
 const FLEET_QUERY: &[u8] = include_bytes!("../data/fleet-query.json");
@@ -42,25 +41,25 @@ fn message_timestamp(value: &Value) -> DateTime<Utc> {
 #[tokio::test]
 async fn motion_location() {
     let value = fixture_value(PULSE_TO_MOTION, 0);
-    let provider = provider().http(
-        MatchedHttp::default().on(http::Method::GET, fleet_query("EMP484"), ok(FLEET_QUERY)).on(
-            http::Method::GET,
+    let adapter = Adapter::new(
+        MatchedHttp::default().on(Method::GET, fleet_query("EMP484"), ok(FLEET_QUERY)).on(
+            Method::GET,
             allocation_query("59144", message_timestamp(&value)),
             ok("null"),
         ),
-    );
+    )
+    .await;
 
-    deliver(&router(&provider), topic::PULSE_TO_MOTION, value.to_string())
-        .await
-        .expect("should succeed");
+    adapter.deliver(topic::PULSE_TO_MOTION, value.to_string()).await.expect("should succeed");
 
-    let published = provider.publisher.sent();
+    let published = adapter.sink.sent();
     assert_eq!(published.len(), 1);
 
-    let (topic, record) = &published[0];
-    assert_eq!(topic, topic::GTFS_VP);
+    let record = &published[0];
+    assert_eq!(record.topic, topic::GTFS_VP);
     // the key is the fleet identifier resolved from the message's external id
-    assert_eq!(record.key.as_deref(), Some("59144"));
+    let key = record.metadata.as_ref().and_then(|metadata| metadata.inner.get("key"));
+    assert_eq!(key.map(String::as_str), Some("59144"));
 
     let entity: Value = serde_json::from_slice(&record.payload).expect("should parse payload");
     assert_eq!(entity["id"], "59144");
@@ -83,27 +82,24 @@ async fn motion_without_gps() {
         "vehicleIds": ["59144"],
         "error": false,
     });
-    let provider = provider().http(
-        MatchedHttp::default().on(http::Method::GET, fleet_query("EMP484"), ok(FLEET_QUERY)).on(
-            http::Method::GET,
+    let adapter = Adapter::new(
+        MatchedHttp::default().on(Method::GET, fleet_query("EMP484"), ok(FLEET_QUERY)).on(
+            Method::GET,
             allocation_query("59144", message_timestamp(&value)),
             ok(allocation.to_string()),
         ),
-    );
-    provider.storage.insert_state(
-        "motionGtfs.trip.vehicle.59144",
-        &serde_json::to_vec(&trip_instance("TRIP-7")).expect("should serialize"),
-    );
+    )
+    .await;
+    let trip = serde_json::to_vec(&trip_instance("TRIP-7")).expect("should serialize");
+    adapter.plant("motionGtfs.trip.vehicle.59144", &trip).await;
 
-    deliver(&router(&provider), topic::PULSE_TO_MOTION, value.to_string())
-        .await
-        .expect("should succeed");
+    adapter.deliver(topic::PULSE_TO_MOTION, value.to_string()).await.expect("should succeed");
 
-    let published = provider.publisher.sent();
+    let published = adapter.sink.sent();
     assert_eq!(published.len(), 1);
 
-    let (topic, record) = &published[0];
-    assert_eq!(topic, topic::DEAD_RECKONING);
+    let record = &published[0];
+    assert_eq!(record.topic, topic::DEAD_RECKONING);
 
     let dr: Value = serde_json::from_slice(&record.payload).expect("should parse payload");
     assert_eq!(dr["trip"]["tripId"], "TRIP-7");
@@ -113,19 +109,17 @@ async fn motion_without_gps() {
 
 #[tokio::test]
 async fn motion_unknown_event() {
-    let provider = provider();
+    let adapter = Adapter::new(MatchedHttp::default()).await;
     let value = json!({
         "eventType": "somethingElse",
         "remoteData": { "externalId": "EMP484" },
         "messageData": { "timestamp": "2025-11-19T22:38:16.559Z" },
     });
 
-    deliver(&router(&provider), topic::PULSE_TO_MOTION, value.to_string())
-        .await
-        .expect("should succeed");
+    adapter.deliver(topic::PULSE_TO_MOTION, value.to_string()).await.expect("should succeed");
 
-    assert_eq!(provider.publisher.sent(), []);
-    assert!(provider.http.requests().is_empty());
+    assert!(adapter.sink.sent().is_empty());
+    assert!(adapter.http.requests().is_empty());
 }
 
 #[tokio::test]
@@ -137,50 +131,41 @@ async fn train_avl() {
     motion_fleet[0]["tag"] = "motion".into();
 
     // EM633 is tagged "NOVA" and EMP484 "motion". Only EMP484's allocation is
-    // scripted, so EM633 passing the filter panics on an unscripted request.
-    let provider = provider().http(
+    // scripted, so EM633 passing the filter fails on an unscripted request.
+    let adapter = Adapter::new(
         MatchedHttp::default()
-            .on(http::Method::GET, fleet_query("EM633"), ok(FLEET_QUERY))
-            .on(http::Method::GET, fleet_query("EMP484"), ok(motion_fleet.to_string()))
-            .on(
-                http::Method::GET,
-                allocation_query("59144", message_timestamp(&motion)),
-                ok("null"),
-            ),
-    );
+            .on(Method::GET, fleet_query("EM633"), ok(FLEET_QUERY))
+            .on(Method::GET, fleet_query("EMP484"), ok(motion_fleet.to_string()))
+            .on(Method::GET, allocation_query("59144", message_timestamp(&motion)), ok("null")),
+    )
+    .await;
 
     for value in [nova, motion] {
-        deliver(&router(&provider), topic::TRAIN_AVL, value.to_string())
-            .await
-            .expect("should succeed");
+        adapter.deliver(topic::TRAIN_AVL, value.to_string()).await.expect("should succeed");
     }
 
-    assert_eq!(provider.publisher.sent().len(), 1);
+    assert_eq!(adapter.sink.sent().len(), 1);
 }
 
 #[tokio::test]
 async fn pax_occupancy() {
-    let provider = provider();
+    let adapter = Adapter::new(MatchedHttp::default()).await;
     let key = "motionGtfs.occupancyStatus.32161.1347-05004-41400-2-89c4020e.20251120.113000";
 
     let value = fixture_value(PASSENGER_COUNT, 0);
 
-    deliver(&router(&provider), topic::PASSENGER_COUNT, value.to_string())
-        .await
-        .expect("should succeed");
+    adapter.deliver(topic::PASSENGER_COUNT, value.to_string()).await.expect("should succeed");
 
-    let stored = provider.storage.state(key).expect("occupancy status should be stored");
+    let stored = adapter.backends.state(key).await.expect("occupancy status should be stored");
     assert_eq!(stored, b"\"FEW_SEATS_AVAILABLE\"");
 
     // the same count without an occupancy status clears what was stored
     let mut value = value;
     value.as_object_mut().expect("object").remove("occupancyStatus");
 
-    deliver(&router(&provider), topic::PASSENGER_COUNT, value.to_string())
-        .await
-        .expect("should succeed");
+    adapter.deliver(topic::PASSENGER_COUNT, value.to_string()).await.expect("should succeed");
 
-    assert!(provider.storage.state(key).is_none(), "occupancy status should be cleared");
+    assert!(adapter.backends.state(key).await.is_none(), "occupancy status should be cleared");
 }
 
 #[tokio::test]
@@ -194,65 +179,69 @@ async fn serial_data_sign_on() {
     instance["startTime"] = "12:30:00".into();
     let mut extended = trip_instance("TRIP-EXT");
     extended["startTime"] = "36:05:00".into();
-    let provider = provider().http(MatchedHttp::default().on_matching(
-        http::Method::POST,
+    let adapter = Adapter::new(MatchedHttp::default().on_matching(
+        Method::POST,
         trip_instances(),
         trip_query("TRIP-1", "20251120"),
         ok(json!([extended, instance]).to_string()),
-    ));
+    ))
+    .await;
 
     // the vehicle is currently on a different trip
-    provider.storage.insert_state(
-        "motionGtfs.trip.vehicle.EM580",
-        &serde_json::to_vec(&trip_instance("TRIP-0")).expect("serialize"),
-    );
+    let trip = serde_json::to_vec(&trip_instance("TRIP-0")).expect("serialize");
+    adapter.plant("motionGtfs.trip.vehicle.EM580", &trip).await;
 
     // sign on
     let message = serial_data("EM580", "TRIP-1", signed_on);
-    deliver(&router(&provider), topic::PULSE_TO_MOTION, message.clone())
-        .await
-        .expect("should succeed");
+    adapter.deliver(topic::PULSE_TO_MOTION, message.clone()).await.expect("should succeed");
 
-    let trip = provider.storage.state("motionGtfs.trip.vehicle.EM580").expect("trip stored");
+    let trip = adapter.backends.state("motionGtfs.trip.vehicle.EM580").await.expect("trip stored");
     let trip: Value = serde_json::from_slice(&trip).expect("should parse trip");
     assert_eq!(trip["tripId"], "TRIP-1");
     assert_eq!(
-        provider.storage.state("motionGtfs.vehicle.signOn.EM580"),
+        adapter.backends.state("motionGtfs.vehicle.signOn.EM580").await,
         Some(signed_on.timestamp().to_string().into_bytes())
     );
 
     // redelivery
-    let error = deliver(&router(&provider), topic::PULSE_TO_MOTION, message)
+    let error = adapter
+        .deliver(topic::PULSE_TO_MOTION, message)
         .await
         .expect_err("should reject outdated message");
-    assert!(error.description().contains("outdated"), "{error}");
+    assert!(
+        matches!(&error, HandleError::Rejected(reason) if reason.contains("outdated")),
+        "{error}"
+    );
 
     // the future check is against the wall clock
     let future = serial_data("EM580", "TRIP-1", Utc::now() + chrono::Duration::seconds(3_600));
-    let error = deliver(&router(&provider), topic::PULSE_TO_MOTION, future)
+    let error = adapter
+        .deliver(topic::PULSE_TO_MOTION, future)
         .await
         .expect_err("should reject future-dated message");
-    assert!(error.description().contains("future-dated"), "{error}");
+    assert!(
+        matches!(&error, HandleError::Rejected(reason) if reason.contains("future-dated")),
+        "{error}"
+    );
 
     // neither rejection reaches Trip Management
-    assert_eq!(provider.http.requests().len(), 1);
+    assert_eq!(adapter.http.requests().len(), 1);
 }
 
 #[tokio::test]
 async fn vehicle_info_state() {
-    let provider = provider().http(MatchedHttp::default().on(
-        http::Method::GET,
+    let adapter = Adapter::new(MatchedHttp::default().on(
+        Method::GET,
         fleet_query("EMP484"),
         ok(FLEET_QUERY),
-    ));
-    provider.storage.insert_state(
-        "motionGtfs.trip.vehicle.EMP484",
-        &serde_json::to_vec(&trip_instance("TRIP-7")).expect("serialize"),
-    );
-    provider.storage.insert_state("motionGtfs.vehicle.signOn.EMP484", b"1763592000");
+    ))
+    .await;
+    let trip = serde_json::to_vec(&trip_instance("TRIP-7")).expect("serialize");
+    adapter.plant("motionGtfs.trip.vehicle.EMP484", &trip).await;
+    adapter.plant("motionGtfs.vehicle.signOn.EMP484", b"1763592000").await;
 
-    let request = Request::get("/info/EMP484").body(Body::empty()).expect("request");
-    let response = send(&router(&provider), request).await;
+    let request = Request::get("/info/EMP484").body(Bytes::new()).expect("request");
+    let response = adapter.send(request).await;
 
     assert_eq!(response.status(), StatusCode::OK);
     let reply: VehicleInfoReply = serde_json::from_slice(response.body()).expect("reply");
@@ -264,14 +253,14 @@ async fn vehicle_info_state() {
 // a `:` cannot sit in a state key segment, so the id never reaches a key
 #[tokio::test]
 async fn non_portable_vehicle_id() {
-    let provider = provider();
+    let adapter = Adapter::new(MatchedHttp::default()).await;
 
-    let request = Request::get("/info/EMP:484").body(Body::empty()).expect("request");
-    let response = send(&router(&provider), request).await;
+    let request = Request::get("/info/EMP:484").body(Bytes::new()).expect("request");
+    let response = adapter.send(request).await;
 
     assert_eq!(response.status(), StatusCode::BAD_REQUEST);
     let body: Value = serde_json::from_slice(response.body()).expect("error JSON");
     assert_eq!(body["error"], "bad_request");
     assert!(body["message"].as_str().is_some_and(|msg| msg.contains("EMP:484")), "{body}");
-    assert!(provider.http.requests().is_empty());
+    assert!(adapter.http.requests().is_empty());
 }

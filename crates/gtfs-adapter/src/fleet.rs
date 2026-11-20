@@ -8,7 +8,7 @@ use axum::body::Bytes;
 use http::Method;
 use http::header::{CACHE_CONTROL, IF_NONE_MATCH};
 use omnia_http_cache::HttpCache;
-use omnia_sdk::{Config, HttpClient, Identity, Result, Settings, StateStore, bad_gateway};
+use omnia_sdk::{Result, Settings, bad_gateway, keyvalue};
 use serde::{Deserialize, Serialize};
 
 /// The settings the Fleet client reads.
@@ -18,15 +18,12 @@ pub struct FleetSettings {
     fleet_url: String,
 }
 
-// Responses are cached for five minutes through the provider's `StateStore`
-// under the quoted etag `"fleet:<query>"`.
-pub(crate) async fn vehicle<P>(provider: &P, vehicle_id: &str) -> Result<Option<Vehicle>>
-where
-    P: Config + HttpClient + Identity + StateStore,
-{
+// Responses are cached for five minutes in the `default` bucket under the
+// quoted etag `"fleet:<query>"`.
+pub(crate) async fn vehicle(vehicle_id: &str) -> Result<Option<Vehicle>> {
     let Ok(identifier) = Identifier::from_str(vehicle_id);
     let query = identifier.to_query();
-    let FleetSettings { fleet_url } = FleetSettings::load(provider).await?;
+    let FleetSettings { fleet_url } = FleetSettings::load().await?;
 
     // `HttpCache` requires a quoted strong etag.
     let request = http::Request::builder()
@@ -37,10 +34,8 @@ where
         .body(Bytes::new())
         .context("building train_by_label request")?;
 
-    let response = HttpCache::new(provider, provider)
-        .fetch(request)
-        .await
-        .context("Fleet API request failed")?;
+    let cache = HttpCache::new(keyvalue::open(keyvalue::DEFAULT).await?);
+    let response = cache.fetch(request).await.context("Fleet API request failed")?;
 
     if !response.status().is_success() {
         return Err(bad_gateway!("Fleet API returned {}", response.status()));

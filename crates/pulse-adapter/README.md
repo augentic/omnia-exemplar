@@ -12,10 +12,15 @@ behaviour.
 
 ## Tests
 
+Both suites deliver each input on the Pulse topic to the stem's component
+(`guest.rs`, compiled by `build.rs`), booted over `omnia_test::host`
+backends. A rejected or released delivery is compared with the fixture's
+expected error.
+
 - `tests/static.rs` — hand-authored scenarios exercising the stops-table
   cache (fetch, hit, and refetch after corruption), the arrival location,
   unmapped stations, missing vehicles and stops, and validation failures.
 - `tests/replay.rs` — snapshot fixtures captured from a live system, replayed
-  through the adapter with the captured HTTP answers seeded into
-  `omnia_test::guest::MatchedHttp` (`tests/fixture/mod.rs` is the loader; each
-  fixture names the exact request it answers, query string included).
+  with the captured HTTP answers seeded into `omnia_test::host::MatchedHttp`
+  (`tests/fixture/mod.rs` is the loader; each fixture names the exact request
+  it answers, query string included).

@@ -17,22 +17,10 @@ pub mod train_avl;
 pub mod trip;
 pub mod vehicle_info;
 
-use omnia_sdk::api::Handlers;
-use omnia_sdk::{Config, HttpClient, Identity, Publisher, StateStore};
+use omnia_sdk::Handlers;
 
-/// The capabilities the stem's handlers reach, implemented by every provider that has them.
-pub trait Requires:
-    Config + HttpClient + Identity + Publisher + StateStore + Send + Sync + 'static
-{
-}
-
-impl<P> Requires for P where
-    P: Config + HttpClient + Identity + Publisher + StateStore + Send + Sync + 'static
-{
-}
-
-/// The stem's handlers, merged onto the root routers.
-pub fn handlers<P: Requires>() -> Handlers<P> {
+/// The stem's handlers, merged onto the root router.
+pub fn handlers() -> Handlers {
     Handlers::from([
         motion::handlers(),
         passenger_count::handlers(),

@@ -47,8 +47,8 @@ omnia-wasi-websocket = { workspace = true, optional = true }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 axum.workspace = true
-omnia-test = { workspace = true, features = ["guest"] }
 tokio.workspace = true
+tower.workspace = true
 
 [dependencies]
 common.workspace = true
@@ -77,9 +77,6 @@ all = { level = "warn", priority = -1 }
 cargo = { level = "warn", priority = -1 }
 nursery = { level = "warn", priority = -1 }
 pedantic = { level = "warn", priority = -1 }
-
-# the guest root's `where` list repeats `P` once per stem's `Requires`
-type_repetition_in_bounds = "allow"
 
 # cherry-picked `restriction`s
 allow_attributes_without_reason = "warn"
@@ -114,6 +111,7 @@ serde_json = "1.0.154"
 serde_repr = "0.1.21"
 thiserror = "2.0.21"
 tokio = { version = "1.54.1", default-features = false, features = ["macros", "rt"] }
+tower = { version = "0.5.3", default-features = false, features = ["util"] }
 tracing = "0.1.44"
 urlencoding = "2.1.3"
 uuid = { version = "1.29.3", features = ["serde", "v4"] }
@@ -150,4 +148,11 @@ omnia-wasi-otel = { git = "https://github.com/augentic/omnia" }
 omnia-wasi-sql = { git = "https://github.com/augentic/omnia" }
 omnia-wasi-websocket = { git = "https://github.com/augentic/omnia" }
 omnia-http-cache = { git = "https://github.com/augentic/omnia-ext" }
+
+# A stem's suites JIT-compile its guest, and unoptimized cranelift is ~10x
+# slower.
+[profile.dev.package]
+cranelift-codegen = { opt-level = 3 }
+regalloc2 = { opt-level = 3 }
+wasmtime-internal-cranelift = { opt-level = 3 }
 
