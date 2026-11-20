@@ -7,7 +7,7 @@ use anyhow::Context as _;
 use axum::body::Bytes;
 use http::Method;
 use http::header::{CACHE_CONTROL, IF_NONE_MATCH};
-use omnia_http_cache::HttpCache;
+use omnia_sdk::http::cache::HttpCache;
 use omnia_sdk::{Result, Settings, bad_gateway, keyvalue};
 use serde::{Deserialize, Serialize};
 

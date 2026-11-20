@@ -130,7 +130,6 @@ omnia-wasi-otel = "0.38.0"
 omnia-wasi-sql = "0.38.0"
 omnia-wasi-websocket = "0.38.0"
 
-omnia-http-cache = "0.36.0"
 common = { path = "crates/common" }
 
 [patch.crates-io]
@@ -147,7 +146,6 @@ omnia-wasi-messaging = { git = "https://github.com/augentic/omnia" }
 omnia-wasi-otel = { git = "https://github.com/augentic/omnia" }
 omnia-wasi-sql = { git = "https://github.com/augentic/omnia" }
 omnia-wasi-websocket = { git = "https://github.com/augentic/omnia" }
-omnia-http-cache = { git = "https://github.com/augentic/omnia-ext" }
 
 # A stem's suites JIT-compile its guest, and unoptimized cranelift is ~10x
 # slower.

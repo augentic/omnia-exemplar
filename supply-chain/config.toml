@@ -142,7 +142,7 @@ version = "0.10.4"
 criteria = "safe-to-deploy"
 
 [[exemptions.clap]]
-version = "4.6.7"
+version = "4.6.9"
 criteria = "safe-to-deploy"
 
 [[exemptions.clap_builder]]
@@ -150,11 +150,11 @@ version = "4.6.7"
 criteria = "safe-to-deploy"
 
 [[exemptions.clap_derive]]
-version = "4.6.7"
+version = "4.6.9"
 criteria = "safe-to-deploy"
 
 [[exemptions.clap_lex]]
-version = "1.1.1"
+version = "1.1.2"
 criteria = "safe-to-deploy"
 
 [[exemptions.cmake]]
@@ -686,15 +686,15 @@ version = "0.12.1"
 criteria = "safe-to-deploy"
 
 [[exemptions.pin-project]]
-version = "1.1.13"
+version = "1.2.0"
 criteria = "safe-to-deploy"
 
 [[exemptions.pin-project-internal]]
-version = "1.1.13"
+version = "1.2.0"
 criteria = "safe-to-deploy"
 
 [[exemptions.pin-project-lite]]
-version = "0.2.17"
+version = "0.2.18"
 criteria = "safe-to-deploy"
 
 [[exemptions.portable-atomic]]
@@ -761,6 +761,14 @@ criteria = "safe-to-deploy"
 version = "0.9.5"
 criteria = "safe-to-deploy"
 
+[[exemptions.rand]]
+version = "0.10.4"
+criteria = "safe-to-deploy"
+
+[[exemptions.rand_pcg]]
+version = "0.10.3"
+criteria = "safe-to-deploy"
+
 [[exemptions.rand_xorshift]]
 version = "0.5.0"
 criteria = "safe-to-deploy"
@@ -786,15 +794,15 @@ version = "1.0.27"
 criteria = "safe-to-deploy"
 
 [[exemptions.regex]]
-version = "1.13.1"
+version = "1.13.2"
 criteria = "safe-to-deploy"
 
 [[exemptions.regex-automata]]
-version = "0.4.18"
+version = "0.4.19"
 criteria = "safe-to-deploy"
 
 [[exemptions.regex-syntax]]
-version = "0.8.11"
+version = "0.8.12"
 criteria = "safe-to-deploy"
 
 [[exemptions.reqwest]]
@@ -1375,6 +1383,10 @@ criteria = "safe-to-deploy"
 
 [[exemptions.zerofrom-derive]]
 version = "0.1.8"
+criteria = "safe-to-deploy"
+
+[[exemptions.zeroize]]
+version = "1.9.2"
 criteria = "safe-to-deploy"
 
 [[exemptions.zeroize_derive]]

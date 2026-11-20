@@ -77,6 +77,12 @@ Unreleased
     `type_repetition_in_bounds` allowance.
   - The `clippy.toml` reasons name the `omnia-sdk` module a guest reaches
     instead of a capability trait.
+- **Outbound caching through `omnia_sdk::http::cache`.** The root and seed
+  manifests drop `omnia-http-cache` with its `[patch.crates-io]` row, since
+  `omnia-sdk`'s default `http` feature carries the cache. Both `deny.toml`
+  files drop omnia-ext from `allow-git`. `gtfs-adapter`'s Fleet and Block
+  Management clients import `HttpCache` from `omnia_sdk::http::cache`,
+  under the same header contract and store keys.
 - **One `Handlers` list at every level, one `router`, and stems only in the root `[dependencies]`.**
   The root's `router`, a stem's `handlers`, and a part's `handlers` all
   register or merge their HTTP routes (`.route`) and messaging topics
