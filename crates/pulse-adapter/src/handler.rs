@@ -3,13 +3,10 @@
 //! Transform a Pulse XML message into Motion events.
 
 use anyhow::Context as _;
-use axum::body::Bytes;
 use chrono::Utc;
 use common::topic;
-use http::Method;
-use http::header::AUTHORIZATION;
 use omnia_sdk::messaging::{self, Delivery, Message};
-use omnia_sdk::{Context, Error, Handlers, Result, Settings, identity};
+use omnia_sdk::{Error, Handlers, Result, Settings, identity};
 use serde::Deserialize;
 use thiserror::Error;
 
@@ -108,7 +105,7 @@ impl PulseMessage {
 /// handler.
 const PUBLISH_REPEATS: usize = 2;
 
-pub(crate) async fn pulse(_: Context, input: PulseMessage) -> Result<()> {
+pub(crate) async fn pulse(input: PulseMessage) -> Result<()> {
     // validate message
     let update = input.train_update;
     update.validate()?;
@@ -117,7 +114,7 @@ pub(crate) async fn pulse(_: Context, input: PulseMessage) -> Result<()> {
     let events = update.into_events().await?;
 
     // publish events to Motion topic (repeated — see `PUBLISH_REPEATS`)
-    let client = messaging::connect(messaging::DEFAULT).await?;
+    let client = messaging::default().await?;
     for _ in 0..PUBLISH_REPEATS {
         for event in &events {
             tracing::info!(monotonic_counter.motion_events_published = 1);
@@ -179,12 +176,8 @@ async fn trip_allocations(external_ref_id: &str) -> Result<Vec<String>> {
     } = PulseSettings::load().await?;
     let token = identity::open(&api_identity).await?.access_token().await?;
 
-    let request = http::Request::builder()
-        .method(Method::GET)
-        .uri(format!("{url}/allocations/trips?externalRefId={external_ref_id}"))
-        .header(AUTHORIZATION, format!("Bearer {token}"))
-        .body(Bytes::new())
-        .context("building trip allocations request")?;
-
-    omnia_sdk::http::fetch_json(request).await
+    omnia_sdk::http::get(format!("{url}/allocations/trips?externalRefId={external_ref_id}"))
+        .bearer(token)
+        .fetch_json()
+        .await
 }

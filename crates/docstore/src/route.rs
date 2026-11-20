@@ -63,7 +63,7 @@ pub(crate) async fn create_route(
 pub(crate) async fn get_route(Path(id): Path<String>) -> Result<Json<DocumentRecord<Route>>> {
     let route = docstore::open(COLLECTION)
         .await?
-        .get_as(&id)
+        .get_json(&id)
         .await?
         .ok_or_else(|| not_found!("route {id} not found"))?;
 
@@ -142,14 +142,12 @@ pub(crate) async fn list_routes(
         ])));
     }
 
-    let filter = if filters.is_empty() { None } else { Some(Filter::and(filters)) };
-
-    let query = docstore::Query {
-        filter,
-        order_by: vec![SortField::asc("route_short_name")],
-        limit: input.limit,
-        after: input.continuation,
-    };
+    let query = docstore::Query::builder()
+        .maybe_filter(Filter::all(filters))
+        .order_by(vec![SortField::asc("route_short_name")])
+        .maybe_limit(input.limit)
+        .maybe_after(input.continuation)
+        .build();
     let page = docstore::open(COLLECTION).await?.find(&query).await?;
 
     Ok(Json(RoutesReply {

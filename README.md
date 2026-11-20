@@ -7,7 +7,7 @@ passenger counting, and GTFS realtime adaptation.
 
 Domain logic lives under `crates/*` as plain axum handlers
 (`pub async fn name(Json<Input>)`) and messaging handlers
-(`pub async fn name(Context, Input)`), each reaching the host through
+(`pub async fn name(Input)`), each reaching the host through
 `omnia-sdk`'s bindings, and each crate exposes its wiring: `handlers()`, a
 `Handlers` binding its paths to its fns (`post(tally)`) and its topics
 to its consumers. The **guest is the workspace root package**
@@ -144,7 +144,7 @@ The guest:
 | `GET/POST /examples/agencies/{agency_id}/feeds` | `sql::{list_agency_feeds, create_feed}` — per-agency feeds with referential checks |
 | `GET /examples/feeds`, `DELETE /examples/feeds/{id}` | `sql::{list_all_feeds, delete_feed}` — JOIN listing and delete with 404-on-zero-rows |
 | `POST /examples/patterns/decode` | `pattern::decode_segment` — decode-through-cache over `keyvalue`, `config`, and `http` |
-| `PUT /examples/patterns/quotas/{tenant}` | `pattern::update_quota` — optimistic concurrency over `Bucket::compare_and_swap` (`409 Conflict` via `QuotaError`) |
+| `PUT /examples/patterns/quotas/{tenant}` | `pattern::update_quota` — optimistic concurrency over `Bucket::update_json` (`409 Conflict` via `conflict!`) |
 | `GET /examples/patterns/upstream/{resource}` | `pattern::fetch_upstream_status` — bearer-token auth via `identity::open` and `Identity::access_token` |
 | `POST /examples/patterns/places`, `GET /examples/patterns/nearby` | `pattern::{upsert_place, nearby_places}` — `INSERT … ON CONFLICT` upsert (`PlaceError`) and bounding-box + haversine query |
 | `POST /examples/archive` | `capability::archive` — `blobstore` object write |
@@ -173,8 +173,8 @@ consumer is out of scope for the exemplar.
 | `crates/gtfs-adapter` | Converts Motion events into GTFS-realtime vehicle positions |
 | `crates/capability` | Domain-free handlers proving the remaining interfaces: `blobstore`, `websocket`, `docstore`, `sql`; mounted by the guest at `POST /examples/{archive,alert,note,reading}` |
 | `crates/docstore` | Rich `omnia:docstore` showcase: GTFS-like collections exercising portable and optional filters, sorting, and continuation pagination |
-| `crates/sql` | Rich `omnia:sql` showcase: agency/feed schema exercising parameterized SQL, `FromRow` records through `query_as`, a JOIN entity, and server-assigned ids |
-| `crates/pattern` | Composition patterns: decode-through-cache, `Bucket::compare_and_swap` optimistic concurrency (`409`), named-identity bearer auth, relational geo queries, and structured JSON error bodies |
+| `crates/sql` | Rich `omnia:sql` showcase: agency/feed schema exercising parameterized SQL, `FromRow` records through `query_as`, a JOIN entity, server-assigned ids, and a transactional update |
+| `crates/pattern` | Composition patterns: decode-through-cache, `Bucket::update_json` optimistic concurrency (`409`), named-identity bearer auth, relational geo queries, and structured JSON error bodies |
 | root package (`guest`) | Typed-router HTTP + exact-topic messaging WASM guest binary |
 
 Domain crates reach the host only through the `omnia-sdk` bindings, one
@@ -195,12 +195,13 @@ clients stay plain functions.
 3. Implement the `pub` input and reply types and a handler fn. An HTTP
    handler is a plain axum handler
    (`pub(crate) async fn name(Json(input): Json<Input>) -> Result<Json<Reply>>`);
-   a messaging handler takes the delivery's `Context` first, then its
-   decoded input (`pub(crate) async fn name(_: Context, input: Input) -> Result<Reply>`).
+   a messaging handler takes its decoded input
+   (`pub(crate) async fn name(input: Input) -> Result<Reply>`), with the
+   delivery's `Context` first only when it reads the delivery's metadata.
    Reach the host through the `omnia-sdk` module for the interface: open
-   a bucket with `keyvalue::open(keyvalue::DEFAULT)`, a database with
-   `sql::open(sql::DEFAULT)`, send with `http::fetch_json`, and publish
-   with `messaging::connect(messaging::DEFAULT)` and `Client::send`.
+   a bucket with `keyvalue::default()`, a database with `sql::default()`,
+   send with `http::get(url).fetch_json()`, and publish with
+   `messaging::default()` and `Client::send`.
 4. Declare the path as a `pub(crate) const` of the part that uses it, its
    required configuration as one `#[derive(Settings)]` struct (whose `KEYS`
    `tests/component.rs` seeds), and any new topic in `common::topic`.
@@ -263,7 +264,7 @@ may refuse one with `invalid`.
 Patterns worth copying into new services:
 
 - Plain handler fns over the `omnia-sdk` bindings (axum handlers for HTTP,
-  `async fn(Context, Input)` for messaging), each crate binding its own to
+  `async fn(Input)` for messaging), each crate binding its own to
   its paths and topics in `handlers()`, with the guest as a thin composing
   layer at the **workspace root** (`src/lib.rs`), one line per crate in
   `router`.
@@ -280,14 +281,13 @@ Patterns worth copying into new services:
   key-value bucket in one handler — `get_json` miss → `Settings` →
   `fetch_json` → `set_json` with a TTL — instead of a separate
   cache-population process (`pattern::decode`, `pulse_adapter::stops`).
-- Optimistic concurrency (`Bucket::compare_and_swap`): versioned state
-  updates map a `Conflict` to `409 Conflict` through a module error type's
-  `IntoResponse` (`pattern::cas`).
+- Optimistic concurrency (`Bucket::update_json`): a versioned state update
+  checks the caller's version in its closure and answers `conflict!`, a
+  `409 Conflict` (`pattern::cas`).
 - Upstream bearer-token authentication (`Identity::access_token`): resolve
   the identity name from the part's `Settings`, acquire a token via
-  `identity::open(name).await?.access_token()`, and send
-  `Authorization: Bearer <token>` on `http::fetch_json`
-  (`pattern::identity`).
+  `identity::open(name).await?.access_token()`, and send it with
+  `http::get(url).bearer(token)` (`pattern::identity`).
 - Cached upstream fetches as an explicit decorator, not an ambient runtime
   feature: `HttpCache::new(bucket).fetch(request)` at the call sites that
   want it (`gtfs_adapter::fleet::vehicle`,

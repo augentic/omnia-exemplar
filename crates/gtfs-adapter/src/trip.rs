@@ -1,11 +1,9 @@
 //! Trip Management API client and GTFS-realtime types.
 
 use anyhow::{Context, Result};
-use axum::body::Bytes;
 use chrono::{Duration, NaiveDate, TimeZone, Timelike};
 use chrono_tz::Tz;
-use http::header::CONTENT_TYPE;
-use http::{Method, StatusCode};
+use http::StatusCode;
 use omnia_sdk::Settings;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -95,16 +93,11 @@ async fn fetch(trip_id: &str, service_date: &str) -> Result<Vec<TripInstance>> {
         "tripIds": [trip_id],
         "serviceDate": service_date,
     });
-    let body_bytes = serde_json::to_vec(&payload).context("serializing trip management payload")?;
-
-    let request = http::Request::builder()
-        .method(Method::POST)
-        .uri(&endpoint)
-        .header(CONTENT_TYPE, "application/json")
-        .body(Bytes::from(body_bytes))
-        .context("building Trip Management request")?;
-
-    let response = omnia_sdk::http::fetch(request).await.context("requesting trip instances")?;
+    let response = omnia_sdk::http::post(endpoint)
+        .json(&payload)
+        .fetch()
+        .await
+        .context("requesting trip instances")?;
     let status = response.status();
     let body = response.into_body();
 

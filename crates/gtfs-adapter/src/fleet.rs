@@ -4,8 +4,6 @@ use std::convert::Infallible;
 use std::str::FromStr;
 
 use anyhow::Context as _;
-use axum::body::Bytes;
-use http::Method;
 use http::header::{CACHE_CONTROL, IF_NONE_MATCH};
 use omnia_sdk::http::cache::HttpCache;
 use omnia_sdk::{Result, Settings, bad_gateway, keyvalue};
@@ -26,15 +24,12 @@ pub(crate) async fn vehicle(vehicle_id: &str) -> Result<Option<Vehicle>> {
     let FleetSettings { fleet_url } = FleetSettings::load().await?;
 
     // `HttpCache` requires a quoted strong etag.
-    let request = http::Request::builder()
-        .method(Method::GET)
-        .uri(format!("{fleet_url}/vehicles?{query}"))
+    let request = omnia_sdk::http::get(format!("{fleet_url}/vehicles?{query}"))
         .header(CACHE_CONTROL, "max-age=300")
         .header(IF_NONE_MATCH, format!("\"fleet:{query}\""))
-        .body(Bytes::new())
-        .context("building train_by_label request")?;
+        .build()?;
 
-    let cache = HttpCache::new(keyvalue::open(keyvalue::DEFAULT).await?);
+    let cache = HttpCache::new(keyvalue::default().await?);
     let response = cache.fetch(request).await.context("Fleet API request failed")?;
 
     if !response.status().is_success() {

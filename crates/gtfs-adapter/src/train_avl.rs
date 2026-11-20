@@ -1,7 +1,7 @@
 //! Train AVL message filtering.
 
 use common::topic;
-use omnia_sdk::{Context, Handlers, Result};
+use omnia_sdk::{Handlers, Result};
 use serde::Deserialize;
 
 use crate::fleet;
@@ -17,7 +17,7 @@ pub(crate) fn handlers() -> Handlers {
 #[serde(transparent)]
 pub struct TrainAvlMessage(pub MotionMessage);
 
-pub(crate) async fn train_avl(context: Context, input: TrainAvlMessage) -> Result<()> {
+pub(crate) async fn train_avl(input: TrainAvlMessage) -> Result<()> {
     let request = input.0;
 
     // verify vehicle tag is 'motion'
@@ -36,5 +36,5 @@ pub(crate) async fn train_avl(context: Context, input: TrainAvlMessage) -> Resul
         return Ok(());
     }
 
-    motion::motion(context, request).await
+    motion::motion(request).await
 }

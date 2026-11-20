@@ -150,7 +150,7 @@ pub(crate) async fn upsert_place(
     coordinate("lat", input.lat, -90.0, 90.0)?;
     coordinate("lon", input.lon, -180.0, 180.0)?;
 
-    let affected = sql::open(sql::DEFAULT)
+    let affected = sql::default()
         .await?
         .exec(
             "INSERT INTO places (id, name, lat, lon) VALUES ($1, $2, $3, $4) \
@@ -222,7 +222,7 @@ pub(crate) async fn nearby_places(
     let lat_delta = input.radius_m / METRES_PER_DEGREE;
     let lon_delta = lat_delta / input.lat.to_radians().cos().abs().max(f64::EPSILON);
 
-    let candidates: Vec<Place> = sql::open(sql::DEFAULT)
+    let candidates: Vec<Place> = sql::default()
         .await?
         .query_as(
             "SELECT id, name, lat, lon FROM places \

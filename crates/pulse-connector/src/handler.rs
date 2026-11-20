@@ -68,7 +68,7 @@ pub(crate) async fn pulse(body: Bytes) -> Result<PulseReply, Fault> {
 }
 
 async fn forward(message: Message) -> omnia_sdk::Result<()> {
-    let client = messaging::connect(messaging::DEFAULT).await?;
+    let client = messaging::default().await?;
     client.send(topic::PULSE, message).await
 }
 

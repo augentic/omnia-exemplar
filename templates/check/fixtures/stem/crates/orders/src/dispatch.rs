@@ -2,7 +2,7 @@
 
 use common::topic;
 use omnia_sdk::messaging::Delivery;
-use omnia_sdk::{Context, Handlers, Result, bad_request, keyvalue};
+use omnia_sdk::{Handlers, Result, bad_request, keyvalue};
 use serde::{Deserialize, Serialize};
 
 pub(crate) fn handlers() -> Handlers {
@@ -27,10 +27,10 @@ pub struct Dispatched {
     pub carrier: String,
 }
 
-pub(crate) async fn on_dispatched(_: Context, input: Dispatched) -> Result<()> {
+pub(crate) async fn on_dispatched(input: Dispatched) -> Result<()> {
     if input.carrier.is_empty() {
         return Err(bad_request!("dispatch notice lacks a carrier"));
     }
-    let state = keyvalue::open(keyvalue::DEFAULT).await?;
+    let state = keyvalue::default().await?;
     state.write(&dispatched_key(&input.id), input.carrier.as_bytes(), None).await
 }

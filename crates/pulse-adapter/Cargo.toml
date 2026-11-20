@@ -25,11 +25,9 @@ crate-type = ["cdylib"]
 
 [dependencies]
 anyhow.workspace = true
-axum.workspace = true
 chrono.workspace = true
 chrono-tz.workspace = true
 common.workspace = true
-http.workspace = true
 omnia-sdk.workspace = true
 quick-xml.workspace = true
 serde.workspace = true
@@ -44,6 +42,7 @@ omnia-test = { workspace = true, features = ["build"] }
 # Target-gated so the guest's wasm32 dependency graph never sees the host.
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 bytes.workspace = true
+http.workspace = true
 omnia.workspace = true
 omnia-test = { workspace = true, features = ["host"] }
 omnia-wasi-config.workspace = true

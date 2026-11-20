@@ -4,7 +4,7 @@ use axum::Json;
 use axum::routing::post;
 use common::topic;
 use omnia_sdk::messaging::{self, Message};
-use omnia_sdk::{Context, Handlers, Result, Settings, bad_request, keyvalue};
+use omnia_sdk::{Handlers, Result, Settings, bad_request, keyvalue};
 use serde::{Deserialize, Serialize};
 
 // The paths the part serves.
@@ -50,15 +50,15 @@ pub(crate) async fn place(Json(input): Json<PlaceOrder>) -> Result<Json<Placed>>
     let placed = Placed {
         lines: input.lines.len(),
     };
-    let client = messaging::connect(messaging::DEFAULT).await?;
+    let client = messaging::default().await?;
     client.send(topic::ORDER_PLACED, Message::json(&placed)?).await?;
     Ok(Json(placed))
 }
 
-pub(crate) async fn on_placed(_: Context, input: Placed) -> Result<()> {
+pub(crate) async fn on_placed(input: Placed) -> Result<()> {
     let delta = i64::try_from(input.lines).map_err(|error| bad_request!("{error}"))?;
-    let state = keyvalue::open(keyvalue::DEFAULT).await?;
-    let total = state.increment(LINES_PLACED.to_owned(), delta, None).await?;
+    let state = keyvalue::default().await?;
+    let total = state.add(LINES_PLACED, delta, None).await?;
     tracing::info!(lines = input.lines, total, "order placed");
     Ok(())
 }

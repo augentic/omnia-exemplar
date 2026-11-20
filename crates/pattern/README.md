@@ -7,7 +7,7 @@ each handler here composes several:
 | Module | Interfaces | Handler |
 | --- | --- | --- |
 | `decode` | `config` + `http` + `keyvalue` | `decode_segment` — decode-through-cache with a config-carried client certificate |
-| `cas` | `keyvalue` (`Bucket::compare_and_swap`) | `update_quota` — optimistic concurrency over `Bucket::compare_and_swap`, answering `409 Conflict` via `QuotaError` |
+| `cas` | `keyvalue` (`Bucket::update_json`) | `update_quota` — optimistic concurrency over `Bucket::update_json`, answering `409 Conflict` with `conflict!` |
 | `identity` | `config` + `identity` + `http` | `fetch_upstream_status` — resolving an upstream identity via `IdentitySettings`, acquiring a bearer token via `identity::open` and `Identity::access_token`, and forwarding `Authorization: Bearer <token>` |
 | `place` | `sql` | `upsert_place` — parameterized `INSERT … ON CONFLICT` upsert, rejecting bad coordinates with a structured JSON error body (`PlaceError`) |
 | `place` | `sql` + `FromRow` | `nearby_places` — bounding-box `SELECT` refined by haversine |
@@ -25,8 +25,8 @@ implementations, deliberately apart from the transit crates' paths.
 2. `DecodeSettings::load` — resolve the decoder endpoint
    (`PATTERN_DECODER_URL`) and the client certificate
    (`PATTERN_CLIENT_CERT`).
-3. `omnia_sdk::http::fetch_json` — POST to the decoder with the certificate
-   riding the `Client-Cert` header.
+3. `omnia_sdk::http::post` — POST to the decoder with the certificate
+   riding the `Client-Cert` header, decoding the reply with `fetch_json`.
 4. `Bucket::set_json` — write the decoded segment back with a `Duration`
    TTL so the next lookup short-circuits.
 
@@ -38,26 +38,26 @@ being populated by a separate process, and credential material stays in
 configuration and travels as ordinary request data — outbound HTTP stays
 generic and no TLS-specific interface is needed.
 
-## Optimistic concurrency (`Bucket::compare_and_swap`)
+## Optimistic concurrency (`Bucket::update_json`)
 
 `update_quota` (`PUT /examples/patterns/quotas/{tenant}` with an
-`UpdateQuotaRequest` body) reads the current record with `Bucket::read`,
-checks `expected_version`, and writes the next revision with
-`Bucket::compare_and_swap` against the bytes it read.
-When a concurrent writer modifies the entry (or the version does not match),
-`QuotaError::Conflict` answers `409 Conflict` through `QuotaError`'s
-`IntoResponse`, carrying the `tenant` and the observed `current_version` so the caller can
-retry without a separate read. A tenant that is not a portable key segment
-is refused with `400` before the store is read.
+`UpdateQuotaRequest` body) writes the next revision with
+`Bucket::update_json`, whose closure checks `expected_version` against the
+record it read. A version that does not match answers `conflict!`, a
+`409 Conflict` whose message names the stored version so the caller can
+retry without a separate read. A write that races another writer is retried
+by `update_json` itself. The closure then reads the other writer's version
+and answers the same `409`. A tenant that is not a portable key segment is
+refused with `400` before the store is read.
 
 ## Upstream bearer-token authentication (`Identity::access_token`)
 
 `fetch_upstream_status` loads the identity name (`PATTERN_UPSTREAM_IDENTITY`)
 and base URL (`PATTERN_UPSTREAM_URL`) through `IdentitySettings`, calls
 `identity::open(&identity).await?.access_token()` to obtain the bearer
-token, and sends `Authorization: Bearer <token>` on the outbound
-`omnia_sdk::http::fetch_json` call, which answers a non-2xx upstream
-response with `502`.
+token, and sends it on the outbound `omnia_sdk::http::get` request with
+`.bearer(token)`. `fetch_json` answers a non-2xx upstream response with
+`502`.
 
 ## Relational geo queries — no `GEORADIUS`
 
@@ -84,11 +84,11 @@ A handler's error type implements `IntoResponse`, and that implementation
 alone decides the wire shape. The default `omnia_sdk::Error` renders as
 `omnia_sdk::ErrorBody` — an `application/json` body with two fields,
 `error` (the code discriminant) and `message` (the description) — with no
-room for domain data or status codes outside `400`, `404`, `500`, and `502`.
+room for domain data or status codes outside `400`, `404`, `409`, `500`, and
+`502`.
 
-`upsert_place` and `update_quota` demonstrate the structured alternative.
-Each handler returns its own error type (`Result<Json<UpsertPlaceReply>,
-PlaceError>`, `Result<Json<QuotaRecord>, QuotaError>`), and its
+`upsert_place` demonstrates the structured alternative. It returns its own
+error type (`Result<Json<UpsertPlaceReply>, PlaceError>`), and its
 `IntoResponse` serializes a superset of `ErrorBody` as `application/json`:
 `error` is the discriminant, `Display` supplies
 `message`, and the variant's domain fields ride alongside, so a client that
@@ -97,7 +97,6 @@ knows the route reads the extra fields:
 
 ```json
 { "error": "invalid_coordinate", "message": "lat 123.4 is outside [-90, 90]", "field": "lat", "value": 123.4, "min": -90.0, "max": 90.0 }
-{ "error": "conflict", "message": "quota for `metro` changed concurrently (current version: Some(2))", "tenant": "metro", "current_version": 2 }
 ```
 
 Two things to note:

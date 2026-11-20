@@ -10,22 +10,19 @@ use omnia_sdk::messaging::Delivery;
 async fn registers() {
     let router = guest::router();
 
-    let outcome = router.handle(Delivery::default()).await;
+    let error = router.handle(Delivery::default()).await.expect_err("no topic");
 
-    assert_eq!(
-        outcome,
-        Err(omnia_sdk::Error::bad_request("missing-topic", "the delivery has no topic"))
-    );
+    assert_eq!(error, omnia_sdk::Error::bad_request("missing-topic", "the delivery has no topic"));
 }
 
 #[tokio::test]
 async fn unknown_topic() {
     let router = guest::router();
 
-    let outcome = router.handle(Delivery::new("nothing-here", &[])).await;
+    let error = router.handle(Delivery::new("nothing-here", &[])).await.expect_err("no route");
 
     assert_eq!(
-        outcome,
-        Err(omnia_sdk::Error::not_found("unhandled-topic", "no route for topic `nothing-here`"))
+        error,
+        omnia_sdk::Error::not_found("unhandled-topic", "no route for topic `nothing-here`")
     );
 }

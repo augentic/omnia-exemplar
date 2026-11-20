@@ -29,7 +29,7 @@ pub async fn process(message: &MotionMessage) -> Result<()> {
         return Err(MotionError::BadTime("future-dated serial data message".to_string()).into());
     }
 
-    let state = keyvalue::open(keyvalue::DEFAULT).await?;
+    let state = keyvalue::default().await?;
     update_timestamp(&state, timestamp, vehicle_id).await?;
 
     let Some(serial_data) = message.serial_data.as_ref() else {

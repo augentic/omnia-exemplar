@@ -28,7 +28,7 @@ struct State {
 pub(crate) async fn set_vehicle_to_trip(
     vehicle_id: impl Into<String>, trip_id: impl Into<String>,
 ) -> Result<()> {
-    let state_store = keyvalue::open(keyvalue::DEFAULT).await?;
+    let state_store = keyvalue::default().await?;
     let mut state = load_state(&state_store).await?;
     state.overrides.insert(vehicle_id.into(), trip_id.into());
     save_state(&state_store, &state).await
@@ -74,7 +74,7 @@ async fn preprocess(event: &mut MotionMessage) -> Result<()> {
         return Ok(());
     };
 
-    let state_store = keyvalue::open(keyvalue::DEFAULT).await?;
+    let state_store = keyvalue::default().await?;
     let state = load_state(&state_store).await?;
     if let Some(override_trip) = state.overrides.get(vehicle_id) {
         decoded.line_id = None;

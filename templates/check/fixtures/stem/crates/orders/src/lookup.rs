@@ -63,7 +63,7 @@ impl IntoResponse for LookupError {
 pub(crate) async fn lookup(
     Path(id): Path<String>,
 ) -> Result<(StatusCode, Json<OrderStatus>), LookupError> {
-    let state = keyvalue::open(keyvalue::DEFAULT).await?;
+    let state = keyvalue::default().await?;
     let status: OrderStatus = state
         .get_json(&order_key(&id))
         .await?

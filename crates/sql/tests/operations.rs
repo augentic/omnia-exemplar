@@ -6,7 +6,7 @@ use http::header::CONTENT_TYPE;
 use http::{Method, Request, StatusCode};
 use omnia::{Provides, Runtime};
 use omnia_test::host::sql::{Field, Row, Value as SqlValue};
-use omnia_test::host::{self, Backends, Deployment, Executed, ScriptedTables, precompiled};
+use omnia_test::host::{self, Backends, Deployment, Ended, Executed, ScriptedTables, precompiled};
 use omnia_wasi_http::WasiHttp;
 use omnia_wasi_messaging::WasiMessaging;
 use omnia_wasi_otel::WasiOtel;
@@ -263,11 +263,18 @@ async fn update_agency_partial() {
     .await;
     runtime.shutdown();
 
-    // Check, update, fetch again — and the update touches only the name.
+    // Check, update, fetch again in one committed transaction — and the
+    // update touches only the name.
     let issued = after_schema(&tables);
     let [before, update, after] = issued.as_slice() else {
         panic!("expected fetch, update, fetch");
     };
+    let transactions = tables.transactions();
+    let [transaction] = transactions.as_slice() else {
+        panic!("expected one transaction");
+    };
+    assert_eq!(transaction.ended, Some(Ended::Committed));
+    assert_eq!(transaction.statements.len(), 3, "{:?}", transaction.statements);
     assert_eq!(before.sql, after.sql);
     assert!(update.sql.contains("SET name = $1"), "update should set only the name");
     assert!(!update.sql.contains("timezone"), "update should not touch unset columns");
