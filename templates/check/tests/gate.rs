@@ -18,7 +18,8 @@ fn contract() {
     assert!(failures.is_empty(), "template contract violated:\n{}", failures.join("\n"));
 }
 
-// The pin keeps the root's version, so the key alone retargets the crate.
+// The pin keeps the root's version and features, so the key alone retargets
+// the crate.
 #[test]
 fn retargeted_pin() {
     for (key, value) in [("git", "https://github.com/augentic/omnia"), ("package", "omnia-test")] {
@@ -26,16 +27,10 @@ fn retargeted_pin() {
         let seed = replica.read(SEED_MANIFEST);
         let pin = seed
             .lines()
-            .find(|line| line.starts_with("omnia-sdk = "))
-            .expect("the seed pins `omnia-sdk`");
-        let version = pin.trim_start_matches("omnia-sdk = ");
-        replica.write(
-            SEED_MANIFEST,
-            &seed.replace(
-                pin,
-                &format!("omnia-sdk = {{ version = {version}, {key} = \"{value}\" }}"),
-            ),
-        );
+            .find(|line| line.starts_with("omnia-sdk = { "))
+            .expect("the seed pins `omnia-sdk` as a table");
+        let retargeted = pin.replacen("{ ", &format!("{{ {key} = \"{value}\", "), 1);
+        replica.write(SEED_MANIFEST, &seed.replace(pin, &retargeted));
 
         let failures = template_check::run(replica.root()).expect("contract inputs readable");
 
