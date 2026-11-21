@@ -2,7 +2,6 @@
 
 use std::time::Duration;
 
-use axum::body::Bytes;
 use omnia_sdk::{Result, Settings, keyvalue, server_error};
 use serde::{Deserialize, Serialize};
 
@@ -63,7 +62,7 @@ const STOPS_CACHE_KEY: &str = "pulse.stops";
 const STOPS_TTL: Duration = Duration::from_mins(5);
 
 async fn cached_stops() -> Result<Vec<StopInfo>> {
-    let cache = keyvalue::open(keyvalue::DEFAULT).await?;
+    let cache = keyvalue::default().await?;
     if let Some(cached) = cache.read(STOPS_CACHE_KEY).await? {
         match serde_json::from_slice(&cached) {
             Ok(stops) => return Ok(stops),
@@ -74,11 +73,8 @@ async fn cached_stops() -> Result<Vec<StopInfo>> {
     }
 
     let StopsSettings { static_api_url } = StopsSettings::load().await?;
-    let request = http::Request::builder()
-        .uri(format!("{static_api_url}/gtfs/stops?fields=stop_code,stop_lon,stop_lat"))
-        .body(Bytes::new())
-        .map_err(|error| server_error!("building stops request: {error}"))?;
-    let stops: Vec<StopInfo> = omnia_sdk::http::fetch_json(request).await?;
+    let url = format!("{static_api_url}/gtfs/stops?fields=stop_code,stop_lon,stop_lat");
+    let stops: Vec<StopInfo> = omnia_sdk::http::get(url).fetch_json().await?;
     cache.set_json(STOPS_CACHE_KEY, &stops, Some(STOPS_TTL)).await?;
     Ok(stops)
 }

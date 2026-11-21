@@ -1,9 +1,7 @@
 //! Block Management API client.
 
 use anyhow::Context as _;
-use axum::body::Bytes;
-use http::Method;
-use http::header::{AUTHORIZATION, CACHE_CONTROL, IF_NONE_MATCH};
+use http::header::{CACHE_CONTROL, IF_NONE_MATCH};
 use omnia_sdk::http::cache::HttpCache;
 use omnia_sdk::{Result, Settings, bad_gateway, identity, keyvalue};
 use serde::{Deserialize, Serialize};
@@ -33,15 +31,12 @@ pub(crate) async fn cached_allocation(
     );
 
     // `HttpCache` requires a quoted strong etag.
-    let request = http::Request::builder()
-        .uri(&endpoint)
-        .method(Method::GET)
+    let request = omnia_sdk::http::get(endpoint)
         .header(CACHE_CONTROL, "max-age=20")
         .header(IF_NONE_MATCH, format!("\"allocation:{vehicle_id}\""))
-        .header(AUTHORIZATION, format!("Bearer {token}"))
-        .body(Bytes::new())
-        .context("building block management request")?;
-    let cache = HttpCache::new(keyvalue::open(keyvalue::DEFAULT).await?);
+        .bearer(token)
+        .build()?;
+    let cache = HttpCache::new(keyvalue::default().await?);
     let response = cache.fetch(request).await.context("fetching allocations")?;
 
     if !response.status().is_success() {

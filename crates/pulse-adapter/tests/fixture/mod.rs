@@ -16,6 +16,7 @@ use chrono::{Duration, Timelike, Utc};
 use common::topic;
 use http::{Method, Response};
 use omnia::{Provides, Runtime};
+use omnia_sdk::ErrorKind;
 use omnia_test::host::{
     self, Backends, Deployment, FixedIdentity, HandleError, MatchedHttp, Sink, precompiled,
 };
@@ -30,7 +31,7 @@ use pulse_adapter::motion::MotionEvent;
 use pulse_adapter::pulse::TIMEZONE;
 use quick_xml::events::{BytesText, Event};
 use quick_xml::{Reader, Writer};
-use serde::Deserialize;
+use serde::{Deserialize, Deserializer};
 use serde_json::Value;
 
 include!(concat!(env!("OUT_DIR"), "/gen.rs"));
@@ -96,7 +97,32 @@ pub enum Expected {
     /// The Motion events published.
     Success(Vec<MotionEvent>),
     /// The handler error returned.
-    Failure(omnia_sdk::Error),
+    Failure(#[serde(deserialize_with = "refusal")] omnia_sdk::Error),
+}
+
+// a capture records a refusal as `{"<kind>": {"code": .., "description": ..}}`
+fn refusal<'de, D: Deserializer<'de>>(deserializer: D) -> Result<omnia_sdk::Error, D::Error> {
+    #[derive(Deserialize)]
+    struct Detail {
+        code: String,
+        description: String,
+    }
+
+    #[derive(Deserialize)]
+    enum Refusal {
+        BadRequest(Detail),
+        NotFound(Detail),
+        ServerError(Detail),
+        BadGateway(Detail),
+    }
+
+    let (kind, detail) = match Refusal::deserialize(deserializer)? {
+        Refusal::BadRequest(detail) => (ErrorKind::BadRequest, detail),
+        Refusal::NotFound(detail) => (ErrorKind::NotFound, detail),
+        Refusal::ServerError(detail) => (ErrorKind::ServerError, detail),
+        Refusal::BadGateway(detail) => (ErrorKind::BadGateway, detail),
+    };
+    Ok(omnia_sdk::Error::new(kind, detail.code, detail.description))
 }
 
 /// A fixture ready to drive: the re-anchored input XML and the backends a
@@ -232,10 +258,10 @@ pub async fn prepare(def: TestDef) -> Case {
 /// few seconds' slack when the description embeds a freshness delay
 /// computed from `Utc::now()`.
 ///
-/// A bad request is rejected and any other failure released, each with the
-/// guest error's `code: …, description: …` text as its reason.
+/// A bad request or a conflict is rejected and any other failure released,
+/// each with the guest error's `code: …, description: …` text as its reason.
 pub fn delivery_error_matches(expected: &omnia_sdk::Error, error: &HandleError) -> bool {
-    let rejects = matches!(expected, omnia_sdk::Error::BadRequest { .. });
+    let rejects = matches!(expected.kind(), ErrorKind::BadRequest | ErrorKind::Conflict);
     let reason = match error {
         HandleError::Rejected(reason) if rejects => reason,
         HandleError::Released { reason, .. } if !rejects => reason,

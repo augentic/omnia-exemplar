@@ -30,7 +30,7 @@ pub struct AlertRequest {
 pub struct AlertReply(pub &'static str);
 
 pub(crate) async fn alert(Json(input): Json<AlertRequest>) -> Result<Json<AlertReply>> {
-    let client = websocket::connect(websocket::DEFAULT).await?;
+    let client = websocket::default().await?;
     let message = Message::Text(input.message);
 
     match input.sockets {

@@ -1,6 +1,6 @@
 //! Stop collection: full CRUD plus a combined filter query.
 //!
-//! The list handler builds `Filter::and(...)` from whichever query
+//! The list handler builds `Filter::all(...)` from whichever query
 //! parameters are present — `contains` (text search), `eq` (zone), `ne`
 //! (zone exclusion), `eq` + `is_not_null` (accessibility), `is_null`
 //! (top-level stops), `gte`/`lte` (bounding box), and `on_date` (update
@@ -133,7 +133,7 @@ pub(crate) async fn create_stop(
 pub(crate) async fn get_stop(Path(id): Path<String>) -> Result<Json<DocumentRecord<Stop>>> {
     let stop = docstore::open(COLLECTION)
         .await?
-        .get_as(&id)
+        .get_json(&id)
         .await?
         .ok_or_else(|| not_found!("stop {id} not found"))?;
 
@@ -243,14 +243,12 @@ pub(crate) async fn list_stops(Query(input): Query<ListStopsRequest>) -> Result<
         filters.push(filter);
     }
 
-    let filter = if filters.is_empty() { None } else { Some(Filter::and(filters)) };
-
-    let query = docstore::Query {
-        filter,
-        order_by: vec![SortField::asc("stop_name")],
-        limit: input.limit,
-        after: input.continuation,
-    };
+    let query = docstore::Query::builder()
+        .maybe_filter(Filter::all(filters))
+        .order_by(vec![SortField::asc("stop_name")])
+        .maybe_limit(input.limit)
+        .maybe_after(input.continuation)
+        .build();
     let page = docstore::open(COLLECTION).await?.find(&query).await?;
 
     Ok(Json(StopsReply {

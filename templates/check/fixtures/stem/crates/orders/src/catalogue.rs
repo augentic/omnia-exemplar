@@ -50,7 +50,7 @@ pub(crate) async fn list_catalogue(
     Query(input): Query<ListCatalogue>,
 ) -> Result<Json<CatalogueReply>> {
     let min_cents = input.min_cents.unwrap_or(0);
-    let cache = keyvalue::open(keyvalue::DEFAULT).await?;
+    let cache = keyvalue::default().await?;
 
     if min_cents == 0
         && let Some(items) = cache.get_json(CATALOGUE_KEY).await?
@@ -58,7 +58,7 @@ pub(crate) async fn list_catalogue(
         return Ok(Json(CatalogueReply { items }));
     }
 
-    let items: Vec<CatalogueItem> = sql::open(sql::DEFAULT)
+    let items: Vec<CatalogueItem> = sql::default()
         .await?
         .query_as(
             "SELECT sku, cents, in_stock FROM catalogue WHERE cents >= $1 ORDER BY sku ASC",

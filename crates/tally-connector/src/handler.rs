@@ -21,7 +21,7 @@ pub(crate) async fn tally(Json(input): Json<TallyRequest>) -> Result<Json<TallyR
     // forward to the tally APC topic
     let site = message.device.as_ref().map_or_else(|| "undefined", |device| &device.site);
     let msg = Message::json(message)?.with_key(site);
-    let client = messaging::connect(messaging::DEFAULT).await?;
+    let client = messaging::default().await?;
     client.send(topic::TALLY_APC, msg).await?;
 
     Ok(Json(TallyReply("OK")))

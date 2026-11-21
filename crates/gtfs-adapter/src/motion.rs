@@ -3,7 +3,7 @@
 use chrono::{DateTime, Utc};
 use common::topic;
 use omnia_sdk::messaging::{self, Message};
-use omnia_sdk::{Context, Error, Handlers, Result, bad_request};
+use omnia_sdk::{Error, Handlers, Result, bad_request};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
@@ -36,9 +36,7 @@ impl From<MotionError> for Error {
     }
 }
 
-pub(crate) async fn motion(_: Context, input: MotionMessage) -> Result<()> {
-    let message = input;
-
+pub(crate) async fn motion(message: MotionMessage) -> Result<()> {
     // serial data event
     if message.event_type == EventType::SerialData {
         #[cfg(feature = "god-mode")]
@@ -58,7 +56,7 @@ pub(crate) async fn motion(_: Context, input: MotionMessage) -> Result<()> {
     };
 
     // publish
-    let client = messaging::connect(messaging::DEFAULT).await?;
+    let client = messaging::default().await?;
     client.send(topic, message.with_key(key)).await?;
 
     Ok(())

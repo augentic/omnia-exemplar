@@ -77,6 +77,35 @@ Unreleased
     `type_repetition_in_bounds` allowance.
   - The `clippy.toml` reasons name the `omnia-sdk` module a guest reaches
     instead of a capability trait.
+- **The `omnia-sdk` 0.39 forms.** Handlers, fixtures, and suites move onto
+  the SDK's builder, openers, and helpers.
+  - A topic handler that never reads its delivery's metadata takes its input
+    alone, so `motion`, `train_avl`, `passenger_count`, `pulse`, and the check
+    fixture's `on_placed` and `on_dispatched` drop their `Context`.
+  - Outbound requests use the `omnia_sdk::http` builder in `pattern`'s
+    `identity` and `decode`, `gtfs-adapter`'s `fleet`, `block_mgt`, and
+    `trip`, and `pulse-adapter`'s `stops` and `handler`. `.bearer(token)`
+    replaces a hand-built `Authorization` header, and `pulse-adapter` drops
+    its `axum` dependency.
+  - Every handle on a `DEFAULT` binding opens through the module's
+    `default()`.
+  - `pattern::cas` updates through `Bucket::update_json` and answers a stale
+    version with `conflict!`. `QuotaError` is gone, so the `409` body is
+    `error` and `message` alone, and the message names the stored version.
+  - The `sql` stem binds with `sql::params!`, reads a lone column as a
+    one-element tuple, and runs `update_agency`'s check, update, and
+    read-back in one `Database::transaction`. `fetch_agency` takes
+    `&impl Executor`.
+  - The `docstore` stem reads with `Collection::get_json` and builds its list
+    queries with `Query::builder()` and `Filter::all`.
+  - `capability::archive` uses `blobstore::exists`, `blobstore::create`, and
+    `Container::metadata`, and the check fixture's `on_placed` counts with
+    `Bucket::add`.
+  - `tests/messaging.rs` reads a refusal as the error `Router::handle`
+    returns. `pulse-adapter`'s capture fixture decodes a recorded refusal
+    itself, since `omnia_sdk::Error` no longer derives `Deserialize`.
+  - `AGENTS.md` and the README describe these forms. A `409` is `conflict!`
+    unless its body carries domain fields, as `stop::CreateError`'s does.
 - **Outbound caching through `omnia_sdk::http::cache`.** The root and seed
   manifests drop `omnia-http-cache` with its `[patch.crates-io]` row, since
   `omnia-sdk`'s default `http` feature carries the cache. Both `deny.toml`

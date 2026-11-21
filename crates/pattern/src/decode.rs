@@ -3,8 +3,7 @@
 //! The canonical interface-composition vignette: check the `default`
 //! [`keyvalue`] bucket for a previously decoded segment, and on a miss
 //! resolve the decoder endpoint and client certificate from [`config`], call
-//! the decoder through [`http::fetch_json`], then write the result back with
-//! a TTL. Credentials never leave configuration: the certificate travels as a
+//! the decoder with [`http::post`], then write the result back with a TTL. Credentials never leave configuration: the certificate travels as a
 //! request header, so outbound HTTP stays generic and no TLS-specific
 //! interface is needed.
 //!
@@ -12,10 +11,7 @@
 
 use std::time::Duration;
 
-use anyhow::Context as _;
 use axum::Json;
-use axum::body::Bytes;
-use axum::http::{Method, Request};
 use axum::routing::post;
 use omnia_sdk::{Handlers, Result, Settings, bad_request, http, keyvalue};
 use serde::{Deserialize, Serialize};
@@ -76,7 +72,7 @@ pub(crate) async fn decode_segment(
         ));
     }
     let key = state_keys::segment(&input.code);
-    let cache = keyvalue::open(keyvalue::DEFAULT).await?;
+    let cache = keyvalue::default().await?;
 
     // Cache hit: no config read, no outbound request.
     if let Some(segment) = cache.get_json(&key).await? {
@@ -91,17 +87,11 @@ pub(crate) async fn decode_segment(
     // stays generic.
     let settings = DecodeSettings::load().await?;
 
-    let body = serde_json::to_vec(&serde_json::json!({ "code": input.code }))
-        .context("serializing decode request")?;
-    let request = Request::builder()
-        .method(Method::POST)
-        .uri(settings.decoder_url)
-        .header("Content-Type", "application/json")
+    let segment: Segment = http::post(settings.decoder_url)
         .header("Client-Cert", settings.client_cert)
-        .body(Bytes::from(body))
-        .context("building decode request")?;
-
-    let segment: Segment = http::fetch_json(request).await?;
+        .json(&serde_json::json!({ "code": input.code }))
+        .fetch_json()
+        .await?;
 
     // Write back through the cache so the next lookup short-circuits.
     cache.set_json(&key, &segment, Some(SEGMENT_TTL)).await?;

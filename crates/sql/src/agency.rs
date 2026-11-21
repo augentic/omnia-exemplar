@@ -2,14 +2,15 @@
 //!
 //! Demonstrates server-assigned ids (a max-id probe, then max + 1),
 //! existence checks answering 404, conditional `SET` clauses so only
-//! provided fields are written, and a fetch-after-update reply so the
-//! caller sees exactly what was stored.
+//! provided fields are written, and an update that checks, writes, and
+//! fetches again in one transaction, so the caller sees exactly what was
+//! stored.
 
 use axum::Json;
 use axum::extract::{Path, Query};
 use axum::routing::get;
 use chrono::Utc;
-use omnia_sdk::sql::{Database, FromRow, Row, Value};
+use omnia_sdk::sql::{self, Executor, FromRow, Value};
 use omnia_sdk::{Handlers, Result, bad_request, not_found};
 use serde::{Deserialize, Serialize};
 
@@ -41,14 +42,9 @@ pub struct Agency {
     pub created_at: String,
 }
 
-pub(crate) async fn fetch_agency(db: &Database, id: i64) -> Result<Option<Agency>> {
-    let agencies: Vec<Agency> = db
-        .query_as(
-            &format!("SELECT {AGENCY_COLUMNS} FROM agency WHERE agency_id = $1"),
-            &[Value::from(id)],
-        )
-        .await?;
-    Ok(agencies.into_iter().next())
+pub(crate) async fn fetch_agency(db: &impl Executor, id: i64) -> Result<Option<Agency>> {
+    let select = format!("SELECT {AGENCY_COLUMNS} FROM agency WHERE agency_id = $1");
+    db.query_opt(&select, sql::params![id]).await
 }
 
 /// List agencies, newest first.
@@ -115,12 +111,12 @@ pub(crate) async fn create_agency(
 
     db.exec(
         &format!("INSERT INTO agency ({AGENCY_COLUMNS}) VALUES ($1, $2, $3, $4, $5)"),
-        &[
-            Value::from(agency.agency_id),
-            Value::from(agency.name.as_str()),
-            Value::from(agency.url.clone()),
-            Value::from(agency.timezone.clone()),
-            Value::from(agency.created_at.as_str()),
+        sql::params![
+            agency.agency_id,
+            agency.name.as_str(),
+            agency.url.as_deref(),
+            agency.timezone.as_deref(),
+            agency.created_at.as_str(),
         ],
     )
     .await?;
@@ -130,11 +126,10 @@ pub(crate) async fn create_agency(
 
 // A concurrent create simply fails on the primary key — acceptable for an
 // example; production code would use a database sequence.
-async fn next_id(db: &Database) -> Result<i64> {
-    let rows: Vec<Row> =
-        db.query_as("SELECT agency_id FROM agency ORDER BY agency_id DESC LIMIT 1", &[]).await?;
-    let newest: Option<i64> = rows.first().map(|row| row.get("agency_id")).transpose()?;
-    Ok(newest.map_or(1, |id| id + 1))
+async fn next_id(db: &impl Executor) -> Result<i64> {
+    let newest: Option<(i64,)> =
+        db.query_opt("SELECT agency_id FROM agency ORDER BY agency_id DESC LIMIT 1", &[]).await?;
+    Ok(newest.map_or(1, |(id,)| id + 1))
 }
 
 pub(crate) async fn get_agency(Path(id): Path<i64>) -> Result<Json<AgencyReply>> {
@@ -161,33 +156,40 @@ pub(crate) async fn update_agency(
 ) -> Result<Json<AgencyReply>> {
     let db = schema::open().await?;
 
-    if fetch_agency(&db, id).await?.is_none() {
-        return Err(not_found!("agency {id} not found"));
-    }
+    let agency = db
+        .transaction(async |tx| {
+            if fetch_agency(tx, id).await?.is_none() {
+                return Err(not_found!("agency {id} not found"));
+            }
 
-    // conditionally set only the provided fields
-    let mut assignments = Vec::new();
-    let mut params = Vec::new();
-    for (column, value) in [("name", input.name), ("url", input.url), ("timezone", input.timezone)]
-    {
-        if let Some(value) = value {
-            params.push(Value::from(value));
-            assignments.push(format!("{column} = ${}", params.len()));
-        }
-    }
-    if assignments.is_empty() {
-        return Err(bad_request!("update sets no columns"));
-    }
+            // conditionally set only the provided fields
+            let mut assignments = Vec::new();
+            let mut params = Vec::new();
+            let fields = [("name", input.name), ("url", input.url), ("timezone", input.timezone)];
+            for (column, value) in fields {
+                if let Some(value) = value {
+                    params.push(Value::from(value));
+                    assignments.push(format!("{column} = ${}", params.len()));
+                }
+            }
+            if assignments.is_empty() {
+                return Err(bad_request!("update sets no columns"));
+            }
 
-    params.push(Value::from(id));
-    let sql =
-        format!("UPDATE agency SET {} WHERE agency_id = ${}", assignments.join(", "), params.len());
-    db.exec(&sql, &params).await?;
+            params.push(Value::from(id));
+            let update = format!(
+                "UPDATE agency SET {} WHERE agency_id = ${}",
+                assignments.join(", "),
+                params.len()
+            );
+            tx.exec(&update, &params).await?;
 
-    // fetch after update so the reply reflects what was stored
-    let agency = fetch_agency(&db, id)
-        .await?
-        .ok_or_else(|| not_found!("agency {id} not found after update"))?;
+            // fetch after update so the reply reflects what was stored
+            fetch_agency(tx, id)
+                .await?
+                .ok_or_else(|| not_found!("agency {id} not found after update"))
+        })
+        .await?;
 
     Ok(Json(AgencyReply { agency }))
 }

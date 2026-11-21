@@ -70,7 +70,7 @@ pub(crate) async fn get_stop_time(
 ) -> Result<Json<DocumentRecord<StopTime>>> {
     let stop_time = docstore::open(COLLECTION)
         .await?
-        .get_as(&id)
+        .get_json(&id)
         .await?
         .ok_or_else(|| not_found!("stop time {id} not found"))?;
 
@@ -137,14 +137,12 @@ pub(crate) async fn list_stop_times(
         filters.push(Filter::lte("stop_sequence", v));
     }
 
-    let filter = if filters.is_empty() { None } else { Some(Filter::and(filters)) };
-
-    let query = docstore::Query {
-        filter,
-        order_by: vec![SortField::asc("stop_sequence")],
-        limit: input.limit,
-        after: input.continuation,
-    };
+    let query = docstore::Query::builder()
+        .maybe_filter(Filter::all(filters))
+        .order_by(vec![SortField::asc("stop_sequence")])
+        .maybe_limit(input.limit)
+        .maybe_after(input.continuation)
+        .build();
     let page = docstore::open(COLLECTION).await?.find(&query).await?;
 
     Ok(Json(StopTimesReply {

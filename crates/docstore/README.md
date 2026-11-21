@@ -145,7 +145,8 @@ curl -s "http://localhost:8080/examples/stop-times?trip=trip-nex-0800&min_seq=1&
 - **CRUD** — insert, get, put (upsert), delete on stops; insert + get on
   routes and stop times
 - **Combined query endpoints** — each collection has one query endpoint that
-  builds `Filter::and(...)` from whichever query params are present
+  builds `Filter::all(...)` from whichever query params are present, into a
+  `Query::builder()`
 - **`Filter::eq`** — zone, agency, trip, stop
 - **`Filter::ne`** — exclude a specific zone (direct `ComparisonOp::Ne`
   codepath)

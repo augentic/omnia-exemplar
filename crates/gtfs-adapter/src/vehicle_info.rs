@@ -44,7 +44,7 @@ pub(crate) async fn vehicle_info(Path(vehicle_id): Path<String>) -> Result<Json<
             "vehicle id `{vehicle_id}` may hold only letters, digits, `_`, and `-`"
         ));
     }
-    let state = keyvalue::open(keyvalue::DEFAULT).await?;
+    let state = keyvalue::default().await?;
 
     let trip_key = state_keys::trip(&vehicle_id);
     let trip_info: Option<TripInstance> = state.get_json(&trip_key).await?;

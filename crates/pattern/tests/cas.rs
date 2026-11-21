@@ -1,5 +1,5 @@
-//! Tests for the `Bucket::compare_and_swap` optimistic-concurrency quota
-//! update, driven through the stem's component.
+//! Tests for the `Bucket::update_json` optimistic-concurrency quota update,
+//! driven through the stem's component.
 
 mod support;
 
@@ -64,17 +64,17 @@ async fn stale_version() {
     );
 
     // A caller still holding version 1 is rejected with 409 Conflict
-    // carrying the stored version to retry with.
+    // naming the stored version to retry with.
     let (status, body) = put_quota(&runtime, "metro", 1, 1_500).await;
     runtime.shutdown();
     assert_eq!(status, StatusCode::CONFLICT);
-    assert_eq!(body["error"], "conflict");
-    assert!(
-        body["message"].as_str().is_some_and(|msg| msg.contains("metro")),
-        "unexpected conflict message: {body}"
+    assert_eq!(
+        body,
+        json!({
+            "error": "conflict",
+            "message": "quota for `metro` changed concurrently (current version: 2)",
+        })
     );
-    assert_eq!(body["tenant"], "metro");
-    assert_eq!(body["current_version"], 2);
 }
 
 #[tokio::test]

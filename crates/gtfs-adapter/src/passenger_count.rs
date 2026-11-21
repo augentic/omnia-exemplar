@@ -5,7 +5,7 @@
 use std::time::Duration;
 
 use common::topic;
-use omnia_sdk::{Context, Handlers, Result, keyvalue};
+use omnia_sdk::{Handlers, Result, keyvalue};
 use serde::{Deserialize, Serialize};
 
 use crate::state_keys;
@@ -16,7 +16,7 @@ pub(crate) fn handlers() -> Handlers {
     Handlers::new().topic(topic::PASSENGER_COUNT, passenger_count)
 }
 
-pub(crate) async fn passenger_count(_: Context, input: PassengerCountMessage) -> Result<()> {
+pub(crate) async fn passenger_count(input: PassengerCountMessage) -> Result<()> {
     // create state key
     let vehicle_id = &input.vehicle.id;
     let Trip {
@@ -27,7 +27,7 @@ pub(crate) async fn passenger_count(_: Context, input: PassengerCountMessage) ->
     let key = state_keys::occupancy_status(vehicle_id, trip_id, start_date, start_time);
 
     // save occupancy status to state if set, otherwise remove
-    let state = keyvalue::open(keyvalue::DEFAULT).await?;
+    let state = keyvalue::default().await?;
     if let Some(occupancy_status) = input.occupancy_status {
         state.set_json(&key, &occupancy_status, Some(OCCUPANCY_STATUS_TTL)).await?;
     } else {

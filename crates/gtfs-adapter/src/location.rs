@@ -48,7 +48,7 @@ pub async fn process(message: &MotionMessage) -> Result<Option<Location>> {
     };
 
     let timestamp = message.timestamp()?;
-    let state = keyvalue::open(keyvalue::DEFAULT).await?;
+    let state = keyvalue::default().await?;
 
     if vehicle.is_train() {
         let allocation = block_mgt::cached_allocation(&vehicle.id, timestamp).await?;

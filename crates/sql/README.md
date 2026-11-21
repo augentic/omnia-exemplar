@@ -77,7 +77,7 @@ curl -s -X DELETE http://localhost:8080/examples/feeds/1
 - **Typed row decoding (`FromRow`)** — `Agency`, `Feed`, and
   `FeedWithAgency` derive `omnia_sdk::sql::FromRow`, one field per column
   (`Option<T>` for a nullable one), and `Database::query_as` returns them
-  directly; a lone column is `row.get::<i64>("agency_id")?`
+  directly; a lone column reads as a one-element tuple, `(i64,)`
 - **JOINs** — `FeedWithAgency` selects `agency.name AS agency_name`,
   `agency.url AS agency_url`, and `agency.timezone AS agency_timezone`
   through a `LEFT JOIN`
@@ -86,11 +86,17 @@ curl -s -X DELETE http://localhost:8080/examples/feeds/1
 - **Existence checks** — get/update answer 404 for a missing agency, and a
   feed for a missing agency is rejected
 - **Partial updates** — dynamic `SET` assignments for each provided field,
-  an empty patch rejected as 400, and a fetch-after-update reply
+  an empty patch rejected as 400, and the existence check, update, and
+  read-back run in one `Database::transaction`, so the reply is exactly what
+  was stored
+- **Shared helpers (`Executor`)** — `fetch_agency` takes `&impl Executor`, so
+  the get handler runs it on the database and the update runs it inside the
+  transaction
 - **Delete semantics** — `DELETE` answering 404 when zero rows are affected
 - **Parameterized SQL** — every statement binds values as `$1, $2, ...`
-  placeholders over `omnia_sdk::sql::Value`, with a page limit bound as
-  `Int64` since the portable dialect has no unsigned type
+  placeholders, through `sql::params![..]` or a `Vec<Value>` built at run
+  time, with a page limit bound as `Int64` since the portable dialect has no
+  unsigned type
 
 ## Testing
 

@@ -2,18 +2,15 @@
 //!
 //! Deployment credentials and upstream identities are resolved at use: the
 //! identity name is a configuration setting loaded through
-//! [`IdentitySettings`] and opened with [`identity::open`]. Its token is
-//! attached as an `Authorization: Bearer <token>` header on the outbound
-//! [`http::fetch_json`] call.
+//! [`IdentitySettings`] and opened with [`identity::open`]. Its token rides
+//! the outbound [`http::get`] request as an `Authorization: Bearer <token>`
+//! header, through [`RequestBuilder::bearer`].
 //!
 //! [`Identity::access_token`]: omnia_sdk::identity::Identity::access_token
+//! [`RequestBuilder::bearer`]: omnia_sdk::http::RequestBuilder::bearer
 
-use anyhow::Context as _;
 use axum::Json;
-use axum::body::Bytes;
 use axum::extract::Path;
-use axum::http::header::AUTHORIZATION;
-use axum::http::{Method, Request};
 use axum::routing::get;
 use omnia_sdk::{Handlers, Result, Settings, http, identity};
 use serde::{Deserialize, Serialize};
@@ -49,13 +46,7 @@ pub(crate) async fn fetch_upstream_status(
     let settings = IdentitySettings::load().await?;
     let token = identity::open(&settings.upstream_identity).await?.access_token().await?;
 
-    let request = Request::builder()
-        .method(Method::GET)
-        .uri(format!("{}/status/{resource}", settings.upstream_url.trim_end_matches('/')))
-        .header(AUTHORIZATION, format!("Bearer {token}"))
-        .body(Bytes::new())
-        .context("building upstream status request")?;
-
-    let status = http::fetch_json(request).await?;
+    let url = format!("{}/status/{resource}", settings.upstream_url.trim_end_matches('/'));
+    let status = http::get(url).bearer(token).fetch_json().await?;
     Ok(Json(status))
 }

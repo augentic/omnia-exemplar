@@ -9,7 +9,7 @@ use axum::Json;
 use axum::extract::{Path, Query};
 use axum::routing::{delete, get};
 use chrono::Utc;
-use omnia_sdk::sql::{Database, FromRow, Row, Value};
+use omnia_sdk::sql::{self, Executor, FromRow};
 use omnia_sdk::{Handlers, Result, not_found};
 use serde::{Deserialize, Serialize};
 
@@ -77,7 +77,7 @@ pub(crate) async fn list_agency_feeds(Path(agency_id): Path<i64>) -> Result<Json
             &format!(
                 "SELECT {FEED_COLUMNS} FROM feed WHERE agency_id = $1 ORDER BY created_at DESC"
             ),
-            &[Value::from(agency_id)],
+            sql::params![agency_id],
         )
         .await?;
 
@@ -117,11 +117,11 @@ pub(crate) async fn create_feed(
 
     db.exec(
         &format!("INSERT INTO feed ({FEED_COLUMNS}) VALUES ($1, $2, $3, $4)"),
-        &[
-            Value::from(feed.feed_id),
-            Value::from(feed.agency_id),
-            Value::from(feed.description.as_str()),
-            Value::from(feed.created_at.as_str()),
+        sql::params![
+            feed.feed_id,
+            feed.agency_id,
+            feed.description.as_str(),
+            feed.created_at.as_str()
         ],
     )
     .await?;
@@ -129,11 +129,10 @@ pub(crate) async fn create_feed(
     Ok(Json(FeedReply { feed }))
 }
 
-async fn next_id(db: &Database) -> Result<i64> {
-    let rows: Vec<Row> =
-        db.query_as("SELECT feed_id FROM feed ORDER BY feed_id DESC LIMIT 1", &[]).await?;
-    let newest: Option<i64> = rows.first().map(|row| row.get("feed_id")).transpose()?;
-    Ok(newest.map_or(1, |id| id + 1))
+async fn next_id(db: &impl Executor) -> Result<i64> {
+    let newest: Option<(i64,)> =
+        db.query_opt("SELECT feed_id FROM feed ORDER BY feed_id DESC LIMIT 1", &[]).await?;
+    Ok(newest.map_or(1, |(id,)| id + 1))
 }
 
 /// List all feeds joined with their agency details.
@@ -161,7 +160,7 @@ pub(crate) async fn list_all_feeds(
              agency.name AS agency_name, agency.url AS agency_url, agency.timezone AS agency_timezone \
              FROM feed LEFT JOIN agency ON feed.agency_id = agency.agency_id \
              ORDER BY feed.created_at DESC LIMIT $1",
-            &[Value::from(i64::from(input.limit.unwrap_or(DEFAULT_LIMIT)))],
+            sql::params![i64::from(input.limit.unwrap_or(DEFAULT_LIMIT))],
         )
         .await?;
 
@@ -178,7 +177,7 @@ pub struct DeleteFeedReply {
 pub(crate) async fn delete_feed(Path(id): Path<i64>) -> Result<Json<DeleteFeedReply>> {
     let db = schema::open().await?;
 
-    let affected = db.exec("DELETE FROM feed WHERE feed_id = $1", &[Value::from(id)]).await?;
+    let affected = db.exec("DELETE FROM feed WHERE feed_id = $1", sql::params![id]).await?;
     if affected == 0 {
         return Err(not_found!("feed {id} not found"));
     }
