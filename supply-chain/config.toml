@@ -126,7 +126,7 @@ version = "4.0.3"
 criteria = "safe-to-deploy"
 
 [[exemptions.cc]]
-version = "1.11.2"
+version = "1.11.3"
 criteria = "safe-to-deploy"
 
 [[exemptions.cfg-if]]
@@ -335,6 +335,10 @@ criteria = "safe-to-deploy"
 
 [[exemptions.flate2]]
 version = "1.1.11"
+criteria = "safe-to-deploy"
+
+[[exemptions.form_urlencoded]]
+version = "1.2.3"
 criteria = "safe-to-deploy"
 
 [[exemptions.fromenv]]
@@ -1158,7 +1162,7 @@ version = "0.2.3"
 criteria = "safe-to-deploy"
 
 [[exemptions.url]]
-version = "2.5.8"
+version = "2.5.9"
 criteria = "safe-to-deploy"
 
 [[exemptions.urlencoding]]
@@ -1358,7 +1362,7 @@ version = "0.6.4"
 criteria = "safe-to-deploy"
 
 [[exemptions.x509-cert]]
-version = "0.3.0"
+version = "0.3.1"
 criteria = "safe-to-deploy"
 
 [[exemptions.yoke]]
