@@ -30,4 +30,4 @@ key catalog. A vehicle id that is not a portable key segment is refused with
   sign-on, tag filtering, occupancy status, and vehicle info.
 - `tests/god_mode.rs` — the feature-gated override: refused when disabled,
   and, when enabled, applied to the next sign-on (run with
-  `--features god-mode`, which `build.rs` passes on to the guest).
+  `--features god-mode`).

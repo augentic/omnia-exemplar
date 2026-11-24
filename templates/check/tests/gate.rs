@@ -94,12 +94,9 @@ fn seed_features() {
 fn patched_crate() {
     let replica = Replica::of_repo();
     let seed = replica.read(SEED_MANIFEST);
-    let patched = seed.replacen(
-        "[patch.crates-io]\n",
-        "[patch.crates-io]\ntokio = { git = \"https://github.com/tokio-rs/tokio\" }\n",
-        1,
+    let patched = format!(
+        "{seed}\n[patch.crates-io]\ntokio = {{ git = \"https://github.com/tokio-rs/tokio\" }}\n"
     );
-    assert_ne!(patched, seed, "the seed has a `[patch.crates-io]` table");
     replica.write(SEED_MANIFEST, &patched);
 
     let failures = template_check::run(replica.root()).expect("contract inputs readable");
@@ -116,12 +113,9 @@ fn patched_crate() {
 fn uncarried_root_patch() {
     let replica = Replica::of_repo();
     let root = replica.read("Cargo.toml");
-    let patched = root.replacen(
-        "[patch.crates-io]\n",
-        "[patch.crates-io]\ntokio = { git = \"https://github.com/tokio-rs/tokio\" }\n",
-        1,
+    let patched = format!(
+        "{root}\n[patch.crates-io]\ntokio = {{ git = \"https://github.com/tokio-rs/tokio\" }}\n"
     );
-    assert_ne!(patched, root, "the root has a `[patch.crates-io]` table");
     replica.write("Cargo.toml", &patched);
 
     let failures = template_check::run(replica.root()).expect("contract inputs readable");

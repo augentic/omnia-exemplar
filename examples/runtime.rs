@@ -1,5 +1,8 @@
 //! Host runtime for the WASM guest.
 //!
+//! `ConfigDefault` serves only the host variables `CONFIG_KEYS` names,
+//! comma-separated, with a trailing `*` matching by prefix.
+//!
 //! Build the guest for `wasm32-wasip3` and run it with:
 //!
 //! ```shell

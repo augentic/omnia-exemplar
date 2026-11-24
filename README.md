@@ -39,7 +39,7 @@ backends; swapping in production backends from
 [omnia-backends](https://github.com/augentic/omnia-backends) is a host-side
 change only (see the omnia
 [Production Backends guide](https://github.com/augentic/omnia/blob/main/docs/guides/production-backends.md)).
-The omnia crates are crates.io dependencies (currently 0.38.0) declared once
+The omnia crates are crates.io dependencies (currently 0.38.1) declared once
 under `[workspace.dependencies]` in `Cargo.toml`; every `omnia-*` line moves
 together. Outbound HTTP caching is opt-in per call site through
 `omnia_sdk::http::cache`, a fetch decorator that stores responses in a
@@ -243,6 +243,11 @@ prefixing is a host-side messaging backend concern (`KAFKA_TOPIC_PREFIX` /
 `WEBSOCKET_ADDR` in `.env.example` is read by the example host, not the
 guest: it is the bind address for `WebSocketDefault` (the backend behind
 `POST /examples/alert`), which otherwise defaults to `0.0.0.0:80`.
+
+`CONFIG_KEYS` in `.env.example` is also read by the example host, not the
+guest: it names the comma-separated host variables `ConfigDefault` serves
+through `omnia:config` (with a trailing `*` matching by prefix), which
+otherwise serves nothing.
 
 ## State keys
 
