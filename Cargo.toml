@@ -109,7 +109,7 @@ print_stdout = "warn"
 unused_result_ok = "warn"
 
 [workspace.dependencies]
-anyhow = "1.0.104"
+anyhow = "1.0.105"
 axum = { version = "0.8.9", default-features = false, features = ["json", "query"] }
 bytes = "1.12.2"
 chrono = { version = "0.4.45", features = ["serde"] }
@@ -129,7 +129,7 @@ tokio = { version = "1.54.1", default-features = false, features = [
     "sync",
     "time",
 ] }
-toml = "1.2.1"
+toml = "1.2.2"
 tower = { version = "0.5.3", default-features = false, features = ["util"] }
 tracing = "0.1.44"
 urlencoding = "2.1.3"
