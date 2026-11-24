@@ -1,6 +1,9 @@
 //! Host runtime for the WASM guest: WASI's default backends, `SQLite` in
 //! memory for tables and a fixed token for identity.
 //!
+//! `ConfigDefault` serves only the host variables `CONFIG_KEYS` names,
+//! comma-separated, with a trailing `*` matching by prefix.
+//!
 //! Build the guest for `wasm32-wasip3` and run it with:
 //!
 //! ```shell

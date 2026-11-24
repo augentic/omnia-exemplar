@@ -8,6 +8,17 @@ Unreleased
 
 ### Changed
 
+- **Published omnia 0.38.1 from crates.io.** Omnia and its capability crates
+  now come from crates.io at 0.38.1 in the root and seed manifests (bringing
+  Wasmtime 51, guest environment isolation and grants, the runtime concurrency
+  gate, HTTP hardening, and explicit `CONFIG_KEYS` allowlists on
+  `ConfigDefault`), alongside `anyhow` 1.0.105 and `toml` 1.2.2. The
+  `[patch.crates-io]` git overrides (root and seed), the commented local-path
+  block, and both `deny.toml` `allow-git` entries are gone, and
+  `template-check`'s `patched_crate` and `uncarried_root_patch` tests append a
+  patch table rather than splicing into one. `.env.example` gains
+  `CONFIG_KEYS` for the example host, and `gtfs-adapter`'s `build.rs` builds
+  its shared `wasm32-fixtures` guest with `god-mode` unconditionally.
 - **Rust 1.100 and `wasm32-wasip3`.** The root and seed manifests set
   `rust-version = "1.100"`. The root `rust-toolchain.toml` and the
   `mise.toml` `wasm` task are `exact` template entries, so a generated guest
