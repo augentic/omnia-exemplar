@@ -25,7 +25,7 @@ crate-type = ["cdylib"]
 
 [dependencies]
 axum.workspace = true
-chrono.workspace = true
+jiff.workspace = true
 omnia-sdk.workspace = true
 serde.workspace = true
 serde_json.workspace = true

@@ -8,7 +8,7 @@
 use axum::Json;
 use axum::extract::{Path, Query};
 use axum::routing::{delete, get};
-use chrono::Utc;
+use jiff::Timestamp;
 use omnia_sdk::sql::{self, Executor, FromRow};
 use omnia_sdk::{Handlers, Result, not_found};
 use serde::{Deserialize, Serialize};
@@ -112,7 +112,7 @@ pub(crate) async fn create_feed(
         feed_id: next_id(&db).await?,
         agency_id,
         description: input.description,
-        created_at: Utc::now().format("%Y-%m-%d %H:%M:%S").to_string(),
+        created_at: Timestamp::now().strftime("%Y-%m-%d %H:%M:%S").to_string(),
     };
 
     db.exec(
