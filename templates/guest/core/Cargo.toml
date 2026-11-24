@@ -116,36 +116,21 @@ tracing = "0.1.44"
 urlencoding = "2.1.3"
 uuid = { version = "1.29.3", features = ["serde", "v4"] }
 
-omnia = "0.38.0"
-omnia-sdk = "0.38.0"
-omnia-test = "0.38.0"
-omnia-wasi-blobstore = "0.38.0"
-omnia-wasi-config = "0.38.0"
-omnia-wasi-docstore = "0.38.0"
-omnia-wasi-http = "0.38.0"
-omnia-wasi-identity = "0.38.0"
-omnia-wasi-keyvalue = "0.38.0"
-omnia-wasi-messaging = "0.38.0"
-omnia-wasi-otel = "0.38.0"
-omnia-wasi-sql = "0.38.0"
-omnia-wasi-websocket = "0.38.0"
+omnia = "0.38.1"
+omnia-sdk = "0.38.1"
+omnia-test = "0.38.1"
+omnia-wasi-blobstore = "0.38.1"
+omnia-wasi-config = "0.38.1"
+omnia-wasi-docstore = "0.38.1"
+omnia-wasi-http = "0.38.1"
+omnia-wasi-identity = "0.38.1"
+omnia-wasi-keyvalue = "0.38.1"
+omnia-wasi-messaging = "0.38.1"
+omnia-wasi-otel = "0.38.1"
+omnia-wasi-sql = "0.38.1"
+omnia-wasi-websocket = "0.38.1"
 
 common = { path = "crates/common" }
-
-[patch.crates-io]
-omnia = { git = "https://github.com/augentic/omnia" }
-omnia-sdk = { git = "https://github.com/augentic/omnia" }
-omnia-test = { git = "https://github.com/augentic/omnia" }
-omnia-wasi-blobstore = { git = "https://github.com/augentic/omnia" }
-omnia-wasi-config = { git = "https://github.com/augentic/omnia" }
-omnia-wasi-docstore = { git = "https://github.com/augentic/omnia" }
-omnia-wasi-http = { git = "https://github.com/augentic/omnia" }
-omnia-wasi-identity = { git = "https://github.com/augentic/omnia" }
-omnia-wasi-keyvalue = { git = "https://github.com/augentic/omnia" }
-omnia-wasi-messaging = { git = "https://github.com/augentic/omnia" }
-omnia-wasi-otel = { git = "https://github.com/augentic/omnia" }
-omnia-wasi-sql = { git = "https://github.com/augentic/omnia" }
-omnia-wasi-websocket = { git = "https://github.com/augentic/omnia" }
 
 # A stem's suites JIT-compile its guest, and unoptimized cranelift is ~10x
 # slower.

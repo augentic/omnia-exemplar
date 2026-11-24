@@ -8,7 +8,7 @@ use omnia_template::{CRATE_LIST_ANCHOR, Error, HANDLER_LIST_ANCHOR, Manifest, in
 use self::support::Scratch;
 
 const CRATE_LINE: &str = "orders = { path = \"crates/orders\" }\n";
-const PIN: &str = "omnia-sdk = \"0.38.0\"";
+const PIN: &str = "omnia-sdk = \"0.38.1\"";
 const PIN_EDITED: &str = "omnia-sdk = \"0.39.0\"";
 
 fn template() -> &'static str {
