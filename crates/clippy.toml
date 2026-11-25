@@ -98,10 +98,10 @@ disallowed-methods = [
 
   { path = "std::path::absolute", reason = "guest paths are anchored to named preopens" },
 
-  { path = "std::time::SystemTime::now", reason = "a timestamp is `chrono::Utc::now()`, serialised as RFC 3339" },
-  { path = "std::time::Instant::now", reason = "a duration is the difference of two `chrono::Utc::now()` readings; the host owns every deadline" },
-  { path = "std::time::SystemTime::elapsed", reason = "a duration is the difference of two `chrono::Utc::now()` readings; the host owns every deadline" },
-  { path = "std::time::Instant::elapsed", reason = "a duration is the difference of two `chrono::Utc::now()` readings; the host owns every deadline" },
+  { path = "std::time::SystemTime::now", reason = "a timestamp is `jiff::Timestamp::now()`, serialised as RFC 3339" },
+  { path = "std::time::Instant::now", reason = "a duration is the difference of two `jiff::Timestamp::now()` readings; the host owns every deadline" },
+  { path = "std::time::SystemTime::elapsed", reason = "a duration is the difference of two `jiff::Timestamp::now()` readings; the host owns every deadline" },
+  { path = "std::time::Instant::elapsed", reason = "a duration is the difference of two `jiff::Timestamp::now()` readings; the host owns every deadline" },
   { path = "std::process::exit", reason = "guest exits flow through the typed command contract" },
   { path = "std::process::abort", reason = "guest failures return typed errors" },
   { path = "std::thread::spawn", reason = "guests do not own host threads" },
