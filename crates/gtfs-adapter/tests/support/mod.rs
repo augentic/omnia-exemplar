@@ -3,8 +3,8 @@
 //! expects rather than a prefix.
 
 use bytes::Bytes;
-use chrono::{DateTime, Utc};
 use http::{Request, Response};
+use jiff::Timestamp;
 use omnia::{Provides, Runtime};
 use omnia_test::host::{
     self, Backends, Deployment, FixedIdentity, HandleError, MatchedHttp, STATE_BUCKET, Sink,
@@ -130,10 +130,10 @@ pub fn fleet_query(vehicle_id: &str) -> String {
 
 /// The Block Management lookup `cached_allocation` makes for a fleet id at a
 /// message timestamp.
-pub fn allocation_query(fleet_id: &str, at: DateTime<Utc>) -> String {
+pub fn allocation_query(fleet_id: &str, at: Timestamp) -> String {
     format!(
         "{BLOCK_MGT_BASE}/allocations/vehicles/{fleet_id}?currentTrip=true&siblings=true&nowUnixTimeSeconds={}",
-        at.timestamp()
+        at.as_second()
     )
 }
 
@@ -164,11 +164,11 @@ pub fn trip_instance(trip_id: &str) -> Value {
 }
 
 /// A serial-data message signing `vehicle_id` on to `trip_id` at `at`.
-pub fn serial_data(vehicle_id: &str, trip_id: &str, at: DateTime<Utc>) -> String {
+pub fn serial_data(vehicle_id: &str, trip_id: &str, at: Timestamp) -> String {
     json!({
         "eventType": "serialData",
         "remoteData": { "externalId": vehicle_id },
-        "messageData": { "timestamp": at.to_rfc3339() },
+        "messageData": { "timestamp": at.to_string() },
         "serialData": {
             "decodedSerialData": { "tripId": trip_id, "tripNumber": trip_id, "lineId": "L1" },
         },

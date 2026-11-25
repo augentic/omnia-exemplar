@@ -12,9 +12,9 @@
 use std::path::Path;
 
 use bytes::Bytes;
-use chrono::{Duration, Timelike, Utc};
 use common::topic;
 use http::{Method, Response};
+use jiff::{SignedDuration, Timestamp};
 use omnia::{Provides, Runtime};
 use omnia_sdk::ErrorKind;
 use omnia_test::host::{
@@ -256,7 +256,7 @@ pub async fn prepare(def: TestDef) -> Case {
 
 /// Whether the component settled a delivery the way `expected` says, with a
 /// few seconds' slack when the description embeds a freshness delay
-/// computed from `Utc::now()`.
+/// computed from [`Timestamp::now`].
 ///
 /// A bad request or a conflict is rejected and any other failure released,
 /// each with the guest error's `code: …, description: …` text as its reason.
@@ -314,10 +314,13 @@ fn shift_time(xml: &str, delay: i32) -> Vec<u8> {
         None
     };
 
-    let event = Utc::now().with_timezone(&TIMEZONE) - Duration::seconds(i64::from(delay));
-    let created_date = event.format("%d/%m/%Y").to_string();
-    #[expect(clippy::cast_possible_wrap, reason = "seconds since midnight fit an i32")]
-    let adjusted_secs = (event.num_seconds_from_midnight() as i32).to_string();
+    let event = (Timestamp::now() - SignedDuration::from_secs(i64::from(delay)))
+        .to_zoned_datetime(TIMEZONE);
+    let created_date = event.strftime("%d/%m/%Y").to_string();
+    let adjusted_secs = (i32::from(event.hour()) * 3_600
+        + i32::from(event.minute()) * 60
+        + i32::from(event.second()))
+    .to_string();
 
     let mut reader = Reader::from_str(xml);
     let mut writer = Writer::new(Vec::with_capacity(xml.len()));

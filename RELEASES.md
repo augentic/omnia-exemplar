@@ -8,6 +8,14 @@ Unreleased
 
 ### Changed
 
+- **Replaced `chrono` and `chrono-tz` with `jiff`.** The root and guest
+  template seed (`templates/guest/core/`) manifests pin `jiff` 1.0.3 (`serde`,
+  `static`) and drop `chrono` and `chrono-tz`. `gtfs-adapter`,
+  `pulse-adapter`, and `sql` move wall-clock timestamps, civil dates, and
+  `TIMEZONE` onto `jiff::Timestamp`, `jiff::civil::Date`, and
+  `jiff::tz::TimeZone`. Both `clippy.toml` host-boundary reasons name
+  `jiff::Timestamp::now()`, and `deny.toml` drops the `RUSTSEC-2026-0543` and
+  `RUSTSEC-2026-0555` advisory ignores.
 - **Published omnia 0.38.1 from crates.io.** Omnia and its capability crates
   now come from crates.io at 0.38.1 in the root and seed manifests (bringing
   Wasmtime 51, guest environment isolation and grants, the runtime concurrency

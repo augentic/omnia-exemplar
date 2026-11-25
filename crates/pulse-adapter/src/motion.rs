@@ -1,6 +1,6 @@
 //! Motion event types for handling Motion data.
 
-use chrono::{DateTime, SecondsFormat, Utc};
+use jiff::Timestamp;
 use serde::{Deserialize, Serialize, Serializer};
 
 use crate::stops::StopInfo;
@@ -14,7 +14,7 @@ use crate::stops::StopInfo;
 pub struct MotionEvent {
     /// The time the event was received.
     #[serde(serialize_with = "with_nanos")]
-    pub received_at: DateTime<Utc>,
+    pub received_at: Timestamp,
 
     /// The type of the event.
     pub event_type: EventType,
@@ -40,12 +40,11 @@ pub struct MotionEvent {
     pub serial_data: Option<SerialData>,
 }
 
-fn with_nanos<S>(dt: &DateTime<Utc>, serializer: S) -> Result<S::Ok, S::Error>
+fn with_nanos<S>(dt: &Timestamp, serializer: S) -> Result<S::Ok, S::Error>
 where
     S: Serializer,
 {
-    let trunc = dt.to_rfc3339_opts(SecondsFormat::Millis, true);
-    serializer.serialize_str(&trunc)
+    serializer.collect_str(&format_args!("{dt:.3}"))
 }
 
 /// Motion event type.
@@ -68,14 +67,14 @@ pub struct MessageData {
     pub message_id: Option<u64>,
 
     /// Message timestamp.
-    pub timestamp: DateTime<Utc>,
+    pub timestamp: Timestamp,
 }
 
 impl Default for MessageData {
     fn default() -> Self {
         Self {
             message_id: None,
-            timestamp: Utc::now(),
+            timestamp: Timestamp::now(),
         }
     }
 }

@@ -1,7 +1,7 @@
 //! Motion AVL message processing.
 
-use chrono::{DateTime, Utc};
 use common::topic;
+use jiff::Timestamp;
 use omnia_sdk::messaging::{self, Message};
 use omnia_sdk::{Error, Handlers, Result, bad_request};
 use serde::{Deserialize, Serialize};
@@ -85,9 +85,11 @@ pub struct MotionMessage {
 
 impl MotionMessage {
     pub(crate) fn timestamp(&self) -> Result<i64> {
-        DateTime::parse_from_rfc3339(&self.message_data.timestamp)
-            .map(|dt| dt.with_timezone(&Utc).timestamp())
-            .map_err(|e| bad_request!("invalid timestamp: {}", e))
+        self.message_data
+            .timestamp
+            .parse::<Timestamp>()
+            .map(Timestamp::as_second)
+            .map_err(|e| bad_request!("invalid timestamp: {e}"))
     }
 
     pub(crate) fn vehicle_id(&self) -> Option<&str> {

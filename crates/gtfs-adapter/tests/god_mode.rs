@@ -7,9 +7,9 @@ mod support;
 use axum::http::header::CONTENT_TYPE;
 use axum::http::{Method, Request, StatusCode};
 use bytes::Bytes;
-use chrono::{DateTime, Utc};
 use common::topic;
 use gtfs_adapter::set_trip::SetTripReply;
+use jiff::Timestamp;
 use omnia_test::host::MatchedHttp;
 use serde_json::{Value, json};
 
@@ -37,7 +37,7 @@ async fn set_trip_disabled() {
 
 #[tokio::test]
 async fn set_trip_enabled() {
-    let signed_on: DateTime<Utc> = "2025-11-20T12:00:00Z".parse().expect("timestamp");
+    let signed_on: Timestamp = "2025-11-20T12:00:00Z".parse().expect("timestamp");
 
     // only TRIP-9 is scripted, so a lookup of the keyed-in TRIP-1 fails
     let http = MatchedHttp::default().on_matching(

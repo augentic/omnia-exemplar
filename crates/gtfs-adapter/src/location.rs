@@ -1,7 +1,8 @@
 //! Location event processing.
 
-use chrono::{Duration, NaiveDate, TimeZone};
-use chrono_tz::Tz;
+use jiff::civil::Date;
+use jiff::tz::TimeZone;
+use jiff::{SignedDuration, Timestamp};
 use omnia_sdk::Result;
 use omnia_sdk::keyvalue::{self, Bucket};
 use uuid::Uuid;
@@ -174,10 +175,10 @@ async fn current_trip(
     let sign_on = state.get_json::<i64>(&sign_on_key).await?;
     if let (Some(sign_on_ts), Some(start), Some(end)) = (
         sign_on,
-        time_to_timestamp(&instance.service_date, &instance.start_time, TIMEZONE),
-        time_to_timestamp(&instance.service_date, &instance.end_time, TIMEZONE),
+        time_to_timestamp(&instance.service_date, &instance.start_time, &TIMEZONE),
+        time_to_timestamp(&instance.service_date, &instance.end_time, &TIMEZONE),
     ) {
-        let duration = end - start + Duration::seconds(3_600).num_seconds();
+        let duration = end - start + 3_600;
         if timestamp - duration > sign_on_ts {
             state.remove(&sign_on_key).await?;
             state.remove(&trip_key).await?;
@@ -187,12 +188,12 @@ async fn current_trip(
     Ok(Some(instance))
 }
 
-fn time_to_timestamp(date: &str, time: &str, tz: Tz) -> Option<i64> {
+fn time_to_timestamp(date: &str, time: &str, tz: &TimeZone) -> Option<i64> {
     if date.is_empty() || time.is_empty() {
         return None;
     }
 
-    let date = NaiveDate::parse_from_str(date, "%Y%m%d").ok()?;
+    let date = Date::strptime("%Y%m%d", date).ok()?;
     let parts: Vec<_> = time.split(':').collect();
     if parts.len() != 3 {
         return None;
@@ -201,9 +202,11 @@ fn time_to_timestamp(date: &str, time: &str, tz: Tz) -> Option<i64> {
     let hours: i64 = parts[0].parse().ok()?;
     let minutes: i64 = parts[1].parse().ok()?;
     let seconds: i64 = parts[2].parse().ok()?;
-    let base = date.and_hms_opt(0, 0, 0)?;
-    let datetime = tz.from_local_datetime(&base).single()?;
-    Some((datetime + Duration::seconds(hours * 3_600 + minutes * 60 + seconds)).timestamp())
+    let midnight = tz.to_ambiguous_timestamp(date.at(0, 0, 0, 0)).unambiguous().ok()?;
+    midnight
+        .checked_add(SignedDuration::from_secs(hours * 3_600 + minutes * 60 + seconds))
+        .ok()
+        .map(Timestamp::as_second)
 }
 
 async fn occupancy(
