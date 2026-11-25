@@ -318,7 +318,7 @@ dependencies = [
 
 [[package]]
 name = "capability"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "axum",
@@ -456,7 +456,7 @@ dependencies = [
 
 [[package]]
 name = "common"
-version = "0.1.0"
+version = "0.2.0"
 
 [[package]]
 name = "const-hex"
@@ -953,7 +953,7 @@ dependencies = [
 
 [[package]]
 name = "docstore"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "axum",
  "bytes",
@@ -1302,7 +1302,7 @@ dependencies = [
 
 [[package]]
 name = "gtfs-adapter"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "axum",
@@ -1330,7 +1330,7 @@ dependencies = [
 
 [[package]]
 name = "guest"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "axum",
  "bytes",
@@ -2373,7 +2373,7 @@ dependencies = [
 
 [[package]]
 name = "omnia-template"
-version = "0.1.0"
+version = "0.2.0"
 
 [[package]]
 name = "omnia-test"
@@ -2761,7 +2761,7 @@ dependencies = [
 
 [[package]]
 name = "pattern"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "axum",
@@ -2957,7 +2957,7 @@ dependencies = [
 
 [[package]]
 name = "pulse-adapter"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "bytes",
@@ -2984,7 +2984,7 @@ dependencies = [
 
 [[package]]
 name = "pulse-connector"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "axum",
@@ -3881,7 +3881,7 @@ dependencies = [
 
 [[package]]
 name = "sql"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "axum",
  "bytes",
@@ -4016,7 +4016,7 @@ checksum = "7b2093cf4c8eb1e67749a6762251bc9cd836b6fc171623bd0a9d324d37af2417"
 
 [[package]]
 name = "tally-connector"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "axum",
@@ -4054,7 +4054,7 @@ dependencies = [
 
 [[package]]
 name = "template-check"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "omnia-template",
  "serde",
