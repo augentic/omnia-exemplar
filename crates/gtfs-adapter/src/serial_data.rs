@@ -2,7 +2,7 @@
 
 use std::time::Duration;
 
-use chrono::Utc;
+use jiff::Timestamp;
 use omnia_sdk::keyvalue::{self, Bucket};
 use omnia_sdk::{Result, bad_request};
 
@@ -25,7 +25,7 @@ pub async fn process(message: &MotionMessage) -> Result<()> {
     let timestamp = message.timestamp()?;
 
     // is this a future-dated (by 900 secs) timestamp?
-    if timestamp > Utc::now().timestamp() + SERIAL_DATA_THRESHOLD {
+    if timestamp > Timestamp::now().as_second() + SERIAL_DATA_THRESHOLD {
         return Err(MotionError::BadTime("future-dated serial data message".to_string()).into());
     }
 

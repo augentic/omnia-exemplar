@@ -1,9 +1,10 @@
 //! Trip Management API client and GTFS-realtime types.
 
 use anyhow::{Context, Result};
-use chrono::{Duration, NaiveDate, TimeZone, Timelike};
-use chrono_tz::Tz;
 use http::StatusCode;
+use jiff::civil::{Date, Time};
+use jiff::tz::TimeZone;
+use jiff::{Timestamp, ToSpan};
 use omnia_sdk::Settings;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -21,8 +22,9 @@ pub struct TripSettings {
 /// All schedule arithmetic (service dates, seconds-since-midnight offsets)
 /// is performed in this zone. Acme deliberately runs on UTC to keep the
 /// exemplar's fixtures reproducible — a real operator would set its actual
-/// IANA zone here (`Pacific/Auckland`) and must not copy UTC-as-local.
-pub const TIMEZONE: Tz = chrono_tz::UTC;
+/// IANA zone here (`Pacific/Auckland`, via [`jiff::tz::get`]) and must not
+/// copy UTC-as-local.
+pub const TIMEZONE: TimeZone = TimeZone::UTC;
 
 pub(crate) async fn instance(
     trip_id: &str, service_date: &str, start_time: &str,
@@ -50,12 +52,13 @@ pub(crate) async fn instance(
 }
 
 pub(crate) async fn nearest(trip_id: &str, event_timestamp: i64) -> Result<Option<TripInstance>> {
-    let tz = TIMEZONE;
-    let Some(event_dt) = tz.timestamp_opt(event_timestamp, 0).single() else {
+    let tz = &TIMEZONE;
+    let Ok(event_ts) = Timestamp::from_second(event_timestamp) else {
         return Ok(None);
     };
+    let event_dt = event_ts.to_zoned_datetime(TIMEZONE);
 
-    let current_date = event_dt.format("%Y%m%d").to_string();
+    let current_date = event_dt.strftime("%Y%m%d").to_string();
     let mut trips = fetch(trip_id, &current_date).await?;
 
     if trips.first().is_some_and(TripInstance::has_error) {
@@ -63,7 +66,10 @@ pub(crate) async fn nearest(trip_id: &str, event_timestamp: i64) -> Result<Optio
     }
 
     if event_dt.hour() < 4 {
-        let previous_date = (event_dt - Duration::days(1)).format("%Y%m%d").to_string();
+        let Ok(prev_date) = event_dt.date().yesterday() else {
+            return Ok(None);
+        };
+        let previous_date = prev_date.strftime("%Y%m%d").to_string();
         let previous = fetch(trip_id, &previous_date).await?;
         if previous.first().is_some_and(TripInstance::has_error) {
             return Ok(previous.into_iter().next());
@@ -75,10 +81,10 @@ pub(crate) async fn nearest(trip_id: &str, event_timestamp: i64) -> Result<Optio
         return Ok(None);
     }
 
+    let event_sec = event_dt.timestamp().as_second();
     trips.sort_by(|left, right| {
-        let event_ts = event_dt.timestamp();
-        let left_diff = difference(event_ts, left, tz);
-        let right_diff = difference(event_ts, right, tz);
+        let left_diff = difference(event_sec, left, tz);
+        let right_diff = difference(event_sec, right, tz);
         left_diff.cmp(&right_diff)
     });
 
@@ -166,24 +172,24 @@ fn extract(value: Value) -> Result<Vec<TripInstance>> {
     }
 }
 
-fn difference(event_ts: i64, trip: &TripInstance, tz: Tz) -> i64 {
+fn difference(event_ts: i64, trip: &TripInstance, tz: &TimeZone) -> i64 {
     let trip_ts = timestamp(trip, tz).unwrap_or(event_ts);
     (event_ts - trip_ts).abs()
 }
 
-fn timestamp(trip: &TripInstance, tz: Tz) -> Option<i64> {
-    let date = NaiveDate::parse_from_str(&trip.service_date, "%Y%m%d").ok()?;
+fn timestamp(trip: &TripInstance, tz: &TimeZone) -> Option<i64> {
+    let date = Date::strptime("%Y%m%d", &trip.service_date).ok()?;
     let total_seconds = parse_time(&trip.start_time)?;
     let days = total_seconds.div_euclid(86_400);
     let remaining = total_seconds.rem_euclid(86_400);
 
-    let hours = u32::try_from(remaining / 3_600).ok()?;
-    let minutes = u32::try_from((remaining % 3_600) / 60).ok()?;
-    let seconds = u32::try_from(remaining % 60).ok()?;
+    let hours = i8::try_from(remaining / 3_600).ok()?;
+    let minutes = i8::try_from((remaining % 3_600) / 60).ok()?;
+    let seconds = i8::try_from(remaining % 60).ok()?;
 
-    let date = date + Duration::days(days);
-    let local = date.and_hms_opt(hours, minutes, seconds)?;
-    tz.from_local_datetime(&local).single().map(|dt| dt.timestamp())
+    let date = date.checked_add(days.days()).ok()?;
+    let time = Time::new(hours, minutes, seconds, 0).ok()?;
+    tz.to_ambiguous_timestamp(date.to_datetime(time)).unambiguous().ok().map(Timestamp::as_second)
 }
 
 fn parse_time(time: &str) -> Option<i64> {

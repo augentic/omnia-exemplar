@@ -33,6 +33,7 @@ chrono.workspace = true
 chrono-tz.workspace = true
 common.workspace = true
 http.workspace = true
+jiff.workspace = true
 omnia-sdk.workspace = true
 serde.workspace = true
 serde_json.workspace = true
