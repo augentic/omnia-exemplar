@@ -8,9 +8,9 @@ mod support;
 
 use axum::http::{Method, Request, StatusCode};
 use bytes::Bytes;
-use chrono::{DateTime, Utc};
 use common::topic;
 use gtfs_adapter::vehicle_info::VehicleInfoReply;
+use jiff::{SignedDuration, Timestamp};
 use omnia_test::host::{HandleError, MatchedHttp};
 use serde_json::{Value, json};
 
@@ -30,7 +30,7 @@ fn fixture_value(raw: &[u8], index: usize) -> Value {
 }
 
 // The handlers key the allocation lookup on this timestamp.
-fn message_timestamp(value: &Value) -> DateTime<Utc> {
+fn message_timestamp(value: &Value) -> Timestamp {
     value["messageData"]["timestamp"]
         .as_str()
         .expect("timestamp")
@@ -171,7 +171,7 @@ async fn pax_occupancy() {
 #[tokio::test]
 async fn serial_data_sign_on() {
     // a fixed past instant after 04:00 keeps the lookup to one service date
-    let signed_on: DateTime<Utc> = "2025-11-20T12:00:00Z".parse().expect("timestamp");
+    let signed_on: Timestamp = "2025-11-20T12:00:00Z".parse().expect("timestamp");
 
     // 36:05:00 is 12:05 on the next day, so TRIP-EXT ranks behind TRIP-1
     // only if an extended-hours start time rolls over to that day
@@ -200,7 +200,7 @@ async fn serial_data_sign_on() {
     assert_eq!(trip["tripId"], "TRIP-1");
     assert_eq!(
         adapter.backends.state("motionGtfs.vehicle.signOn.EM580").await,
-        Some(signed_on.timestamp().to_string().into_bytes())
+        Some(signed_on.as_second().to_string().into_bytes())
     );
 
     // redelivery
@@ -214,7 +214,8 @@ async fn serial_data_sign_on() {
     );
 
     // the future check is against the wall clock
-    let future = serial_data("EM580", "TRIP-1", Utc::now() + chrono::Duration::seconds(3_600));
+    let future =
+        serial_data("EM580", "TRIP-1", Timestamp::now() + SignedDuration::from_secs(3_600));
     let error = adapter
         .deliver(topic::PULSE_TO_MOTION, future)
         .await
