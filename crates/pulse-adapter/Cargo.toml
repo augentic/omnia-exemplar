@@ -25,9 +25,8 @@ crate-type = ["cdylib"]
 
 [dependencies]
 anyhow.workspace = true
-chrono.workspace = true
-chrono-tz.workspace = true
 common.workspace = true
+jiff.workspace = true
 omnia-sdk.workspace = true
 quick-xml.workspace = true
 serde.workspace = true

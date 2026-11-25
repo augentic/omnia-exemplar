@@ -2,8 +2,9 @@
 
 use std::fmt::{Display, Formatter};
 
-use chrono::{NaiveDate, Utc};
-use chrono_tz::Tz;
+use jiff::Timestamp;
+use jiff::civil::Date;
+use jiff::tz::TimeZone;
 use omnia_sdk::Result;
 use serde::Deserialize;
 use serde_repr::Deserialize_repr;
@@ -15,8 +16,9 @@ use crate::handler::PulseMessageError;
 /// All schedule arithmetic (service dates, seconds-since-midnight offsets)
 /// is performed in this zone. Acme deliberately runs on UTC to keep the
 /// exemplar's fixtures reproducible — a real operator would set its actual
-/// IANA zone here (`Pacific/Auckland`) and must not copy UTC-as-local.
-pub const TIMEZONE: Tz = chrono_tz::UTC;
+/// IANA zone here (`Pacific/Auckland`, via [`jiff::tz::get`]) and must not
+/// copy UTC-as-local.
+pub const TIMEZONE: TimeZone = TimeZone::UTC;
 
 const MAX_DELAY_SECS: i64 = 60;
 const MIN_DELAY_SECS: i64 = -30;
@@ -37,7 +39,7 @@ pub struct TrainUpdate {
     /// The creation date of the train update.
     #[serde(rename(deserialize = "fechaCreacion"))]
     #[serde(deserialize_with = "pulse_date")]
-    pub created_date: NaiveDate,
+    pub created_date: Date,
 
     /// Train's registration number.
     #[serde(rename(deserialize = "numeroRegistro"))]
@@ -108,17 +110,16 @@ impl TrainUpdate {
         }
 
         // rebuild the event timestamp from the creation date + seconds from midnight
-        let naive_dt = self.created_date.and_hms_opt(0, 0, 0).unwrap_or_default();
-        let Some(midnight_dt) = naive_dt.and_local_timezone(TIMEZONE).earliest() else {
+        let midnight = self.created_date.at(0, 0, 0, 0);
+        let Ok(midnight_dt) = TIMEZONE.to_ambiguous_timestamp(midnight).earlier() else {
             return Err(
-                PulseMessageError::BadTime(format!("invalid local time: {naive_dt}")).into()
+                PulseMessageError::BadTime(format!("invalid local time: {midnight}")).into()
             );
         };
-        let midnight_ts = midnight_dt.timestamp();
-        let event_ts = midnight_ts + i64::from(since_midnight_secs);
+        let event_ts = midnight_dt.as_second() + i64::from(since_midnight_secs);
 
         // calculate delay from 'now'
-        let now_ts = Utc::now().with_timezone(&TIMEZONE).timestamp();
+        let now_ts = Timestamp::now().as_second();
         let delay_secs = now_ts - event_ts;
 
         tracing::info!(gauge.pulse_delay = delay_secs);
@@ -140,12 +141,12 @@ impl TrainUpdate {
     }
 }
 
-fn pulse_date<'de, D>(deserializer: D) -> anyhow::Result<NaiveDate, D::Error>
+fn pulse_date<'de, D>(deserializer: D) -> anyhow::Result<Date, D::Error>
 where
     D: serde::Deserializer<'de>,
 {
     let s: String = Deserialize::deserialize(deserializer)?;
-    NaiveDate::parse_from_str(&s, "%d/%m/%Y").map_err(serde::de::Error::custom)
+    Date::strptime("%d/%m/%Y", &s).map_err(serde::de::Error::custom)
 }
 
 /// Pulse train update change.

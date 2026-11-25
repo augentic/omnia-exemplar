@@ -3,8 +3,8 @@
 //! Transform a Pulse XML message into Motion events.
 
 use anyhow::Context as _;
-use chrono::Utc;
 use common::topic;
+use jiff::Timestamp;
 use omnia_sdk::messaging::{self, Delivery, Message};
 use omnia_sdk::{Error, Handlers, Result, Settings, identity};
 use serde::Deserialize;
@@ -153,7 +153,7 @@ impl TrainUpdate {
         let mut events = Vec::new();
         for train in allocated {
             events.push(MotionEvent {
-                received_at: Utc::now(),
+                received_at: Timestamp::now(),
                 event_type: EventType::Location,
                 message_data: MessageData::default(),
                 remote_data: RemoteData {

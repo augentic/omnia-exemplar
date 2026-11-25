@@ -5,8 +5,7 @@ mod fixture;
 
 use std::fs;
 
-use chrono::Utc;
-use pulse_adapter::pulse::TIMEZONE;
+use jiff::Timestamp;
 
 use self::fixture::{Case, Expected};
 
@@ -36,8 +35,7 @@ async fn replay(case: Case) {
             assert!(result.is_ok(), "{result:?}");
             assert_eq!(events.len(), expected_events.len());
             expected_events.iter().zip(events).for_each(|(published, mut actual)| {
-                let now = Utc::now().with_timezone(&TIMEZONE);
-                let diff = now.timestamp() - actual.message_data.timestamp.timestamp();
+                let diff = Timestamp::now().as_second() - actual.message_data.timestamp.as_second();
                 assert!(diff.abs() < 3, "expected vs actual too great: {diff}");
 
                 // compare original published message to pulse event
