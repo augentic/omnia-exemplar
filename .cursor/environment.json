@@ -1,0 +1,4 @@
+{
+  "name": "omnia-exemplar",
+  "install": "bash .cursor/install.sh"
+}
