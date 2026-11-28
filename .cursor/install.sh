@@ -5,7 +5,7 @@
 # again over a saved disk, so every step is safe to repeat.
 set -euo pipefail
 
-export PATH="$HOME/.cargo/bin:$HOME/.local/bin:$PATH"
+export PATH="$HOME/.cargo/bin:$PATH"
 sudo=""
 [ "$(id -u)" -eq 0 ] || sudo="sudo"
 
@@ -22,6 +22,9 @@ fi
 # run or unpacked, and every run reinstalls, so a saved disk keeps no binary
 # this script did not verify. Bump a version and its digest together.
 [ "$(uname -m)" = x86_64 ] || { echo "install.sh pins x86_64 releases only" >&2; exit 1; }
+# every tool lands here: the export above lasts only for this run, and the
+# line rustup adds to the shell profiles is what puts it on a later
+# session's PATH
 bin="${CARGO_HOME:-$HOME/.cargo}/bin"
 fetch() {
   local url=$1 sha256=$2 dest=$3 member=${4:-} dir
@@ -63,7 +66,7 @@ fetch https://github.com/mozilla/sccache/releases/download/v0.20.1/sccache-v0.20
   "$bin/sccache" sccache-v0.20.1-x86_64-unknown-linux-musl/sccache
 fetch https://github.com/jdx/mise/releases/download/v2026.11.14/mise-v2026.11.14-linux-x64.tar.gz \
   42a3ff51c24b4315d679a07bbc598e299dda12fea0dfc0d6f90a543495834831 \
-  "$HOME/.local/bin/mise" mise/bin/mise
+  "$bin/mise" mise/bin/mise
 
 # compile through that sccache, falling back to plain rustc if its server fails
 config="${CARGO_HOME:-$HOME/.cargo}/config.toml"
